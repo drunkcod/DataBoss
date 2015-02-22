@@ -1,0 +1,6 @@
+﻿usage {{ProgramName}} <command> <target>
+
+Available commands:
+  init     Initializes DataBoss for the target database
+  status   Checks for pending migrations
+  update   Applies any pending migrations
