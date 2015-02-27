@@ -1,32 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Data.SqlClient;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using System.Xml.Serialization;
 
 namespace DataBoss
 {
-	[XmlRoot("db")]
-	public class DataBossConfiguration
-	{
-		[XmlElement("connectionString")]
-		public string ConnectionString;
-
-		[XmlElement("migrations")]
-		public DataBossMigrationPath Migration;
-
-		public static DataBossConfiguration Load(string path) {
-			var xml = new XmlSerializer(typeof(DataBossConfiguration));
-			using(var input = File.OpenRead(path))
-				return (DataBossConfiguration)xml.Deserialize(input);
-		}
-	}
-
 	public class DataBossMigrationPath
 	{
 		[XmlAttribute("context")]
@@ -36,10 +17,20 @@ namespace DataBoss
 		public string Path;
 	}
 
-	public class DataBossLocalMigration
+	public interface IDataBossMigration
 	{
-		public DataBossMigrationInfo Info;
+		DataBossMigrationInfo Info { get; }
+		IEnumerable<string> GetQueryBatches();
+	}
+
+	public class DataBossLocalMigration : IDataBossMigration
+	{
+		public DataBossMigrationInfo Info { get; set; }
 		public string Path;
+
+		public IEnumerable<string> GetQueryBatches() {
+			yield return File.ReadAllText(Path);
+		}
 	}
 
 	public class DataBossMigrationInfo
@@ -53,17 +44,23 @@ namespace DataBoss
 	{
 		static string ProgramName { get { return Path.GetFileName(typeof(Program).Assembly.Location); } }
 
+		readonly SqlConnection db;
+
 		static string ReadResource(string path) {
 			using(var reader = new StreamReader(typeof(Program).Assembly.GetManifestResourceStream(path)))
 				return reader.ReadToEnd();
 		}
 
+		public Program(SqlConnection db) {
+			this.db = db;
+		}
+
 		static int Main(string[] args) {
-			var commands = new Dictionary<string, Action<DataBossConfiguration>>
+			var commands = new Dictionary<string, Action<Program, DataBossConfiguration>>
 			{
-				{ "init", Initialize },
-				{ "status", Status },
-				{ "update", Update },
+				{ "init", (p, c) => p.Initialize(c) },
+				{ "status", (p, c) => p.Status(c) },
+				{ "update", (p, c) => p.Update(c) },
 			};
 
 			if(args.Length != 2 || !commands.ContainsKey(args[0])) {
@@ -78,7 +75,11 @@ namespace DataBoss
 
 			var config = DataBossConfiguration.Load(target);
 			try {
-				commands[command](config);
+				using(var db = new SqlConnection(config.ConnectionString)) {
+					db.Open();
+					var program = new Program(db);
+					commands[command](program, config);
+				}
 			} catch(InvalidOperationException e) {
 				Console.Error.WriteLine(e.Message);
 			}
@@ -86,8 +87,7 @@ namespace DataBoss
 			return 0;
 		}
 
-		static void Initialize(DataBossConfiguration config) {
-			using(var db = new SqlConnection(config.ConnectionString))
+		void Initialize(DataBossConfiguration config) {
 			using(var cmd = new SqlCommand(@"
 if not exists(select * from sys.tables t where t.name = '__DataBossHistory')
 	create table __DataBossHistory(
@@ -99,14 +99,13 @@ if not exists(select * from sys.tables t where t.name = '__DataBossHistory')
 		[User] varchar(max)
 	)", db))
 			{
-				db.Open();
 				using(var r = cmd.ExecuteReader())
 					while(r.Read())
 						Console.WriteLine(r.GetValue(0));
 			}
 		}
 	
-		static void Status(DataBossConfiguration config) {
+		void Status(DataBossConfiguration config) {
 			var pending = GetPendingMigrations(config);
 			if(pending.Count != 0) {
 				Console.WriteLine("Pending migrations:");
@@ -115,31 +114,15 @@ if not exists(select * from sys.tables t where t.name = '__DataBossHistory')
 			}
 		}
 
-		static void Update(DataBossConfiguration config) {
+		void Update(DataBossConfiguration config) {
 			var pending = GetPendingMigrations(config);
 			Console.WriteLine("{0} pending migrations found.", pending.Count);
-			foreach(var item in pending) {
-				Console.WriteLine("  Applying: {0}. {1}", item.Info.Id, item.Info.Name);
-				using(var db = new SqlConnection(config.ConnectionString))
-				using(var cmd = new SqlCommand("insert __DataBossHistory(Id, Context, Name, StartedAt, [User]) values(@id, @context, @name, getdate(), @user)", db)) {
-					cmd.Parameters.AddWithValue("@id", item.Info.Id);
-					cmd.Parameters.AddWithValue("@context", item.Info.Context ?? string.Empty);
-					cmd.Parameters.AddWithValue("@name", item.Info.Name);
-					cmd.Parameters.AddWithValue("@user", Environment.UserName);
-					
-					db.Open();
-					cmd.ExecuteNonQuery();
-					
-					using(var q = new SqlCommand(File.ReadAllText(item.Path), db))
-						q.ExecuteNonQuery();
 
-					cmd.CommandText = "update __DataBossHistory set FinishedAt = getdate() where Id = @id";
-					cmd.ExecuteNonQuery();
-				}
-			}
+			var migrator = new DataBossMigrator(info => new DataBossConsoleLogMigrationScope(new DataBossSqlMigrationScope(db)));
+			pending.ForEach(migrator.Apply);
 		}
 
-		private static List<DataBossLocalMigration> GetPendingMigrations(DataBossConfiguration config) {
+		private List<DataBossLocalMigration> GetPendingMigrations(DataBossConfiguration config) {
 			var applied = new HashSet<long>(GetAppliedMigrations(config).Select(x => x.Id));
 			return GetLocalMigrations(config.Migration).Where(x => !applied.Contains(x.Info.Id)).OrderBy(x => x.Info.Id).ToList();
 		}
@@ -166,10 +149,8 @@ if not exists(select * from sys.tables t where t.name = '__DataBossHistory')
 				});
 		}
 
-		public static IEnumerable<DataBossMigrationInfo> GetAppliedMigrations(DataBossConfiguration config) {
-			using(var db = new SqlConnection(config.ConnectionString))
+		public IEnumerable<DataBossMigrationInfo> GetAppliedMigrations(DataBossConfiguration config) {
 			using(var cmd = new SqlCommand("select count(*) from sys.tables where name = '__DataBossHistory'", db)) {
-				db.Open();
 				if((int)cmd.ExecuteScalar() == 0)
 					throw new InvalidOperationException(string.Format("DataBoss has not been initialized, run: {0} init <target>", ProgramName));
 

@@ -1,4 +1,5 @@
-/obj
-/bin
+obj/
+bin/
+packages/
 *.swp
 *.suo
