@@ -30,8 +30,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Cone">
-      <HintPath>..\DataBoss\packages\Cone.2014.11.14.1\lib\Net35\Cone.dll</HintPath>
+    <Reference Include="Cone, Version=2015.2.27.1, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\DataBoss\packages\Cone.2015.2.27.1\lib\Net35\Cone.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -45,9 +46,6 @@
     <Compile Include="DataBossConfigurationSpec.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="..\DataBoss\DataBoss.csproj">
       <Project>{c698683c-1c33-46fe-bda9-54b54144a7ce}</Project>
       <Name>DataBoss</Name>
@@ -55,6 +53,9 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Properties\" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

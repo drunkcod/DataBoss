@@ -56,32 +56,32 @@ namespace DataBoss
 		}
 
 		static int Main(string[] args) {
-			var commands = new Dictionary<string, Action<Program, DataBossConfiguration>>
-			{
+			var commands = new Dictionary<string, Action<Program, DataBossConfiguration>> {
 				{ "init", (p, c) => p.Initialize(c) },
 				{ "status", (p, c) => p.Status(c) },
 				{ "update", (p, c) => p.Update(c) },
 			};
 
-			if(args.Length != 2 || !commands.ContainsKey(args[0])) {
-				Console.WriteLine(ReadResource("Usage").Replace("{{ProgramName}}", ProgramName));
-				return -1;
-			}
+			KeyValuePair<string, DataBossConfiguration> cc;
 
-			var command = args[0];
-			var target = args[1];
-			if(!target.EndsWith(".databoss"))
-				target = target + ".databoss";
-
-			var config = DataBossConfiguration.Load(target);
 			try {
-				using(var db = new SqlConnection(config.ConnectionString)) {
+				if(!DataBossConfiguration.TryParseCommandConfig(args, out cc) || !commands.ContainsKey(cc.Key)) {
+					Console.WriteLine(ReadResource("Usage").Replace("{{ProgramName}}", ProgramName));
+					return -1;
+				}
+			
+				var command = cc.Key;
+				var config = cc.Value;
+
+				using(var db = new SqlConnection(config.GetConnectionString())) {
 					db.Open();
 					var program = new Program(db);
 					commands[command](program, config);
 				}
+
 			} catch(InvalidOperationException e) {
 				Console.Error.WriteLine(e.Message);
+				return -1;
 			}
 
 			return 0;

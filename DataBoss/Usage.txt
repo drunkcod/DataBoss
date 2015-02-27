@@ -1,4 +1,4 @@
-﻿usage {{ProgramName}} <command> <target>
+﻿usage {{ProgramName}} [-ServerInstance <instance>] <command> [<args>]
 
 Available commands:
   init     Initializes DataBoss for the target database
