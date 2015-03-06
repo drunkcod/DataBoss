@@ -23,16 +23,6 @@ namespace DataBoss
 		IEnumerable<string> GetQueryBatches();
 	}
 
-	public class DataBossLocalMigration : IDataBossMigration
-	{
-		public DataBossMigrationInfo Info { get; set; }
-		public string Path;
-
-		public IEnumerable<string> GetQueryBatches() {
-			yield return File.ReadAllText(Path);
-		}
-	}
-
 	public class DataBossMigrationInfo
 	{
 		public long Id;
@@ -122,12 +112,12 @@ if not exists(select * from sys.tables t where t.name = '__DataBossHistory')
 			pending.ForEach(migrator.Apply);
 		}
 
-		private List<DataBossLocalMigration> GetPendingMigrations(DataBossConfiguration config) {
+		private List<DataBossTextMigration> GetPendingMigrations(DataBossConfiguration config) {
 			var applied = new HashSet<long>(GetAppliedMigrations(config).Select(x => x.Id));
 			return GetLocalMigrations(config.Migration).Where(x => !applied.Contains(x.Info.Id)).OrderBy(x => x.Info.Id).ToList();
 		}
 
-		public static IEnumerable<DataBossLocalMigration> GetLocalMigrations(DataBossMigrationPath migrations) {
+		public static IEnumerable<DataBossTextMigration> GetLocalMigrations(DataBossMigrationPath migrations) {
 			var r = new Regex(@"(?<id>\d+)(?<name>.*).sql$");
 			var groups = new {
 				id = r.GroupNumberFromName("id"),
@@ -139,8 +129,7 @@ if not exists(select * from sys.tables t where t.name = '__DataBossHistory')
 					m = r.Match(Path.GetFileName(x)),
 					path = x,
 				}).Where(x => x.m.Success)
-				.Select(x => new DataBossLocalMigration {
-					Path = x.path,
+				.Select(x => new DataBossTextMigration(() => File.OpenText(x.path)) {
 					Info = new DataBossMigrationInfo {
 						Id = long.Parse(x.m.Groups[groups.id].Value),
 						Context = migrations.Context,

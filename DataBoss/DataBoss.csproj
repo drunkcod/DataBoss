@@ -43,6 +43,7 @@
   <ItemGroup>
     <Compile Include="DataBossConfiguration.cs" />
     <Compile Include="DataBossMigrator.cs" />
+    <Compile Include="DataBossTextMigration.cs" />
     <Compile Include="MissingLinqExtensions.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

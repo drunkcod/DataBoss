@@ -44,6 +44,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DataBossConfigurationSpec.cs" />
+    <Compile Include="DataBossTextMigrationSpec.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DataBoss\DataBoss.csproj">
