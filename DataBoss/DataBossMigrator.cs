@@ -39,6 +39,40 @@ namespace DataBoss
 		}
 	}
 
+	class DataBossScriptMigrationScope : IDataBossMigrationScope
+	{
+		const string BatchSeparator = "GO";
+		readonly TextWriter output;
+		readonly bool closeOutput;
+		long id;
+
+		public DataBossScriptMigrationScope(TextWriter output, bool closeOutput) {
+			this.output = output;
+			this.closeOutput = closeOutput;
+		}
+
+		public void Begin(DataBossMigrationInfo info) {
+			id = info.Id;
+			Execute(string.Format("insert __DataBossHistory(Id, Context, Name, StartedAt, [User]) values({0}, '{1}', '{2}', getdate(), '{3}')", 
+				id, info.Context, info.Name, Environment.UserName));
+		}
+
+		public void Execute(string query) {
+			output.WriteLine(query);
+			output.WriteLine(BatchSeparator);
+		}
+
+		public void Done() {
+			Execute("update __DataBossHistory set FinishedAt = getdate() where Id = " + id);
+		}
+
+		void IDisposable.Dispose() { 
+			Done(); 
+			if(closeOutput)
+				output.Close();
+		}
+	}
+
 	class DataBossSqlMigrationScope : IDataBossMigrationScope
 	{
 		readonly SqlConnection db;

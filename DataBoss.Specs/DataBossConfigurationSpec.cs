@@ -33,16 +33,26 @@ namespace DataBoss.Specs
 
 		public void supports_specifying_ServerInstance_as_argument() {			
 			Check.That(() => DataBossConfiguration.TryParseCommandConfig(new [] {
-					"-ServerInstance", "MyServer",
-					"<command>"
+				"-ServerInstance", "MyServer",
+				"<command>"
 			}, out CommandConfig));
 
 			Check.That(() => CommandConfig.Value.Server == "MyServer");
 		}
 
+		public void supports_specifying_Output_script_name() {
+			Check.That(() => DataBossConfiguration.TryParseCommandConfig(new [] {
+				"-Output", "update.sql",
+				"<command>"
+			}, out CommandConfig));
+
+			Check.That(() => CommandConfig.Value.Output == "update.sql");
+
+		}
+
 		public void raises_InvalidOperationException_for_missing_argument() {
 			var ex = Check.Exception<InvalidOperationException>(() => DataBossConfiguration.TryParseCommandConfig(new [] {
-					"-ServerInstance", 
+				"-ServerInstance", 
 			}, out CommandConfig));
 
 			Check.That(() => ex.Message == "No value given for 'ServerInstance'");

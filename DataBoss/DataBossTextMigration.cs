@@ -10,6 +10,8 @@ namespace DataBoss
 {
 	public class DataBossTextMigration : IDataBossMigration
 	{
+		static readonly Regex BatchEx = new Regex(@"(?:\s*go\s*$)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
 		readonly Func<TextReader> getReader;
  
 		public DataBossTextMigration(Func<TextReader> getReader) {
@@ -19,17 +21,21 @@ namespace DataBoss
 		public DataBossMigrationInfo Info { get; set; }
 
 		public IEnumerable<string> GetQueryBatches() {
-			var r = new Regex(@"(.*?)(?:\s*go\s*$)", RegexOptions.IgnoreCase);
 			var batch = new StringBuilder();
+			Action<string> append = x => (batch.Length == 0 ? batch : batch.AppendLine()).Append(x);
+			
 			using(var reader = getReader()) {
 				for(string line; (line = reader.ReadLine()) != null;) {
-					var m = r.Match(line);
+					var m = BatchEx.Match(line);
 					if(m.Success) {
-						batch.AppendLine(m.Groups[0].Value);
-						yield return batch.ToString();
-						batch.Clear();
+						if(m.Index > 0)
+							append(line.Substring(0, m.Index));
+						if(batch.Length > 0) {
+							yield return batch.ToString();
+							batch.Clear();
+						}
 					} else {
-						batch.AppendLine(line);
+						append(line);
 					}
 				}
 			}
@@ -37,5 +43,4 @@ namespace DataBoss
 				yield return batch.ToString();
 		}
 	}
-
 }

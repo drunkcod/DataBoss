@@ -108,8 +108,17 @@ if not exists(select * from sys.tables t where t.name = '__DataBossHistory')
 			var pending = GetPendingMigrations(config);
 			Console.WriteLine("{0} pending migrations found.", pending.Count);
 
-			var migrator = new DataBossMigrator(info => new DataBossConsoleLogMigrationScope(new DataBossSqlMigrationScope(db)));
+			var targetScope = new DataBossConsoleLogMigrationScope(GetTargetScope(config));
+			var migrator = new DataBossMigrator(info => targetScope);
 			pending.ForEach(migrator.Apply);
+		}
+
+		IDataBossMigrationScope GetTargetScope(DataBossConfiguration config) {
+			if(string.IsNullOrEmpty(config.Output))
+				return new DataBossSqlMigrationScope(db);
+			if(config.Output == "con:")
+				return new DataBossScriptMigrationScope(Console.Out, false);
+			return new DataBossScriptMigrationScope(new StreamWriter(File.Create(config.Output)), true);
 		}
 
 		private List<DataBossTextMigration> GetPendingMigrations(DataBossConfiguration config) {

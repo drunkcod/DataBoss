@@ -20,6 +20,9 @@ namespace DataBoss
 		[XmlElement("migrations")]
 		public DataBossMigrationPath Migration;
 
+		[XmlElement("output")]
+		public string Output;
+
 		public static DataBossConfiguration Load(string path) {
 			var xml = new XmlSerializer(typeof(DataBossConfiguration));
 			using(var input = File.OpenRead(path))
@@ -40,6 +43,11 @@ namespace DataBoss
 							if(!it.MoveNext())
 								throw new InvalidOperationException("No value given for 'ServerInstance'");
 							getOverrides().Server = it.Current;
+							break;
+						case "-Output":
+							if(!it.MoveNext())
+								throw new InvalidOperationException("No value given for 'Output'");
+							getOverrides().Output = it.Current;
 							break;
 						default: throw new ArgumentException("Invalid option: " + item);
 					}
@@ -62,6 +70,8 @@ namespace DataBoss
 			else if(config != null && overrides != null) {
 				if(!string.IsNullOrEmpty(overrides.Server))
 					config.Server = overrides.Server;
+				if(!string.IsNullOrEmpty(overrides.Output))
+					config.Output = overrides.Output;
 			}
 
 			if(command == null || config == null) {
