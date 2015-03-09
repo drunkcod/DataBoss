@@ -1,10 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace DataBoss
 {
@@ -19,6 +17,8 @@ namespace DataBoss
 		}
 
 		public DataBossMigrationInfo Info { get; set; }
+
+		public bool HasQueryBatches { get { return true; } }
 
 		public IEnumerable<string> GetQueryBatches() {
 			var batch = new StringBuilder();
@@ -41,6 +41,10 @@ namespace DataBoss
 			}
 			if(batch.Length > 0)
 				yield return batch.ToString();
+		}
+
+		IEnumerable<IDataBossMigration> IDataBossMigration.GetSubMigrations() {
+			yield break;
 		}
 	}
 }

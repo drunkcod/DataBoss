@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Xml.Serialization;
 
 namespace DataBoss
@@ -17,42 +16,12 @@ namespace DataBoss
 		public string Path;
 	}
 
-	public class DataBossDirectoryMigration
-	{
-		readonly DataBossMigrationPath path;
-
-		public DataBossDirectoryMigration(DataBossMigrationPath path) {
-			this.path = path;
-		}
-
-		public IEnumerable<IDataBossMigration> GetSubMigrations() {
-			var r = new Regex(@"(?<id>\d+)(?<name>.*).sql$");
-			var groups = new {
-				id = r.GroupNumberFromName("id"),
-				name = r.GroupNumberFromName("name"),
-			};
-			return 
-				Directory.GetFiles(path.Path, "*.sql")
-				.ConvertAll(x => new {
-					m = r.Match(Path.GetFileName(x)),
-					path = x,
-				}).Where(x => x.m.Success)
-				.Select(x => (IDataBossMigration)new DataBossTextMigration(() => File.OpenText(x.path)) {
-					Info = new DataBossMigrationInfo {
-						Id = long.Parse(x.m.Groups[groups.id].Value),
-						Context = path.Context,
-						Name = x.m.Groups[groups.name].Value.Trim(),
-					}
-				})
-				.OrderBy(x => x.Info.Id);
-		}
-	}
-
-
 	public interface IDataBossMigration
 	{
 		DataBossMigrationInfo Info { get; }
-		IEnumerable<string> GetQueryBatches();
+		bool HasQueryBatches { get; }
+		IEnumerable<string> GetQueryBatches(); 
+		IEnumerable<IDataBossMigration> GetSubMigrations();
 	}
 
 	public class DataBossMigrationInfo
@@ -60,6 +29,10 @@ namespace DataBoss
 		public long Id;
 		public string Context;
 		public string Name;
+
+		public string FullId { get { 
+			return string.IsNullOrEmpty(Context) ? Id.ToString() : string.Format("{0}.{1}", Context, Id); 
+		} }
 	}
 
 	public class Program
@@ -110,15 +83,25 @@ namespace DataBoss
 
 		void Initialize(DataBossConfiguration config) {
 			using(var cmd = new SqlCommand(@"
-if not exists(select * from sys.tables t where t.name = '__DataBossHistory')
+if not exists(select * from sys.tables t where t.name = '__DataBossHistory') begin
 	create table __DataBossHistory(
-		Id bigint not null primary key,
-		Context varchar(max) not null,
+		Id bigint not null,
+		Context varchar(64) not null,
 		Name varchar(max) not null,
 		StartedAt datetime not null,
 		FinishedAt datetime,
-		[User] varchar(max)
-	)", db))
+		[User] varchar(max),
+	)
+
+	create clustered index IX_DataBossHistory_StartedAt on __DataBossHistory(StartedAt)
+
+	alter table __DataBossHistory
+	add constraint PK_DataBossHistory primary key(
+		Id asc,
+		Context
+	)
+end
+", db))
 			{
 				using(var r = cmd.ExecuteReader())
 					while(r.Read())
@@ -131,7 +114,7 @@ if not exists(select * from sys.tables t where t.name = '__DataBossHistory')
 			if(pending.Count != 0) {
 				Console.WriteLine("Pending migrations:");
 				foreach(var item in pending)
-					Console.WriteLine("  {0}. {1}", item.Info.Id, item.Info.Name);
+					Console.WriteLine("  {0} - {1}", item.Info.FullId, item.Info.Name);
 			}
 		}
 
@@ -139,26 +122,42 @@ if not exists(select * from sys.tables t where t.name = '__DataBossHistory')
 			var pending = GetPendingMigrations(config);
 			Console.WriteLine("{0} pending migrations found.", pending.Count);
 
-			var targetScope = new DataBossConsoleLogMigrationScope(GetTargetScope(config));
-			var migrator = new DataBossMigrator(info => targetScope);
-			pending.ForEach(migrator.Apply);
+			using(var targetScope = new DataBossConsoleLogMigrationScope(GetTargetScope(config))) {
+				var migrator = new DataBossMigrator(info => targetScope);
+				pending.ForEach(migrator.Apply);
+			}
 		}
 
 		IDataBossMigrationScope GetTargetScope(DataBossConfiguration config) {
 			if(string.IsNullOrEmpty(config.Script))
 				return new DataBossSqlMigrationScope(db);
-			if(config.Script== "con:")
+			if(config.Script == "con:")
 				return new DataBossScriptMigrationScope(Console.Out, false);
 			return new DataBossScriptMigrationScope(new StreamWriter(File.Create(config.Script)), true);
 		}
 
 		private List<IDataBossMigration> GetPendingMigrations(DataBossConfiguration config) {
-			var applied = new HashSet<long>(GetAppliedMigrations(config).Select(x => x.Id));
-			return GetLocalMigrations(config.Migration).Where(x => !applied.Contains(x.Info.Id)).ToList();
+			var applied = new HashSet<string>(GetAppliedMigrations(config).Select(x => x.FullId));
+			var migrations = new Queue<IDataBossMigration>();
+			var pending = new List<IDataBossMigration>();
+
+			migrations.Enqueue(GetTargetMigration(config.Migration));
+			while(migrations.Count != 0) {
+				var item = migrations.Dequeue();
+				foreach(var sub in item.GetSubMigrations())
+					migrations.Enqueue(sub);
+				if(item.HasQueryBatches && !applied.Contains(item.Info.FullId))
+					pending.Add(item);
+			}
+			return pending;
 		}
 
-		public static IEnumerable<IDataBossMigration> GetLocalMigrations(DataBossMigrationPath migrations) {
-			return new DataBossDirectoryMigration(migrations).GetSubMigrations();
+		public static IDataBossMigration GetTargetMigration(DataBossMigrationPath migrations) {
+			return new DataBossDirectoryMigration(migrations.Path, new DataBossMigrationInfo {
+				Id = 0,
+				Context = migrations.Context,
+				Name = migrations.Path,
+			});
 		}
 
 		public IEnumerable<DataBossMigrationInfo> GetAppliedMigrations(DataBossConfiguration config) {
