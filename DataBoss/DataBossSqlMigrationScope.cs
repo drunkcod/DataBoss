@@ -30,14 +30,13 @@ namespace DataBoss
 			if(cmd == null)
 				return;
 
-			cmd.CommandText = "update __DataBossHistory set FinishedAt = getdate() where Id = @id";
+			cmd.CommandText = "update __DataBossHistory set FinishedAt = getdate() where Id = @id and Context = @Context";
 			cmd.ExecuteNonQuery();			
-			cmd.Dispose();				
-			cmd = null;
 		}
 
 		void IDisposable.Dispose() {
-			Done();
+			cmd.Dispose();				
+			cmd = null;
 		}
 	}
 }

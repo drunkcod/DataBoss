@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 using System.IO;
 
 namespace DataBoss
@@ -11,40 +10,13 @@ namespace DataBoss
 		void Done();
 	}
 
-	class DataBossConsoleLogMigrationScope : IDataBossMigrationScope
-	{
-		readonly IDataBossMigrationScope inner;
-		readonly Stopwatch stopwatch;
-
-		public DataBossConsoleLogMigrationScope(IDataBossMigrationScope inner) {
-			this.inner = inner;
-			this.stopwatch = new Stopwatch();
-		}
-
-		public void Begin(DataBossMigrationInfo info) {
-			Console.WriteLine("  Applying: {0}. {1}", info.Id, info.Name);
-			stopwatch.Restart();
-			inner.Begin(info);
-		}
-
-		public void Execute(string query) { inner.Execute(query); }
-
-		public void Done() {
-			Console.WriteLine("    Finished in {0}", stopwatch.Elapsed);
-		}
-
-		void IDisposable.Dispose() {
-			inner.Done();
-			Done();
-		}
-	}
-
 	class DataBossScriptMigrationScope : IDataBossMigrationScope
 	{
 		const string BatchSeparator = "GO";
 		readonly TextWriter output;
 		readonly bool closeOutput;
 		long id;
+		string context;
 
 		public DataBossScriptMigrationScope(TextWriter output, bool closeOutput) {
 			this.output = output;
@@ -53,6 +25,7 @@ namespace DataBoss
 
 		public void Begin(DataBossMigrationInfo info) {
 			id = info.Id;
+			context = info.Context;
 			Execute(string.Format("insert __DataBossHistory(Id, Context, Name, StartedAt, [User]) values({0}, '{1}', '{2}', getdate(), '{3}')", 
 				id, info.Context, info.Name, Environment.UserName));
 		}
@@ -63,12 +36,12 @@ namespace DataBoss
 		}
 
 		public void Done() {
-			Execute("update __DataBossHistory set FinishedAt = getdate() where Id = " + id);
+			Execute("update __DataBossHistory set FinishedAt = getdate() where Id = " + id + " and Context = '" + context + "'");
 			output.Flush();
 		}
 
 		void IDisposable.Dispose() { 
-			Done(); 
+			output.Dispose();
 			if(closeOutput)
 				output.Close();
 		}
@@ -82,11 +55,14 @@ namespace DataBoss
 			this.scopeFactory = scopeFactory;
 		}
 
-		public void Apply(IDataBossMigration migration) {
-			using(var scope = scopeFactory(migration.Info)) {
+		public void Apply(IDataBossMigration migration) {			
+			var scope = scopeFactory(migration.Info);
+			try {
 				scope.Begin(migration.Info);
 				foreach(var query in migration.GetQueryBatches())
 					scope.Execute(query);
+			} finally {
+				scope.Done();
 			}
 		}
 	}

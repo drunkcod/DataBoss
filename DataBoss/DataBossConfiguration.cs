@@ -18,9 +18,9 @@ namespace DataBoss
 		public string Database;
 
 		[XmlElement("migrations")]
-		public DataBossMigrationPath Migration;
+		public DataBossMigrationPath[] Migrations;
 
-		[XmlElement("Script")]
+		[XmlIgnore]
 		public string Script;
 
 		public static DataBossConfiguration Load(string path) {
@@ -57,7 +57,7 @@ namespace DataBoss
 						command = item;
 					else if(config == null) {
 						var target = item.EndsWith(".databoss") ? item : item + ".databoss";
-						config = DataBossConfiguration.Load(target);
+						config = Load(target);
 					}
 					else {
 						throw new ArgumentException("unknown arg: " + item);

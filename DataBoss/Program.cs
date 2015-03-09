@@ -16,14 +16,6 @@ namespace DataBoss
 		public string Path;
 	}
 
-	public interface IDataBossMigration
-	{
-		DataBossMigrationInfo Info { get; }
-		bool HasQueryBatches { get; }
-		IEnumerable<string> GetQueryBatches(); 
-		IEnumerable<IDataBossMigration> GetSubMigrations();
-	}
-
 	public class DataBossMigrationInfo
 	{
 		public long Id;
@@ -141,7 +133,7 @@ end
 			var migrations = new Queue<IDataBossMigration>();
 			var pending = new List<IDataBossMigration>();
 
-			migrations.Enqueue(GetTargetMigration(config.Migration));
+			migrations.Enqueue(GetTargetMigration(config.Migrations));
 			while(migrations.Count != 0) {
 				var item = migrations.Dequeue();
 				foreach(var sub in item.GetSubMigrations())
@@ -152,12 +144,15 @@ end
 			return pending;
 		}
 
-		public static IDataBossMigration GetTargetMigration(DataBossMigrationPath migrations) {
-			return new DataBossDirectoryMigration(migrations.Path, new DataBossMigrationInfo {
-				Id = 0,
-				Context = migrations.Context,
-				Name = migrations.Path,
-			});
+		public static IDataBossMigration GetTargetMigration(DataBossMigrationPath[] migrations) {
+			return new DataBossCompositeMigration(
+				migrations.ConvertAll(x => new DataBossDirectoryMigration(
+					x.Path, new DataBossMigrationInfo {
+						Id = 0,
+						Context = x.Context,
+						Name = x.Path,
+					}
+				)));
 		}
 
 		public IEnumerable<DataBossMigrationInfo> GetAppliedMigrations(DataBossConfiguration config) {
