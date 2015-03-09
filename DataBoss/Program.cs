@@ -17,6 +17,38 @@ namespace DataBoss
 		public string Path;
 	}
 
+	public class DataBossDirectoryMigration
+	{
+		readonly DataBossMigrationPath path;
+
+		public DataBossDirectoryMigration(DataBossMigrationPath path) {
+			this.path = path;
+		}
+
+		public IEnumerable<IDataBossMigration> GetSubMigrations() {
+			var r = new Regex(@"(?<id>\d+)(?<name>.*).sql$");
+			var groups = new {
+				id = r.GroupNumberFromName("id"),
+				name = r.GroupNumberFromName("name"),
+			};
+			return 
+				Directory.GetFiles(path.Path, "*.sql")
+				.ConvertAll(x => new {
+					m = r.Match(Path.GetFileName(x)),
+					path = x,
+				}).Where(x => x.m.Success)
+				.Select(x => (IDataBossMigration)new DataBossTextMigration(() => File.OpenText(x.path)) {
+					Info = new DataBossMigrationInfo {
+						Id = long.Parse(x.m.Groups[groups.id].Value),
+						Context = path.Context,
+						Name = x.m.Groups[groups.name].Value.Trim(),
+					}
+				})
+				.OrderBy(x => x.Info.Id);
+		}
+	}
+
+
 	public interface IDataBossMigration
 	{
 		DataBossMigrationInfo Info { get; }
@@ -52,10 +84,9 @@ namespace DataBoss
 				{ "update", (p, c) => p.Update(c) },
 			};
 
-			KeyValuePair<string, DataBossConfiguration> cc;
-
 			try {
-				if(!DataBossConfiguration.TryParseCommandConfig(args, out cc) || !commands.ContainsKey(cc.Key)) {
+				var cc = DataBossConfiguration.ParseCommandConfig(args);
+				if(!commands.ContainsKey(cc.Key)) {
 					Console.WriteLine(ReadResource("Usage").Replace("{{ProgramName}}", ProgramName));
 					return -1;
 				}
@@ -69,7 +100,7 @@ namespace DataBoss
 					commands[command](program, config);
 				}
 
-			} catch(InvalidOperationException e) {
+			} catch(Exception e) {
 				Console.Error.WriteLine(e.Message);
 				return -1;
 			}
@@ -114,37 +145,20 @@ if not exists(select * from sys.tables t where t.name = '__DataBossHistory')
 		}
 
 		IDataBossMigrationScope GetTargetScope(DataBossConfiguration config) {
-			if(string.IsNullOrEmpty(config.Output))
+			if(string.IsNullOrEmpty(config.Script))
 				return new DataBossSqlMigrationScope(db);
-			if(config.Output == "con:")
+			if(config.Script== "con:")
 				return new DataBossScriptMigrationScope(Console.Out, false);
-			return new DataBossScriptMigrationScope(new StreamWriter(File.Create(config.Output)), true);
+			return new DataBossScriptMigrationScope(new StreamWriter(File.Create(config.Script)), true);
 		}
 
-		private List<DataBossTextMigration> GetPendingMigrations(DataBossConfiguration config) {
+		private List<IDataBossMigration> GetPendingMigrations(DataBossConfiguration config) {
 			var applied = new HashSet<long>(GetAppliedMigrations(config).Select(x => x.Id));
-			return GetLocalMigrations(config.Migration).Where(x => !applied.Contains(x.Info.Id)).OrderBy(x => x.Info.Id).ToList();
+			return GetLocalMigrations(config.Migration).Where(x => !applied.Contains(x.Info.Id)).ToList();
 		}
 
-		public static IEnumerable<DataBossTextMigration> GetLocalMigrations(DataBossMigrationPath migrations) {
-			var r = new Regex(@"(?<id>\d+)(?<name>.*).sql$");
-			var groups = new {
-				id = r.GroupNumberFromName("id"),
-				name = r.GroupNumberFromName("name"),
-			};
-			return 
-				Directory.GetFiles(migrations.Path, "*.sql", SearchOption.AllDirectories)
-				.ConvertAll(x => new {
-					m = r.Match(Path.GetFileName(x)),
-					path = x,
-				}).Where(x => x.m.Success)
-				.Select(x => new DataBossTextMigration(() => File.OpenText(x.path)) {
-					Info = new DataBossMigrationInfo {
-						Id = long.Parse(x.m.Groups[groups.id].Value),
-						Context = migrations.Context,
-						Name = x.m.Groups[groups.name].Value.Trim(),
-					}
-				});
+		public static IEnumerable<IDataBossMigration> GetLocalMigrations(DataBossMigrationPath migrations) {
+			return new DataBossDirectoryMigration(migrations).GetSubMigrations();
 		}
 
 		public IEnumerable<DataBossMigrationInfo> GetAppliedMigrations(DataBossConfiguration config) {

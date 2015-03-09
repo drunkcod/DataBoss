@@ -20,8 +20,8 @@ namespace DataBoss
 		[XmlElement("migrations")]
 		public DataBossMigrationPath Migration;
 
-		[XmlElement("output")]
-		public string Output;
+		[XmlElement("Script")]
+		public string Script;
 
 		public static DataBossConfiguration Load(string path) {
 			var xml = new XmlSerializer(typeof(DataBossConfiguration));
@@ -29,7 +29,7 @@ namespace DataBoss
 				return (DataBossConfiguration)xml.Deserialize(input);
 		}
 
-		public static bool TryParseCommandConfig(IEnumerable<string> args, out KeyValuePair<string, DataBossConfiguration> commandConfig) {
+		public static KeyValuePair<string, DataBossConfiguration> ParseCommandConfig(IEnumerable<string> args) {
 			string command = null;
 			DataBossConfiguration config = null;
 			DataBossConfiguration overrides = null;
@@ -44,10 +44,10 @@ namespace DataBoss
 								throw new InvalidOperationException("No value given for 'ServerInstance'");
 							getOverrides().Server = it.Current;
 							break;
-						case "-Output":
+						case "-Script":
 							if(!it.MoveNext())
 								throw new InvalidOperationException("No value given for 'Output'");
-							getOverrides().Output = it.Current;
+							getOverrides().Script = it.Current;
 							break;
 						default: throw new ArgumentException("Invalid option: " + item);
 					}
@@ -70,17 +70,14 @@ namespace DataBoss
 			else if(config != null && overrides != null) {
 				if(!string.IsNullOrEmpty(overrides.Server))
 					config.Server = overrides.Server;
-				if(!string.IsNullOrEmpty(overrides.Output))
-					config.Output = overrides.Output;
+				if(!string.IsNullOrEmpty(overrides.Script))
+					config.Script = overrides.Script;
 			}
 
-			if(command == null || config == null) {
-				commandConfig = default(KeyValuePair<string, DataBossConfiguration>);
-				return false;
-			}
+			if(command == null || config == null) 
+				throw new ArgumentException("missing command and/or configuration options.");
 
-			commandConfig = new KeyValuePair<string,DataBossConfiguration>(command, config);
-			return true;
+			return new KeyValuePair<string,DataBossConfiguration>(command, config);
 		}
 
 		public string GetConnectionString() {
