@@ -66,7 +66,12 @@ namespace DataBoss
 				}
 
 			} catch(Exception e) {
+				var oldColor = Console.ForegroundColor;
+				Console.ForegroundColor = ConsoleColor.Red;
 				Console.Error.WriteLine(e.Message);
+				Console.ForegroundColor = oldColor;
+				Console.Error.WriteLine();
+				Console.Error.WriteLine(ReadResource("Usage").Replace("{{ProgramName}}", ProgramName));
 				return -1;
 			}
 

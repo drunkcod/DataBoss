@@ -1,6 +1,15 @@
-﻿usage {{ProgramName}} [-ServerInstance <instance>] <command> [<args>]
+﻿usage {{ProgramName}} <command> [<options>] 
 
 Available commands:
   init     Initializes DataBoss for the target database
   status   Checks for pending migrations
   update   Applies any pending migrations
+
+Options:
+  -ServerInstance  <servername> - specify server network name, defaults to "."
+  -User            <username> - username to login with
+  -Password        ********** - password for said user
+  -Target          <target> - to disambiguate between multiple .databoss files
+  -Script          <output> - scripts pending migrations to file (con: redirects to console)
+
+Is 'User' isn't specified integrated security will be assumed. 
