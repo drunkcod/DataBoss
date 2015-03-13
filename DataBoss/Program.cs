@@ -43,6 +43,11 @@ namespace DataBoss
 		}
 
 		static int Main(string[] args) {
+			if(args.Length == 0) {
+				Console.WriteLine(GetUsageString());
+				return 0;
+			}
+
 			var commands = new Dictionary<string, Action<Program, DataBossConfiguration>> {
 				{ "init", (p, c) => p.Initialize(c) },
 				{ "status", (p, c) => p.Status(c) },
@@ -52,7 +57,7 @@ namespace DataBoss
 			try {
 				var cc = DataBossConfiguration.ParseCommandConfig(args);
 				if(!commands.ContainsKey(cc.Key)) {
-					Console.WriteLine(ReadResource("Usage").Replace("{{ProgramName}}", ProgramName));
+					Console.WriteLine(GetUsageString());
 					return -1;
 				}
 			
@@ -71,11 +76,17 @@ namespace DataBoss
 				Console.Error.WriteLine(e.Message);
 				Console.ForegroundColor = oldColor;
 				Console.Error.WriteLine();
-				Console.Error.WriteLine(ReadResource("Usage").Replace("{{ProgramName}}", ProgramName));
+				Console.Error.WriteLine(GetUsageString());
 				return -1;
 			}
 
 			return 0;
+		}
+
+		static string GetUsageString() {
+			return ReadResource("Usage")
+				.Replace("{{ProgramName}}", ProgramName)
+				.Replace("{{Version}}", typeof(Program).Assembly.GetName().Version.ToString());					
 		}
 
 		void Initialize(DataBossConfiguration config) {
