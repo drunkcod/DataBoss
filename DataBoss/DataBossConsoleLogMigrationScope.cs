@@ -14,7 +14,7 @@ namespace DataBoss
 		}
 
 		public void Begin(DataBossMigrationInfo info) {
-			Console.WriteLine("  Applying: {0}. {1}", info.FullId, info.Name);
+			Console.Write("  Applying '{0}') {1}", info.FullId, info.Name);
 			stopwatch.Restart();
 			inner.Begin(info);
 		}
@@ -22,7 +22,7 @@ namespace DataBoss
 		public void Execute(string query) { inner.Execute(query); }
 
 		public void Done() {
-			Console.WriteLine("    Finished in {0}", stopwatch.Elapsed);
+			Console.WriteLine(" finished in {0}", stopwatch.Elapsed);
 			inner.Done();
 		}
 

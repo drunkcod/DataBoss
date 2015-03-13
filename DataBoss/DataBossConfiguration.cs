@@ -1,9 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Xml.Serialization;
 
 namespace DataBoss
@@ -17,6 +14,12 @@ namespace DataBoss
 		[XmlAttribute("database")]
 		public string Database;
 
+		[XmlAttribute("user")]
+		public string User;
+
+		[XmlAttribute("password")]
+		public string Password;
+
 		[XmlElement("migrations")]
 		public DataBossMigrationPath[] Migrations;
 
@@ -24,12 +27,19 @@ namespace DataBoss
 		public string Script;
 
 		public static DataBossConfiguration Load(string path) {
+			var target = path.EndsWith(".databoss") 
+			? path
+			: path + ".databoss";
 			var xml = new XmlSerializer(typeof(DataBossConfiguration));
-			using(var input = File.OpenRead(path))
+			using(var input = File.OpenRead(target))
 				return (DataBossConfiguration)xml.Deserialize(input);
 		}
 
 		public static KeyValuePair<string, DataBossConfiguration> ParseCommandConfig(IEnumerable<string> args) {
+			return ParseCommandConfig(args, Load);
+		}
+
+		public static KeyValuePair<string, DataBossConfiguration> ParseCommandConfig(IEnumerable<string> args, Func<string, DataBossConfiguration> load) {
 			string command = null;
 			DataBossConfiguration config = null;
 			DataBossConfiguration overrides = null;
@@ -38,16 +48,25 @@ namespace DataBoss
 			for(var it = args.GetEnumerator(); it.MoveNext();) {
 				var item = it.Current;
 				if(item.StartsWith("-")) {
+					item = item.Substring(1);
+					if(!it.MoveNext() || it.Current.StartsWith("-"))
+						throw new InvalidOperationException("No value given for '" + item + "'");
+					var value = it.Current;
 					switch(item) {
-						case "-ServerInstance": 
-							if(!it.MoveNext())
-								throw new InvalidOperationException("No value given for 'ServerInstance'");
-							getOverrides().Server = it.Current;
+						case "User":
+							getOverrides().User = value;
 							break;
-						case "-Script":
-							if(!it.MoveNext())
-								throw new InvalidOperationException("No value given for 'Output'");
-							getOverrides().Script = it.Current;
+						case "Password": 
+							getOverrides().Password = value;
+							break;
+						case "ServerInstance": 
+							getOverrides().Server = value;
+							break;
+						case "Script":
+							getOverrides().Script = value;
+							break;
+						case "Target":
+							config = load(value);
 							break;
 						default: throw new ArgumentException("Invalid option: " + item);
 					}
@@ -55,23 +74,26 @@ namespace DataBoss
 				else {
 					if(command == null)
 						command = item;
-					else if(config == null) {
-						var target = item.EndsWith(".databoss") ? item : item + ".databoss";
-						config = Load(target);
-					}
-					else {
+					else
 						throw new ArgumentException("unknown arg: " + item);
-					}
 				}
 			}
 
-			if(config == null)
-				config = overrides;
-			else if(config != null && overrides != null) {
+			if(config == null) {
+				var targets = Directory.GetFiles(".", "*.databoss");
+				if(targets.Length != 1)
+					throw new ArgumentException("Can't autodetec target, use -Target <file> to specify it");
+				config = Load(targets[0]);
+			}
+			if(config != null && overrides != null) {
 				if(!string.IsNullOrEmpty(overrides.Server))
 					config.Server = overrides.Server;
 				if(!string.IsNullOrEmpty(overrides.Script))
 					config.Script = overrides.Script;
+				if(!string.IsNullOrEmpty(overrides.User))
+					config.User = overrides.User;
+				if(!string.IsNullOrEmpty(overrides.Password))
+					config.Password = overrides.Password;
 			}
 
 			if(command == null || config == null) 
@@ -83,7 +105,15 @@ namespace DataBoss
 		public string GetConnectionString() {
 			if(string.IsNullOrEmpty(Database))
 				throw new InvalidOperationException("No database specified");
-			return string.Format("Server={0};Database={1};Integrated Security=SSPI", Server ?? ".", Database);
+			return string.Format("Server={0};Database={1};{2}", Server ?? ".", Database, GetCredentials());
+		}
+
+		public string GetCredentials() {
+			if(string.IsNullOrEmpty(User))
+				return "Integrated Security=SSPI";
+			if(string.IsNullOrEmpty(Password))
+				throw new ArgumentException("No Password given for user '" + User + "'");
+			return string.Format("User={0};Password={1}", User, Password);
 		}
 	}
 }

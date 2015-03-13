@@ -2,8 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace DataBoss.Specs
 {
@@ -32,35 +30,49 @@ namespace DataBoss.Specs
 		}
 
 		public void supports_specifying_ServerInstance_as_argument() {			
-			CommandConfig = DataBossConfiguration.ParseCommandConfig(new [] {
-				"-ServerInstance", "MyServer",
-				"<command>"
-			});
+			CommandConfig = ParseGivenTargetAndCommand(
+				"-ServerInstance", "MyServer"
+			);
 
 			Check.That(() => CommandConfig.Value.Server == "MyServer");
 		}
 
 		public void supports_specifying_Output_script_name() {
-			CommandConfig = DataBossConfiguration.ParseCommandConfig(new [] {
-				"-Output", "update.sql",
-				"<command>"
-			});
+			CommandConfig = ParseGivenTargetAndCommand(
+				"-Script", "update.sql"
+			);
 
 			Check.That(() => CommandConfig.Value.Script == "update.sql");
-
 		}
 
 		public void raises_InvalidOperationException_for_missing_argument() {
-			var ex = Check.Exception<InvalidOperationException>(() => DataBossConfiguration.ParseCommandConfig(new [] {
-				"-ServerInstance", 
-			}));
+			var ex = Check.Exception<InvalidOperationException>(() => ParseGivenTargetAndCommand(
+				"-ServerInstance"
+			));
 
 			Check.That(() => ex.Message == "No value given for 'ServerInstance'");
+		}
+
+		public void uses_supplied_user_and_password_if_available() {
+			Check.That(() => new DataBossConfiguration{ Database = ".", User = "sa", Password = "pass" }.GetConnectionString().EndsWith("User=sa;Password=pass"));
 		}
 
 		public void requires_Database_to_be_set_when_getting_connection_string() {
 			Check.Exception<InvalidOperationException>(() => 
 				new DataBossConfiguration { }.GetConnectionString());
+		}
+
+		public void GetCredentials_requires_password_when_user_given() {
+			Check.Exception<ArgumentException>(() => new DataBossConfiguration { User = "sa" }.GetCredentials());
+		}
+
+		KeyValuePair<string, DataBossConfiguration> ParseGivenTargetAndCommand(params string[] args) {
+			return DataBossConfiguration.ParseCommandConfig(
+				args.Concat(new[] {
+					"-Target", "target",
+					"<command>"
+				}), 
+				_ => new DataBossConfiguration());
 		}
 	}
 }

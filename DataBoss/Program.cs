@@ -114,7 +114,7 @@ end
 			var pending = GetPendingMigrations(config);
 			Console.WriteLine("{0} pending migrations found.", pending.Count);
 
-			using(var targetScope = new DataBossConsoleLogMigrationScope(GetTargetScope(config))) {
+			using(var targetScope = GetTargetScope(config)) {
 				var migrator = new DataBossMigrator(info => targetScope);
 				pending.ForEach(migrator.Apply);
 			}
@@ -122,7 +122,8 @@ end
 
 		IDataBossMigrationScope GetTargetScope(DataBossConfiguration config) {
 			if(string.IsNullOrEmpty(config.Script))
-				return new DataBossSqlMigrationScope(db);
+				return new DataBossConsoleLogMigrationScope(
+					new DataBossSqlMigrationScope(db));
 			if(config.Script == "con:")
 				return new DataBossScriptMigrationScope(Console.Out, false);
 			return new DataBossScriptMigrationScope(new StreamWriter(File.Create(config.Script)), true);
