@@ -147,18 +147,15 @@ end
 
 		private List<IDataBossMigration> GetPendingMigrations(DataBossConfiguration config) {
 			var applied = new HashSet<string>(GetAppliedMigrations(config).Select(x => x.FullId));
-			var migrations = new Queue<IDataBossMigration>();
-			var pending = new List<IDataBossMigration>();
+			return Flatten(GetTargetMigration(config.Migrations))
+				.Where(item => item.HasQueryBatches && !applied.Contains(item.Info.FullId))
+				.ToList();
+		}
 
-			migrations.Enqueue(GetTargetMigration(config.Migrations));
-			while(migrations.Count != 0) {
-				var item = migrations.Dequeue();
-				foreach(var sub in item.GetSubMigrations())
-					migrations.Enqueue(sub);
-				if(item.HasQueryBatches && !applied.Contains(item.Info.FullId))
-					pending.Add(item);
-			}
-			return pending;
+		IEnumerable<IDataBossMigration> Flatten(IDataBossMigration migration) {
+			yield return migration;
+			foreach(var item in migration.GetSubMigrations().SelectMany(Flatten))
+				yield return item;
 		}
 
 		public static IDataBossMigration GetTargetMigration(DataBossMigrationPath[] migrations) {

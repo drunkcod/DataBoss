@@ -62,6 +62,9 @@ namespace DataBoss
 						case "ServerInstance": 
 							getOverrides().Server = value;
 							break;
+						case "Database": 
+							getOverrides().Database = value;
+							break;
 						case "Script":
 							getOverrides().Script = value;
 							break;
@@ -88,6 +91,8 @@ namespace DataBoss
 			if(config != null && overrides != null) {
 				if(!string.IsNullOrEmpty(overrides.Server))
 					config.Server = overrides.Server;
+				if(!string.IsNullOrEmpty(overrides.Database))
+					config.Database = overrides.Database;
 				if(!string.IsNullOrEmpty(overrides.Script))
 					config.Script = overrides.Script;
 				if(!string.IsNullOrEmpty(overrides.User))

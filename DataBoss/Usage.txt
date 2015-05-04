@@ -6,11 +6,12 @@ Available commands:
   update   Applies any pending migrations
 
 Options:
-  -ServerInstance  <servername> - specify server network name, defaults to "."
-  -User            <username> - username to login with
-  -Password        ********** - password for said user
-  -Target          <target> - to disambiguate between multiple .databoss files
-  -Script          <output> - scripts pending migrations to file (con: redirects to console)
+  -ServerInstance  <servername>   - specify server network name, defaults to "."
+  -Database        <databasename> - override database name
+  -User            <username>     - username to login with
+  -Password        **********     - password for said user
+  -Target          <target>       - to disambiguate between multiple .databoss files
+  -Script          <output>       - scripts pending migrations to file (con: redirects to console)
 
 If 'User' isn't specified integrated security will be assumed. 
 

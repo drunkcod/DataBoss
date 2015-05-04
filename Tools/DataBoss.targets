@@ -1,0 +1,42 @@
+<Project ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+	<UsingTask
+		TaskName="Zip"
+		TaskFactory="CodeTaskFactory"
+		AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.v12.0.dll" >
+		<ParameterGroup>
+			<Include Required="True" ParameterType="Microsoft.Build.Framework.ITaskItem[]" />
+			<Exclude ParameterType="System.String[]" />
+			<Target Required="True" ParameterType="System.String" />
+		</ParameterGroup>
+		<Task>
+			<Reference Include="System.IO.Compression"/>
+			<Using Namespace="System.IO" />
+			<Using Namespace="System.IO.Compression"/>
+			<Code Type="Fragment" Language="cs">
+<![CDATA[
+using(var result = File.Create(Target))
+using(var z = new ZipArchive(result, ZipArchiveMode.Create))
+{
+	foreach(var item in Include.Where(x => Exclude == null || !Exclude.Contains(x.ItemSpec)).SelectMany(x => 
+	{
+		if(Directory.Exists(x.ItemSpec))
+			return Directory.GetFiles(x.ItemSpec, "*", SearchOption.AllDirectories).Select(file => new {
+				Source = file,
+				Path = x.GetMetadata("Path") + file.Substring(x.ItemSpec.Length),
+			});
+		return new[]{ new { 
+			Source = x.ItemSpec, 
+			Path = (x.GetMetadata("Path") + Path.DirectorySeparatorChar + x.ItemSpec.Substring(1 + x.ItemSpec.IndexOf('\\'))).TrimStart(Path.DirectorySeparatorChar) } };
+	})) 
+	{
+		var e = z.CreateEntry(item.Path, CompressionLevel.Optimal);
+		using(var entry = e.Open())
+		using(var input = File.OpenRead(item.Source))
+			input.CopyTo(entry);
+	}
+}
+]]>
+			</Code>
+		</Task>
+	</UsingTask>
+</Project>
