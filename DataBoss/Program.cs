@@ -147,12 +147,15 @@ end
 
 		private List<IDataBossMigration> GetPendingMigrations(DataBossConfiguration config) {
 			var applied = new HashSet<string>(GetAppliedMigrations(config).Select(x => x.FullId));
+			Func<IDataBossMigration, bool> notApplied = x => !applied.Contains(x.Info.FullId);
+
 			return Flatten(GetTargetMigration(config.Migrations))
-				.Where(item => item.HasQueryBatches && !applied.Contains(item.Info.FullId))
+				.Where(item => item.HasQueryBatches)
+				.Where(notApplied)
 				.ToList();
 		}
 
-		IEnumerable<IDataBossMigration> Flatten(IDataBossMigration migration) {
+		static IEnumerable<IDataBossMigration> Flatten(IDataBossMigration migration) {
 			yield return migration;
 			foreach(var item in migration.GetSubMigrations().SelectMany(Flatten))
 				yield return item;
