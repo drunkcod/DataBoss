@@ -56,18 +56,15 @@ namespace DataBoss
 
 			try {
 				var cc = DataBossConfiguration.ParseCommandConfig(args);
-				if(!commands.ContainsKey(cc.Key)) {
+				Action<Program, DataBossConfiguration> command;
+				if(!commands.TryGetValue(cc.Key, out command)) {
 					Console.WriteLine(GetUsageString());
 					return -1;
 				}
-			
-				var command = cc.Key;
-				var config = cc.Value;
 
-				using(var db = new SqlConnection(config.GetConnectionString())) {
+				using(var db = new SqlConnection(cc.Value.GetConnectionString())) {
 					db.Open();
-					var program = new Program(db);
-					commands[command](program, config);
+					command(new Program(db), cc.Value);
 				}
 
 			} catch(Exception e) {
