@@ -1,8 +1,6 @@
 ﻿using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-
-
 [assembly: AssemblyTitle("DataBoss")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
@@ -13,4 +11,3 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCulture("")]
 [assembly: ComVisible(false)]
 [assembly: Guid("100edf18-fcc4-4676-9ddb-b480ac700ae4")]
-[assembly: AssemblyVersion("0.0.0.5")]
