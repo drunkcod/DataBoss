@@ -3,30 +3,9 @@ using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.IO;
 using System.Linq;
-using System.Xml.Serialization;
 
 namespace DataBoss
 {
-	public class DataBossMigrationPath
-	{
-		[XmlAttribute("context")]
-		public string Context;
-
-		[XmlAttribute("path")]
-		public string Path;
-	}
-
-	public class DataBossMigrationInfo
-	{
-		public long Id;
-		public string Context;
-		public string Name;
-
-		public string FullId { get { 
-			return string.IsNullOrEmpty(Context) ? Id.ToString() : string.Format("{0}.{1}", Context, Id); 
-		} }
-	}
-
 	public class Program
 	{
 		static string ProgramName { get { return Path.GetFileName(typeof(Program).Assembly.Location); } }
@@ -63,7 +42,6 @@ namespace DataBoss
 				}
 
 				using(var db = new SqlConnection(cc.Value.GetConnectionString())) {
-					db.Open();
 					command(new Program(db), cc.Value);
 				}
 
@@ -87,6 +65,7 @@ namespace DataBoss
 		}
 
 		void Initialize(DataBossConfiguration config) {
+			EnsureDatabse(config.GetConnectionString());
 			using(var cmd = new SqlCommand(@"
 if not exists(select * from sys.tables t where t.name = '__DataBossHistory') begin
 	create table __DataBossHistory(
@@ -108,13 +87,31 @@ if not exists(select * from sys.tables t where t.name = '__DataBossHistory') beg
 end
 ", db))
 			{
+				db.Open();
 				using(var r = cmd.ExecuteReader())
 					while(r.Read())
 						Console.WriteLine(r.GetValue(0));
 			}
 		}
-	
+
+		static void EnsureDatabse(string connectionString) {
+			var qs = new SqlConnectionStringBuilder(connectionString);
+			var dbName = qs.InitialCatalog;
+			qs.Remove("Initial Catalog");
+			using(var db = new SqlConnection(qs.ConnectionString)) {
+				db.Open();
+				using(var cmd = new SqlCommand("select db_id(@db)" ,db)) {
+					cmd.Parameters.AddWithValue("@db", dbName);
+					if(cmd.ExecuteScalar() is DBNull) {
+						cmd.CommandText = "create database [" + dbName + "]";
+						cmd.ExecuteNonQuery();
+					}
+				}
+			}
+		}
+
 		void Status(DataBossConfiguration config) {
+			db.Open();
 			var pending = GetPendingMigrations(config);
 			if(pending.Count != 0) {
 				Console.WriteLine("Pending migrations:");
@@ -124,6 +121,7 @@ end
 		}
 
 		void Update(DataBossConfiguration config) {
+			db.Open();
 			var pending = GetPendingMigrations(config);
 			Console.WriteLine("{0} pending migrations found.", pending.Count);
 

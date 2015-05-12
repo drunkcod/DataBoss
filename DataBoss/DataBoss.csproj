@@ -46,6 +46,8 @@
     <Compile Include="DataBossConfiguration.cs" />
     <Compile Include="DataBossConsoleLogMigrationScope.cs" />
     <Compile Include="DataBossDirectoryMigration.cs" />
+    <Compile Include="DataBossMigrationInfo.cs" />
+    <Compile Include="DataBossMigrationPath.cs" />
     <Compile Include="DataBossMigrator.cs" />
     <Compile Include="DataBossSqlMigrationScope.cs" />
     <Compile Include="DataBossTextMigration.cs" />
