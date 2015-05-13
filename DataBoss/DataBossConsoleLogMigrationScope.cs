@@ -14,15 +14,24 @@ namespace DataBoss
 		}
 
 		public void Begin(DataBossMigrationInfo info) {
-			Console.Write("  Applying '{0}') {1}", info.FullId, info.Name);
+			Console.WriteLine("  Applying '{0}') {1}", info.FullId, info.Name);
 			stopwatch.Restart();
 			inner.Begin(info);
 		}
 
-		public void Execute(string query) { inner.Execute(query); }
+		public void Execute(string query) { 
+			try {
+				inner.Execute(query); 
+			} catch(Exception e) {
+				var oldColor = Console.ForegroundColor;
+				Console.ForegroundColor = ConsoleColor.DarkRed;
+				Console.Error.WriteLine("  {0}", e.Message.Replace("\n" ,"\n  "));
+				Console.ForegroundColor = oldColor;
+			}
+		}
 
 		public void Done() {
-			Console.WriteLine(" finished in {0}", stopwatch.Elapsed);
+			Console.WriteLine("  Finished in {0}", stopwatch.Elapsed);
 			inner.Done();
 		}
 

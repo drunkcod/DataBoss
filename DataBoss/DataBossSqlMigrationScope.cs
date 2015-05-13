@@ -1,5 +1,6 @@
 using System;
 using System.Data.SqlClient;
+using System.Linq.Expressions;
 
 namespace DataBoss
 {
@@ -35,8 +36,10 @@ namespace DataBoss
 		}
 
 		void IDisposable.Dispose() {
-			cmd.Dispose();				
-			cmd = null;
+			if(cmd != null) {
+				cmd.Dispose();				
+				cmd = null;
+			}
 		}
 	}
 }

@@ -46,16 +46,21 @@ namespace DataBoss
 				}
 
 			} catch(Exception e) {
-				var oldColor = Console.ForegroundColor;
-				Console.ForegroundColor = ConsoleColor.Red;
-				Console.Error.WriteLine(e.Message);
-				Console.ForegroundColor = oldColor;
+				WriteError(e);
 				Console.Error.WriteLine();
 				Console.Error.WriteLine(GetUsageString());
 				return -1;
 			}
 
 			return 0;
+		}
+
+		private static void WriteError(Exception e)
+		{
+			var oldColor = Console.ForegroundColor;
+			Console.ForegroundColor = ConsoleColor.Red;
+			Console.Error.WriteLine(e.Message);
+			Console.ForegroundColor = oldColor;
 		}
 
 		static string GetUsageString() {
@@ -132,9 +137,10 @@ end
 		}
 
 		IDataBossMigrationScope GetTargetScope(DataBossConfiguration config) {
-			if(string.IsNullOrEmpty(config.Script))
+			if(string.IsNullOrEmpty(config.Script)) {
 				return new DataBossConsoleLogMigrationScope(
 					new DataBossSqlMigrationScope(db));
+			}
 			if(config.Script == "con:")
 				return new DataBossScriptMigrationScope(Console.Out, false);
 			return new DataBossScriptMigrationScope(new StreamWriter(File.Create(config.Script)), true);
