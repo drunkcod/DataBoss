@@ -69,7 +69,7 @@ namespace DataBoss
 				.Replace("{{Version}}", typeof(Program).Assembly.GetName().Version.ToString());					
 		}
 
-		void Initialize(DataBossConfiguration config) {
+		public void Initialize(DataBossConfiguration config) {
 			EnsureDatabse(config.GetConnectionString());
 			using(var cmd = new SqlCommand(@"
 if not exists(select * from sys.tables t where t.name = '__DataBossHistory') begin

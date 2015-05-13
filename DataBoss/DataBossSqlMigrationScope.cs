@@ -1,20 +1,26 @@
 using System;
 using System.Data.SqlClient;
-using System.Linq.Expressions;
+using System.IO;
 
 namespace DataBoss
 {
-	class DataBossSqlMigrationScope : IDataBossMigrationScope
+	public class DataBossSqlMigrationScope : IDataBossMigrationScope
 	{
 		readonly SqlConnection db;
+		bool hasErrors;
 		SqlCommand cmd;
 
 		public DataBossSqlMigrationScope(SqlConnection db) {
 			this.db = db;
 		}
 
+		public event EventHandler<ErrorEventArgs> OnError;
+
+
 		public void Begin(DataBossMigrationInfo info) {
-			this.cmd = new SqlCommand("insert __DataBossHistory(Id, Context, Name, StartedAt, [User]) values(@id, @context, @name, getdate(), @user)", db);
+			this.cmd = new SqlCommand("set xact_abort on\nbegin transaction", db);
+			cmd.ExecuteNonQuery();
+			cmd.CommandText = "insert __DataBossHistory(Id, Context, Name, StartedAt, [User]) values(@id, @context, @name, getdate(), @user)";
 			cmd.Parameters.AddWithValue("@id", info.Id);
 			cmd.Parameters.AddWithValue("@context", info.Context ?? string.Empty);
 			cmd.Parameters.AddWithValue("@name", info.Name);
@@ -23,16 +29,25 @@ namespace DataBoss
 		}
 
 		public void Execute(string query) {
+			if(hasErrors)
+				return;
+
 			using(var q = new SqlCommand(query, db))
-				q.ExecuteNonQuery();
+				try { q.ExecuteNonQuery(); }
+				catch(Exception e) { 
+					hasErrors = true;
+ 					if(OnError != null)
+						OnError(this, new ErrorEventArgs(e));
+				}
 		}
 
 		public void Done() {
 			if(cmd == null)
 				return;
-
-			cmd.CommandText = "update __DataBossHistory set FinishedAt = getdate() where Id = @id and Context = @Context";
-			cmd.ExecuteNonQuery();			
+			if(!hasErrors) {
+				cmd.CommandText = "update __DataBossHistory set FinishedAt = getdate() where Id = @id and Context = @Context\ncommit";
+				cmd.ExecuteNonQuery();
+			}
 		}
 
 		void IDisposable.Dispose() {

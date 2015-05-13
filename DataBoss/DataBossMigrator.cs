@@ -5,6 +5,8 @@ namespace DataBoss
 {
 	public interface IDataBossMigrationScope : IDisposable
 	{
+		event EventHandler<ErrorEventArgs> OnError;
+
 		void Begin(DataBossMigrationInfo info);
 		void Execute(string query);
 		void Done();
@@ -22,6 +24,8 @@ namespace DataBoss
 			this.output = output;
 			this.closeOutput = closeOutput;
 		}
+
+		public event EventHandler<ErrorEventArgs> OnError;
 
 		public void Begin(DataBossMigrationInfo info) {
 			id = info.Id;

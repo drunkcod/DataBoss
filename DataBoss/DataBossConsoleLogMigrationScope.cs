@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.IO;
 
 namespace DataBoss
 {
@@ -11,6 +12,18 @@ namespace DataBoss
 		public DataBossConsoleLogMigrationScope(IDataBossMigrationScope inner) {
 			this.inner = inner;
 			this.stopwatch = new Stopwatch();
+
+			inner.OnError += (_, e) => {
+				var oldColor = Console.ForegroundColor;
+				Console.ForegroundColor = ConsoleColor.DarkRed;
+				Console.Error.WriteLine("  {0}", e.GetException().Message.Replace("\n" ,"\n  "));
+				Console.ForegroundColor = oldColor;
+			};
+		}
+
+		public event EventHandler<ErrorEventArgs> OnError {
+			add { inner.OnError += value; }
+			remove { inner.OnError -= value; }
 		}
 
 		public void Begin(DataBossMigrationInfo info) {
@@ -19,15 +32,8 @@ namespace DataBoss
 			inner.Begin(info);
 		}
 
-		public void Execute(string query) { 
-			try {
+		public void Execute(string query) {
 				inner.Execute(query); 
-			} catch(Exception e) {
-				var oldColor = Console.ForegroundColor;
-				Console.ForegroundColor = ConsoleColor.DarkRed;
-				Console.Error.WriteLine("  {0}", e.Message.Replace("\n" ,"\n  "));
-				Console.ForegroundColor = oldColor;
-			}
 		}
 
 		public void Done() {
