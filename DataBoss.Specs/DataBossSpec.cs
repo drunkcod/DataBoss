@@ -1,13 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Data.Linq;
-using System.Data.SqlClient;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Cone;
 using DataBoss.Schema;
+using System.Data.Linq;
 using System.Data.Linq.Mapping;
+using System.Data.SqlClient;
+using System.Linq;
 
 namespace DataBoss.Specs
 {
@@ -21,34 +18,76 @@ namespace DataBoss.Specs
 	[Feature("DataBoss")]
 	public class DataBossSpec
 	{
-		public void rollbacks_failed_migration() {
+		SqlConnection Connection;
+		Program DataBoss;
+		DataContext Context;
+
+		[BeforeEach]
+		public void BeforeEach() {
 			var config = new DataBossConfiguration {
 				Server = ".",
 				Database = "DataBoss Tests",
 			};
-			using(var db = new SqlConnection(config.GetConnectionString())) {
-				var dataBoss = new Program(db);
-				var context = new DataContext(db);
-				Assume.That(() => !context.GetTable<SysObjects>().Any(x => x.Name == "Foo"));
+			Connection = new SqlConnection(config.GetConnectionString());
+			DataBoss = new Program(Connection);
+			Context = new DataContext(Connection);
+			DataBoss.Initialize(config);
+		}
+
+		[AfterEach]
+		public void Cleanup() {
+			DataBoss = null;
+			Context.Dispose();
+			Context = null;
+			Connection.Dispose();
+			Connection = null;
+		}
+
+		IQueryable<SysObjects> SysObjects { get { return Context.GetTable<SysObjects>(); } } 
+		IQueryable<DataBossHistory> Migrations { get { return Context.GetTable<DataBossHistory>(); } } 
+
+		public void rollbacks_failed_migration() {
+			Assume.That(() => !SysObjects.Any(x => x.Name == "Foo"));
 				
-				var migrations = context.GetTable<DataBossHistory>();
-				dataBoss.Initialize(config);
-				var migrator = new DataBossSqlMigrationScope(db);
-				var failingMigration = new DataBossMigrationInfo {
-					Id = migrations.Max(x => x.Id) + 1,
-					Name = "Failing Migration",
-				};
+			var failingMigration = new DataBossMigrationInfo {
+				Id = Migrations.Max(x => x.Id) + 1,
+				Name = "Failing Migration",
+			};
 
-				migrator.Begin(failingMigration);
-				migrator.Execute("create table Foo(Id int not null)");
-				migrator.Execute("select syntax error");
-				migrator.Execute("create table Foo(Id int not null)");
-				migrator.Done();
+			Apply(failingMigration, migrator => {
+				migrator.Execute("create table Foo(Id int not null)");//should work
+				migrator.Execute("select syntax error");//should error
+				migrator.Execute("create table Foo(Id int not null)");//should be ignored
+			});
 
-				Check.That(
-					() => !migrations.Any(x => x.Id == failingMigration.Id),
-					() => !context.GetTable<SysObjects>().Any(x => x.Name == "Foo"));
-			}
+			Check.That(
+				() => !Migrations.Any(x => x.Id == failingMigration.Id),
+				() => !SysObjects.Any(x => x.Name == "Foo"));
+		}
+
+		public void happy_path_is_happ() {
+
+			if(Context.GetTable<SysObjects>().Any(x => x.Name == "Bar"))
+				using(var cmd = new SqlCommand("drop table Bar", Connection))
+					cmd.ExecuteNonQuery();
+				
+			var migration = new DataBossMigrationInfo {
+				Id = Migrations.Max(x => x.Id) + 1,
+				Name = "Great Success!",
+			};
+
+			Apply(migration, migrator => {
+				migrator.Execute("create table Bar(Id int not null)");
+			});
+
+			Check.That(() => SysObjects.Any(x => x.Name == "Bar"));
+		}
+
+		void Apply(DataBossMigrationInfo info, Action<IDataBossMigrationScope> scope) {
+			var migrator = new DataBossSqlMigrationScope(Connection);
+			migrator.Begin(info);
+			scope(migrator);
+			migrator.Done();
 		}
 	}
 }

@@ -16,11 +16,9 @@ namespace DataBoss
 
 		public event EventHandler<ErrorEventArgs> OnError;
 
-
 		public void Begin(DataBossMigrationInfo info) {
-			this.cmd = new SqlCommand("set xact_abort on\nbegin transaction", db);
-			cmd.ExecuteNonQuery();
-			cmd.CommandText = "insert __DataBossHistory(Id, Context, Name, StartedAt, [User]) values(@id, @context, @name, getdate(), @user)";
+			cmd = new SqlCommand("insert __DataBossHistory(Id, Context, Name, StartedAt, [User]) values(@id, @context, @name, getdate(), @user)", db, db.BeginTransaction("LikeABoss"));
+
 			cmd.Parameters.AddWithValue("@id", info.Id);
 			cmd.Parameters.AddWithValue("@context", info.Context ?? string.Empty);
 			cmd.Parameters.AddWithValue("@name", info.Name);
@@ -32,9 +30,9 @@ namespace DataBoss
 			if(hasErrors)
 				return;
 
-			using(var q = new SqlCommand(query, db))
+			using(var q = new SqlCommand(query, db, cmd.Transaction))
 				try { q.ExecuteNonQuery(); }
-				catch(Exception e) { 
+				catch(SqlException e) { 
 					hasErrors = true;
  					if(OnError != null)
 						OnError(this, new ErrorEventArgs(e));
@@ -45,8 +43,12 @@ namespace DataBoss
 			if(cmd == null)
 				return;
 			if(!hasErrors) {
-				cmd.CommandText = "update __DataBossHistory set FinishedAt = getdate() where Id = @id and Context = @Context\ncommit";
+				cmd.CommandText = "update __DataBossHistory set FinishedAt = getdate() where Id = @id and Context = @Context";
 				cmd.ExecuteNonQuery();
+				cmd.Transaction.Commit();
+			} else {
+				if(cmd.Transaction != null)
+					cmd.Transaction.Rollback();
 			}
 		}
 

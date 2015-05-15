@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.SqlClient;
 using System.IO;
 using System.Linq;
@@ -92,7 +93,7 @@ if not exists(select * from sys.tables t where t.name = '__DataBossHistory') beg
 end
 ", db))
 			{
-				db.Open();
+				Open();
 				using(var r = cmd.ExecuteReader())
 					while(r.Read())
 						Console.WriteLine(r.GetValue(0));
@@ -116,7 +117,7 @@ end
 		}
 
 		void Status(DataBossConfiguration config) {
-			db.Open();
+			Open();
 			var pending = GetPendingMigrations(config);
 			if(pending.Count != 0) {
 				Console.WriteLine("Pending migrations:");
@@ -126,7 +127,7 @@ end
 		}
 
 		void Update(DataBossConfiguration config) {
-			db.Open();
+			Open();
 			var pending = GetPendingMigrations(config);
 			Console.WriteLine("{0} pending migrations found.", pending.Count);
 
@@ -134,6 +135,11 @@ end
 				var migrator = new DataBossMigrator(info => targetScope);
 				pending.ForEach(migrator.Apply);
 			}
+		}
+
+		void Open() {
+			if(db.State != ConnectionState.Open)
+				db.Open();
 		}
 
 		IDataBossMigrationScope GetTargetScope(DataBossConfiguration config) {
@@ -163,14 +169,17 @@ end
 		}
 
 		public static IDataBossMigration GetTargetMigration(DataBossMigrationPath[] migrations) {
-			return new DataBossCompositeMigration(
-				migrations.ConvertAll(x => new DataBossDirectoryMigration(
-					x.Path, new DataBossMigrationInfo {
-						Id = 0,
-						Context = x.Context,
-						Name = x.Path,
-					}
-				)));
+			return new DataBossCompositeMigration(migrations.ConvertAll(MakeDirectoryMigration));
+		}
+
+		static IDataBossMigration MakeDirectoryMigration(DataBossMigrationPath x) {
+			return new DataBossDirectoryMigration(
+				x.Path, new DataBossMigrationInfo {
+					Id = 0,
+					Context = x.Context,
+					Name = x.Path,
+				}
+			);
 		}
 
 		public IEnumerable<DataBossMigrationInfo> GetAppliedMigrations(DataBossConfiguration config) {
