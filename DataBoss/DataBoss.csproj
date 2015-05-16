@@ -52,6 +52,7 @@
     <Compile Include="DataBossMigrator.cs" />
     <Compile Include="DataBossSqlMigrationScope.cs" />
     <Compile Include="DataBossTextMigration.cs" />
+    <Compile Include="EventHandlerExtensions.cs" />
     <Compile Include="IDataBossMigration.cs" />
     <Compile Include="MissingLinqExtensions.cs" />
     <Compile Include="Program.cs" />

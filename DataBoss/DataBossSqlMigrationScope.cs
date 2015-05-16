@@ -34,8 +34,7 @@ namespace DataBoss
 				try { q.ExecuteNonQuery(); }
 				catch(SqlException e) { 
 					hasErrors = true;
- 					if(OnError != null)
-						OnError(this, new ErrorEventArgs(e));
+					OnError.Raise(this, new ErrorEventArgs(e));
 				}
 		}
 
