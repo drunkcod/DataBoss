@@ -47,6 +47,7 @@
     <Compile Include="DataBossConfigurationSpec.cs" />
     <Compile Include="DataBossSpec.cs" />
     <Compile Include="DataBossTextMigrationSpec.cs" />
+    <Compile Include="PowerArgsSpec.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DataBoss\DataBoss.csproj">

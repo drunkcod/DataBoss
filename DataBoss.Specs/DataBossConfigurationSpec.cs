@@ -16,7 +16,7 @@ namespace DataBoss.Specs
 			public void integrated_security() {
 				Check.That(() => 
 					new DataBossConfiguration {
-						Server = ".",
+						ServerInstance = ".",
 						Database = "MyDB"
 					}.GetConnectionString() == "Server=.;Database=MyDB;Integrated Security=SSPI");
 			}
@@ -34,7 +34,7 @@ namespace DataBoss.Specs
 				"-ServerInstance", "MyServer"
 			);
 
-			Check.That(() => CommandConfig.Value.Server == "MyServer");
+			Check.That(() => CommandConfig.Value.ServerInstance == "MyServer");
 		}
 
 		public void supports_specifying_Output_script_name() {

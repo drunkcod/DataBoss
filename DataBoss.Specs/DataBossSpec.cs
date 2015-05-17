@@ -25,7 +25,7 @@ namespace DataBoss.Specs
 		[BeforeEach]
 		public void BeforeEach() {
 			var config = new DataBossConfiguration {
-				Server = ".",
+				ServerInstance = ".",
 				Database = "DataBoss Tests",
 			};
 			Connection = new SqlConnection(config.GetConnectionString());

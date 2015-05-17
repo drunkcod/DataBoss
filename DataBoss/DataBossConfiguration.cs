@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Xml.Serialization;
+using DataBoss.Specs;
 
 namespace DataBoss
 {
@@ -9,7 +11,7 @@ namespace DataBoss
 	public class DataBossConfiguration
 	{
 		[XmlAttribute("server")]
-		public string Server;
+		public string ServerInstance;
 
 		[XmlAttribute("database")]
 		public string Database;
@@ -43,44 +45,13 @@ namespace DataBoss
 			string command = null;
 			DataBossConfiguration config = null;
 			DataBossConfiguration overrides = null;
-			Func<DataBossConfiguration> getOverrides = () => overrides ?? (overrides = new DataBossConfiguration());
 
-			for(var it = args.GetEnumerator(); it.MoveNext();) {
-				var item = it.Current;
-				if(item.StartsWith("-")) {
-					item = item.Substring(1);
-					if(!it.MoveNext() || it.Current.StartsWith("-"))
-						throw new InvalidOperationException("No value given for '" + item + "'");
-					var value = it.Current;
-					switch(item) {
-						case "User":
-							getOverrides().User = value;
-							break;
-						case "Password": 
-							getOverrides().Password = value;
-							break;
-						case "ServerInstance": 
-							getOverrides().Server = value;
-							break;
-						case "Database": 
-							getOverrides().Database = value;
-							break;
-						case "Script":
-							getOverrides().Script = value;
-							break;
-						case "Target":
-							config = load(value);
-							break;
-						default: throw new ArgumentException("Invalid option: " + item);
-					}
-				}
-				else {
-					if(command == null)
-						command = item;
-					else
-						throw new ArgumentException("unknown arg: " + item);
-				}
-			}
+			var parsedArgs = PowerArgs.Parse(args);
+			string target;
+			if(parsedArgs.TryGetArg("Target", out target))
+				config = load(target);
+
+			command = parsedArgs.Commands.SingleOrDefault();
 
 			if(config == null) {
 				var targets = Directory.GetFiles(".", "*.databoss");
@@ -88,18 +59,7 @@ namespace DataBoss
 					throw new ArgumentException("Can't autodetec target, use -Target <file> to specify it");
 				config = Load(targets[0]);
 			}
-			if(config != null && overrides != null) {
-				if(!string.IsNullOrEmpty(overrides.Server))
-					config.Server = overrides.Server;
-				if(!string.IsNullOrEmpty(overrides.Database))
-					config.Database = overrides.Database;
-				if(!string.IsNullOrEmpty(overrides.Script))
-					config.Script = overrides.Script;
-				if(!string.IsNullOrEmpty(overrides.User))
-					config.User = overrides.User;
-				if(!string.IsNullOrEmpty(overrides.Password))
-					config.Password = overrides.Password;
-			}
+			parsedArgs.Into(config);
 
 			if(command == null || config == null) 
 				throw new ArgumentException("missing command and/or configuration options.");
@@ -110,7 +70,7 @@ namespace DataBoss
 		public string GetConnectionString() {
 			if(string.IsNullOrEmpty(Database))
 				throw new InvalidOperationException("No database specified");
-			return string.Format("Server={0};Database={1};{2}", Server ?? ".", Database, GetCredentials());
+			return string.Format("Server={0};Database={1};{2}", ServerInstance ?? ".", Database, GetCredentials());
 		}
 
 		public string GetCredentials() {
