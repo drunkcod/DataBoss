@@ -42,29 +42,26 @@ namespace DataBoss
 		}
 
 		public static KeyValuePair<string, DataBossConfiguration> ParseCommandConfig(IEnumerable<string> args, Func<string, DataBossConfiguration> load) {
-			string command = null;
-			DataBossConfiguration config = null;
-			DataBossConfiguration overrides = null;
-
 			var parsedArgs = PowerArgs.Parse(args);
-			string target;
-			if(parsedArgs.TryGetArg("Target", out target))
-				config = load(target);
-
-			command = parsedArgs.Commands.SingleOrDefault();
-
-			if(config == null) {
-				var targets = Directory.GetFiles(".", "*.databoss");
-				if(targets.Length != 1)
-					throw new ArgumentException("Can't autodetec target, use -Target <file> to specify it");
-				config = Load(targets[0]);
-			}
-			parsedArgs.Into(config);
-
-			if(command == null || config == null) 
+			var config = GetBaseConfig(parsedArgs, load);
+			var command = parsedArgs.Commands.SingleOrDefault();
+			if(command == null) 
 				throw new ArgumentException("missing command and/or configuration options.");
 
+			parsedArgs.Into(config);
+
 			return new KeyValuePair<string,DataBossConfiguration>(command, config);
+		}
+
+		private static DataBossConfiguration GetBaseConfig(PowerArgs parsedArgs, Func<string, DataBossConfiguration> load) {
+			string target;
+			if(parsedArgs.TryGetArg("Target", out target))
+				return load(target);
+
+			var targets = Directory.GetFiles(".", "*.databoss");
+			if(targets.Length != 1)
+				throw new ArgumentException("Can't autodetec target, use -Target <file> to specify it");
+			return load(targets[0]);
 		}
 
 		public string GetConnectionString() {

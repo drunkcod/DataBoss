@@ -22,23 +22,30 @@ namespace DataBoss.Specs
 		public static PowerArgs Parse(IEnumerable<string> args) {
 			var result = new PowerArgs();
 			for(var it = args.GetEnumerator(); it.MoveNext();) {
-				var item = it.Current;
-				if(IsArg(item)) {
-					item = item.Substring(1);
-					if(!it.MoveNext() || it.Current.StartsWith("-"))
+				string item;
+				if(MatchArg(it.Current, out item)) {
+					if(!it.MoveNext() || IsArg(it.Current))
 						throw new InvalidOperationException("No value given for '" + item + "'");
-					var value = it.Current;
-
-					result.Add(item, value);
+					result.Add(item, it.Current);
 				} else {
-					result.commands.Add(item);
+					result.commands.Add(it.Current);
 				}
 			}
 			return result;
 		}
 
-		static bool IsArg(string item) {
-			return item.StartsWith("-");
+		static bool MatchArg(string item, out string result) {
+			if(item.StartsWith("-")) {
+				result = item.Substring(1);
+				return true;
+			}
+			result = null;
+			return false;
+		}
+
+		static bool IsArg(string input) {
+			string ignored;
+			return MatchArg(input, out ignored);
 		}
 
 		void Add(string arg, string value) {
