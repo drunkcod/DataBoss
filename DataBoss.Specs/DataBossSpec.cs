@@ -30,7 +30,7 @@ namespace DataBoss.Specs
 			};
 			Connection = new SqlConnection(config.GetConnectionString());
 			DataBoss = new Program(Connection);
-			Context = new DataContext(Connection);
+			Context = new DataContext(Connection, new DataBossMappingSource());
 			DataBoss.Initialize(config);
 		}
 

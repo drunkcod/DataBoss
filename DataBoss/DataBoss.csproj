@@ -34,10 +34,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
+    <Reference Include="System.ComponentModel.DataAnnotations" />
     <Reference Include="System.Core" />
-    <Reference Include="System.Data.Linq" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
@@ -50,6 +48,7 @@
     <Compile Include="DataBossMigrationInfo.cs" />
     <Compile Include="DataBossMigrationPath.cs" />
     <Compile Include="DataBossMigrator.cs" />
+    <Compile Include="DataBossScripter.cs" />
     <Compile Include="DataBossSqlMigrationScope.cs" />
     <Compile Include="DataBossTextMigration.cs" />
     <Compile Include="EventHandlerExtensions.cs" />

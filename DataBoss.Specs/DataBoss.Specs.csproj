@@ -35,6 +35,7 @@
       <HintPath>..\..\Cone\Build\Cone.dll</HintPath>
     </Reference>
     <Reference Include="System" />
+    <Reference Include="System.ComponentModel.DataAnnotations" />
     <Reference Include="System.Core" />
     <Reference Include="System.Data.Linq" />
     <Reference Include="System.Xml.Linq" />
@@ -45,6 +46,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DataBossConfigurationSpec.cs" />
+    <Compile Include="DataBossMappingSource.cs" />
+    <Compile Include="DataBossScripterSpec.cs" />
     <Compile Include="DataBossSpec.cs" />
     <Compile Include="DataBossTextMigrationSpec.cs" />
     <Compile Include="PowerArgsSpec.cs" />

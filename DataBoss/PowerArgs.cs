@@ -2,7 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 
-namespace DataBoss.Specs
+namespace DataBoss
 {
 	public class PowerArgs : IEnumerable<KeyValuePair<string, string>>
 	{
