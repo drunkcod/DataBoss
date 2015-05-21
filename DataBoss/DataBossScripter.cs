@@ -7,18 +7,32 @@ using System.Text;
 
 namespace DataBoss
 {
+	static class CustomAttributeProviderExtensions
+	{
+		public static bool Any<T>(this ICustomAttributeProvider attributes) where T : Attribute {
+			return attributes.GetCustomAttributes(typeof(T), true).Length != 0;
+		}
+
+		public static T Single<T>(this ICustomAttributeProvider attributes) where T : Attribute {
+			return attributes.GetCustomAttributes(typeof(T), true).Cast<T>().Single();
+		}
+
+		public static T SingleOrDefault<T>(this ICustomAttributeProvider attributes) where T : Attribute {
+			return attributes.GetCustomAttributes(typeof(T), true).Cast<T>().SingleOrDefault();
+		}
+	}
+
 	public class DataBossScripter
 	{
 		public string Script(Type tableType) {
 			var result = new StringBuilder();
-
-			var tableAttribute = tableType.GetCustomAttributes(typeof(TableAttribute), true).Cast<TableAttribute>().Single();
+			var tableAttribute = tableType.Single<TableAttribute>();
 			result.AppendFormat("create table [{0}](" , tableAttribute.Name);
 			
 			tableType.GetFields()
 				.Select(field => new {
 					field,
-					column = field.GetCustomAttributes(typeof(ColumnAttribute), true).Cast<ColumnAttribute>().SingleOrDefault()
+					column = field.SingleOrDefault<ColumnAttribute>()
 				}).Where(x => x.column != null)
 				.OrderBy(x => x.column.Order)
 				.ToList()
@@ -31,32 +45,27 @@ namespace DataBoss
 
 		void ScriptColumn(StringBuilder result, FieldInfo field) {
 			result.AppendLine();
-			result.AppendFormat("\t[{0}] {1},", field.Name, ToDbType(field, field.FieldType));
+			result.AppendFormat("\t[{0}] {1},", field.Name, ToDbType(field.FieldType, field));
 		}
 
-		public static string ToDbType(MemberInfo field, Type memberType) {
-			return ToDbType(field, 
-				memberType, !memberType.IsValueType && field.GetCustomAttributes(typeof(RequiredAttribute), true).Length == 0);
+		public static string ToDbType(Type type, ICustomAttributeProvider attributes) {
+			var canBeNull = !type.IsValueType && !attributes.Any<RequiredAttribute>();
+			return MapType(type, attributes, ref canBeNull) + (canBeNull ? string.Empty : " not null");
 		}
 
-		static string ToDbType(MemberInfo member, Type type, bool canBeNull) {
-			return MapType(member, type, ref canBeNull) + (canBeNull ? string.Empty : " not null");
-		}
-
-		private static string MapType(MemberInfo member, Type type, ref bool canBeNull) {
+		private static string MapType(Type type, ICustomAttributeProvider attributes, ref bool canBeNull) {
 			switch (type.FullName) {
 				case "System.Int64":
 					return "bigint";
 				case "System.String":
-					var maxLength =
-						member.GetCustomAttributes(typeof (MaxLengthAttribute), true).Cast<MaxLengthAttribute>().SingleOrDefault();
+					var maxLength = attributes.SingleOrDefault<MaxLengthAttribute>();
 					return string.Format("varchar({0})", maxLength == null ? "max" : maxLength.Length.ToString());
 				case "System.DateTime":
 					return "datetime";
 				default:
 					if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof (Nullable<>)) {
 						canBeNull = true;
-						return MapType(member, type.GenericTypeArguments[0], ref canBeNull);
+						return MapType(type.GenericTypeArguments[0], attributes, ref canBeNull);
 					}
 					throw new NotSupportedException("Don't know how to map " + type.FullName + " to a db type");
 			}

@@ -207,7 +207,7 @@ namespace DataBoss.Specs
 
 			public override Type Type { get { return memberType; } }
 
-			public override string DbType { get { return DataBossScripter.ToDbType(member, memberType); } }
+			public override string DbType { get { return DataBossScripter.ToDbType(memberType, member); } }
 
 			public override MetaType DeclaringType { get { return declaringType; } }
 
