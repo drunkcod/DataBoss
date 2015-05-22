@@ -23,12 +23,13 @@ namespace DataBoss.Specs
 	[Describe(typeof(DataBossScripter))]
 	public class DataBossScripterSpec
 	{
-		public void DateTime_is_db_datetime() {
-			Check.That(() => DataBossScripter.ToDbType(typeof(DateTime), new StubAttributeProvider()) == "datetime not null");
-		}
-
-		public void nullable_DateTime_is_db_datetime_not_null() {
-			Check.That(() => DataBossScripter.ToDbType(typeof(DateTime?), new StubAttributeProvider()) == "datetime");
+		[DisplayAs("{0} maps to db type {1}")
+		,Row(typeof(DateTime?), "datetime")
+		,Row(typeof(DateTime), "datetime not null")
+		,Row(typeof(long), "bigint not null")
+		,Row(typeof(string), "varchar(max)")]
+		public void to_db_type(Type type, string dbType) {
+			Check.That(() => DataBossScripter.ToDbType(type, new StubAttributeProvider()) == dbType);
 		}
 
 		public void can_script_history_table() {
