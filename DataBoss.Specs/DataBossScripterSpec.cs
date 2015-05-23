@@ -1,22 +1,32 @@
 ﻿using Cone;
 using DataBoss.Schema;
 using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.Linq;
 using System.Reflection;
 
 namespace DataBoss.Specs
 {
 	class StubAttributeProvider : ICustomAttributeProvider
 	{
+		readonly List<object> attributes = new List<object>();
+
 		public object[] GetCustomAttributes(bool inherit) {
-			throw new NotImplementedException();
+			return attributes.ToArray();
 		}
 
 		public object[] GetCustomAttributes(Type attributeType, bool inherit) {
-			return new object[0];;
+			return attributes.Where(attributeType.IsInstanceOfType).ToArray();
 		}
 
 		public bool IsDefined(Type attributeType, bool inherit) {
 			throw new NotImplementedException();
+		}
+
+		public StubAttributeProvider Add(Attribute item) {
+			attributes.Add(item);
+			return this;
 		}
 	}
 
@@ -30,6 +40,14 @@ namespace DataBoss.Specs
 		,Row(typeof(string), "varchar(max)")]
 		public void to_db_type(Type type, string dbType) {
 			Check.That(() => DataBossScripter.ToDbType(type, new StubAttributeProvider()) == dbType);
+		}
+
+		public void Required_string_is_not_null() {
+			Check.That(() => DataBossScripter.ToDbType(typeof(string), new StubAttributeProvider().Add(new RequiredAttribute())) == "varchar(max) not null");
+		}
+
+		public void MaxLength_controls_string_column_widht() {
+			Check.That(() => DataBossScripter.ToDbType(typeof(string), new StubAttributeProvider().Add(new MaxLengthAttribute(31))) == "varchar(31)");
 		}
 
 		public void can_script_history_table() {
