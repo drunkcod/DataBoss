@@ -1,35 +1,10 @@
 ﻿using Cone;
 using DataBoss.Schema;
 using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Reflection;
 
 namespace DataBoss.Specs
 {
-	class StubAttributeProvider : ICustomAttributeProvider
-	{
-		readonly List<object> attributes = new List<object>();
-
-		public object[] GetCustomAttributes(bool inherit) {
-			return attributes.ToArray();
-		}
-
-		public object[] GetCustomAttributes(Type attributeType, bool inherit) {
-			return attributes.Where(attributeType.IsInstanceOfType).ToArray();
-		}
-
-		public bool IsDefined(Type attributeType, bool inherit) {
-			throw new NotImplementedException();
-		}
-
-		public StubAttributeProvider Add(Attribute item) {
-			attributes.Add(item);
-			return this;
-		}
-	}
-
 	[Describe(typeof(DataBossScripter))]
 	public class DataBossScripterSpec
 	{
@@ -63,5 +38,13 @@ namespace DataBoss.Specs
 	[User] varchar(max),
 )");
 		}
+		public void can_script_history_table_primary_key_constraint() {
+			var scripter = new DataBossScripter();
+
+			Check.That(() => scripter.ScriptConstraints(typeof(DataBossHistory)) == 
+@"alter table [__DataBossHistory]
+add constraint PK___DataBossHistory primary key(Id,Context)");
+		}
+
 	}
 }

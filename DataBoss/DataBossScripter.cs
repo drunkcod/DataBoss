@@ -55,5 +55,27 @@ namespace DataBoss
 					throw new NotSupportedException("Don't know how to map " + type.FullName + " to a db type");
 			}
 		}
+
+		public string ScriptConstraints(Type tableType) {
+			var result = new StringBuilder();
+			var tableAttribute = tableType.Single<TableAttribute>();
+			var keys = tableType.GetFields()
+				.Select(field => new {
+					field,
+					column = field.SingleOrDefault<ColumnAttribute>()
+				}).Where(x => x.column != null && x.field.SingleOrDefault<KeyAttribute>() != null)
+				.OrderBy(x => x.column.Order)
+				.Select(x => x.column.Name ?? x.field.Name)
+				.ToList();
+			if(keys.Count > 0) {
+				result
+					.AppendFormat("alter table [{0}]", tableAttribute.Name)
+					.AppendLine()
+					.AppendFormat("add constraint PK_{0} primary key(", tableAttribute.Name)
+					.Append(string.Join(",", keys))
+					.Append(")");
+			}
+			return result.ToString();
+		}
 	}
 }

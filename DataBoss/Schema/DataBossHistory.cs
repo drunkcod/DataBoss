@@ -9,7 +9,7 @@ namespace DataBoss.Schema
 	{
 		[Column(Order = 0),Key]
 		public long Id;
-		[Column(Order = 1), Required, MaxLength(64)]
+		[Column(Order = 1), Key, Required, MaxLength(64)]
 		public string Context;
 		[Column(Order = 2), Required]
 		public string Name;

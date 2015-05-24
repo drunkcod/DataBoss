@@ -86,10 +86,7 @@ if not exists(select * from sys.tables t where t.name = '__DataBossHistory') beg
 	create clustered index IX_DataBossHistory_StartedAt on __DataBossHistory(StartedAt)
 
 	alter table __DataBossHistory
-	add constraint PK_DataBossHistory primary key(
-		Id asc,
-		Context
-	)
+	add constraint PK_DataBossHistory primary key(Id,Context)
 end
 ", db))
 			{
