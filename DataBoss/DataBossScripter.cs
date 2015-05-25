@@ -4,12 +4,19 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using DataBoss.Schema;
 
 namespace DataBoss
 {
 	public class DataBossScripter
 	{
 		public string Script(Type tableType) {
+			return ScriptTable(tableType) 
+				+ Environment.NewLine
+				+ ScriptConstraints(tableType);
+		}
+
+		public string ScriptTable(Type tableType) {
 			var result = new StringBuilder();
 			var tableAttribute = tableType.Single<TableAttribute>();
 			result.AppendFormat("create table [{0}](" , tableAttribute.Name);
@@ -58,20 +65,34 @@ namespace DataBoss
 
 		public string ScriptConstraints(Type tableType) {
 			var result = new StringBuilder();
-			var tableAttribute = tableType.Single<TableAttribute>();
-			var keys = tableType.GetFields()
+			var tableName = tableType.Single<TableAttribute>().Name;
+			var columns = tableType.GetFields()
 				.Select(field => new {
 					field,
 					column = field.SingleOrDefault<ColumnAttribute>()
-				}).Where(x => x.column != null && x.field.SingleOrDefault<KeyAttribute>() != null)
+				}).Where(x => x.column != null)
 				.OrderBy(x => x.column.Order)
+				.ToList();
+
+			var clustered = columns.Where(x => x.field.Any<ClusteredAttribute>())
+				.Select(x => x.column.Name ?? x.field.Name)
+				.ToList();
+			if(clustered.Count > 0)
+				result.AppendFormat("create clustered index IX_{0}_{1} on [{0}]({2})",
+					tableName,
+					string.Join("_", clustered),
+					string.Join(",", clustered)
+				).AppendLine();
+
+			var keys = columns.Where(x => x.field.Any<KeyAttribute>())
 				.Select(x => x.column.Name ?? x.field.Name)
 				.ToList();
 			if(keys.Count > 0) {
 				result
-					.AppendFormat("alter table [{0}]", tableAttribute.Name)
+					.AppendFormat(result.Length == 0 ? string.Empty : Environment.NewLine)
+					.AppendFormat("alter table [{0}]", tableName)
 					.AppendLine()
-					.AppendFormat("add constraint PK_{0} primary key(", tableAttribute.Name)
+					.AppendFormat("add constraint PK_{0} primary key(", tableName)
 					.Append(string.Join(",", keys))
 					.Append(")");
 			}

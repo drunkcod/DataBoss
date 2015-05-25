@@ -28,7 +28,7 @@ namespace DataBoss.Specs
 		public void can_script_history_table() {
 			var scripter = new DataBossScripter();
 
-			Check.That(() => scripter.Script(typeof(DataBossHistory)) == 
+			Check.That(() => scripter.ScriptTable(typeof(DataBossHistory)) == 
 @"create table [__DataBossHistory](
 	[Id] bigint not null,
 	[Context] varchar(64) not null,
@@ -42,7 +42,9 @@ namespace DataBoss.Specs
 			var scripter = new DataBossScripter();
 
 			Check.That(() => scripter.ScriptConstraints(typeof(DataBossHistory)) == 
-@"alter table [__DataBossHistory]
+@"create clustered index IX___DataBossHistory_StartedAt on [__DataBossHistory](StartedAt)
+
+alter table [__DataBossHistory]
 add constraint PK___DataBossHistory primary key(Id,Context)");
 		}
 

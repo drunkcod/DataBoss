@@ -13,7 +13,7 @@ namespace DataBoss.Schema
 		public string Context;
 		[Column(Order = 2), Required]
 		public string Name;
-		[Column(Order = 3)]
+		[Column(Order = 3), Clustered]
 		public DateTime StartedAt;
 		[Column(Order = 4)]
 		public DateTime? FinishedAt;
