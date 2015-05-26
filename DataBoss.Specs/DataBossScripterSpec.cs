@@ -47,6 +47,5 @@ namespace DataBoss.Specs
 alter table [__DataBossHistory]
 add constraint PK___DataBossHistory primary key(Id,Context)");
 		}
-
 	}
 }

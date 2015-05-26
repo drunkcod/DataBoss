@@ -4,6 +4,7 @@ using System.Data;
 using System.Data.SqlClient;
 using System.IO;
 using System.Linq;
+using DataBoss.Schema;
 
 namespace DataBoss
 {
@@ -72,23 +73,12 @@ namespace DataBoss
 
 		public void Initialize(DataBossConfiguration config) {
 			EnsureDatabse(config.GetConnectionString());
-			using(var cmd = new SqlCommand(@"
+			var scripter = new DataBossScripter();
+			using(var cmd = new SqlCommand(string.Format(@"
 if not exists(select * from sys.tables t where t.name = '__DataBossHistory') begin
-	create table __DataBossHistory(
-		Id bigint not null,
-		Context varchar(64) not null,
-		Name varchar(max) not null,
-		StartedAt datetime not null,
-		FinishedAt datetime,
-		[User] varchar(max),
-	)
-
-	create clustered index IX_DataBossHistory_StartedAt on __DataBossHistory(StartedAt)
-
-	alter table __DataBossHistory
-	add constraint PK_DataBossHistory primary key(Id,Context)
+{0}
 end
-", db))
+", scripter.Script(typeof(DataBossHistory))), db))
 			{
 				Open();
 				using(var r = cmd.ExecuteReader())

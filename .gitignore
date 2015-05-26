@@ -1,7 +1,5 @@
 Artifacts/
 Build/
-obj/
-bin/
 packages/
 *.swp
 *.suo
