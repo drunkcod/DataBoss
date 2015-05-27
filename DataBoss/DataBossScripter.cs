@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
@@ -8,36 +9,126 @@ using DataBoss.Schema;
 
 namespace DataBoss
 {
-	public class DataBossScripter
+    public class DataBossScripter
 	{
-		public string Script(Type tableType) {
-			return ScriptTable(tableType) 
-				+ Environment.NewLine
-				+ ScriptConstraints(tableType);
-		}
+        class DataBossTableColumn : ICustomAttributeProvider
+        {
+            readonly ICustomAttributeProvider attributes;
+
+            public readonly Type ColumnType;
+            public readonly string Name;
+
+
+            public DataBossTableColumn(Type columnType, ICustomAttributeProvider attributes, string name) {
+                this.ColumnType = columnType;
+                this.attributes = attributes;
+                this.Name = name;
+            }
+
+            public object[] GetCustomAttributes(Type attributeType, bool inherit) {
+                return attributes.GetCustomAttributes(attributeType, inherit);
+            }
+
+            public object[] GetCustomAttributes(bool inherit){
+                return attributes.GetCustomAttributes(inherit);
+            }
+
+            public bool IsDefined(Type attributeType, bool inherit) {
+                return attributes.IsDefined(attributeType, inherit);
+            }
+        }
+        class DataBossTable
+        {
+            readonly Type tableType;
+
+            public static DataBossTable From(Type tableType){
+                var tableAttribute = tableType.Single<TableAttribute>();
+                return new DataBossTable(tableType, tableAttribute.Name);
+            }
+
+            DataBossTable(Type tableType, string name) {
+                this.tableType = tableType;
+                this.Name = name;
+            }
+
+            public readonly string Name;
+
+            public IEnumerable<DataBossTableColumn> GetColumns() {
+                return tableType.GetFields()
+				    .Select(field => new {
+					    field,
+					    column = field.SingleOrDefault<ColumnAttribute>()
+				    }).Where(x => x.column != null)
+				    .OrderBy(x => x.column.Order)
+                    .Select(x => new DataBossTableColumn(x.field.FieldType, x.field, x.column.Name ?? x.field.Name));
+            } 
+        }      
+
+        public string CreateMissing(Type tableType) {
+            var table = DataBossTable.From(tableType);
+
+            var result = new StringBuilder();
+            result.AppendFormat("if object_id('{0}', 'U') is null begin", table.Name);
+            result.AppendLine();
+            ScriptTable(table, result);
+            result.AppendLine();
+            ScriptConstraints(table, result);
+            result.AppendLine();
+            result.AppendLine("end");
+            return result.ToString();
+        }
 
 		public string ScriptTable(Type tableType) {
-			var result = new StringBuilder();
-			var tableAttribute = tableType.Single<TableAttribute>();
-			result.AppendFormat("create table [{0}](" , tableAttribute.Name);
+            var result = new StringBuilder();
+            ScriptTable(DataBossTable.From(tableType), result);
+            return result.ToString();
+		}
+
+        void ScriptTable(DataBossTable table, StringBuilder result) {
+			result.AppendFormat("create table [{0}](" , table.Name);
 			
-			tableType.GetFields()
-				.Select(field => new {
-					field,
-					column = field.SingleOrDefault<ColumnAttribute>()
-				}).Where(x => x.column != null)
-				.OrderBy(x => x.column.Order)
-				.ToList()
-				.ForEach(x => ScriptColumn(result, x.field));
+			table.GetColumns().ForEach(x => ScriptColumn(result, x));
 				
 			result.AppendLine();
 			result.Append(')');
-			return result.ToString();
 		}
 
-		void ScriptColumn(StringBuilder result, FieldInfo field) {
+		void ScriptColumn(StringBuilder result, DataBossTableColumn column) {
 			result.AppendLine();
-			result.AppendFormat("\t[{0}] {1},", field.Name, ToDbType(field.FieldType, field));
+			result.AppendFormat("\t[{0}] {1},", column.Name, ToDbType(column.ColumnType, column));
+		}
+
+        public string ScriptConstraints(Type tableType) {
+			var result = new StringBuilder();
+            ScriptConstraints(DataBossTable.From(tableType), result);
+            return result.ToString();
+        }
+
+        void ScriptConstraints(DataBossTable table, StringBuilder result) {
+			var columns = table.GetColumns().ToList();
+
+			var clustered = columns.Where(x => x.Any<ClusteredAttribute>())
+				.Select(x => x.Name)
+				.ToList();
+			if(clustered.Count > 0)
+				result.AppendFormat("create clustered index IX_{0}_{1} on [{0}]({2})",
+					table.Name,
+					string.Join("_", clustered),
+					string.Join(",", clustered)
+				).AppendLine();
+
+			var keys = columns.Where(x => x.Any<KeyAttribute>())
+				.Select(x => x.Name)
+				.ToList();
+			if(keys.Count > 0) {
+				result
+					.AppendFormat(result.Length == 0 ? string.Empty : Environment.NewLine)
+					.AppendFormat("alter table [{0}]", table.Name)
+					.AppendLine()
+					.AppendFormat("add constraint PK_{0} primary key(", table.Name)
+					.Append(string.Join(",", keys))
+					.Append(")");
+			}
 		}
 
 		public static string ToDbType(Type type, ICustomAttributeProvider attributes) {
@@ -61,42 +152,6 @@ namespace DataBoss
 					}
 					throw new NotSupportedException("Don't know how to map " + type.FullName + " to a db type");
 			}
-		}
-
-		public string ScriptConstraints(Type tableType) {
-			var result = new StringBuilder();
-			var tableName = tableType.Single<TableAttribute>().Name;
-			var columns = tableType.GetFields()
-				.Select(field => new {
-					field,
-					column = field.SingleOrDefault<ColumnAttribute>()
-				}).Where(x => x.column != null)
-				.OrderBy(x => x.column.Order)
-				.ToList();
-
-			var clustered = columns.Where(x => x.field.Any<ClusteredAttribute>())
-				.Select(x => x.column.Name ?? x.field.Name)
-				.ToList();
-			if(clustered.Count > 0)
-				result.AppendFormat("create clustered index IX_{0}_{1} on [{0}]({2})",
-					tableName,
-					string.Join("_", clustered),
-					string.Join(",", clustered)
-				).AppendLine();
-
-			var keys = columns.Where(x => x.field.Any<KeyAttribute>())
-				.Select(x => x.column.Name ?? x.field.Name)
-				.ToList();
-			if(keys.Count > 0) {
-				result
-					.AppendFormat(result.Length == 0 ? string.Empty : Environment.NewLine)
-					.AppendFormat("alter table [{0}]", tableName)
-					.AppendLine()
-					.AppendFormat("add constraint PK_{0} primary key(", tableName)
-					.Append(string.Join(",", keys))
-					.Append(")");
-			}
-			return result.ToString();
 		}
 	}
 }

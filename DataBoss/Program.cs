@@ -8,11 +8,11 @@ using DataBoss.Schema;
 
 namespace DataBoss
 {
-	public class Program
+    public class Program
 	{
-		static string ProgramName { get { return Path.GetFileName(typeof(Program).Assembly.Location); } }
+		static string ProgramName => Path.GetFileName(typeof(Program).Assembly.Location);
 
-		readonly SqlConnection db;
+	    readonly SqlConnection db;
 
 		static string ReadResource(string path) {
 			using(var reader = new StreamReader(typeof(Program).Assembly.GetManifestResourceStream(path)))
@@ -29,16 +29,11 @@ namespace DataBoss
 				return 0;
 			}
 
-			var commands = new Dictionary<string, Action<Program, DataBossConfiguration>> {
-				{ "init", (p, c) => p.Initialize(c) },
-				{ "status", (p, c) => p.Status(c) },
-				{ "update", (p, c) => p.Update(c) },
-			};
-
 			try {
 				var cc = DataBossConfiguration.ParseCommandConfig(args);
-				Action<Program, DataBossConfiguration> command;
-				if(!commands.TryGetValue(cc.Key, out command)) {
+                
+                Action<Program, DataBossConfiguration> command;
+				if(!TryGetCommand(cc.Key, out command)) {
 					Console.WriteLine(GetUsageString());
 					return -1;
 				}
@@ -57,6 +52,16 @@ namespace DataBoss
 			return 0;
 		}
 
+        static bool TryGetCommand(string name, out Action<Program, DataBossConfiguration> command) {
+			var commands = new Dictionary<string, Action<Program, DataBossConfiguration>> {
+				{ "init", (p, c) => p.Initialize(c) },
+				{ "status", (p, c) => p.Status(c) },
+				{ "update", (p, c) => p.Update(c) },
+			};
+
+            return commands.TryGetValue(name, out command);
+        }
+
 		private static void WriteError(Exception e)
 		{
 			var oldColor = Console.ForegroundColor;
@@ -74,11 +79,7 @@ namespace DataBoss
 		public void Initialize(DataBossConfiguration config) {
 			EnsureDatabse(config.GetConnectionString());
 			var scripter = new DataBossScripter();
-			using(var cmd = new SqlCommand(string.Format(@"
-if not exists(select * from sys.tables t where t.name = '__DataBossHistory') begin
-{0}
-end
-", scripter.Script(typeof(DataBossHistory))), db))
+			using(var cmd = new SqlCommand(scripter.CreateMissing(typeof(DataBossHistory)), db))
 			{
 				Open();
 				using(var r = cmd.ExecuteReader())
@@ -96,7 +97,7 @@ end
 				using(var cmd = new SqlCommand("select db_id(@db)" ,db)) {
 					cmd.Parameters.AddWithValue("@db", dbName);
 					if(cmd.ExecuteScalar() is DBNull) {
-						cmd.CommandText = "create database [" + dbName + "]";
+						cmd.CommandText = $"create database [{dbName}]";
 						cmd.ExecuteNonQuery();
 					}
 				}
@@ -143,16 +144,10 @@ end
 			var applied = new HashSet<string>(GetAppliedMigrations(config).Select(x => x.FullId));
 			Func<IDataBossMigration, bool> notApplied = x => !applied.Contains(x.Info.FullId);
 
-			return Flatten(GetTargetMigration(config.Migrations))
+			return GetTargetMigration(config.Migrations).Flatten()
 				.Where(item => item.HasQueryBatches)
 				.Where(notApplied)
 				.ToList();
-		}
-
-		static IEnumerable<IDataBossMigration> Flatten(IDataBossMigration migration) {
-			yield return migration;
-			foreach(var item in migration.GetSubMigrations().SelectMany(Flatten))
-				yield return item;
 		}
 
 		public static IDataBossMigration GetTargetMigration(DataBossMigrationPath[] migrations) {
@@ -170,9 +165,9 @@ end
 		}
 
 		public IEnumerable<DataBossMigrationInfo> GetAppliedMigrations(DataBossConfiguration config) {
-			using(var cmd = new SqlCommand("select count(*) from sys.tables where name = '__DataBossHistory'", db)) {
+			using(var cmd = new SqlCommand("select isnull(object_id('__DataBossHistory', 'U'), 0)", db)) {
 				if((int)cmd.ExecuteScalar() == 0)
-					throw new InvalidOperationException(string.Format("DataBoss has not been initialized, run: {0} init <target>", ProgramName));
+					throw new InvalidOperationException($"DataBoss has not been initialized, run: {ProgramName} init <target>");
 
 				cmd.CommandText = "select Id, Context, Name from __DataBossHistory";
 				using(var reader = cmd.ExecuteReader()) {
