@@ -52,15 +52,15 @@ namespace DataBoss
 			return 0;
 		}
 
-        static bool TryGetCommand(string name, out Action<Program, DataBossConfiguration> command) {
+		static bool TryGetCommand(string name, out Action<Program, DataBossConfiguration> command) {
 			var commands = new Dictionary<string, Action<Program, DataBossConfiguration>> {
 				{ "init", (p, c) => p.Initialize(c) },
 				{ "status", (p, c) => p.Status(c) },
 				{ "update", (p, c) => p.Update(c) },
 			};
 
-            return commands.TryGetValue(name, out command);
-        }
+			return commands.TryGetValue(name, out command);
+		}
 
 		private static void WriteError(Exception e)
 		{
