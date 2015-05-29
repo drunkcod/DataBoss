@@ -4,15 +4,27 @@ using System.Data;
 using System.Data.SqlClient;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Reflection;
 using DataBoss.Schema;
 
 namespace DataBoss
 {
-    public class Program
+	[AttributeUsage(AttributeTargets.Method)]
+	class DataBossCommandAttribute : Attribute
+	{
+		public DataBossCommandAttribute(string name) {
+			this.Name = name;
+		}
+
+		public readonly string Name;
+	}
+
+	public class Program
 	{
 		static string ProgramName => Path.GetFileName(typeof(Program).Assembly.Location);
 
-	    readonly SqlConnection db;
+		readonly SqlConnection db;
 
 		static string ReadResource(string path) {
 			using(var reader = new StreamReader(typeof(Program).Assembly.GetManifestResourceStream(path)))
@@ -31,8 +43,8 @@ namespace DataBoss
 
 			try {
 				var cc = DataBossConfiguration.ParseCommandConfig(args);
-                
-                Action<Program, DataBossConfiguration> command;
+
+				Action<Program, DataBossConfiguration> command;
 				if(!TryGetCommand(cc.Key, out command)) {
 					Console.WriteLine(GetUsageString());
 					return -1;
@@ -53,17 +65,21 @@ namespace DataBoss
 		}
 
 		static bool TryGetCommand(string name, out Action<Program, DataBossConfiguration> command) {
-			var commands = new Dictionary<string, Action<Program, DataBossConfiguration>> {
-				{ "init", (p, c) => p.Initialize(c) },
-				{ "status", (p, c) => p.Status(c) },
-				{ "update", (p, c) => p.Update(c) },
-			};
-
-			return commands.TryGetValue(name, out command);
+			var target = typeof(Program)
+				.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+				.Select(method => new {
+					method,
+					command = method.SingleOrDefault<DataBossCommandAttribute>()
+				})
+				.FirstOrDefault(x => x.command != null && x.command.Name == name);
+			if(target == null)
+				command = null;
+			else
+				command = (Action<Program, DataBossConfiguration>)Delegate.CreateDelegate(typeof(Action<Program, DataBossConfiguration>), target.method);
+			return command != null;
 		}
 
-		private static void WriteError(Exception e)
-		{
+		static void WriteError(Exception e) {
 			var oldColor = Console.ForegroundColor;
 			Console.ForegroundColor = ConsoleColor.Red;
 			Console.Error.WriteLine(e.Message);
@@ -73,11 +89,12 @@ namespace DataBoss
 		static string GetUsageString() {
 			return ReadResource("Usage")
 				.Replace("{{ProgramName}}", ProgramName)
-				.Replace("{{Version}}", typeof(Program).Assembly.GetName().Version.ToString());					
+				.Replace("{{Version}}", typeof(Program).Assembly.GetName().Version.ToString());
 		}
 
+		[DataBossCommand("init")]
 		public void Initialize(DataBossConfiguration config) {
-			EnsureDatabse(config.GetConnectionString());
+			EnsureDataBase(config.GetConnectionString());
 			var scripter = new DataBossScripter();
 			using(var cmd = new SqlCommand(scripter.CreateMissing(typeof(DataBossHistory)), db))
 			{
@@ -88,7 +105,7 @@ namespace DataBoss
 			}
 		}
 
-		static void EnsureDatabse(string connectionString) {
+		static void EnsureDataBase(string connectionString) {
 			var qs = new SqlConnectionStringBuilder(connectionString);
 			var dbName = qs.InitialCatalog;
 			qs.Remove("Initial Catalog");
@@ -104,6 +121,7 @@ namespace DataBoss
 			}
 		}
 
+		[DataBossCommand("status")]
 		void Status(DataBossConfiguration config) {
 			Open();
 			var pending = GetPendingMigrations(config);
@@ -114,6 +132,7 @@ namespace DataBoss
 			}
 		}
 
+		[DataBossCommand("update")]
 		void Update(DataBossConfiguration config) {
 			Open();
 			var pending = GetPendingMigrations(config);
