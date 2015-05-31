@@ -5,33 +5,10 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Cone;
+using Cone.Core;
 
 namespace DataBoss.Specs
 {
-	class ObjectReader<T> where T : new()
-	{
-		public IEnumerable<T> Convert(IDataReader source) {
-			var fieldMap = new Dictionary<string, int>();
-			for(var i = 0; i != source.FieldCount; ++i)
-				fieldMap[source.GetName(i)] = i;
-			
-			int dummy = 0;
-			var fields = typeof(T)
-				.GetFields()
-				.Where(x => !x.IsInitOnly)
-				.Where(x => fieldMap.TryGetValue(x.Name, out dummy))
-				.Select(x => new { x, ordinal = dummy })
-				.ToList();
-
-			while(source.Read()) {
-				var item = new T();
-				foreach(var field in fields)
-					field.x.SetValue(item, source.GetValue(field.ordinal));
-				yield return item;
-			}
-		} 
-	}
-
 	[Describe(typeof(ObjectReader<>))]
 	public class ObjectReaderSpec
 	{
@@ -52,18 +29,18 @@ namespace DataBoss.Specs
 			}
 
 			public int Count => records.Count;
+			public int FieldCount => names.Length;
+
 			public bool Read() {
 				if(currentRecord == records.Count)
 					return false;
 				++currentRecord;
 				return true;
 			}
-			public int FieldCount => names.Length;
 			public string GetName(int i) { return names[i]; }
 			public object GetValue(int i) { return records[currentRecord - 1][i]; }
 
 			public void Dispose() { }
-
 
 			public string GetDataTypeName(int i) { throw new NotImplementedException(); }
 			public Type GetFieldType(int i) { throw new NotImplementedException(); }
@@ -88,13 +65,13 @@ namespace DataBoss.Specs
 
 			public int GetInt32(int i) { throw new NotImplementedException(); }
 
-			public long GetInt64(int i) { throw new NotImplementedException(); }
+			public long GetInt64(int i) { return (long)GetValue(i); }
 
 			public float GetFloat(int i) { throw new NotImplementedException(); }
 
 			public double GetDouble(int i) { throw new NotImplementedException(); }
 
-			public string GetString(int i) { throw new NotImplementedException(); }
+			public string GetString(int i) { return (string)GetValue(i); }
 
 			public decimal GetDecimal(int i) { throw new NotImplementedException(); }
 
@@ -127,20 +104,28 @@ namespace DataBoss.Specs
 
 		public void converts_all_rows() {
 			var source = new SimpleDataReader("Id", "Context", "Name");
-			source.Add(1, "", "First");
-			source.Add(2, "", "Second");
+			source.Add(1L, "", "First");
+			source.Add(2L, "", "Second");
 			var reader = new ObjectReader<DataBossMigrationInfo>();
 			Check.That(() => reader.Convert(source).Count() == source.Count);
 		}
+
 		public void reads_public_fields() {
 			var source = new SimpleDataReader("Id", "Context", "Name");
-			source.Add(1, "", "First");
+			source.Add(1L, "", "First");
 			var reader = new ObjectReader<DataBossMigrationInfo>();
 			var read = reader.Convert(source).Single();
 			Check.That(
 				() => read.Id == 1,
 				() => read.Context == "",
 				() => read.Name == "First");
+		}
+
+		public void conversion_expression() {
+			var source = new SimpleDataReader("Id", "Context", "Name");
+			var reader = new ObjectReader<DataBossMigrationInfo>();
+			var formatter = new ExpressionFormatter(GetType());
+			Check.That(() => formatter.Format(reader.GetConverter(source)) == "x => new DataBossMigrationInfo(){ Id = x.GetInt64(0), Context = x.GetString(1), Name = x.GetString(2) }");
 		}
 
 	}

@@ -57,6 +57,7 @@
     <Compile Include="IDataBossMigration.cs" />
     <Compile Include="MissingLinqExtensions.cs" />
     <Compile Include="MissinqLinq.cs" />
+    <Compile Include="ObjectReader.cs" />
     <Compile Include="PowerArgs.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
