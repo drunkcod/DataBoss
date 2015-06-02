@@ -189,9 +189,9 @@ namespace DataBoss
 					throw new InvalidOperationException($"DataBoss has not been initialized, run: {ProgramName} init <target>");
 
 				cmd.CommandText = "select Id, Context, Name from __DataBossHistory";
-				var objectReader = new ObjectReader<DataBossMigrationInfo>();
+				var objectReader = new ObjectReader();
 				using(var reader = cmd.ExecuteReader()) {
-					return objectReader.Convert(reader);
+					return objectReader.Read<DataBossMigrationInfo>(reader);
 				}
 			}
 		}

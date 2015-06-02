@@ -2,14 +2,12 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Cone;
 using Cone.Core;
 
 namespace DataBoss.Specs
 {
-	[Describe(typeof(ObjectReader<>))]
+	[Describe(typeof(ObjectReader))]
 	public class ObjectReaderSpec
 	{
 		class SimpleDataReader : IDataReader
@@ -106,15 +104,15 @@ namespace DataBoss.Specs
 			var source = new SimpleDataReader("Id", "Context", "Name");
 			source.Add(1L, "", "First");
 			source.Add(2L, "", "Second");
-			var reader = new ObjectReader<DataBossMigrationInfo>();
-			Check.That(() => reader.Convert(source).Count() == source.Count);
+			var reader = new ObjectReader();
+			Check.That(() => reader.Read<DataBossMigrationInfo>(source).Count() == source.Count);
 		}
 
 		public void reads_public_fields() {
 			var source = new SimpleDataReader("Id", "Context", "Name");
 			source.Add(1L, "", "First");
-			var reader = new ObjectReader<DataBossMigrationInfo>();
-			var read = reader.Convert(source).Single();
+			var reader = new ObjectReader();
+			var read = reader.Read<DataBossMigrationInfo>(source).Single();
 			Check.That(
 				() => read.Id == 1,
 				() => read.Context == "",
@@ -123,9 +121,9 @@ namespace DataBoss.Specs
 
 		public void conversion_expression() {
 			var source = new SimpleDataReader("Id", "Context", "Name");
-			var reader = new ObjectReader<DataBossMigrationInfo>();
+			var reader = new ObjectReader();
 			var formatter = new ExpressionFormatter(GetType());
-			Check.That(() => formatter.Format(reader.GetConverter(source)) == "x => new DataBossMigrationInfo(){ Id = x.GetInt64(0), Context = x.GetString(1), Name = x.GetString(2) }");
+			Check.That(() => formatter.Format(reader.GetConverter<DataBossMigrationInfo>(source)) == "x => new DataBossMigrationInfo(){ Id = x.GetInt64(0), Context = x.GetString(1), Name = x.GetString(2) }");
 		}
 
 	}
