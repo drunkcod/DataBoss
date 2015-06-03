@@ -42,15 +42,17 @@ namespace DataBoss
 
 			public static DataBossTable From(Type tableType) {
 				var tableAttribute = tableType.Single<TableAttribute>();
-				return new DataBossTable(tableType, tableAttribute.Name);
+				return new DataBossTable(tableType, tableAttribute.Name, tableAttribute.Schema);
 			}
 
-			DataBossTable(Type tableType, string name) {
+			DataBossTable(Type tableType, string name, string schema) {
 				this.tableType = tableType;
 				this.Name = name;
+				this.Schema = schema;
 			}
 
 			public readonly string Name;
+			public readonly string Schema;
 
 			public IEnumerable<DataBossTableColumn> GetColumns() {
 				return tableType.GetFields()
@@ -83,7 +85,10 @@ namespace DataBoss
 		}
 
 		StringBuilder ScriptTable(DataBossTable table, StringBuilder result) {
-			result.AppendFormat("create table [{0}](" , table.Name);
+			result.Append("create table ");
+			if(!string.IsNullOrEmpty(table.Schema))
+				result.AppendFormat("[{0}].", table.Schema);
+			result.AppendFormat("[{0}](" , table.Name);
 			
 			table.GetColumns().ForEach(x => ScriptColumn(result, x));
 

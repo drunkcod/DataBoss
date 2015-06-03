@@ -29,7 +29,7 @@ namespace DataBoss.Specs
 			var scripter = new DataBossScripter();
 
 			Check.That(() => scripter.ScriptTable(typeof(DataBossHistory)) == 
-@"create table [__DataBossHistory](
+@"create table [dbo].[__DataBossHistory](
 	[Id] bigint not null,
 	[Context] varchar(64) not null,
 	[Name] varchar(max) not null,

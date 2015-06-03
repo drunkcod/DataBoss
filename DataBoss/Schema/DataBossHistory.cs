@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DataBoss.Schema
 {
-	[Table("__DataBossHistory")]
+	[Table("__DataBossHistory", Schema = "dbo")]
 	public class DataBossHistory
 	{
 		[Column(Order = 0),Key]

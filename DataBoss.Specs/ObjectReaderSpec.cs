@@ -119,12 +119,11 @@ namespace DataBoss.Specs
 				() => read.Name == "First");
 		}
 
-		public void conversion_expression() {
+		public void converter_fills_public_fields() {
 			var source = new SimpleDataReader("Id", "Context", "Name");
 			var reader = new ObjectReader();
 			var formatter = new ExpressionFormatter(GetType());
-			Check.That(() => formatter.Format(reader.GetConverter<DataBossMigrationInfo>(source)) == "x => new DataBossMigrationInfo(){ Id = x.GetInt64(0), Context = x.GetString(1), Name = x.GetString(2) }");
+			Check.That(() => formatter.Format(reader.GetConverter<DataBossMigrationInfo>(source)) == "x => new DataBossMigrationInfo { Id = x.GetInt64(0), Context = x.GetString(1), Name = x.GetString(2) }");
 		}
-
 	}
 }
