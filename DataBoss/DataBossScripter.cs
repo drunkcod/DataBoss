@@ -140,15 +140,14 @@ namespace DataBoss
 			return MapType(type, attributes, ref canBeNull) + (canBeNull ? string.Empty : " not null");
 		}
 
-		private static string MapType(Type type, ICustomAttributeProvider attributes, ref bool canBeNull) {
+		static string MapType(Type type, ICustomAttributeProvider attributes, ref bool canBeNull) {
 			switch (type.FullName) {
-				case "System.Int64":
-					return "bigint";
+				case "System.Int32": return "int";
+				case "System.Int64": return "bigint";
 				case "System.String":
 					var maxLength = attributes.SingleOrDefault<MaxLengthAttribute>();
 					return string.Format("varchar({0})", maxLength == null ? "max" : maxLength.Length.ToString());
-				case "System.DateTime":
-					return "datetime";
+				case "System.DateTime": return "datetime";
 				default:
 					if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof (Nullable<>)) {
 						canBeNull = true;

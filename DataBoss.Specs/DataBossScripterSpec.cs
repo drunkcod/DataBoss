@@ -11,6 +11,8 @@ namespace DataBoss.Specs
 		[DisplayAs("{0} maps to db type {1}")
 		,Row(typeof(DateTime?), "datetime")
 		,Row(typeof(DateTime), "datetime not null")
+		,Row(typeof(int?), "int")
+		,Row(typeof(int), "int not null")
 		,Row(typeof(long), "bigint not null")
 		,Row(typeof(string), "varchar(max)")]
 		public void to_db_type(Type type, string dbType) {
