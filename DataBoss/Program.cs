@@ -184,11 +184,11 @@ namespace DataBoss
 		}
 
 		public IEnumerable<DataBossMigrationInfo> GetAppliedMigrations(DataBossConfiguration config) {
-			using(var cmd = new SqlCommand("select isnull(object_id('__DataBossHistory', 'U'), 0)", db)) {
-				if((int)cmd.ExecuteScalar() == 0)
+			using(var cmd = new SqlCommand("select object_id('__DataBossHistory', 'U')", db)) {
+				if(cmd.ExecuteScalar() is DBNull)
 					throw new InvalidOperationException($"DataBoss has not been initialized, run: {ProgramName} init <target>");
-
-				cmd.CommandText = "select Id, Context, Name from __DataBossHistory";
+				var scripter = new DataBossScripter();
+				cmd.CommandText = scripter.Select(typeof(DataBossMigrationInfo), typeof(DataBossHistory));
 				var objectReader = new ObjectReader();
 				using(var reader = cmd.ExecuteReader()) {
 					return objectReader.Read<DataBossMigrationInfo>(reader);

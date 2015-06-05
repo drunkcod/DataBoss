@@ -19,12 +19,17 @@ namespace DataBoss.Specs
 			Check.That(() => DataBossScripter.ToDbType(type, new StubAttributeProvider()) == dbType);
 		}
 
-		public void Required_string_is_not_null() {
+		public void RequiredAttribute_string_is_not_null() {
 			Check.That(() => DataBossScripter.ToDbType(typeof(string), new StubAttributeProvider().Add(new RequiredAttribute())) == "varchar(max) not null");
 		}
 
-		public void MaxLength_controls_string_column_widht() {
+		public void MaxLengthAttribute_controls_string_column_widht() {
 			Check.That(() => DataBossScripter.ToDbType(typeof(string), new StubAttributeProvider().Add(new MaxLengthAttribute(31))) == "varchar(31)");
+		}
+
+		public void can_script_select() {
+			var scripter = new DataBossScripter();
+			Check.That(() => scripter.Select(typeof(DataBossMigrationInfo), typeof(DataBossHistory)) == "select Id, Context, Name from [dbo].[__DataBossHistory]");
 		}
 
 		public void can_script_history_table() {

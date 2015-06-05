@@ -86,9 +86,8 @@ namespace DataBoss
 
 		StringBuilder ScriptTable(DataBossTable table, StringBuilder result) {
 			result.Append("create table ");
-			if(!string.IsNullOrEmpty(table.Schema))
-				result.AppendFormat("[{0}].", table.Schema);
-			result.AppendFormat("[{0}](" , table.Name);
+			AppendTableName(result, table)
+				.Append("(");
 			
 			table.GetColumns().ForEach(x => ScriptColumn(result, x));
 
@@ -155,6 +154,19 @@ namespace DataBoss
 					}
 					throw new NotSupportedException("Don't know how to map " + type.FullName + " to a db type");
 			}
+		}
+
+		public string Select(Type rowType, Type tableType) {
+			var table = DataBossTable.From(tableType);
+			var result = new StringBuilder()
+				.AppendFormat("select {0} from ", string.Join(", ", rowType.GetFields().Where(x => !x.IsInitOnly).Select(x => x.Name)));
+			return AppendTableName(result, table).ToString();
+		}
+
+		static StringBuilder AppendTableName(StringBuilder target, DataBossTable table) {
+			if(!string.IsNullOrEmpty(table.Schema))
+				target.AppendFormat("[{0}].", table.Schema);
+			return target.AppendFormat("[{0}]" , table.Name);
 		}
 	}
 }
