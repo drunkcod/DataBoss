@@ -25,6 +25,8 @@ namespace DataBoss
 		static string ProgramName => Path.GetFileName(typeof(Program).Assembly.Location);
 
 		readonly SqlConnection db;
+		readonly DataBossScripter scripter = new DataBossScripter();
+		readonly ObjectReader objectReader = new ObjectReader();
 
 		static string ReadResource(string path) {
 			using(var reader = new StreamReader(typeof(Program).Assembly.GetManifestResourceStream(path)))
@@ -95,7 +97,6 @@ namespace DataBoss
 		[DataBossCommand("init")]
 		public void Initialize(DataBossConfiguration config) {
 			EnsureDataBase(config.GetConnectionString());
-			var scripter = new DataBossScripter();
 			using(var cmd = new SqlCommand(scripter.CreateMissing(typeof(DataBossHistory)), db))
 			{
 				Open();
@@ -187,9 +188,7 @@ namespace DataBoss
 			using(var cmd = new SqlCommand("select object_id('__DataBossHistory', 'U')", db)) {
 				if(cmd.ExecuteScalar() is DBNull)
 					throw new InvalidOperationException($"DataBoss has not been initialized, run: {ProgramName} init <target>");
-				var scripter = new DataBossScripter();
 				cmd.CommandText = scripter.Select(typeof(DataBossMigrationInfo), typeof(DataBossHistory));
-				var objectReader = new ObjectReader();
 				using(var reader = cmd.ExecuteReader()) {
 					return objectReader.Read<DataBossMigrationInfo>(reader);
 				}
