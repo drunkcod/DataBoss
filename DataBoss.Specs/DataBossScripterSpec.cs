@@ -14,7 +14,9 @@ namespace DataBoss.Specs
 		,Row(typeof(int?), "int")
 		,Row(typeof(int), "int not null")
 		,Row(typeof(long), "bigint not null")
-		,Row(typeof(string), "varchar(max)")]
+		,Row(typeof(string), "varchar(max)")
+		,Row(typeof(bool), "bit not null")
+		,Row(typeof(bool?), "bit")]
 		public void to_db_type(Type type, string dbType) {
 			Check.That(() => DataBossScripter.ToDbType(type, new StubAttributeProvider()) == dbType);
 		}

@@ -143,6 +143,7 @@ namespace DataBoss
 			switch (type.FullName) {
 				case "System.Int32": return "int";
 				case "System.Int64": return "bigint";
+				case "System.Boolean": return "bit";
 				case "System.String":
 					var maxLength = attributes.SingleOrDefault<MaxLengthAttribute>();
 					return string.Format("varchar({0})", maxLength == null ? "max" : maxLength.Length.ToString());

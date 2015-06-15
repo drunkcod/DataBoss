@@ -20,6 +20,8 @@ namespace DataBoss
 		public readonly string Name;
 	}
 
+	delegate void DataBossAction(Program program, DataBossConfiguration config);
+
 	public class Program
 	{
 		static string ProgramName => Path.GetFileName(typeof(Program).Assembly.Location);
@@ -29,7 +31,7 @@ namespace DataBoss
 		readonly ObjectReader objectReader = new ObjectReader();
 
 		static string ReadResource(string path) {
-			using(var reader = new StreamReader(typeof(Program).Assembly.GetManifestResourceStream(path)))
+			using (var reader = new StreamReader(typeof(Program).Assembly.GetManifestResourceStream(path)))
 				return reader.ReadToEnd();
 		}
 
@@ -46,7 +48,7 @@ namespace DataBoss
 			try {
 				var cc = DataBossConfiguration.ParseCommandConfig(args);
 
-				Action<Program, DataBossConfiguration> command;
+				DataBossAction command;
 				if(!TryGetCommand(cc.Key, out command)) {
 					Console.WriteLine(GetUsageString());
 					return -1;
@@ -66,7 +68,7 @@ namespace DataBoss
 			return 0;
 		}
 
-		static bool TryGetCommand(string name, out Action<Program, DataBossConfiguration> command) {
+		static bool TryGetCommand(string name, out DataBossAction command) {
 			var target = typeof(Program)
 				.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
 				.Select(method => new {
@@ -77,7 +79,7 @@ namespace DataBoss
 			if(target == null)
 				command = null;
 			else
-				command = (Action<Program, DataBossConfiguration>)Delegate.CreateDelegate(typeof(Action<Program, DataBossConfiguration>), target.method);
+				command = (DataBossAction)Delegate.CreateDelegate(typeof(DataBossAction), target.method);
 			return command != null;
 		}
 
