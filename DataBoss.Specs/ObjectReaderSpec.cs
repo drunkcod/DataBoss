@@ -78,7 +78,7 @@ namespace DataBoss.Specs
 
 			public IDataReader GetData(int i) { throw new NotImplementedException(); }
 
-			public bool IsDBNull(int i) { throw new NotImplementedException(); }
+			public bool IsDBNull(int i) { return GetValue(i) == null; }
 
 			object IDataRecord.this[int i]
 			{
@@ -124,7 +124,7 @@ namespace DataBoss.Specs
 			var source = new SimpleDataReader("Id", "Context", "Name");
 			var reader = new ObjectReader();
 			var formatter = new ExpressionFormatter(GetType());
-			Check.That(() => formatter.Format(reader.GetConverter<DataBossMigrationInfo>(source)) == "x => new DataBossMigrationInfo { Id = x.GetInt64(0), Context = x.GetString(1), Name = x.GetString(2) }");
+			Check.That(() => formatter.Format(reader.GetConverter<DataBossMigrationInfo>(source)) == "x => new DataBossMigrationInfo { Id = x.GetInt64(0), Context = x.IsDBNull(1) ? default(String) : x.GetString(1), Name = x.IsDBNull(2) ? default(String) : x.GetString(2) }");
 		}
 
 		class ValueRow<T> { public T Value; }
@@ -133,6 +133,16 @@ namespace DataBoss.Specs
 			source.Add(3.14f);
 			var reader = new ObjectReader();
 			Check.That(() => reader.Read<ValueRow<float>>(source).Count() == source.Count);
+		}
+
+		public void can_read_nullable_field() {
+			var source = new SimpleDataReader("Value");
+			source.Add(3.14f);
+			source.Add(new object[] { null });
+			var reader = new ObjectReader();
+			Check.That(
+				() => reader.Read<ValueRow<float?>>(source).First().Value == 3.14f,
+				() => reader.Read<ValueRow<float?>>(source).Last().Value == null);
 		}
 	}
 }
