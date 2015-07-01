@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Runtime.InteropServices.WindowsRuntime;
 using Cone;
 using Cone.Core;
 
@@ -65,7 +66,7 @@ namespace DataBoss.Specs
 
 			public long GetInt64(int i) { return (long)GetValue(i); }
 
-			public float GetFloat(int i) { throw new NotImplementedException(); }
+			public float GetFloat(int i) { return (float)GetValue(i); }
 
 			public double GetDouble(int i) { throw new NotImplementedException(); }
 
@@ -124,6 +125,14 @@ namespace DataBoss.Specs
 			var reader = new ObjectReader();
 			var formatter = new ExpressionFormatter(GetType());
 			Check.That(() => formatter.Format(reader.GetConverter<DataBossMigrationInfo>(source)) == "x => new DataBossMigrationInfo { Id = x.GetInt64(0), Context = x.GetString(1), Name = x.GetString(2) }");
+		}
+
+		class ValueRow<T> { public T Value; }
+		public void supports_float_field() {
+			var source = new SimpleDataReader("Value");
+			source.Add(3.14f);
+			var reader = new ObjectReader();
+			Check.That(() => reader.Read<ValueRow<float>>(source).Count() == source.Count);
 		}
 	}
 }

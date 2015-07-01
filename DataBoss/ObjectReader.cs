@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
 
 namespace DataBoss
 {
@@ -35,7 +36,22 @@ namespace DataBoss
 				.Where(x => !x.IsInitOnly)
 				.Where(x => fieldMap.TryGetValue(x.Name, out dummy))
 				.Select(field => new { field, ordinal = Expression.Constant(dummy)})
-				.Select(x => Expression.Bind(x.field, Expression.Call(arg0, arg0.Type.GetMethod("Get" + x.field.FieldType.Name), x.ordinal)));
+				.Select(x => Expression.Bind(x.field, Expression.Call(arg0, GetGetMethod(arg0, x.field), x.ordinal)));
+		}
+
+		private static MethodInfo GetGetMethod(ParameterExpression arg0, FieldInfo field) {
+			var fieldType = MapFieldType(field.FieldType);
+			var getter = arg0.Type.GetMethod("Get" + fieldType);
+			if(getter == null)
+				throw new NotSupportedException("Can't read field of type:" + fieldType);
+			return getter;
+		}
+
+		private static string MapFieldType(Type fieldType) {
+			switch(fieldType.FullName) {
+				case "System.Single": return "Float";
+			}
+			return fieldType.Name;
 		}
 	}
 }

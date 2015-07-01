@@ -13,7 +13,10 @@ namespace DataBoss.Specs
 		,Row(typeof(DateTime), "datetime not null")
 		,Row(typeof(int?), "int")
 		,Row(typeof(int), "int not null")
+		,Row(typeof(long?), "bigint")
 		,Row(typeof(long), "bigint not null")
+		,Row(typeof(float?), "float")
+		,Row(typeof(float), "float not null")
 		,Row(typeof(string), "varchar(max)")
 		,Row(typeof(bool), "bit not null")
 		,Row(typeof(bool?), "bit")]
