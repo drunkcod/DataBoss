@@ -31,7 +31,7 @@ namespace DataBoss
 			return Expression.Lambda<Func<IDataRecord, T>>(init, arg0);
 		}
 
-		private static IEnumerable<MemberAssignment> GetFields(IReadOnlyDictionary<string, int> fieldMap,Type targetType, ParameterExpression arg0) {
+		private static IEnumerable<MemberAssignment> GetFields(IReadOnlyDictionary<string, int> fieldMap,Type targetType, Expression arg0) {
 			var dummy = 0;
 			return targetType
 				.GetFields()

@@ -15,8 +15,10 @@ namespace DataBoss.Specs
 		,Row(typeof(int), "int not null")
 		,Row(typeof(long?), "bigint")
 		,Row(typeof(long), "bigint not null")
-		,Row(typeof(float?), "float")
-		,Row(typeof(float), "float not null")
+		,Row(typeof(float?), "real")
+		,Row(typeof(float), "real not null")
+		,Row(typeof(double?), "float")
+		,Row(typeof(double), "float not null")
 		,Row(typeof(string), "varchar(max)")
 		,Row(typeof(bool), "bit not null")
 		,Row(typeof(bool?), "bit")]

@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
 using Cone;
 using Cone.Core;
 
@@ -124,7 +123,7 @@ namespace DataBoss.Specs
 			var source = new SimpleDataReader("Id", "Context", "Name");
 			var reader = new ObjectReader();
 			var formatter = new ExpressionFormatter(GetType());
-			Check.That(() => formatter.Format(reader.GetConverter<DataBossMigrationInfo>(source)) == "x => new DataBossMigrationInfo { Id = x.GetInt64(0), Context = x.IsDBNull(1) ? default(String) : x.GetString(1), Name = x.IsDBNull(2) ? default(String) : x.GetString(2) }");
+			Check.That(() => formatter.Format(reader.GetConverter<DataBossMigrationInfo>(source)) == "x => new DataBossMigrationInfo { Id = x.GetInt64(0), Context = x.IsDBNull(1) ? default(string) : x.GetString(1), Name = x.IsDBNull(2) ? default(string) : x.GetString(2) }");
 		}
 
 		class ValueRow<T> { public T Value; }
