@@ -50,7 +50,7 @@ namespace DataBoss.Specs
 			Assume.That(() => !SysObjects.Any(x => x.Name == "Foo"));
 				
 			var failingMigration = new DataBossMigrationInfo {
-				Id = Migrations.Max(x => x.Id) + 1,
+				Id = Migrations.Max(x => (long?)x.Id).GetValueOrDefault() + 1,
 				Name = "Failing Migration",
 			};
 
@@ -72,7 +72,7 @@ namespace DataBoss.Specs
 					cmd.ExecuteNonQuery();
 				
 			var migration = new DataBossMigrationInfo {
-				Id = Migrations.Max(x => x.Id) + 1,
+				Id = Migrations.Max(x => (long?)x.Id).GetValueOrDefault() + 1,
 				Name = "Great Success!",
 			};
 

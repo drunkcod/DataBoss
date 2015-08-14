@@ -26,6 +26,8 @@ namespace DataBoss
 			remove { inner.OnError -= value; }
 		}
 
+		public bool IsFaulted => inner.IsFaulted;
+
 		public void Begin(DataBossMigrationInfo info) {
 			Console.WriteLine("  Applying '{0}') {1}", info.FullId, info.Name);
 			stopwatch.Restart();

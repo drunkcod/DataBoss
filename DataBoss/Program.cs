@@ -143,7 +143,7 @@ namespace DataBoss
 
 			using(var targetScope = GetTargetScope(config)) {
 				var migrator = new DataBossMigrator(info => targetScope);
-				pending.ForEach(migrator.Apply);
+				migrator.ApplyRange(pending);
 			}
 		}
 
