@@ -20,7 +20,7 @@ namespace DataBoss
 		public readonly string Name;
 	}
 
-	delegate void DataBossAction(Program program, DataBossConfiguration config);
+	delegate int DataBossAction(Program program, DataBossConfiguration config);
 
 	public class Program
 	{
@@ -55,7 +55,7 @@ namespace DataBoss
 				}
 
 				using(var db = new SqlConnection(cc.Value.GetConnectionString())) {
-					command(new Program(db), cc.Value);
+					return command(new Program(db), cc.Value);
 				}
 
 			} catch(Exception e) {
@@ -64,8 +64,6 @@ namespace DataBoss
 				Console.Error.WriteLine(GetUsageString());
 				return -1;
 			}
-
-			return 0;
 		}
 
 		static bool TryGetCommand(string name, out DataBossAction command) {
@@ -97,7 +95,7 @@ namespace DataBoss
 		}
 
 		[DataBossCommand("init")]
-		public void Initialize(DataBossConfiguration config) {
+		public int Initialize(DataBossConfiguration config) {
 			EnsureDataBase(config.GetConnectionString());
 			using(var cmd = new SqlCommand(scripter.CreateMissing(typeof(DataBossHistory)), db))
 			{
@@ -106,6 +104,7 @@ namespace DataBoss
 					while(r.Read())
 						Console.WriteLine(r.GetValue(0));
 			}
+			return 0;
 		}
 
 		static void EnsureDataBase(string connectionString) {
@@ -125,7 +124,7 @@ namespace DataBoss
 		}
 
 		[DataBossCommand("status")]
-		void Status(DataBossConfiguration config) {
+		int Status(DataBossConfiguration config) {
 			Open();
 			var pending = GetPendingMigrations(config);
 			if(pending.Count != 0) {
@@ -133,10 +132,11 @@ namespace DataBoss
 				foreach(var item in pending)
 					Console.WriteLine("  {0} - {1}", item.Info.FullId, item.Info.Name);
 			}
+			return pending.Count;
 		}
 
 		[DataBossCommand("update")]
-		void Update(DataBossConfiguration config) {
+		int Update(DataBossConfiguration config) {
 			Open();
 			var pending = GetPendingMigrations(config);
 			Console.WriteLine("{0} pending migrations found.", pending.Count);
@@ -145,6 +145,8 @@ namespace DataBoss
 				var migrator = new DataBossMigrator(info => targetScope);
 				migrator.ApplyRange(pending);
 			}
+
+			return 0;
 		}
 
 		void Open() {
@@ -186,13 +188,13 @@ namespace DataBoss
 			);
 		}
 
-		public IEnumerable<DataBossMigrationInfo> GetAppliedMigrations(DataBossConfiguration config) {
+		public List<DataBossMigrationInfo> GetAppliedMigrations(DataBossConfiguration config) {
 			using(var cmd = new SqlCommand("select object_id('__DataBossHistory', 'U')", db)) {
 				if(cmd.ExecuteScalar() is DBNull)
 					throw new InvalidOperationException($"DataBoss has not been initialized, run: {ProgramName} init <target>");
 				cmd.CommandText = scripter.Select(typeof(DataBossMigrationInfo), typeof(DataBossHistory));
 				using(var reader = cmd.ExecuteReader()) {
-					return objectReader.Read<DataBossMigrationInfo>(reader);
+					return objectReader.Read<DataBossMigrationInfo>(reader).ToList();
 				}
 			}
 		}
