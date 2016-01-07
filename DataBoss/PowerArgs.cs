@@ -9,11 +9,11 @@ namespace DataBoss
 		readonly Dictionary<string, string> args = new Dictionary<string, string>();
 		readonly List<string> commands = new List<string>(); 
 
-		public int Count { get { return args.Count; } }
+		public int Count => args.Count;
 
-		public string this[string arg] { get { return args[arg]; } }
+		public string this[string arg] => args[arg];
 
-		public IReadOnlyList<string> Commands { get { return commands.AsReadOnly(); } }
+		public IReadOnlyList<string> Commands => commands.AsReadOnly();
 
 		public static PowerArgs Parse(params string[] args) {
 			return Parse((IEnumerable<string>)args);
@@ -63,7 +63,7 @@ namespace DataBoss
 		public T Into<T>(T target) {
 			FillFields(target);
 			FillProps(target);
-			return target;			
+			return target;
 		}
 
 		private void FillFields(object target) {

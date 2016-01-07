@@ -66,7 +66,7 @@ namespace DataBoss
 		public string GetConnectionString() {
 			if(string.IsNullOrEmpty(Database))
 				throw new InvalidOperationException("No database specified");
-			return string.Format("Server={0};Database={1};{2}", ServerInstance ?? ".", Database, GetCredentials());
+			return $"Server={ServerInstance ?? "."};Database={Database};{GetCredentials()}";
 		}
 
 		public string GetCredentials() {
@@ -74,7 +74,7 @@ namespace DataBoss
 				return "Integrated Security=SSPI";
 			if(string.IsNullOrEmpty(Password))
 				throw new ArgumentException("No Password given for user '" + User + "'");
-			return string.Format("User={0};Password={1}", User, Password);
+			return $"User={User};Password={Password}";
 		}
 	}
 }

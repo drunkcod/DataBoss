@@ -4,7 +4,6 @@ using System.Data;
 using System.Data.SqlClient;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Reflection;
 using DataBoss.Schema;
 
@@ -29,11 +28,6 @@ namespace DataBoss
 		readonly SqlConnection db;
 		readonly DataBossScripter scripter = new DataBossScripter();
 		readonly ObjectReader objectReader = new ObjectReader();
-
-		static string ReadResource(string path) {
-			using (var reader = new StreamReader(typeof(Program).Assembly.GetManifestResourceStream(path)))
-				return reader.ReadToEnd();
-		}
 
 		public Program(SqlConnection db) {
 			this.db = db;
@@ -66,18 +60,57 @@ namespace DataBoss
 			}
 		}
 
+		[DataBossCommand("init")]
+		public int Initialize(DataBossConfiguration config) {
+			EnsureDataBase(config.GetConnectionString());
+			using(var cmd = new SqlCommand(scripter.CreateMissing(typeof(DataBossHistory)), db))
+			{
+				Open();
+				using(var r = cmd.ExecuteReader())
+					while(r.Read())
+						Console.WriteLine(r.GetValue(0));
+			}
+			return 0;
+		}
+
+		[DataBossCommand("status")]
+		public int Status(DataBossConfiguration config) {
+			Open();
+			var pending = GetPendingMigrations(config);
+			if(pending.Count != 0) {
+				Console.WriteLine("Pending migrations:");
+				foreach(var item in pending)
+					Console.WriteLine("  {0} - {1}", item.Info.FullId, item.Info.Name);
+			}
+			return pending.Count;
+		}
+
+		[DataBossCommand("update")]
+		public int Update(DataBossConfiguration config) {
+			Open();
+			var pending = GetPendingMigrations(config);
+			Console.WriteLine("{0} pending migrations found.", pending.Count);
+
+			using(var targetScope = GetTargetScope(config)) {
+				var migrator = new DataBossMigrator(info => targetScope);
+				migrator.ApplyRange(pending);
+			}
+
+			return 0;
+		}
+
 		static bool TryGetCommand(string name, out DataBossAction command) {
 			var target = typeof(Program)
 				.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-				.Select(method => new {
-					method,
-					command = method.SingleOrDefault<DataBossCommandAttribute>()
+				.Select(x => new {
+					Method = x,
+					Command = x.SingleOrDefault<DataBossCommandAttribute>()
 				})
-				.FirstOrDefault(x => x.command != null && x.command.Name == name);
+				.FirstOrDefault(x => x?.Command.Name == name);
 			if(target == null)
 				command = null;
 			else
-				command = (DataBossAction)Delegate.CreateDelegate(typeof(DataBossAction), target.method);
+				command = (DataBossAction)Delegate.CreateDelegate(typeof(DataBossAction), target.Method);
 			return command != null;
 		}
 
@@ -94,17 +127,9 @@ namespace DataBoss
 				.Replace("{{Version}}", typeof(Program).Assembly.GetName().Version.ToString());
 		}
 
-		[DataBossCommand("init")]
-		public int Initialize(DataBossConfiguration config) {
-			EnsureDataBase(config.GetConnectionString());
-			using(var cmd = new SqlCommand(scripter.CreateMissing(typeof(DataBossHistory)), db))
-			{
-				Open();
-				using(var r = cmd.ExecuteReader())
-					while(r.Read())
-						Console.WriteLine(r.GetValue(0));
-			}
-			return 0;
+		static string ReadResource(string path) {
+			using (var reader = new StreamReader(typeof(Program).Assembly.GetManifestResourceStream(path)))
+				return reader.ReadToEnd();
 		}
 
 		static void EnsureDataBase(string connectionString) {
@@ -123,32 +148,6 @@ namespace DataBoss
 			}
 		}
 
-		[DataBossCommand("status")]
-		int Status(DataBossConfiguration config) {
-			Open();
-			var pending = GetPendingMigrations(config);
-			if(pending.Count != 0) {
-				Console.WriteLine("Pending migrations:");
-				foreach(var item in pending)
-					Console.WriteLine("  {0} - {1}", item.Info.FullId, item.Info.Name);
-			}
-			return pending.Count;
-		}
-
-		[DataBossCommand("update")]
-		int Update(DataBossConfiguration config) {
-			Open();
-			var pending = GetPendingMigrations(config);
-			Console.WriteLine("{0} pending migrations found.", pending.Count);
-
-			using(var targetScope = GetTargetScope(config)) {
-				var migrator = new DataBossMigrator(info => targetScope);
-				migrator.ApplyRange(pending);
-			}
-
-			return 0;
-		}
-
 		void Open() {
 			if(db.State != ConnectionState.Open)
 				db.Open();
@@ -159,12 +158,12 @@ namespace DataBoss
 				return new DataBossConsoleLogMigrationScope(
 					new DataBossSqlMigrationScope(db));
 			}
-			if(config.Script == "con:")
-				return new DataBossScriptMigrationScope(Console.Out, false);
-			return new DataBossScriptMigrationScope(new StreamWriter(File.Create(config.Script)), true);
+			return config.Script == "con:"
+				? new DataBossScriptMigrationScope(Console.Out, false) 
+				: new DataBossScriptMigrationScope(new StreamWriter(File.Create(config.Script)), true);
 		}
 
-		private List<IDataBossMigration> GetPendingMigrations(DataBossConfiguration config) {
+		List<IDataBossMigration> GetPendingMigrations(DataBossConfiguration config) {
 			var applied = new HashSet<string>(GetAppliedMigrations(config).Select(x => x.FullId));
 			Func<IDataBossMigration, bool> notApplied = x => !applied.Contains(x.Info.FullId);
 
