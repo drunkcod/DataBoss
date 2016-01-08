@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace DataBoss
 {
@@ -11,7 +12,7 @@ namespace DataBoss
 			this.scopeFactory = scopeFactory;
 		}
 
-		public bool Apply(IDataBossMigration migration) {			
+		public bool Apply(IDataBossMigration migration) {
 			var scope = scopeFactory(migration.Info);
 			try {
 				scope.Begin(migration.Info);
@@ -23,10 +24,8 @@ namespace DataBoss
 			}
 		}
 
-		public void ApplyRange(IEnumerable<IDataBossMigration> migrations) {
-			foreach (var item in migrations)
-				if(!Apply(item))
-					break;
+		public bool ApplyRange(IEnumerable<IDataBossMigration> migrations) {
+			return migrations.All(Apply);
 		}
 	}
 }

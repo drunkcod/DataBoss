@@ -93,10 +93,8 @@ namespace DataBoss
 
 			using(var targetScope = GetTargetScope(config)) {
 				var migrator = new DataBossMigrator(info => targetScope);
-				migrator.ApplyRange(pending);
+				return migrator.ApplyRange(pending) ? 0 : -1;
 			}
-
-			return 0;
 		}
 
 		static bool TryGetCommand(string name, out DataBossAction command) {

@@ -35,10 +35,10 @@ namespace DataBoss.Specs
 			var migrator = new DataBossMigrator(_ => scope);
 
 			scope.OnExecute += _ => scope.IsFaulted = true;
-			migrator.ApplyRange(new[] {
+			Check.That(() => migrator.ApplyRange(new[] {
 				TextMigration("First!"),
 				TextMigration("Second!"),
-			});
+			}) == false);
 
 			Check.That(
 				() => scope.ExecutedQueries.Count == 1,

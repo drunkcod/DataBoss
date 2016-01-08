@@ -6,5 +6,7 @@ $MSBuildPath = [IO.Directory]::GetFiles(
 	[IO.SearchOption]::AllDirectories
 ) | Sort-Object -Descending | Select-Object -First 1
 
-& $MSBuildPath DataBoss\DataBoss.sln /t:Clean /p:Configuration=Release /v:m
-& $MSBuildPath Build.proj "/t:Package" "/p:Configuration=Release" /p:Build=$Build /v:m
+& $MSBuildPath DataBoss\DataBoss.sln /t:Clean /p:Configuration=Release /v:m /nologo
+& $MSBuildPath Build.proj /t:Package /p:Configuration=Release /p:Build=$Build /v:m /nologo
+
+& ./Tools/NuGet.exe pack DataBoss\DataBoss.csproj -OutputDirectory Artifacts
