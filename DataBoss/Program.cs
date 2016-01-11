@@ -5,6 +5,7 @@ using System.Data.SqlClient;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using DataBoss.Schema;
 
 namespace DataBoss
@@ -25,11 +26,13 @@ namespace DataBoss
 	{
 		static string ProgramName => Path.GetFileName(typeof(Program).Assembly.Location);
 
+		readonly IDataBossLog log;
 		readonly SqlConnection db;
 		readonly DataBossScripter scripter = new DataBossScripter();
 		readonly ObjectReader objectReader = new ObjectReader();
 
-		public Program(SqlConnection db) {
+		public Program(IDataBossLog log, SqlConnection db) {
+			this.log = log;
 			this.db = db;
 		}
 
@@ -38,6 +41,8 @@ namespace DataBoss
 				Console.WriteLine(GetUsageString());
 				return 0;
 			}
+
+			var log = new DataBossConsoleLog();
 
 			try {
 				var cc = DataBossConfiguration.ParseCommandConfig(args);
@@ -49,13 +54,12 @@ namespace DataBoss
 				}
 
 				using(var db = new SqlConnection(cc.Value.GetConnectionString())) {
-					return command(new Program(db), cc.Value);
+					return command(new Program(log, db), cc.Value);
 				}
 
 			} catch(Exception e) {
-				WriteError(e);
-				Console.Error.WriteLine();
-				Console.Error.WriteLine(GetUsageString());
+				log.Error(e);
+				log.Info(GetUsageString());
 				return -1;
 			}
 		}
@@ -78,9 +82,11 @@ namespace DataBoss
 			Open();
 			var pending = GetPendingMigrations(config);
 			if(pending.Count != 0) {
-				Console.WriteLine("Pending migrations:");
+				var message = new StringBuilder();
+				message.AppendLine("Pending migrations:");
 				foreach(var item in pending)
-					Console.WriteLine("  {0} - {1}", item.Info.FullId, item.Info.Name);
+					message.AppendFormat("  {0} - {1}", item.Info.FullId, item.Info.Name);
+				log.Info(message.ToString());
 			}
 			return pending.Count;
 		}
@@ -89,7 +95,7 @@ namespace DataBoss
 		public int Update(DataBossConfiguration config) {
 			Open();
 			var pending = GetPendingMigrations(config);
-			Console.WriteLine("{0} pending migrations found.", pending.Count);
+			log.Info("{0} pending migrations found.", pending.Count);
 
 			using(var targetScope = GetTargetScope(config)) {
 				var migrator = new DataBossMigrator(info => targetScope);
@@ -110,13 +116,6 @@ namespace DataBoss
 			else
 				command = (DataBossAction)Delegate.CreateDelegate(typeof(DataBossAction), target.Method);
 			return command != null;
-		}
-
-		static void WriteError(Exception e) {
-			var oldColor = Console.ForegroundColor;
-			Console.ForegroundColor = ConsoleColor.Red;
-			Console.Error.WriteLine(e.Message);
-			Console.ForegroundColor = oldColor;
 		}
 
 		static string GetUsageString() {

@@ -44,6 +44,7 @@
     <Compile Include="CustomAttributeProviderExtensions.cs" />
     <Compile Include="DataBossCompositeMigration.cs" />
     <Compile Include="DataBossConfiguration.cs" />
+    <Compile Include="DataBossConsoleLog.cs" />
     <Compile Include="DataBossConsoleLogMigrationScope.cs" />
     <Compile Include="DataBossDirectoryMigration.cs" />
     <Compile Include="DataBossMigrationExtensions.cs" />
@@ -55,6 +56,7 @@
     <Compile Include="DataBossSqlMigrationScope.cs" />
     <Compile Include="DataBossTextMigration.cs" />
     <Compile Include="EventHandlerExtensions.cs" />
+    <Compile Include="IDataBossLog.cs" />
     <Compile Include="IDataBossMigration.cs" />
     <Compile Include="IDataBossMigrationScope.cs" />
     <Compile Include="MissingLinqExtensions.cs" />

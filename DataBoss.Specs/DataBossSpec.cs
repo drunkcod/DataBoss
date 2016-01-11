@@ -29,7 +29,7 @@ namespace DataBoss.Specs
 				Database = "DataBoss Tests",
 			};
 			Connection = new SqlConnection(config.GetConnectionString());
-			DataBoss = new Program(Connection);
+			DataBoss = new Program(new NullDataBossLog(), Connection);
 			Context = new DataContext(Connection, new DataBossMappingSource());
 			DataBoss.Initialize(config);
 		}
@@ -43,8 +43,8 @@ namespace DataBoss.Specs
 			Connection = null;
 		}
 
-		IQueryable<SysObjects> SysObjects { get { return Context.GetTable<SysObjects>(); } } 
-		IQueryable<DataBossHistory> Migrations { get { return Context.GetTable<DataBossHistory>(); } } 
+		IQueryable<SysObjects> SysObjects => Context.GetTable<SysObjects>();
+		IQueryable<DataBossHistory> Migrations => Context.GetTable<DataBossHistory>();
 
 		public void rollbacks_failed_migration() {
 			Assume.That(() => !SysObjects.Any(x => x.Name == "Foo"));
