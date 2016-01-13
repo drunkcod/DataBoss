@@ -14,17 +14,18 @@ namespace DataBoss.Specs
 			public void Dispose() { }
 
 			public List<string> ExecutedQueries = new List<string>(); 
-			public Action<string> OnExecute;
+			public Func<string, bool> OnExecute;
 
 			public event EventHandler<ErrorEventArgs> OnError;
-			public bool IsFaulted { get; set; }
 
 			public void Begin(DataBossMigrationInfo info) {}
 
-			public void Execute(string query) {
+			public bool Execute(string query) {
+				var result = true;
 				if(OnExecute != null)
-					OnExecute(query);
+					result = OnExecute(query);
 				ExecutedQueries.Add(query);
+				return result;
 			}
 
 			public void Done() { }
@@ -34,7 +35,7 @@ namespace DataBoss.Specs
 			var scope = new TestableMigrationScope();
 			var migrator = new DataBossMigrator(_ => scope);
 
-			scope.OnExecute += _ => scope.IsFaulted = true;
+			scope.OnExecute += _ => false;
 			Check.That(() => migrator.ApplyRange(new[] {
 				TextMigration("First!"),
 				TextMigration("Second!"),
@@ -43,6 +44,20 @@ namespace DataBoss.Specs
 			Check.That(
 				() => scope.ExecutedQueries.Count == 1,
 				() => scope.ExecutedQueries.SequenceEqual(new[] { "First!" }));
+		}
+
+		public void breaks_appliction_on_first_query_failure() {
+			var scope = new TestableMigrationScope();
+			var migrator = new DataBossMigrator(_ => scope);
+
+			scope.OnExecute += _ => false;
+			Check.That(() => migrator.ApplyRange(new[] {
+				TextMigration("1\nGO\n2"),
+			}) == false);
+
+			Check.That(
+				() => scope.ExecutedQueries.Count == 1,
+				() => string.Join(" - ", scope.ExecutedQueries) == "1");
 		}
 
 		IDataBossMigration TextMigration(string s) {

@@ -67,9 +67,9 @@ namespace DataBoss
 			};
 		}
 
-		public DataBossMigrationInfo Info { get { return info; } }
+		public DataBossMigrationInfo Info => info;
 
-		public bool HasQueryBatches { get { return false; } }
+		public bool HasQueryBatches => false;
 
 		public IEnumerable<string> GetQueryBatches() { yield break; }
 	}

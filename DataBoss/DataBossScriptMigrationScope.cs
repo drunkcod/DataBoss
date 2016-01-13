@@ -16,20 +16,18 @@ namespace DataBoss
 			this.closeOutput = closeOutput;
 		}
 
-		public bool IsFaulted => false;
-
 		public event EventHandler<ErrorEventArgs> OnError;
 
 		public void Begin(DataBossMigrationInfo info) {
 			id = info.Id;
 			context = info.Context;
-			Execute(string.Format("insert __DataBossHistory(Id, Context, Name, StartedAt, [User]) values({0}, '{1}', '{2}', getdate(), '{3}')", 
-				id, info.Context, info.Name, Environment.UserName));
+			Execute($"insert __DataBossHistory(Id, Context, Name, StartedAt, [User]) values({id}, '{info.Context}', '{info.Name}', getdate(), '{Environment.UserName}')");
 		}
 
-		public void Execute(string query) {
+		public bool Execute(string query) {
 			output.WriteLine(query);
 			output.WriteLine(BatchSeparator);
+			return true;
 		}
 
 		public void Done() {

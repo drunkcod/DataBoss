@@ -18,7 +18,7 @@ namespace DataBoss
 
 		public DataBossMigrationInfo Info { get; set; }
 
-		public bool HasQueryBatches { get { return true; } }
+		public bool HasQueryBatches => true;
 
 		public IEnumerable<string> GetQueryBatches() {
 			var batch = new StringBuilder();

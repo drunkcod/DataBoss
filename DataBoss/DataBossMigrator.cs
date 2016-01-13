@@ -16,9 +16,11 @@ namespace DataBoss
 			var scope = scopeFactory(migration.Info);
 			try {
 				scope.Begin(migration.Info);
-				foreach(var query in migration.GetQueryBatches())
-					scope.Execute(query);
-				return !scope.IsFaulted;
+				foreach(var query in migration.GetQueryBatches()) {
+					if(!scope.Execute(query))
+						return false;
+				}
+				return true;
 			} finally {
 				scope.Done();
 			}

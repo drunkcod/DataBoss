@@ -31,9 +31,19 @@ namespace DataBoss
 			var target = path.EndsWith(".databoss") 
 			? path
 			: path + ".databoss";
+			using (var input = File.OpenRead(target))
+				return Load(Path.GetDirectoryName(target), input);
+		}
+
+		public static DataBossConfiguration Load(string roothPath, Stream input) {
 			var xml = new XmlSerializer(typeof(DataBossConfiguration));
-			using(var input = File.OpenRead(target))
-				return (DataBossConfiguration)xml.Deserialize(input);
+			var config = (DataBossConfiguration)xml.Deserialize(input);
+
+			config.Migrations = Array.ConvertAll(config.Migrations, x => new DataBossMigrationPath {
+				Context = x.Context,
+				Path = Path.Combine(roothPath, x.Path)
+			});
+			return config;
 		}
 
 		public static KeyValuePair<string, DataBossConfiguration> ParseCommandConfig(IEnumerable<string> args) {
@@ -59,7 +69,7 @@ namespace DataBoss
 
 			var targets = Directory.GetFiles(".", "*.databoss");
 			if(targets.Length != 1)
-				throw new ArgumentException("Can't autodetec target, use -Target <file> to specify it");
+				throw new ArgumentException("Can't autodetect target, use -Target <file> to specify it");
 			return load(targets[0]);
 		}
 

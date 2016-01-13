@@ -1,7 +1,9 @@
 ﻿using Cone;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
 
 namespace DataBoss.Specs
 {
@@ -29,7 +31,7 @@ namespace DataBoss.Specs
 			}
 		}
 
-		public void supports_specifying_ServerInstance_as_argument() {			
+		public void supports_specifying_ServerInstance_as_argument() {
 			CommandConfig = ParseGivenTargetAndCommand(
 				"-ServerInstance", "MyServer"
 			);
@@ -64,6 +66,15 @@ namespace DataBoss.Specs
 
 		public void GetCredentials_requires_password_when_user_given() {
 			Check.Exception<ArgumentException>(() => new DataBossConfiguration { User = "sa" }.GetCredentials());
+		}
+
+		public void Migrations_have_absolute_paths() {
+			var config = DataBossConfiguration.Load("X:\\Project", StringStream("<db><migrations path=\"Migrations\"/></db>"));
+			Check.That(() => config.Migrations[0].Path == "X:\\Project\\Migrations");
+		}
+
+		Stream StringStream(string data) {
+			return new MemoryStream(Encoding.UTF8.GetBytes(data));
 		}
 
 		KeyValuePair<string, DataBossConfiguration> ParseGivenTargetAndCommand(params string[] args) {

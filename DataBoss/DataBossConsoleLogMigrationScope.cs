@@ -26,16 +26,14 @@ namespace DataBoss
 			remove { inner.OnError -= value; }
 		}
 
-		public bool IsFaulted => inner.IsFaulted;
-
 		public void Begin(DataBossMigrationInfo info) {
 			Console.WriteLine("  Applying '{0}') {1}", info.FullId, info.Name);
 			stopwatch.Restart();
 			inner.Begin(info);
 		}
 
-		public void Execute(string query) {
-				inner.Execute(query); 
+		public bool Execute(string query) {
+			return inner.Execute(query); 
 		}
 
 		public void Done() {
