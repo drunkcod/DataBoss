@@ -4,21 +4,18 @@ using System.IO;
 
 namespace DataBoss
 {
-	class DataBossConsoleLogMigrationScope : IDataBossMigrationScope
+	class DataBossLogMigrationScope : IDataBossMigrationScope
 	{
+		readonly IDataBossLog log;
 		readonly IDataBossMigrationScope inner;
 		readonly Stopwatch stopwatch;
 
-		public DataBossConsoleLogMigrationScope(IDataBossMigrationScope inner) {
+		public DataBossLogMigrationScope(IDataBossLog log, IDataBossMigrationScope inner) {
+			this.log = log;
 			this.inner = inner;
 			this.stopwatch = new Stopwatch();
 
-			inner.OnError += (_, e) => {
-				var oldColor = Console.ForegroundColor;
-				Console.ForegroundColor = ConsoleColor.DarkRed;
-				Console.Error.WriteLine("  {0}", e.GetException().Message.Replace("\n" ,"\n  "));
-				Console.ForegroundColor = oldColor;
-			};
+			inner.OnError += (_, e) => log.Error(e.GetException());
 		}
 
 		public event EventHandler<ErrorEventArgs> OnError {
@@ -27,7 +24,7 @@ namespace DataBoss
 		}
 
 		public void Begin(DataBossMigrationInfo info) {
-			Console.WriteLine("  Applying '{0}') {1}", info.FullId, info.Name);
+			log.Info("  Applying '{0}') {1}", info.FullId, info.Name);
 			stopwatch.Restart();
 			inner.Begin(info);
 		}
@@ -37,7 +34,7 @@ namespace DataBoss
 		}
 
 		public void Done() {
-			Console.WriteLine("  Finished in {0}", stopwatch.Elapsed);
+			log.Info("  Finished in {0}", stopwatch.Elapsed);
 			inner.Done();
 		}
 

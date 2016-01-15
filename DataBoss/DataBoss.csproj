@@ -45,7 +45,7 @@
     <Compile Include="DataBossCompositeMigration.cs" />
     <Compile Include="DataBossConfiguration.cs" />
     <Compile Include="DataBossConsoleLog.cs" />
-    <Compile Include="DataBossConsoleLogMigrationScope.cs" />
+    <Compile Include="DataBossLogMigrationScope.cs" />
     <Compile Include="DataBossDirectoryMigration.cs" />
     <Compile Include="DataBossMigrationExtensions.cs" />
     <Compile Include="DataBossMigrationInfo.cs" />

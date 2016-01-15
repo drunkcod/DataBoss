@@ -152,8 +152,7 @@ namespace DataBoss
 
 		IDataBossMigrationScope GetTargetScope(DataBossConfiguration config) {
 			if(string.IsNullOrEmpty(config.Script)) {
-				return new DataBossConsoleLogMigrationScope(
-					new DataBossSqlMigrationScope(db));
+				return new DataBossLogMigrationScope(log, new DataBossSqlMigrationScope(db));
 			}
 			return config.Script == "con:"
 				? new DataBossScriptMigrationScope(Console.Out, false) 
