@@ -25,9 +25,14 @@ namespace DataBoss
 		}
 
 		public bool Execute(string query) {
-			output.WriteLine(query);
-			output.WriteLine(BatchSeparator);
-			return true;
+			try {
+				output.WriteLine(query);
+				output.WriteLine(BatchSeparator);
+				return true;
+			} catch(Exception e) {
+				OnError?.Invoke(this, new ErrorEventArgs(e));
+				return false;
+			}
 		}
 
 		public void Done() {

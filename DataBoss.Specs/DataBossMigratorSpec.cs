@@ -22,8 +22,14 @@ namespace DataBoss.Specs
 
 			public bool Execute(string query) {
 				var result = true;
-				if(OnExecute != null)
-					result = OnExecute(query);
+				if(OnExecute != null) {
+					try {
+						result = OnExecute(query);
+					} catch(Exception e) {
+						result = false;
+						OnError?.Invoke(this, new ErrorEventArgs(e));
+					}
+				}
 				ExecutedQueries.Add(query);
 				return result;
 			}

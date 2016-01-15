@@ -6,6 +6,8 @@ using System.Data.Linq.SqlClient;
 using System.Linq;
 using System.Reflection;
 
+using LinqTableAttribute = System.Data.Linq.Mapping.TableAttribute;
+
 namespace DataBoss.Specs
 {
 	class DataBossMappingSource : MappingSource
@@ -20,11 +22,11 @@ namespace DataBoss.Specs
 				this.rowType = rowType;
 			}
 
-			public override MetaModel Model { get { return model; } }
+			public override MetaModel Model => model;
 
 			public override string TableName { 
 				get { 
-					var linqTable = rowType.GetCustomAttributes(typeof(System.Data.Linq.Mapping.TableAttribute), true).Cast<System.Data.Linq.Mapping.TableAttribute>().SingleOrDefault();
+					var linqTable = rowType.GetCustomAttributes(typeof(LinqTableAttribute), true).Cast<LinqTableAttribute>().SingleOrDefault();
 					if(linqTable != null)
 						return linqTable.Name;
 					var table = rowType.GetCustomAttributes(typeof(System.ComponentModel.DataAnnotations.Schema.TableAttribute), true).Cast<System.ComponentModel.DataAnnotations.Schema.TableAttribute>().Single();
@@ -73,15 +75,15 @@ namespace DataBoss.Specs
 				}
 			}
 
-			public override MetaTable Table { get { return table; } }
+			public override MetaTable Table => table;
 
-			public override Type Type { get { return type; } }
+			public override Type Type => type;
 
-			public override ReadOnlyCollection<MetaAssociation> Associations { get { return NoAssociations; } }
+			public override ReadOnlyCollection<MetaAssociation> Associations => NoAssociations;
 
-			public override ReadOnlyCollection<MetaDataMember> PersistentDataMembers { get { return members.AsReadOnly(); } }
+			public override ReadOnlyCollection<MetaDataMember> PersistentDataMembers => members.AsReadOnly();
 
-			public override MetaType InheritanceRoot { get { return null; } }
+			public override MetaType InheritanceRoot => null;
 
 			public override MetaType GetInheritanceType(Type type) {
 				if(type == this.type)
@@ -89,9 +91,9 @@ namespace DataBoss.Specs
 				throw new NotSupportedException("Can't locate inheritance type for " + type.FullName);
 			}
 
-			public override bool IsEntity { get { return false; } }
+			public override bool IsEntity => false;
 
-			public override ReadOnlyCollection<MetaDataMember> IdentityMembers { get { return NoMembers; } }
+			public override ReadOnlyCollection<MetaDataMember> IdentityMembers => NoMembers;
 
 			public override bool CanInstantiate {
 				get { throw new NotImplementedException(); }
@@ -132,7 +134,7 @@ namespace DataBoss.Specs
 				get { throw new NotImplementedException(); }
 			}
 
-			public override bool HasInheritance { get { return false; } }
+			public override bool HasInheritance => false;
 
 			public override bool HasInheritanceCode {
 				get { throw new NotImplementedException(); }
@@ -197,19 +199,19 @@ namespace DataBoss.Specs
 				this.name = name;
 			}
 
-			public override string MappedName { get { return name; } }
+			public override string MappedName => name;
 
-			public override MemberInfo Member { get { return member; } }
+			public override MemberInfo Member => member;
 
-			public override bool IsAssociation { get { return false; } }
+			public override bool IsAssociation => false;
 
-			public override bool IsDeferred { get { return false; } }
+			public override bool IsDeferred => false;
 
-			public override Type Type { get { return memberType; } }
+			public override Type Type => memberType;
 
-			public override string DbType { get { return DataBossScripter.ToDbType(memberType, member); } }
+			public override string DbType => DataBossScripter.ToDbType(memberType, member);
 
-			public override MetaType DeclaringType { get { return declaringType; } }
+			public override MetaType DeclaringType => declaringType;
 
 			public override MetaAssociation Association {
 				get { throw new NotImplementedException(); }
@@ -297,9 +299,9 @@ namespace DataBoss.Specs
 				this.contextType = contextType;
 			}
 
-			public override Type ContextType { get { return contextType; } }
+			public override Type ContextType => contextType;
 
-			public override Type ProviderType { get { return typeof(Sql2005Provider); } }
+			public override Type ProviderType => typeof(Sql2005Provider);
 
 			public override MetaTable GetTable(Type rowType) {
 				MetaTable cached;

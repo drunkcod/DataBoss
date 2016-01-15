@@ -5,16 +5,10 @@ using System.Data.Linq;
 using System.Data.Linq.Mapping;
 using System.Data.SqlClient;
 using System.Linq;
+using DataBoss.SqlServer;
 
 namespace DataBoss.Specs
 {
-	[Table(Name = "sys.objects")]
-	class SysObjects
-	{
-		[Column(Name = "name")]
-		public string Name;
-	}
-
 	[Feature("DataBoss")]
 	public class DataBossSpec
 	{

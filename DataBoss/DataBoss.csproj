@@ -68,6 +68,7 @@
     <Compile Include="Properties\Version.cs" />
     <Compile Include="Schema\ClusteredAttribute.cs" />
     <Compile Include="Schema\DataBossHistory.cs" />
+    <Compile Include="SqlServer\SysObjects.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Usage.txt">

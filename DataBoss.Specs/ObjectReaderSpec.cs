@@ -127,11 +127,16 @@ namespace DataBoss.Specs
 		}
 
 		class ValueRow<T> { public T Value; }
+
 		public void supports_float_field() {
 			var source = new SimpleDataReader("Value");
-			source.Add(3.14f);
+			var expected = new ValueRow<float> { Value = 3.14f };
+			source.Add(expected.Value);
 			var reader = new ObjectReader();
-			Check.That(() => reader.Read<ValueRow<float>>(source).Count() == source.Count);
+			var rows = (ValueRow<float>[])Check.That(() => reader.Read<ValueRow<float>>(source).ToArray() != null);
+			Check.That(
+				() => rows.Length == 1,
+				() => rows[0].Value == expected.Value);
 		}
 
 		public void can_read_nullable_field() {
