@@ -27,7 +27,8 @@ namespace DataBoss
 
 			var targetType = typeof(T);
 			var init = Expression.MemberInit(
-				Expression.New(targetType.GetConstructor(Type.EmptyTypes)), GetFields(fieldMap, targetType, arg0));
+				Expression.New(targetType),
+				GetFields(fieldMap, targetType, arg0));
 			return Expression.Lambda<Func<IDataRecord, T>>(init, arg0);
 		}
 

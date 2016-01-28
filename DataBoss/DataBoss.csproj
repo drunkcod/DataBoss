@@ -42,6 +42,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CustomAttributeProviderExtensions.cs" />
+    <Compile Include="DataBossCommandAttribute.cs" />
     <Compile Include="DataBossCompositeMigration.cs" />
     <Compile Include="DataBossConfiguration.cs" />
     <Compile Include="DataBossConsoleLog.cs" />

@@ -148,5 +148,18 @@ namespace DataBoss.Specs
 				() => reader.Read<ValueRow<float?>>(source).First().Value == 3.14f,
 				() => reader.Read<ValueRow<float?>>(source).Last().Value == null);
 		}
+
+		struct StructRow<T> { public T Value; }
+
+		public void can_read_structs() {
+			var source = new SimpleDataReader("Value");
+			var expected = new StructRow<float> { Value = 3.14f };
+			source.Add(expected.Value);
+			var reader = new ObjectReader();
+			var rows = (StructRow<float>[])Check.That(() => reader.Read<StructRow<float>>(source).ToArray() != null);
+			Check.That(
+				() => rows.Length == 1,
+				() => rows[0].Value == expected.Value);
+		}
 	}
 }

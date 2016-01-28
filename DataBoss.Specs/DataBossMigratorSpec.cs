@@ -13,7 +13,7 @@ namespace DataBoss.Specs
 		{
 			public void Dispose() { }
 
-			public List<string> ExecutedQueries = new List<string>(); 
+			public readonly List<string> ExecutedQueries = new List<string>(); 
 			public Func<string, bool> OnExecute;
 
 			public event EventHandler<ErrorEventArgs> OnError;

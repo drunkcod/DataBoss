@@ -10,16 +10,6 @@ using DataBoss.Schema;
 
 namespace DataBoss
 {
-	[AttributeUsage(AttributeTargets.Method)]
-	class DataBossCommandAttribute : Attribute
-	{
-		public DataBossCommandAttribute(string name) {
-			this.Name = name;
-		}
-
-		public readonly string Name;
-	}
-
 	delegate int DataBossAction(Program program, DataBossConfiguration config);
 
 	public class Program
@@ -49,7 +39,7 @@ namespace DataBoss
 
 				DataBossAction command;
 				if(!TryGetCommand(cc.Key, out command)) {
-					Console.WriteLine(GetUsageString());
+					log.Info(GetUsageString());
 					return -1;
 				}
 
@@ -72,7 +62,7 @@ namespace DataBoss
 				Open();
 				using(var r = cmd.ExecuteReader())
 					while(r.Read())
-						Console.WriteLine(r.GetValue(0));
+						log.Info("{0}", r.GetValue(0));
 			}
 			return 0;
 		}
