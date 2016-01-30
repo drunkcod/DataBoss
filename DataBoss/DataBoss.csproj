@@ -69,6 +69,7 @@
     <Compile Include="Properties\Version.cs" />
     <Compile Include="Schema\ClusteredAttribute.cs" />
     <Compile Include="Schema\DataBossHistory.cs" />
+    <Compile Include="Data\SequenceDataReader.cs" />
     <Compile Include="SqlServer\SysObjects.cs" />
   </ItemGroup>
   <ItemGroup>
