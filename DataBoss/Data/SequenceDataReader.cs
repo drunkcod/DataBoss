@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq.Expressions;
 
 namespace DataBoss.Data
 {
@@ -20,6 +21,13 @@ namespace DataBoss.Data
 	
 		public SequenceDataReader(IEnumerator<T> data) {
 			this.data = data;
+		}
+
+		public int Map<TMember>(Expression<Func<T,TMember>> selector) {
+			if(selector.Body.NodeType != ExpressionType.MemberAccess)
+				throw new NotSupportedException();
+			var m = (MemberExpression)selector.Body;
+			return Map(m.Member.Name, Expression.Lambda<Func<T,object>>(Expression.Convert(m, typeof(object)), true, selector.Parameters).Compile());
 		}
 
 		public int Map(string name, Func<T, object> selector) {
