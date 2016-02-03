@@ -23,6 +23,17 @@ namespace DataBoss.Data
 			this.data = data;
 		}
 
+		public int Map(string memberName) {
+			var memberInfo = typeof(T).GetField(memberName);
+			var arg0 = Expression.Parameter(typeof(T), "x");
+			return Map(memberName, Expression.Lambda<Func<T,object>>(
+					Expression.Convert(
+						Expression.MakeMemberAccess(arg0, memberInfo), typeof(object)
+					), 
+					arg0
+			).Compile());
+		}
+
 		public int Map<TMember>(Expression<Func<T,TMember>> selector) {
 			if(selector.Body.NodeType != ExpressionType.MemberAccess)
 				throw new NotSupportedException();
@@ -34,7 +45,7 @@ namespace DataBoss.Data
 			var ordinal = FieldCount;
 			Array.Resize(ref selectors, ordinal + 1);
 			Array.Resize(ref fieldNames, ordinal + 1);
-			Array.Resize(ref current, FieldCount);
+			Array.Resize(ref current, ordinal + 1);
 
 			fieldNames[ordinal] = name;
 			selectors[ordinal] = selector;
@@ -42,8 +53,8 @@ namespace DataBoss.Data
 			return ordinal;
 		}
 
-		object IDataRecord.this[int i] => GetValue(i);
-		object IDataRecord.this[string name] => GetValue(GetOrdinal(name));
+		public object this[int i] => GetValue(i);
+		public object this[string name] => GetValue(GetOrdinal(name));
 
 		public int FieldCount => selectors.Length;
 	
@@ -62,8 +73,9 @@ namespace DataBoss.Data
 
 		public void Dispose() { data.Dispose(); }
 
+		public string GetName(int i) { return fieldNames[i]; }
 		public int GetOrdinal(string name) {
-			for(var i = 0; i != FieldCount; ++i)
+			for(var i = 0; i != fieldNames.Length; ++i)
 				if(fieldNames[i] == name)
 					return i;
 			throw new InvalidOperationException($"No field named '{name}' mapped");
@@ -74,10 +86,11 @@ namespace DataBoss.Data
 		public bool IsDBNull(int i) { return GetValue(i) is DBNull; }
 
 	#region Here Be Dragons (not implemented / supported)
-		public int Depth { get { throw new NotSupportedException(); } }
-		public bool IsClosed { get { throw new NotSupportedException(); } }
-		public int RecordsAffected { get { throw new NotSupportedException(); } }
-		public string GetName(int i) { throw new NotImplementedException(); }
+		int IDataReader.Depth { get { throw new NotSupportedException(); } }
+		bool IDataReader.IsClosed { get { throw new NotSupportedException(); } }
+		int IDataReader.RecordsAffected { get { throw new NotSupportedException(); } }
+		DataTable IDataReader.GetSchemaTable() { throw new NotSupportedException(); }
+
 		public string GetDataTypeName(int i) { throw new NotImplementedException(); }
 		public Type GetFieldType(int i) { throw new NotImplementedException(); }
 		public int GetValues(object[] values) { throw new NotImplementedException(); }
@@ -96,7 +109,6 @@ namespace DataBoss.Data
 		public decimal GetDecimal(int i) { throw new NotImplementedException(); }
 		public DateTime GetDateTime(int i) { throw new NotImplementedException(); }
 		public IDataReader GetData(int i) { throw new NotImplementedException(); }
-		public DataTable GetSchemaTable() { throw new NotImplementedException(); }
 	#endregion
 	}
 }

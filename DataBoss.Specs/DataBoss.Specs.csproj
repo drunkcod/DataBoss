@@ -51,6 +51,7 @@
     <Compile Include="DataBossScripterSpec.cs" />
     <Compile Include="DataBossSpec.cs" />
     <Compile Include="DataBossTextMigrationSpec.cs" />
+    <Compile Include="Data\SequenceDataReaderSpec.cs" />
     <Compile Include="ObjectReaderSpec.cs" />
     <Compile Include="PowerArgsSpec.cs" />
     <Compile Include="StubAttributeProvider.cs" />
