@@ -15,10 +15,10 @@ namespace DataBoss.Specs.Data
 		class DataThingy
 		{
 			public int TheField;
+			public string TheProp { get; set; }
 		}
 
-		public void can_map_field_by_name()
-		{
+		public void can_map_field_by_name() {
 			var reader = SequenceDataReader.For(new[] { new DataThingy { TheField = 42 } });
 			reader.Map("TheField");
 
@@ -27,6 +27,15 @@ namespace DataBoss.Specs.Data
 				() => reader.GetName(0) == "TheField");
 			Check.That(() => reader.Read());
 			Check.That(() => (int)reader[0] == 42);
+		}
+
+		public void can_map_property_by_name() {
+			var reader = SequenceDataReader.For(new[] { new DataThingy { TheProp = "Hello World" } });
+			reader.Map("TheProp");
+
+			Check.That(() => reader.Read());
+			Check.That(() => (string)reader[0] == "Hello World");
+
 		}
 	}
 }

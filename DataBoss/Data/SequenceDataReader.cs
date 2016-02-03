@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Linq.Expressions;
+using System.Reflection;
 
 namespace DataBoss.Data
 {
@@ -24,7 +25,7 @@ namespace DataBoss.Data
 		}
 
 		public int Map(string memberName) {
-			var memberInfo = typeof(T).GetField(memberName);
+			var memberInfo = (typeof(T).GetField(memberName) as MemberInfo) ?? typeof(T).GetProperty(memberName);
 			var arg0 = Expression.Parameter(typeof(T), "x");
 			return Map(memberName, Expression.Lambda<Func<T,object>>(
 					Expression.Convert(
