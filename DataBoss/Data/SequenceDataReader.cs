@@ -26,20 +26,22 @@ namespace DataBoss.Data
 
 		public int Map(string memberName) {
 			var memberInfo = (typeof(T).GetField(memberName) as MemberInfo) ?? typeof(T).GetProperty(memberName);
-			var arg0 = Expression.Parameter(typeof(T), "x");
-			return Map(memberName, Expression.Lambda<Func<T,object>>(
-					Expression.Convert(
-						Expression.MakeMemberAccess(arg0, memberInfo), typeof(object)
-					), 
-					arg0
-			).Compile());
+			if(memberInfo == null)
+				throw new InvalidOperationException($"Can't find public field or property '{memberName}'");
+			return Map(memberInfo);
 		}
 
 		public int Map<TMember>(Expression<Func<T,TMember>> selector) {
 			if(selector.Body.NodeType != ExpressionType.MemberAccess)
 				throw new NotSupportedException();
 			var m = (MemberExpression)selector.Body;
-			return Map(m.Member.Name, Expression.Lambda<Func<T,object>>(Expression.Convert(m, typeof(object)), true, selector.Parameters).Compile());
+			return Map(m.Member);
+		}
+
+		int Map(MemberInfo memberInfo) {
+			var arg0 = Expression.Parameter(typeof(T), "x");
+			var m = Expression.MakeMemberAccess(arg0, memberInfo);
+			return Map(m.Member.Name, Expression.Lambda<Func<T,object>>(Expression.Convert(m, typeof(object)), true, arg0).Compile());
 		}
 
 		public int Map(string name, Func<T, object> selector) {
@@ -68,11 +70,11 @@ namespace DataBoss.Data
 			return true;
 		}
 
-		public bool NextResult() { return false; }
+		public bool NextResult() => false;
 
 		public void Close() { }
 
-		public void Dispose() { data.Dispose(); }
+		public void Dispose() => data.Dispose();
 
 		public string GetName(int i) { return fieldNames[i]; }
 		public int GetOrdinal(string name) {
@@ -82,9 +84,9 @@ namespace DataBoss.Data
 			throw new InvalidOperationException($"No field named '{name}' mapped");
 		}
 
-		public object GetValue(int i) { return current[i]; }
+		public object GetValue(int i) => current[i];
 		//SqlBulkCopy.EnableStreaming requires this
-		public bool IsDBNull(int i) { return GetValue(i) is DBNull; }
+		public bool IsDBNull(int i) => GetValue(i) is DBNull;
 
 	#region Here Be Dragons (not implemented / supported)
 		int IDataReader.Depth { get { throw new NotSupportedException(); } }

@@ -35,6 +35,11 @@ namespace DataBoss.Specs.Data
 
 			Check.That(() => reader.Read());
 			Check.That(() => (string)reader[0] == "Hello World");
+		}
+
+		public void reports_unknown_member_in_sane_way() {
+			var reader = SequenceDataReader.For(new[] { new DataThingy { TheProp = "Hello World" } });
+			Check.Exception<InvalidOperationException>(() => reader.Map("NoSuchProp"));
 
 		}
 	}
