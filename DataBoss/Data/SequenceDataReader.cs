@@ -11,6 +11,18 @@ namespace DataBoss.Data
 		public static SequenceDataReader<T> For<T>(IEnumerable<T> data) {
 			return new SequenceDataReader<T>(data.GetEnumerator());
 		}
+
+		public static SequenceDataReader<T> Create<T>(IEnumerable<T> data, params string[] members) {
+			var reader = For(data);
+			Array.ForEach(members, x => reader.Map(x));
+			return reader;
+		}
+
+		public static SequenceDataReader<T> Create<T>(IEnumerable<T> data, params MemberInfo[] members) {
+			var reader = For(data);
+			Array.ForEach(members, x => reader.Map(x));
+			return reader;
+		}
 	}
 
 	public class SequenceDataReader<T> : IDataReader
@@ -38,7 +50,7 @@ namespace DataBoss.Data
 			return Map(m.Member);
 		}
 
-		int Map(MemberInfo memberInfo) {
+		public int Map(MemberInfo memberInfo) {
 			var arg0 = Expression.Parameter(typeof(T), "x");
 			var m = Expression.MakeMemberAccess(arg0, memberInfo);
 			return Map(m.Member.Name, Expression.Lambda<Func<T,object>>(Expression.Convert(m, typeof(object)), true, arg0).Compile());

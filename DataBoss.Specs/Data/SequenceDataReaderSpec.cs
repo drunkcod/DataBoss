@@ -42,5 +42,43 @@ namespace DataBoss.Specs.Data
 			Check.Exception<InvalidOperationException>(() => reader.Map("NoSuchProp"));
 
 		}
+
+		[Context("Create")]
+		public class SequenceDataReader_Create
+		{
+			public void maps_given_members_by_name() {
+				var reader = SequenceDataReader.Create(new[] 
+				{
+					new DataThingy
+					{
+						TheField = 42,
+						TheProp = "FooBar"
+					}
+				}, "TheProp", "TheField");
+
+				Check.That(() => reader.FieldCount == 2);
+				Check.That(
+					() => reader.GetOrdinal("TheProp") == 0,
+					() => reader.GetOrdinal("TheField") == 1
+				);
+			}
+
+			public void maps_given_members() {
+				var reader = SequenceDataReader.Create(new[] 
+				{
+					new DataThingy
+					{
+						TheField = 42,
+						TheProp = "FooBar"
+					}
+				}, typeof(DataThingy).GetProperty("TheProp"), typeof(DataThingy).GetField("TheField"));
+
+				Check.That(() => reader.FieldCount == 2);
+				Check.That(
+					() => reader.GetOrdinal("TheProp") == 0,
+					() => reader.GetOrdinal("TheField") == 1
+				);
+			}
+		}
 	}
 }
