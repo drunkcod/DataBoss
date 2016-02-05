@@ -40,7 +40,17 @@ namespace DataBoss.Specs.Data
 		public void reports_unknown_member_in_sane_way() {
 			var reader = SequenceDataReader.For(new[] { new DataThingy { TheProp = "Hello World" } });
 			Check.Exception<InvalidOperationException>(() => reader.Map("NoSuchProp"));
+		}
 
+		[Row("TheField" ,true)
+		,Row("TheProp", true)
+		,Row("GetHashCode", false)]
+		public void map_by_member(string memberName, bool canMap) {
+			var reader = SequenceDataReader.For(new[] { new DataThingy() });
+			var member = typeof(DataThingy).GetMember(memberName).Single();
+			if(canMap) 
+				Check.That(() => reader.Map(member) == 0);
+			else Check.Exception<ArgumentException>(() => reader.Map(member));
 		}
 
 		[Context("Create")]
