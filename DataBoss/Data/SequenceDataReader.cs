@@ -1,40 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 
 namespace DataBoss.Data
 {
-	public static class SequenceDataReader
+	public class FieldMapping<T>
 	{
-		public static SequenceDataReader<T> For<T>(IEnumerable<T> data) {
-			return new SequenceDataReader<T>(data.GetEnumerator());
-		}
-
-		public static SequenceDataReader<T> Create<T>(IEnumerable<T> data, params string[] members) {
-			var reader = For(data);
-			Array.ForEach(members, x => reader.Map(x));
-			return reader;
-		}
-
-		public static SequenceDataReader<T> Create<T>(IEnumerable<T> data, params MemberInfo[] members) {
-			var reader = For(data);
-			Array.ForEach(members, x => reader.Map(x));
-			return reader;
-		}
-	}
-
-	public class SequenceDataReader<T> : IDataReader
-	{
-		readonly IEnumerator<T> data;
-		Func<T, object>[] selectors = new Func<T,object>[0];
-		object[] current = new object[0];
+		readonly ParameterExpression source = Expression.Parameter(typeof(T), "source");
+		Expression[] selectors = new Expression[0];
 		string[] fieldNames = new string[0];
-	
-		public SequenceDataReader(IEnumerator<T> data) {
-			this.data = data;
-		}
 
 		public int Map(string memberName) {
 			var memberInfo = (typeof(T).GetField(memberName) as MemberInfo) ?? typeof(T).GetProperty(memberName);
@@ -51,16 +28,20 @@ namespace DataBoss.Data
 		}
 
 		public int Map(MemberInfo memberInfo) {
-			var arg0 = Expression.Parameter(typeof(T), "x");
-			var m = Expression.MakeMemberAccess(arg0, memberInfo);
-			return Map(m.Member.Name, Expression.Lambda<Func<T,object>>(Expression.Convert(m, typeof(object)), true, arg0).Compile());
+			return Map(memberInfo.Name, 
+				Expression.Convert(
+					Expression.MakeMemberAccess(source, memberInfo), 
+					typeof(object)));
 		}
 
 		public int Map(string name, Func<T, object> selector) {
-			var ordinal = FieldCount;
+			return Map(name, Expression.Invoke(Expression.Constant(selector), source));
+		}
+
+		int Map(string name, Expression selector) {
+			var ordinal = selectors.Length;
 			Array.Resize(ref selectors, ordinal + 1);
 			Array.Resize(ref fieldNames, ordinal + 1);
-			Array.Resize(ref current, ordinal + 1);
 
 			fieldNames[ordinal] = name;
 			selectors[ordinal] = selector;
@@ -68,18 +49,65 @@ namespace DataBoss.Data
 			return ordinal;
 		}
 
+		public string[] GetFieldNames() {
+			var output = new string[fieldNames.Length];
+			Array.Copy(fieldNames, output, fieldNames.Length);
+			return output;
+		}
+
+		public Action<T,object[]> GetAccessor() {
+			var target = Expression.Parameter(typeof(object[]), "target");
+			var body = Enumerable.Range(0, selectors.Length)
+				.Select(x => Expression.Assign(
+					Expression.ArrayAccess(target, Expression.Constant(x)),
+					selectors[x]));
+			return Expression.Lambda<Action<T,object[]>>(
+				Expression.Block(body), true, source, target).Compile();
+		}
+	}
+
+	public static class SequenceDataReader
+	{
+		public static SequenceDataReader<T> Create<T>(IEnumerable<T> data, Action<FieldMapping<T>> mapFields) {
+			var fieldMapping = new FieldMapping<T>();
+			mapFields(fieldMapping);
+			return new SequenceDataReader<T>(data.GetEnumerator(), fieldMapping);
+		}
+
+		public static SequenceDataReader<T> Create<T>(IEnumerable<T> data, params string[] members) {
+			return Create(data, fields => Array.ForEach(members, x => fields.Map(x)));
+		}
+
+		public static SequenceDataReader<T> Create<T>(IEnumerable<T> data, params MemberInfo[] members) {
+			return Create(data, fields => Array.ForEach(members, x => fields.Map(x)));
+		}
+	}
+
+	public class SequenceDataReader<T> : IDataReader
+	{
+		readonly object[] current;
+		readonly Action<T,object[]> accessor;
+		readonly IEnumerator<T> data;
+		readonly string[] fieldNames;
+	
+		public SequenceDataReader(IEnumerator<T> data, FieldMapping<T> fields) {
+			this.data = data;
+			this.fieldNames = fields.GetFieldNames();
+			this.accessor = fields.GetAccessor();
+			this.current = new object[fieldNames.Length];
+		}
+
 		public object this[int i] => GetValue(i);
 		public object this[string name] => GetValue(GetOrdinal(name));
 
-		public int FieldCount => selectors.Length;
+		public int FieldCount => current.Length;
 	
 		public bool Read() { 
 			if(!data.MoveNext())
 				return false;
-			var source = data.Current;
-			for(var i = 0; i != current.Length; ++i)
-				current[i] = selectors[i](source);
+			accessor(data.Current, current);
 			return true;
+
 		}
 
 		public bool NextResult() => false;

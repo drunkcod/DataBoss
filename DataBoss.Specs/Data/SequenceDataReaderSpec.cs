@@ -1,9 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Data;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Cone;
 using DataBoss.Data;
 
@@ -19,8 +15,10 @@ namespace DataBoss.Specs.Data
 		}
 
 		public void can_map_field_by_name() {
-			var reader = SequenceDataReader.For(new[] { new DataThingy { TheField = 42 } });
-			reader.Map("TheField");
+			var reader = SequenceDataReader.Create(
+				new[] { new DataThingy { TheField = 42 } },
+				fields => fields.Map("TheField")
+			);
 
 			Check.That(
 				() => reader.GetOrdinal("TheField") == 0,
@@ -30,27 +28,32 @@ namespace DataBoss.Specs.Data
 		}
 
 		public void can_map_property_by_name() {
-			var reader = SequenceDataReader.For(new[] { new DataThingy { TheProp = "Hello World" } });
-			reader.Map("TheProp");
+			var reader = SequenceDataReader.Create(
+				new[] { new DataThingy { TheProp = "Hello World" } },
+				fields => fields.Map("TheProp")
+			);
 
 			Check.That(() => reader.Read());
 			Check.That(() => (string)reader[0] == "Hello World");
 		}
 
 		public void reports_unknown_member_in_sane_way() {
-			var reader = SequenceDataReader.For(new[] { new DataThingy { TheProp = "Hello World" } });
-			Check.Exception<InvalidOperationException>(() => reader.Map("NoSuchProp"));
+			Check.Exception<InvalidOperationException>(() =>
+				SequenceDataReader.Create(
+					new[] { new DataThingy { TheProp = "Hello World" } },
+					fields => fields.Map("NoSuchProp"))
+				);
 		}
 
 		[Row("TheField" ,true)
 		,Row("TheProp", true)
 		,Row("GetHashCode", false)]
 		public void map_by_member(string memberName, bool canMap) {
-			var reader = SequenceDataReader.For(new[] { new DataThingy() });
 			var member = typeof(DataThingy).GetMember(memberName).Single();
+			var fields = new FieldMapping<DataThingy>();
 			if(canMap) 
-				Check.That(() => reader.Map(member) == 0);
-			else Check.Exception<ArgumentException>(() => reader.Map(member));
+				Check.That(() => fields.Map(member) == 0);
+			else Check.Exception<ArgumentException>(() => fields.Map(member));
 		}
 
 		[Context("Create")]
