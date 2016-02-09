@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -8,8 +9,7 @@ namespace DataBoss.Data
 	public class FieldMapping<T>
 	{
 		readonly ParameterExpression source = Expression.Parameter(typeof(T), "source");
-		Expression[] selectors = new Expression[0];
-		string[] fieldNames = new string[0];
+		KeyValuePair<string, Expression>[] selectors = new KeyValuePair<string, Expression>[0];
 
 		public int Map(string memberName) {
 			var memberInfo = (typeof(T).GetField(memberName) as MemberInfo) ?? typeof(T).GetProperty(memberName);
@@ -25,40 +25,31 @@ namespace DataBoss.Data
 			return Map(m.Member);
 		}
 
-		public int Map(MemberInfo memberInfo) {
-			return Map(memberInfo.Name, 
-				Expression.Convert(
-					Expression.MakeMemberAccess(source, memberInfo), 
-					typeof(object)));
-		}
+		public int Map(MemberInfo memberInfo) => Map(memberInfo.Name, 
+			Expression.Convert(
+				Expression.MakeMemberAccess(source, memberInfo), 
+				typeof(object)));
 
-		public int Map(string name, Func<T, object> selector) {
-			return Map(name, Expression.Invoke(Expression.Constant(selector), source));
-		}
+		public int Map(string name, Func<T, object> selector) => Map(name, 
+			Expression.Invoke(Expression.Constant(selector), source));
 
 		int Map(string name, Expression selector) {
 			var ordinal = selectors.Length;
 			Array.Resize(ref selectors, ordinal + 1);
-			Array.Resize(ref fieldNames, ordinal + 1);
 
-			fieldNames[ordinal] = name;
-			selectors[ordinal] = selector;
+			selectors[ordinal] = new KeyValuePair<string, Expression>(name, selector);
 
 			return ordinal;
 		}
 
-		public string[] GetFieldNames() {
-			var output = new string[fieldNames.Length];
-			Array.Copy(fieldNames, output, fieldNames.Length);
-			return output;
-		}
+		public string[] GetFieldNames() => Array.ConvertAll(selectors, x => x.Key);
 
 		public Action<T,object[]> GetAccessor() {
 			var target = Expression.Parameter(typeof(object[]), "target");
 			var body = Enumerable.Range(0, selectors.Length)
 				.Select(x => Expression.Assign(
 					Expression.ArrayAccess(target, Expression.Constant(x)),
-					selectors[x]));
+					selectors[x].Value));
 			return Expression.Lambda<Action<T,object[]>>(
 				Expression.Block(body), true, source, target).Compile();
 		}

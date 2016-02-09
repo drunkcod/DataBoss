@@ -60,10 +60,8 @@ namespace DataBoss.Specs.Data
 		public class SequenceDataReader_Create
 		{
 			public void maps_given_members_by_name() {
-				var reader = SequenceDataReader.Create(new[] 
-				{
-					new DataThingy
-					{
+				var reader = SequenceDataReader.Create(new[] {
+					new DataThingy {
 						TheField = 42,
 						TheProp = "FooBar"
 					}
@@ -77,10 +75,8 @@ namespace DataBoss.Specs.Data
 			}
 
 			public void maps_given_members() {
-				var reader = SequenceDataReader.Create(new[] 
-				{
-					new DataThingy
-					{
+				var reader = SequenceDataReader.Create(new[] {
+					new DataThingy {
 						TheField = 42,
 						TheProp = "FooBar"
 					}
