@@ -54,7 +54,7 @@ namespace DataBoss.Specs
 					new { Hello = "Bar", World = 1 },
 					new { Hello = "Row 2", World = 42 }
 				}.Dump();
-				Check.That(() => Output.ToString() == "Hello │ World\r\nBar   │ 1\r\nRow 2 │ 42\r\n");
+				Check.That(() => Output.ToString() == "Hello │ World\r\nBar   │     1\r\nRow 2 │    42\r\n");
 			}
 
 			public void adjusts_column_widhts_to_biggest_row() {
@@ -62,7 +62,7 @@ namespace DataBoss.Specs
 					new { A = "1", B = 2 },
 					new { A= "234", B = 43 }
 				}.Dump();
-				Check.That(() => Output.ToString() == "A   │ B\r\n1   │ 2\r\n234 │ 43\r\n");
+				Check.That(() => Output.ToString() == "A   │ B\r\n1   │  2\r\n234 │ 43\r\n");
 			}
 
 			public void treats_IDataReader_like_sequence() {
@@ -70,8 +70,14 @@ namespace DataBoss.Specs
 					new { ABC = "1", B = 2 },
 					new { ABC = "23", B = 43 }
 				}, "ABC", "B").Dump();
-				Check.That(() => Output.ToString() == "ABC │ B\r\n1   │ 2\r\n23  │ 43\r\n");
+				Check.That(() => Output.ToString() == "ABC │ B\r\n1   │  2\r\n23  │ 43\r\n");
+			}
 
+			public void right_justifies_numbers() {
+				SequenceDataReader.Create(new[] {
+					new { ABC = 1 },
+				}, "ABC").Dump();
+				Check.That(() => Output.ToString() == "ABC\r\n  1\r\n");
 			}
 		}
 	}

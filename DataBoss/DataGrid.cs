@@ -40,15 +40,25 @@ namespace DataBoss
 
 		public void WriteTo(TextWriter output) {
 			var values = new string[columns.Count];
-			var columnFormat = widths.Select(x => $"{{0,-{x}}}").ToArray();
-			Action<string[]> write = row => {
-												for(var i = 0; i != row.Length; ++i)
-													values[i] = string.Format(columnFormat[i], row[i]);
-												output.WriteLine(string.Join(Separator, values).TrimEnd());
-			};
-			if(ShowHeadings)
-				write(columns.Select(x => x.Name).ToArray());
-			outputRows.ForEach(write);
+			var columnFormat = new string[columns.Count];
+			for(var i = 0; i != columns.Count; ++i) {
+				var n = IsNumberColumn(i) ? widths[i] : -widths[i];
+				columnFormat[i] = $"{{0,{n}}}";
+			}
+
+			if(ShowHeadings) {
+				for(var i = 0; i != columns.Count; ++i)
+					values[i] = string.Format($"{{0,-{widths[i]}}}", columns[i].Name);
+				output.WriteLine(string.Join(Separator, values).TrimEnd());
+			}
+
+			outputRows.ForEach(row => {
+				for(var i = 0; i != row.Length; ++i)
+					values[i] = string.Format(columnFormat[i], row[i]);
+				output.WriteLine(string.Join(Separator, values).TrimEnd());
+			});
 		}
+
+		bool IsNumberColumn(int i)  => columns[i].ColumnType == typeof(int);
 	}
 }

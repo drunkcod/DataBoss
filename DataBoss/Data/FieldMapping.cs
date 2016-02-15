@@ -26,21 +26,21 @@ namespace DataBoss.Data
 			return Map(m.Member);
 		}
 
-		public int Map(MemberInfo memberInfo) => Map(memberInfo.Name, 
-			Expression.Convert(
-				Expression.MakeMemberAccess(source, memberInfo), 
-				typeof(object)));
+		public int Map(MemberInfo memberInfo) {
+			var m = Expression.MakeMemberAccess(source, memberInfo);
+			return Map(memberInfo.Name, m.Type, Expression.Convert(m, typeof(object)));
+		}
 
-		public int Map(string name, Func<T, object> selector) => Map(name, 
+		public int Map(string name, Func<T, object> selector) => Map(name, typeof(object),
 			Expression.Invoke(Expression.Constant(selector), source));
 
-		int Map(string name, Expression selector) {
+		int Map(string name, Type type, Expression selector) {
 			var ordinal = selectors.Length;
 			Array.Resize(ref selectors, ordinal + 1);
 			Array.Resize(ref memberTypes, ordinal + 1);
 
 			selectors[ordinal] = new KeyValuePair<string, Expression>(name, selector);
-			memberTypes[ordinal] = selector.Type;
+			memberTypes[ordinal] = type;
 
 			return ordinal;
 		}
