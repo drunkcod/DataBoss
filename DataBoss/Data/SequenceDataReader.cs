@@ -28,10 +28,12 @@ namespace DataBoss.Data
 		readonly Action<T,object[]> accessor;
 		readonly IEnumerator<T> data;
 		readonly string[] fieldNames;
+		readonly Type[] fieldTypes;
 	
 		public SequenceDataReader(IEnumerator<T> data, FieldMapping<T> fields) {
 			this.data = data;
 			this.fieldNames = fields.GetFieldNames();
+			this.fieldTypes = fields.GetFieldTypes();
 			this.accessor = fields.GetAccessor();
 			this.current = new object[fieldNames.Length];
 		}
@@ -55,7 +57,8 @@ namespace DataBoss.Data
 
 		public void Dispose() => data.Dispose();
 
-		public string GetName(int i) { return fieldNames[i]; }
+		public string GetName(int i) => fieldNames[i];
+		public Type GetFieldType(int i) => fieldTypes[i];
 		public int GetOrdinal(string name) {
 			for(var i = 0; i != fieldNames.Length; ++i)
 				if(fieldNames[i] == name)
@@ -64,6 +67,13 @@ namespace DataBoss.Data
 		}
 
 		public object GetValue(int i) => current[i];
+
+		public int GetValues(object[] values) {
+			var n = Math.Min(current.Length, values.Length);
+			Array.Copy(current, values, n);
+			return n;
+		}
+
 		//SqlBulkCopy.EnableStreaming requires this
 		public bool IsDBNull(int i) => GetValue(i) is DBNull;
 
@@ -74,8 +84,6 @@ namespace DataBoss.Data
 		DataTable IDataReader.GetSchemaTable() { throw new NotSupportedException(); }
 
 		public string GetDataTypeName(int i) { throw new NotImplementedException(); }
-		public Type GetFieldType(int i) { throw new NotImplementedException(); }
-		public int GetValues(object[] values) { throw new NotImplementedException(); }
 		public bool GetBoolean(int i) { throw new NotImplementedException(); }
 		public byte GetByte(int i) { throw new NotImplementedException(); }
 		public long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) { throw new NotImplementedException(); }

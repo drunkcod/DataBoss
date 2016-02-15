@@ -10,6 +10,7 @@ namespace DataBoss.Data
 	{
 		readonly ParameterExpression source = Expression.Parameter(typeof(T), "source");
 		KeyValuePair<string, Expression>[] selectors = new KeyValuePair<string, Expression>[0];
+		Type[] memberTypes = new Type[0];
 
 		public int Map(string memberName) {
 			var memberInfo = (typeof(T).GetField(memberName) as MemberInfo) ?? typeof(T).GetProperty(memberName);
@@ -36,13 +37,16 @@ namespace DataBoss.Data
 		int Map(string name, Expression selector) {
 			var ordinal = selectors.Length;
 			Array.Resize(ref selectors, ordinal + 1);
+			Array.Resize(ref memberTypes, ordinal + 1);
 
 			selectors[ordinal] = new KeyValuePair<string, Expression>(name, selector);
+			memberTypes[ordinal] = selector.Type;
 
 			return ordinal;
 		}
 
 		public string[] GetFieldNames() => Array.ConvertAll(selectors, x => x.Key);
+		public Type[] GetFieldTypes() => memberTypes;
 
 		public Action<T,object[]> GetAccessor() {
 			var target = Expression.Parameter(typeof(object[]), "target");

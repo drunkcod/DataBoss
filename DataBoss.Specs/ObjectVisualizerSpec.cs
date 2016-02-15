@@ -1,25 +1,39 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using Cone;
+using DataBoss.Data;
 
 namespace DataBoss.Specs
 {
 	class DataGrid
 	{
+		struct DataGridColumn
+		{
+			public DataGridColumn(string name, Type type) {
+				this.Name = name;
+				this.ColumnType = type;
+			}
+
+			public readonly string Name;
+			public readonly Type ColumnType;
+		}
 		const string Separator = " | ";
 
 		readonly List<string[]> outputRows = new List<string[]>(); 
-		readonly List<Tuple<string,Type>> columns = new List<Tuple<string, Type>>(); 
+		readonly List<DataGridColumn> columns = new List<DataGridColumn>(); 
 		readonly List<int> widths = new List<int>();
 
+		public bool ShowHeadings = true;
+
 		public void AddColumn(string name, Type type) {
-			columns.Add(Tuple.Create(name, type));
+			columns.Add(new DataGridColumn(name, type));
 			widths.Add(name.Length);
 		}
 
@@ -38,8 +52,8 @@ namespace DataBoss.Specs
 					values[i] = string.Format(columnFormat[i], row[i]);
 				output.WriteLine(string.Join(Separator, values).TrimEnd());
 			};
-
-			write(columns.Select(x => x.Item1).ToArray());
+			if(ShowHeadings)
+				write(columns.Select(x => x.Name).ToArray());
 			outputRows.ForEach(write);
 		}
 	}
@@ -49,34 +63,48 @@ namespace DataBoss.Specs
 		public static TextWriter Output = Console.Out;
 
 		public static T Dump<T>(this T self) {
-			Dump(self, typeof(T));
+			Dump(self, typeof(T)).WriteTo(Output);
 			return self;
 		}
 
-		static void Dump(object obj, Type type) {
+		static DataGrid Dump(object obj, Type type) {
 			if(IsBasicType(type)) {
-				Output.WriteLine(obj);
-				return;
+				var data = new DataGrid { ShowHeadings = false };
+				data.AddColumn(string.Empty, type);
+				data.AddRow(obj);
+				return data;
 			}
 
 			var xs = obj as IEnumerable;
 			if(xs != null)
-				DumpSequence(type, xs);
-			else
-				foreach(var item in type.GetProperties(BindingFlags.Instance | BindingFlags.Public).Where(x => x.CanRead))
-					$"{item.Name}: {item.GetValue(obj)}".Dump();
+				return DumpSequence(type, xs);
+
+			var reader = obj as IDataReader;
+			if(reader != null)
+				return DumpReader(reader);
+			return DumpObject(obj, type);
 		}
 
-		private static void DumpSequence(Type type, IEnumerable xs) {
+		private static DataGrid DumpObject(object obj, Type type)
+		{
+			var d = new DataGrid {ShowHeadings = false};
+			d.AddColumn(string.Empty, typeof(string));
+			foreach(var item in type.GetProperties(BindingFlags.Instance | BindingFlags.Public).Where(x => x.CanRead))
+				d.AddRow($"{item.Name}: {item.GetValue(obj)}");
+			return d;
+		}
+
+		private static DataGrid DumpSequence(Type type, IEnumerable xs) {
 			var rowType = type.GetInterface(typeof(IEnumerable<>).FullName)?.GenericTypeArguments[0];
+			var grid = new DataGrid();
 
 			if(rowType == null || IsBasicType(rowType)) {
+				grid.ShowHeadings = false;
+				grid.AddColumn(string.Empty, rowType);
 				foreach(var item in xs)
-					Dump(item, item.GetType());
-				return;
+					grid.AddRow(item);
+				return grid;
 			}
-
-			var grid = new DataGrid();
 
 			var columns = rowType.GetProperties(BindingFlags.Instance | BindingFlags.Public).Where(x => x.CanRead).ToArray();
 
@@ -85,8 +113,18 @@ namespace DataBoss.Specs
 
 			foreach(var item in xs)
 				grid.AddRow(Array.ConvertAll(columns, x => x.GetValue(item)));
+			return grid;
+		}
 
-			grid.WriteTo(Output);
+		private static DataGrid DumpReader(IDataReader reader) {
+			var data = new DataGrid();
+			for(var i = 0; i != reader.FieldCount; ++i)
+				data.AddColumn(reader.GetName(i), reader.GetFieldType(i));
+			for(var row = new object[reader.FieldCount]; reader.Read();) {
+				reader.GetValues(row);
+				data.AddRow(row);
+			}
+			return data;
 		}
 
 		static bool IsBasicType(Type type) {
@@ -153,6 +191,14 @@ namespace DataBoss.Specs
 				Check.That(() => Output.ToString() == "A   | B\r\n1   | 2\r\n234 | 43\r\n");
 			}
 
+			public void treats_IDataReader_like_sequence() {
+				SequenceDataReader.Create(new[] {
+					new { A = "1", B = 2 },
+					new { A= "234", B = 43 }
+				}, "A", "B").Dump();
+				Check.That(() => Output.ToString() == "A   | B\r\n1   | 2\r\n234 | 43\r\n");
+
+			}
 		}
 	}
 }
