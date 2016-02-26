@@ -3,6 +3,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Cone;
 using DataBoss.Data;
+using DataBoss.Util;
 
 namespace DataBoss.Specs
 {
@@ -39,6 +40,45 @@ namespace DataBoss.Specs
 			public void displays_prop_and_value_for_single_object() {
 				new { Hello = "World" }.Dump();
 				Check.That(() => Output.ToString() == "Hello: World\r\n");
+			}
+
+			public void aligns_members_for_single_object() {
+				new {
+					First = "One",
+					Two = "Second",
+				}.Dump();
+				Check.That(() => Output.ToString() == 
+					Lines(
+						"First: One",
+						"Two  : Second"
+					));
+			}
+
+			public void nested_object() {
+				new {
+					Values = new[] { 1, 2, 3 },
+				}.Dump();
+				Check.That(() => Output.ToString() == 
+					Lines(
+						"Values: 1",
+						"      : 2",
+						"      : 3"
+					));
+			}
+
+			public void multiline_string() {
+				new {
+					Greeting = "Hello\r\nWorld",
+				}.Dump();
+				Check.That(() => Output.ToString() == 
+					Lines(
+						"Greeting: Hello",
+						"        : World"
+					));
+			}
+
+			string Lines(params string[] lines){
+				return string.Join("\r\n", lines) + "\r\n";
 			}
 
 			public void uses_prop_name_as_heading_for_sequence() {

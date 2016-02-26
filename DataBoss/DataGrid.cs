@@ -18,24 +18,45 @@ namespace DataBoss
 			public readonly Type ColumnType;
 		}
 
-		public const string Separator = " │ ";
+		struct GridValue
+		{
+			public string[] Lines;
+			public int Width;
+			public int Height => Lines.Length;
+		}
 
-		readonly List<string[]> outputRows = new List<string[]>(); 
+		public string Separator = " │ ";
+
+		readonly List<GridValue[]> outputRows = new List<GridValue[]>(); 
 		readonly List<DataGridColumn> columns = new List<DataGridColumn>(); 
 		readonly List<int> widths = new List<int>();
+		readonly List<int> heights = new List<int>();
 
 		public bool ShowHeadings = true;
 
 		public void AddColumn(string name, Type type) {
 			columns.Add(new DataGridColumn(name, type));
-			widths.Add(name.Length);
+			widths.Add(ShowHeadings ? name.Length : 0);
 		}
 
 		public void AddRow(params object[] row) {
-			var output = Array.ConvertAll(row, x => x.ToString());
-			for(var i = 0; i != output.Length; ++i)
-				widths[i] = Math.Max(widths[i], output[i].Length);
+			var output = Array.ConvertAll(row, ToGridValue);
+			var height = 1;
+			for(var i = 0; i != output.Length; ++i) {
+				widths[i] = Math.Max(widths[i], output[i].Width);
+				height = Math.Max(height, output[i].Height);
+			}
 			outputRows.Add(output);
+			heights.Add(height);
+
+		}
+
+		GridValue ToGridValue(object obj) {
+			var s = obj.ToString().TrimEnd();
+			return new GridValue {
+				Lines = s.Split(new[] { "\r\n" }, StringSplitOptions.None),
+				Width = s.Length,
+			};
 		}
 
 		public void WriteTo(TextWriter output) {
@@ -52,13 +73,24 @@ namespace DataBoss
 				output.WriteLine(string.Join(Separator, values).TrimEnd());
 			}
 
+			var rowIndex = 0;
 			outputRows.ForEach(row => {
-				for(var i = 0; i != row.Length; ++i)
-					values[i] = string.Format(columnFormat[i], row[i]);
-				output.WriteLine(string.Join(Separator, values).TrimEnd());
+				for(var r = 0; r != heights[rowIndex]; ++r) {
+					for(var i = 0; i != row.Length; ++i)
+						values[i] = string.Format(columnFormat[i], r < row[i].Height ? row[i].Lines[r] : string.Empty);
+					output.WriteLine(string.Join(Separator, values).TrimEnd());
+				};
+				++rowIndex;
 			});
 		}
 
 		bool IsNumberColumn(int i)  => columns[i].ColumnType == typeof(int);
+
+		public override string ToString()
+		{
+			var result = new StringWriter();
+			WriteTo(result);
+			return result.ToString();
+		}
 	}
 }

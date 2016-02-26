@@ -6,13 +6,23 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 
+namespace DataBoss.Util
+{
+	public static class ObjectExtensions
+	{
+		public static T Dump<T>(this T self) {
+			return ObjectVisualizer.Dump(self);
+		}
+	}
+}
+
 namespace DataBoss
 {
 	public static class ObjectVisualizer
 	{
 		public static TextWriter Output = Console.Out;
 
-		public static T Dump<T>(this T self) {
+		public static T Dump<T>(T self) {
 			Dump(self, typeof(T)).WriteTo(Output);
 			return self;
 		}
@@ -20,7 +30,7 @@ namespace DataBoss
 		static DataGrid Dump(object obj, Type type) {
 			if(IsBasicType(type)) {
 				var data = new DataGrid { ShowHeadings = false };
-				data.AddColumn(string.Empty, type);
+				data.AddColumn("Value", type);
 				data.AddRow(obj);
 				return data;
 			}
@@ -37,10 +47,11 @@ namespace DataBoss
 
 		private static DataGrid DumpObject(object obj, Type type)
 		{
-			var d = new DataGrid {ShowHeadings = false};
-			d.AddColumn(string.Empty, typeof(string));
+			var d = new DataGrid {ShowHeadings = false, Separator = ": "};
+			d.AddColumn("Member", typeof(string));
+			d.AddColumn("Value", typeof(string));
 			foreach(var item in type.GetProperties(BindingFlags.Instance | BindingFlags.Public).Where(x => x.CanRead))
-				d.AddRow($"{item.Name}: {item.GetValue(obj)}");
+				d.AddRow(item.Name, Dump(item.GetValue(obj), item.PropertyType));
 			return d;
 		}
 
