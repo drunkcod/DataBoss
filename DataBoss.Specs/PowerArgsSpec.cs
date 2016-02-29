@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.ComponentModel.DataAnnotations;
 using Cone;
-using System.Data;
 
 namespace DataBoss.Specs
 {
@@ -50,6 +52,52 @@ namespace DataBoss.Specs
 
 		public void can_fill_existing_instance() {
 			Check.That(() => PowerArgs.Parse("-MyProp", "NewValue").Into(new MyArgs { MyProp = "Prop", MyField = "Field" }).MyProp == "NewValue");
+		}
+
+		class MyArgsWithDefaults
+		{
+			[DefaultValue("42")]
+			public string TheAnswer;
+		}
+
+		public void uses_defaults_if_not_specified() {
+			Check.That(() => PowerArgs.Parse().Into<MyArgsWithDefaults>().TheAnswer == "42");
+		}
+
+		class MyArgsWithNonStrings
+		{
+			public List<int> MyList;
+			public int MyInt;
+			public DateTime MyDateTime;
+			public DateTime? MaybeDateTime;
+		}
+
+		public void ignores_non_stringable_members() {
+			Check.That(
+				() => PowerArgs.Parse("-MyList", "42").Into<MyArgsWithNonStrings>().MyList == null);
+		}
+
+		public void attempts_to_parse_DateTime() {
+			Check.That(
+				() => PowerArgs.Parse("-MyDateTime", "2016-02-29").Into<MyArgsWithNonStrings>().MyDateTime == new DateTime(2016, 02, 29));
+		}
+
+		public void parses_nullables() {
+			Check.That(
+				() => PowerArgs.Parse("-MaybeDateTime", "2016-02-29").Into<MyArgsWithNonStrings>().MaybeDateTime == new DateTime(2016, 02, 29));
+		}
+
+		class MyRequiredArgs
+		{
+			[Required]
+			public string ImportantField;
+			[Required]
+			public string ImportantProp { get; set; }
+		}
+
+		public void can_check_for_required_fields() {
+			var e = Check.Exception<PowerArgsValidationException>(() => PowerArgs.Validate(new MyRequiredArgs()));
+			Check.That(() => e.Errors.Count == 2);
 		}
 	}
 }
