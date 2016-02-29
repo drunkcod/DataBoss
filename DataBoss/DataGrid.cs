@@ -60,13 +60,13 @@ namespace DataBoss
 		}
 
 		public void WriteTo(TextWriter output) {
-			var values = new string[columns.Count];
 			var columnFormat = new string[columns.Count];
 			for(var i = 0; i != columns.Count; ++i) {
 				var n = IsNumberColumn(i) ? widths[i] : -widths[i];
 				columnFormat[i] = $"{{0,{n}}}";
 			}
 
+			var values = new string[columns.Count];
 			if(ShowHeadings) {
 				for(var i = 0; i != columns.Count; ++i)
 					values[i] = string.Format($"{{0,-{widths[i]}}}", columns[i].Name);

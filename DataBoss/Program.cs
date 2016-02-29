@@ -119,13 +119,13 @@ namespace DataBoss
 				return reader.ReadToEnd();
 		}
 
-		static void EnsureDataBase(string connectionString) {
+		public static void EnsureDataBase(string connectionString) {
 			var qs = new SqlConnectionStringBuilder(connectionString);
 			var dbName = qs.InitialCatalog;
 			qs.Remove("Initial Catalog");
 			using(var db = new SqlConnection(qs.ConnectionString)) {
 				db.Open();
-				using(var cmd = new SqlCommand("select db_id(@db)" ,db)) {
+				using(var cmd = new SqlCommand("if db_id(@db) is null select(select database_id from sys.databases where name = @db) else select db_id(@db)" ,db)) {
 					cmd.Parameters.AddWithValue("@db", dbName);
 					if(cmd.ExecuteScalar() is DBNull) {
 						cmd.CommandText = $"create database [{dbName}]";
