@@ -10,24 +10,40 @@ namespace DataBoss.Util
 {
 	public static class ObjectExtensions
 	{
+		static TextWriter output = Console.Out;
+		static ObjectVisualizer visualizer = new ObjectVisualizer(output);
+
+		public static TextWriter Output
+		{
+			get { return output; }
+			set {
+				output = value;
+				visualizer = new ObjectVisualizer(value);
+			}
+		}
+
 		public static T Dump<T>(this T self) {
-			return ObjectVisualizer.Dump(self);
+			visualizer.Append(self);
+			return self;
 		}
 	}
 }
 
 namespace DataBoss
 {
-	public static class ObjectVisualizer
+	public class ObjectVisualizer
 	{
-		public static TextWriter Output = Console.Out;
+		readonly TextWriter output;
 
-		public static T Dump<T>(T self) {
-			Dump(self, typeof(T)).WriteTo(Output);
-			return self;
+		public ObjectVisualizer(TextWriter output) {
+			this.output = output;
 		}
 
-		static DataGrid Dump(object obj, Type type) {
+		public void Append<T>(T self) {
+			ToDataGrid(self, typeof(T)).WriteTo(output);
+		}
+
+		static DataGrid ToDataGrid(object obj, Type type) {
 			if(IsBasicType(type)) {
 				var data = new DataGrid { ShowHeadings = false };
 				data.AddColumn("Value", type);
@@ -45,17 +61,17 @@ namespace DataBoss
 			return DumpObject(obj, type);
 		}
 
-		private static DataGrid DumpObject(object obj, Type type)
+		static DataGrid DumpObject(object obj, Type type)
 		{
 			var d = new DataGrid {ShowHeadings = false, Separator = ": "};
 			d.AddColumn("Member", typeof(string));
 			d.AddColumn("Value", typeof(string));
 			foreach(var item in type.GetProperties(BindingFlags.Instance | BindingFlags.Public).Where(x => x.CanRead))
-				d.AddRow(item.Name, Dump(item.GetValue(obj), item.PropertyType));
+				d.AddRow(item.Name, ToDataGrid(item.GetValue(obj), item.PropertyType));
 			return d;
 		}
 
-		private static DataGrid DumpSequence(Type type, IEnumerable xs) {
+		static DataGrid DumpSequence(Type type, IEnumerable xs) {
 			var rowType = type.GetInterface(typeof(IEnumerable<>).FullName)?.GenericTypeArguments[0];
 			var grid = new DataGrid();
 
@@ -77,7 +93,7 @@ namespace DataBoss
 			return grid;
 		}
 
-		private static DataGrid DumpReader(IDataReader reader) {
+		static DataGrid DumpReader(IDataReader reader) {
 			var data = new DataGrid();
 			for(var i = 0; i != reader.FieldCount; ++i)
 				data.AddColumn(reader.GetName(i), reader.GetFieldType(i));
