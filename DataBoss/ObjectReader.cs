@@ -51,7 +51,7 @@ namespace DataBoss
 					Expression.Default(fieldType),
 					Convert(Expression.Call(arg0, GetGetMethod(arg0, recordType), ordinal), fieldType));
 
-			return Expression.Call(arg0, GetGetMethod(arg0, fieldType), ordinal);
+			return Convert(Expression.Call(arg0, GetGetMethod(arg0, fieldType), ordinal), fieldType);
 		}
 
 		static Expression Convert(Expression expr, Type targetType) {
@@ -69,9 +69,16 @@ namespace DataBoss
 
 		private static MethodInfo GetGetMethod(Expression arg0, Type fieldType) {
 			var getter = arg0.Type.GetMethod("Get" + MapFieldType(fieldType));
-			if(getter == null)
-				throw new NotSupportedException("Can't read field of type:" + fieldType);
-			return getter;
+			if(getter != null)
+				return getter;
+
+			if(fieldType == typeof(byte[])) {
+				var getValue = arg0.Type.GetMethod("GetValue");
+				if(getValue != null)
+					return getValue;
+			}
+
+			throw new NotSupportedException("Can't read field of type:" + fieldType);
 		}
 
 		private static string MapFieldType(Type fieldType) {

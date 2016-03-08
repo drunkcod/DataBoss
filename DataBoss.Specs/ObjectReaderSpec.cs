@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Text;
 using Cone;
 using Cone.Core;
 
@@ -134,6 +135,17 @@ namespace DataBoss.Specs
 			source.Add(expected.Value);
 			var reader = new ObjectReader();
 			var rows = (ValueRow<float>[])Check.That(() => reader.Read<ValueRow<float>>(source).ToArray() != null);
+			Check.That(
+				() => rows.Length == 1,
+				() => rows[0].Value == expected.Value);
+		}
+
+		public void supports_binary_field() {
+			var source = new SimpleDataReader("Value");
+			var expected = new ValueRow<byte[]> { Value = Encoding.UTF8.GetBytes("Hello World!") };
+			source.Add(expected.Value);
+			var reader = new ObjectReader();
+			var rows = (ValueRow<byte[]>[])Check.That(() => reader.Read<ValueRow<byte[]>>(source).ToArray() != null);
 			Check.That(
 				() => rows.Length == 1,
 				() => rows[0].Value == expected.Value);
