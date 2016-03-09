@@ -62,15 +62,15 @@ namespace DataBoss.Specs
 
 			public short GetInt16(int i) { throw new NotImplementedException(); }
 
-			public int GetInt32(int i) { throw new NotImplementedException(); }
+			public int GetInt32(int i) => (int)GetValue(i);
 
-			public long GetInt64(int i) { return (long)GetValue(i); }
+			public long GetInt64(int i) => (long)GetValue(i);
 
-			public float GetFloat(int i) { return (float)GetValue(i); }
+			public float GetFloat(int i) => (float)GetValue(i);
 
 			public double GetDouble(int i) { throw new NotImplementedException(); }
 
-			public string GetString(int i) { return (string)GetValue(i); }
+			public string GetString(int i) => (string)GetValue(i);
 
 			public decimal GetDecimal(int i) { throw new NotImplementedException(); }
 
@@ -78,7 +78,7 @@ namespace DataBoss.Specs
 
 			public IDataReader GetData(int i) { throw new NotImplementedException(); }
 
-			public bool IsDBNull(int i) { return GetValue(i) == null; }
+			public bool IsDBNull(int i) => GetValue(i) == null;
 
 			object IDataRecord.this[int i]
 			{
@@ -122,9 +122,8 @@ namespace DataBoss.Specs
 
 		public void converter_fills_public_fields() {
 			var source = new SimpleDataReader("Id", "Context", "Name");
-			var reader = new ObjectReader();
 			var formatter = new ExpressionFormatter(GetType());
-			Check.That(() => formatter.Format(reader.GetConverter<DataBossMigrationInfo>(source)) == "x => new DataBossMigrationInfo { Id = x.GetInt64(0), Context = x.IsDBNull(1) ? default(string) : x.GetString(1), Name = x.IsDBNull(2) ? default(string) : x.GetString(2) }");
+			Check.That(() => formatter.Format(ObjectReader.MakeConverter<DataBossMigrationInfo>(source)) == "x => new DataBossMigrationInfo { Id = x.GetInt64(0), Context = x.IsDBNull(1) ? default(string) : x.GetString(1), Name = x.IsDBNull(2) ? default(string) : x.GetString(2) }");
 		}
 
 		class ValueRow<T> { public T Value; }
@@ -149,6 +148,18 @@ namespace DataBoss.Specs
 			Check.That(
 				() => rows.Length == 1,
 				() => rows[0].Value == expected.Value);
+		}
+
+		public void supports_nested_fields() {
+			var source = new SimpleDataReader("Value.Value");
+			var expected = new ValueRow<ValueRow<int>> { Value = new ValueRow<int> { Value = 42 } };
+			source.Add(expected.Value.Value);
+			var reader = new ObjectReader();
+			var rows = (ValueRow<ValueRow<int>>[])Check.That(() => reader.Read<ValueRow<ValueRow<int>>>(source).ToArray() != null);
+			Check.That(
+				() => rows.Length == 1,
+				() => rows[0].Value.Value == expected.Value.Value);
+			
 		}
 
 		public void can_read_nullable_field() {

@@ -7,28 +7,61 @@ using System.Reflection;
 
 namespace DataBoss
 {
+	static class DictionaryExtensions
+	{
+		public static TValue GetOrAdd<TKey,TValue>(this IDictionary<TKey,TValue> self, TKey key, Func<TKey,TValue> valueFactory) {
+			TValue found;
+			if(!self.TryGetValue(key, out found)) {
+				found = valueFactory(key);
+				self.Add(key, found);
+			}
+			return found;
+		}
+	}
+
 	public class ObjectReader
 	{
 		static readonly MethodInfo IsDBNull = typeof(IDataRecord).GetMethod("IsDBNull");
 
 		public IEnumerable<T> Read<T>(IDataReader source) where T : new() {
-			var converter = GetConverter<T>(source).Compile();
+			var converter = MakeConverter<T>(source).Compile();
 
 			while(source.Read()) {
 				yield return converter(source);
 			}
 		} 
 
-		public Expression<Func<IDataRecord, T>> GetConverter<T>(IDataReader reader) {
+		public static Expression<Func<IDataRecord, T>> MakeConverter<T>(IDataReader reader) {
 			var arg0 = Expression.Parameter(typeof(IDataRecord), "x");
 			var fieldMap = new Dictionary<string, int>();
-			for(var i = 0; i != reader.FieldCount; ++i)
-				fieldMap[reader.GetName(i)] = i;
+			Dictionary<string,Dictionary<string,int>> subFields = null;
+			for(var i = 0; i != reader.FieldCount; ++i) {
+				var name = reader.GetName(i);
+				if(name.Contains(".")){
+					if(subFields == null)
+						subFields = new Dictionary<string, Dictionary<string, int>>();
+					var parts = name.Split('.');
+					subFields.GetOrAdd(parts[0], _ => new Dictionary<string, int>())[parts[1]] = i;
+				}
+				else
+					fieldMap[reader.GetName(i)] = i;
+			}
 
 			var targetType = typeof(T);
+
+			var subInit = subFields == null 
+				? Enumerable.Empty<MemberAssignment>()
+				: subFields.Select(x => {
+					var field = targetType.GetField(x.Key);
+					return Expression.Bind(field, 
+						Expression.MemberInit(
+							Expression.New(field.FieldType.GetConstructor(Type.EmptyTypes)),
+							GetFields(x.Value, field.FieldType, arg0)));
+				});
+			
 			var init = Expression.MemberInit(
 				Expression.New(targetType),
-				GetFields(fieldMap, targetType, arg0));
+				GetFields(fieldMap, targetType, arg0).Concat(subInit));
 			return Expression.Lambda<Func<IDataRecord, T>>(init, arg0);
 		}
 
