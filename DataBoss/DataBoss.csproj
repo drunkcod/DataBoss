@@ -57,6 +57,7 @@
     <Compile Include="DataBossSqlMigrationScope.cs" />
     <Compile Include="DataBossTextMigration.cs" />
     <Compile Include="DataGrid.cs" />
+    <Compile Include="Data\DbObjectReader.cs" />
     <Compile Include="Data\FieldMapping.cs" />
     <Compile Include="EventHandlerExtensions.cs" />
     <Compile Include="IDataBossLog.cs" />

@@ -31,51 +31,73 @@ namespace DataBoss
 			}
 		} 
 
-		public static Expression<Func<IDataRecord, T>> MakeConverter<T>(IDataReader reader) {
-			var arg0 = Expression.Parameter(typeof(IDataRecord), "x");
-			var fieldMap = new Dictionary<string, int>();
-			Dictionary<string,Dictionary<string,int>> subFields = null;
-			for(var i = 0; i != reader.FieldCount; ++i) {
-				var name = reader.GetName(i);
-				if(name.Contains(".")){
-					if(subFields == null)
-						subFields = new Dictionary<string, Dictionary<string, int>>();
+		class FieldMap
+		{
+			readonly Dictionary<string, int> fields = new Dictionary<string, int>();
+			Dictionary<string, FieldMap> subFields;
+
+			public void Add(string name, int ordinal) {
+				if(name.Contains('.')) {
 					var parts = name.Split('.');
-					subFields.GetOrAdd(parts[0], _ => new Dictionary<string, int>())[parts[1]] = i;
+					var x = this;
+					var n = 0;
+					for(; n != parts.Length - 1; ++n)
+						x = x[parts[n]];
+					x.Add(parts[n], ordinal);
 				}
-				else
-					fieldMap[reader.GetName(i)] = i;
+				else fields[name] = ordinal;
 			}
 
-			var targetType = typeof(T);
+			public bool TryGetOrdinal(string key, out int ordinal) => fields.TryGetValue(key, out ordinal);
+			public bool TryGetSubMap(string key, out FieldMap subMap) {
+				if(subFields != null && subFields.TryGetValue(key, out subMap))
+					return true;
+				subMap = null;
+				return false;
+			}
 
-			var subInit = subFields == null 
-				? Enumerable.Empty<MemberAssignment>()
-				: subFields.Select(x => {
-					var field = targetType.GetField(x.Key);
-					return Expression.Bind(field, 
-						Expression.MemberInit(
-							Expression.New(field.FieldType.GetConstructor(Type.EmptyTypes)),
-							GetFields(x.Value, field.FieldType, arg0)));
-				});
-			
-			var init = Expression.MemberInit(
-				Expression.New(targetType),
-				GetFields(fieldMap, targetType, arg0).Concat(subInit));
-			return Expression.Lambda<Func<IDataRecord, T>>(init, arg0);
+			FieldMap this[string name] {
+				get {
+					if(subFields == null)
+						subFields = new Dictionary<string, FieldMap>();
+					return subFields.GetOrAdd(name, _ => new FieldMap());
+				}
+			}
 		}
 
-		private static IEnumerable<MemberAssignment> GetFields(IReadOnlyDictionary<string, int> fieldMap,Type targetType, Expression arg0) {
-			var dummy = 0;
+		public static Expression<Func<IDataRecord, T>> MakeConverter<T>(IDataReader reader) {
+			var fieldMap = new FieldMap();
+			for(var i = 0; i != reader.FieldCount; ++i)
+				fieldMap.Add(reader.GetName(i), i);
+
+			var arg0 = Expression.Parameter(typeof(IDataRecord), "x");
+			return Expression.Lambda<Func<IDataRecord, T>>(MemberInit(typeof(T), fieldMap, (field, n) => ReadField(arg0, field, Expression.Constant(n))), arg0);
+		}
+
+		static Expression MemberInit(Type fieldType, FieldMap map, Func<FieldInfo, int, Expression> read) =>
+			Expression.MemberInit(
+				Expression.New(fieldType),
+				GetFields(map, fieldType, read)
+			);
+
+		static IEnumerable<MemberAssignment> GetFields(FieldMap fieldMap, Type targetType, Func<FieldInfo, int, Expression> read) {
 			return targetType
 				.GetFields()
 				.Where(x => !x.IsInitOnly)
-				.Where(x => fieldMap.TryGetValue(x.Name, out dummy))
-				.Select(field => new { field, ordinal = Expression.Constant(dummy)})
-				.Select(x => Expression.Bind(x.field, ReadField(arg0, x.field, x.ordinal)));
+				.Select(x => {
+					var ordinal = 0;
+					if(fieldMap.TryGetOrdinal(x.Name, out ordinal))
+						return Expression.Bind(x, read(x, ordinal));
+
+					FieldMap subField;
+					if(fieldMap.TryGetSubMap(x.Name, out subField))
+						return Expression.Bind(x, MemberInit(x.FieldType, subField, read));
+
+					return null;
+				}).Where(x => x != null);
 		}
 
-		private static Expression ReadField(Expression arg0, FieldInfo field, Expression ordinal) {
+		static Expression ReadField(Expression arg0, FieldInfo field, Expression ordinal) {
 			var fieldType = field.FieldType;
 			var recordType = fieldType;
 			if (fieldType == typeof(string) || IsNullable(fieldType, ref recordType))

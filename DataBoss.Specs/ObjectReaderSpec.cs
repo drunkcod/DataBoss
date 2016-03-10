@@ -159,7 +159,17 @@ namespace DataBoss.Specs
 			Check.That(
 				() => rows.Length == 1,
 				() => rows[0].Value.Value == expected.Value.Value);
-			
+		}
+
+		public void supports_deeply_nested_fields() {
+			var source = new SimpleDataReader("Value.Value.Value");
+			var expected = new ValueRow<ValueRow<ValueRow<int>>> { Value = new ValueRow<ValueRow<int>> { Value = new ValueRow<int> { Value = 42 } } };
+			source.Add(expected.Value.Value.Value);
+			var reader = new ObjectReader();
+			var rows = (ValueRow<ValueRow<ValueRow<int>>>[])Check.That(() => reader.Read<ValueRow<ValueRow<ValueRow<int>>>>(source).ToArray() != null);
+			Check.That(
+				() => rows.Length == 1,
+				() => rows[0].Value.Value.Value == expected.Value.Value.Value);
 		}
 
 		public void can_read_nullable_field() {
