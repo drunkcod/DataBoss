@@ -7,18 +7,6 @@ using System.Reflection;
 
 namespace DataBoss
 {
-	static class DictionaryExtensions
-	{
-		public static TValue GetOrAdd<TKey,TValue>(this IDictionary<TKey,TValue> self, TKey key, Func<TKey,TValue> valueFactory) {
-			TValue found;
-			if(!self.TryGetValue(key, out found)) {
-				found = valueFactory(key);
-				self.Add(key, found);
-			}
-			return found;
-		}
-	}
-
 	public class ObjectReader
 	{
 		static readonly MethodInfo IsDBNull = typeof(IDataRecord).GetMethod("IsDBNull");

@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -33,23 +34,36 @@ namespace DataBoss
 {
 	public class ObjectVisualizer
 	{
+		static readonly DataGrid MaxDepthReached = DataGrid("…", typeof(string));
+		static readonly Dictionary<Type,Func<object,object>> TypeTransforms = new Dictionary<Type, Func<object, object>> {
+			{ typeof(DateTime), x => ((DateTime)x).ToString() }
+		};
+
 		readonly TextWriter output;
+
+		public int MaxDepth = 3;
 
 		public ObjectVisualizer(TextWriter output) {
 			this.output = output;
 		}
 
 		public void Append<T>(T self) {
-			ToDataGrid(self, typeof(T)).WriteTo(output);
+			ToDataGrid(self, typeof(T), MaxDepth).WriteTo(output);
 		}
 
-		static DataGrid ToDataGrid(object obj, Type type) {
-			if(IsBasicType(type)) {
-				var data = new DataGrid { ShowHeadings = false };
-				data.AddColumn("Value", type);
-				data.AddRow(obj);
-				return data;
+		static DataGrid ToDataGrid(object obj, Type type, int depth) {
+			Func<object,object> transform;
+			if(TypeTransforms.TryGetValue(type, out transform)) {
+				var xformed = transform(obj);
+				return ToDataGrid(xformed, xformed.GetType(), depth);
 			}
+
+			if(IsBasicType(type)) {
+				return DataGrid(obj, type);
+			}
+
+			if(depth == 0)
+				return MaxDepthReached;
 
 			var xs = obj as IEnumerable;
 			if(xs != null)
@@ -58,16 +72,23 @@ namespace DataBoss
 			var reader = obj as IDataReader;
 			if(reader != null)
 				return DumpReader(reader);
-			return DumpObject(obj, type);
+			return DumpObject(obj, type, depth);
 		}
 
-		static DataGrid DumpObject(object obj, Type type)
+		private static DataGrid DataGrid(object obj, Type type)
 		{
-			var d = new DataGrid {ShowHeadings = false, Separator = ": "};
+			var data = new DataGrid {ShowHeadings = false};
+			data.AddColumn("Value", type);
+			data.AddRow(obj);
+			return data;
+		}
+
+		static DataGrid DumpObject(object obj, Type type, int depth) {
+			var d = new DataGrid { ShowHeadings = false, Separator = ": "};
 			d.AddColumn("Member", typeof(string));
 			d.AddColumn("Value", typeof(string));
 			foreach(var item in type.GetProperties(BindingFlags.Instance | BindingFlags.Public).Where(x => x.CanRead))
-				d.AddRow(item.Name, ToDataGrid(item.GetValue(obj), item.PropertyType));
+				d.AddRow(item.Name, ToDataGrid(item.GetValue(obj), item.PropertyType, depth - 1));
 			return d;
 		}
 
@@ -105,7 +126,8 @@ namespace DataBoss
 		}
 
 		static bool IsBasicType(Type type) {
-			return type.IsPrimitive || type == typeof(string);
+			return type.IsPrimitive || type.IsEnum
+			|| type == typeof(string);
 		}
 	}
 }

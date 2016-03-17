@@ -1,6 +1,9 @@
-﻿using System.IO;
+﻿using System;
+using System.Globalization;
+using System.IO;
 using Cone;
 using DataBoss.Data;
+using DataBoss.Util;
 
 namespace DataBoss.Specs
 {
@@ -22,6 +25,11 @@ namespace DataBoss.Specs
 			string Dump<T>(T value) {
 				Visualizer.Append(value);
 				return Output.ToString();
+			}
+
+			string Dump<T>(T value, int maxDepth) {
+				Visualizer.MaxDepth = maxDepth;
+				return Dump(value);
 			}
 
 			public void puts_each_object_on_single_line() {
@@ -110,7 +118,28 @@ namespace DataBoss.Specs
 				Dump(SequenceDataReader.Create(new[] {
 					new { ABC = 1 },
 				}, "ABC"));
-				Check.That(() => Output.ToString() == "ABC\r\n  1\r\n");
+				Check.That(() => Output.ToString() == Lines("ABC","  1"));
+			}
+
+			public void stops_at_max_depth() {
+				Check.That(() => Dump(new {
+					Top = new {
+						Next = new {
+							Third = new {
+								TooDeep = 42,
+							}
+						}
+					}
+				}, 3) == Lines("Top: Next: Third: …"));
+			}
+
+			public void enums() {
+				Check.That(() => Dump(FileAccess.Read) == Lines("Read"));
+			}
+
+			public void DateTime_is_displed_as_string() {
+				var now = DateTime.Now;
+				Check.That(() => Dump(now) == Lines(now.ToString()));
 			}
 		}
 	}
