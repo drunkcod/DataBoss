@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 
 namespace DataBoss
 {
@@ -40,7 +39,9 @@ namespace DataBoss
 		}
 
 		public void AddRow(params object[] row) {
-			var output = Array.ConvertAll(row, ToGridValue);
+			var output = new GridValue[row.Length];
+			for(var i = 0; i!= row.Length; ++i)
+				output[i] = ToGridValue(new DisplayObject(columns[i].ColumnType, row[i]));
 			var height = 1;
 			for(var i = 0; i != output.Length; ++i) {
 				widths[i] = Math.Max(widths[i], output[i].Width);
@@ -51,8 +52,8 @@ namespace DataBoss
 
 		}
 
-		GridValue ToGridValue(object obj) {
-			var s = obj.ToString().TrimEnd();
+		GridValue ToGridValue(DisplayObject obj) {
+			var s = obj.VisualObject.ToString().TrimEnd();
 			return new GridValue {
 				Lines = s.Split(new[] { "\r\n" }, StringSplitOptions.None),
 				Width = s.Length,

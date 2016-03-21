@@ -60,6 +60,7 @@
     <Compile Include="Data\DbObjectReader.cs" />
     <Compile Include="Data\FieldMapping.cs" />
     <Compile Include="DictionaryExtensions.cs" />
+    <Compile Include="DisplayObject.cs" />
     <Compile Include="EventHandlerExtensions.cs" />
     <Compile Include="IDataBossLog.cs" />
     <Compile Include="IDataBossMigration.cs" />

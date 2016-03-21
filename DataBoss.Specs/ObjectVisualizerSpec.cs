@@ -137,9 +137,13 @@ namespace DataBoss.Specs
 				Check.That(() => Dump(FileAccess.Read) == Lines("Read"));
 			}
 
-			public void DateTime_is_displed_as_string() {
+			public void DateTime_is_displayed_as_string() {
 				var now = DateTime.Now;
 				Check.That(() => Dump(now) == Lines(now.ToString()));
+			}
+
+			public void nulls_gonna_null() {
+				Check.That(() => Dump((string)null) == Lines("null"));
 			}
 		}
 	}
