@@ -83,6 +83,8 @@ namespace DataBoss
 		}
 
 		static DataGrid DumpObject(object obj, Type type, int depth) {
+			if(obj == null)
+				return DataGrid(null, type);
 			var d = new DataGrid { ShowHeadings = false, Separator = ": "};
 			d.AddColumn("Member", typeof(string));
 			d.AddColumn("Value", typeof(string));

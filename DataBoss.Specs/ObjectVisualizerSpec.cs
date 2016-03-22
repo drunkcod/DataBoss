@@ -145,6 +145,14 @@ namespace DataBoss.Specs
 			public void nulls_gonna_null() {
 				Check.That(() => Dump((string)null) == Lines("null"));
 			}
+
+			class MyThing {
+				public string Value { get; set; }
+			}
+
+			public void null_props_are_handled_gracefully() {
+				Check.That(() => Dump(new { Foo = (MyThing)null }) == Lines("Foo: null"));
+			}
 		}
 	}
 }
