@@ -33,6 +33,13 @@ namespace DataBoss
 {
 	public class ObjectVisualizer
 	{
+		class ColumnInfo
+		{
+			public string Name;
+			public Type ColumnType;
+			public Func<object,object> GetValue; 
+		}
+
 		static readonly DataGrid MaxDepthReached = DataGrid("…", typeof(string));
 		static readonly Dictionary<Type,Func<object,object>> TypeTransforms = new Dictionary<Type, Func<object, object>> {
 			{ typeof(DateTime), x => ((DateTime)x).ToString() }
@@ -88,15 +95,13 @@ namespace DataBoss
 			var d = new DataGrid { ShowHeadings = false, Separator = ": "};
 			d.AddColumn("Member", typeof(string));
 			d.AddColumn("Value", typeof(string));
-			foreach(var item in type.GetProperties(BindingFlags.Instance | BindingFlags.Public).Where(x => x.CanRead))
-				d.AddRow(item.Name, ToDataGrid(item.GetValue(obj), item.PropertyType, depth - 1));
-			foreach(var item in type.GetFields(BindingFlags.Instance | BindingFlags.Public))
-				d.AddRow(item.Name, ToDataGrid(item.GetValue(obj), item.FieldType, depth - 1));
+			foreach(var item in GetColumns(type))
+				d.AddRow(item.Name, ToDataGrid(item.GetValue(obj), item.ColumnType, depth - 1));
 			return d;
 		}
 
 		static DataGrid DumpSequence(Type type, IEnumerable xs) {
-			var rowType = type.GetInterface(typeof(IEnumerable<>).FullName)?.GenericTypeArguments[0];
+				var rowType = type.GetInterface(typeof(IEnumerable<>).FullName)?.GenericTypeArguments[0];
 			var grid = new DataGrid();
 
 			if(rowType == null || IsBasicType(rowType)) {
@@ -107,14 +112,25 @@ namespace DataBoss
 				return grid;
 			}
 
-			var columns = rowType.GetProperties(BindingFlags.Instance | BindingFlags.Public).Where(x => x.CanRead).ToArray();
-
+			var columns = GetColumns(rowType).ToArray();
 			foreach(var item in columns)
-				grid.AddColumn(item.Name, item.PropertyType);
+				grid.AddColumn(item.Name, item.ColumnType);
 
 			foreach(var item in xs)
 				grid.AddRow(Array.ConvertAll(columns, x => x.GetValue(item)));
 			return grid;
+		}
+
+		private static IEnumerable<ColumnInfo> GetColumns(Type rowType)
+		{
+			return
+				rowType.GetProperties(BindingFlags.Instance | BindingFlags.Public)
+					.Where(x => x.CanRead)
+					.Select(x => new ColumnInfo {Name = x.Name, ColumnType = x.PropertyType, GetValue = x.GetValue})
+					.Concat(
+						rowType.GetFields(BindingFlags.Instance | BindingFlags.Public)
+							.Select(x => new ColumnInfo {Name = x.Name, ColumnType = x.FieldType, GetValue = x.GetValue})
+					);
 		}
 
 		static DataGrid DumpReader(IDataReader reader) {

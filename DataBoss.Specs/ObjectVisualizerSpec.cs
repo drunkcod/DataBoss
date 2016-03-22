@@ -158,6 +158,16 @@ namespace DataBoss.Specs
 			public void show_public_fields() {
 				Check.That(() => Dump(new MyThing { MyProp = "Prop", MyField = "Field" }) == Lines("MyProp : Prop", "MyField: Field"));
 			}
+
+			public void nested_complex_objects() {
+				Check.That(() => Dump(new[] {
+					new MyThing { MyProp = "Prop", MyField = null },
+					new MyThing { MyProp = null, MyField = "Field" } }) 
+				== Lines(
+					"MyProp │ MyField", 
+					"Prop   │ null",
+					"null   │ Field"));
+			}
 		}
 	}
 }
