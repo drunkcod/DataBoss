@@ -147,11 +147,16 @@ namespace DataBoss.Specs
 			}
 
 			class MyThing {
-				public string Value { get; set; }
+				public string MyProp { get; set; }
+				public string MyField;
 			}
 
 			public void null_props_are_handled_gracefully() {
 				Check.That(() => Dump(new { Foo = (MyThing)null }) == Lines("Foo: null"));
+			}
+
+			public void show_public_fields() {
+				Check.That(() => Dump(new MyThing { MyProp = "Prop", MyField = "Field" }) == Lines("MyProp : Prop", "MyField: Field"));
 			}
 		}
 	}

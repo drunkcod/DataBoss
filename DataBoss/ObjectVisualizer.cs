@@ -90,6 +90,8 @@ namespace DataBoss
 			d.AddColumn("Value", typeof(string));
 			foreach(var item in type.GetProperties(BindingFlags.Instance | BindingFlags.Public).Where(x => x.CanRead))
 				d.AddRow(item.Name, ToDataGrid(item.GetValue(obj), item.PropertyType, depth - 1));
+			foreach(var item in type.GetFields(BindingFlags.Instance | BindingFlags.Public))
+				d.AddRow(item.Name, ToDataGrid(item.GetValue(obj), item.FieldType, depth - 1));
 			return d;
 		}
 
