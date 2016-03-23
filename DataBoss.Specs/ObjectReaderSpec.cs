@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Security.Permissions;
 using System.Text;
 using Cone;
 using Cone.Core;
@@ -190,6 +191,23 @@ namespace DataBoss.Specs
 			source.Add(expected.Value);
 			var reader = new ObjectReader();
 			var rows = (StructRow<float>[])Check.That(() => reader.Read<StructRow<float>>(source).ToArray() != null);
+			Check.That(
+				() => rows.Length == 1,
+				() => rows[0].Value == expected.Value);
+		}
+
+		class MyThing
+		{
+			public MyThing(int value) { this.Value = value; }
+			public int Value { get; }
+		}
+
+		public void can_use_parameterized_ctor() {
+			var source = new SimpleDataReader("value");
+			var expected = new MyThing(42);
+			source.Add(expected.Value);
+			var reader = new ObjectReader();
+			var rows = (MyThing[])Check.That(() => reader.Read<MyThing>(source).ToArray() != null);
 			Check.That(
 				() => rows.Length == 1,
 				() => rows[0].Value == expected.Value);

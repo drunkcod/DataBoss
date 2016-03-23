@@ -11,7 +11,7 @@ namespace DataBoss
 	{
 		static readonly MethodInfo IsDBNull = typeof(IDataRecord).GetMethod("IsDBNull");
 
-		public IEnumerable<T> Read<T>(IDataReader source) where T : new() {
+		public IEnumerable<T> Read<T>(IDataReader source) {
 			var converter = MakeConverter<T>(source).Compile();
 
 			while(source.Read()) {
@@ -62,20 +62,43 @@ namespace DataBoss
 			return Expression.Lambda<Func<IDataRecord, T>>(MemberInit(typeof(T), fieldMap, (field, n) => ReadField(arg0, field, Expression.Constant(n))), arg0);
 		}
 
-		static Expression MemberInit(Type fieldType, FieldMap map, Func<FieldInfo, int, Expression> read) =>
+		static Expression MemberInit(Type fieldType, FieldMap map, Func<Type, int, Expression> read) =>
 			Expression.MemberInit(
-				Expression.New(fieldType),
+				GetCtor(map, fieldType, read),
 				GetFields(map, fieldType, read)
 			);
 
-		static IEnumerable<MemberAssignment> GetFields(FieldMap fieldMap, Type targetType, Func<FieldInfo, int, Expression> read) {
+		static NewExpression GetCtor(FieldMap map, Type fieldType, Func<Type, int, Expression> read)
+		{
+			var ctors = fieldType.GetConstructors()
+				.Select(ctor => new { ctor, p = ctor.GetParameters() })
+				.OrderByDescending(x => x.p.Length);
+			foreach(var item in ctors) {
+				var pn = new Expression[item.p.Length];
+				if(TryMaParameters(map, item.p, read, pn))
+					return Expression.New(item.ctor, pn);
+			}
+
+			return Expression.New(fieldType);
+		}
+
+		static bool TryMaParameters(FieldMap map, ParameterInfo[] parameters, Func<Type, int, Expression> read, Expression[] exprs) {
+			int ordinal;
+			for(var i = 0; i != parameters.Length; ++i)
+				if(!map.TryGetOrdinal(parameters[i].Name, out ordinal))
+					return false;
+				else exprs[i] = read(parameters[i].ParameterType, ordinal);
+			return true;
+		} 
+
+		static IEnumerable<MemberAssignment> GetFields(FieldMap fieldMap, Type targetType, Func<Type, int, Expression> read) {
 			return targetType
 				.GetFields()
 				.Where(x => !x.IsInitOnly)
 				.Select(x => {
 					var ordinal = 0;
 					if(fieldMap.TryGetOrdinal(x.Name, out ordinal))
-						return Expression.Bind(x, read(x, ordinal));
+						return Expression.Bind(x, read(x.FieldType, ordinal));
 
 					FieldMap subField;
 					if(fieldMap.TryGetSubMap(x.Name, out subField))
@@ -85,8 +108,7 @@ namespace DataBoss
 				}).Where(x => x != null);
 		}
 
-		static Expression ReadField(Expression arg0, FieldInfo field, Expression ordinal) {
-			var fieldType = field.FieldType;
+		static Expression ReadField(Expression arg0, Type fieldType, Expression ordinal) {
 			var recordType = fieldType;
 			if (fieldType == typeof(string) || IsNullable(fieldType, ref recordType))
 				return Expression.Condition(
