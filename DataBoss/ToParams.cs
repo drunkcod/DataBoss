@@ -33,6 +33,8 @@ namespace DataBoss
 		static IEnumerable<Expression> ExtractValues(Type type, Expression input) {
 			return type.GetProperties()
 				.Where(x => x.CanRead)
+				.Cast<MemberInfo>()
+				.Concat(type.GetFields())
 				.Select(item => MakeItem("@" + item.Name, Expression.Convert(Expression.MakeMemberAccess(input, item), typeof(object))));
 		}
 
