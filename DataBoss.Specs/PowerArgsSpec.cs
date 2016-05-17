@@ -16,6 +16,22 @@ namespace DataBoss.Specs
 				() => args["Foo"] == "Bar");
 		}
 
+		public void merges_comma_separated_values_to_one()
+		{
+			var args = PowerArgs.Parse(
+				"-1", "A,", "B",
+				"-2", "A", ",B",
+				"-3", "A", ",", "B",
+				"-4", "A,", "B,", "C"
+			);
+			Check.That(
+				() => args.Count == 4, 
+				() => args["1"] == "A,B",
+				() => args["2"] == "A,B",
+				() => args["3"] == "A,B",
+				() => args["4"] == "A,B,C");
+		}
+
 		public void missing_args_yields_InvalidOperationException() {
 			Check.Exception<InvalidOperationException>(() => PowerArgs.Parse("-Foo"));
 		}

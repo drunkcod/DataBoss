@@ -53,14 +53,17 @@ namespace DataBoss
 
 		public static PowerArgs Parse(IEnumerable<string> args) {
 			var result = new PowerArgs();
-			for(var it = args.GetEnumerator(); it.MoveNext();) {
-				string item;
-				if(MatchArg(it.Current, out item)) {
-					if(!it.MoveNext() || IsArg(it.Current))
-						throw new InvalidOperationException("No value given for '" + item + "'");
-					result.Add(item, it.Current);
-				} else {
-					result.commands.Add(it.Current);
+			using(var it = args.GetEnumerator()) {
+				for(string item = null; it.MoveNext();) {
+					if(item != null && result.args[item].EndsWith(",") || it.Current.StartsWith(",")) {
+						result.args[item] = result.args[item] + it.Current;
+					} else if(MatchArg(it.Current, out item)) {
+						if(!it.MoveNext() || IsArg(it.Current))
+							throw new InvalidOperationException("No value given for '" + item + "'");
+						result.Add(item, it.Current);
+					} else {
+						result.commands.Add(it.Current);
+					}
 				}
 			}
 			return result;
