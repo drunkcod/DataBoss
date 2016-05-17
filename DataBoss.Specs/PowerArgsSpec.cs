@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
+using System.Linq;
 using Cone;
 
 namespace DataBoss.Specs
@@ -82,6 +83,7 @@ namespace DataBoss.Specs
 
 		class MyArgsWithNonStrings
 		{
+			public IEnumerable<float> NonStringable; 
 			public List<int> MyList;
 			public int MyInt;
 			public DateTime MyDateTime;
@@ -90,7 +92,12 @@ namespace DataBoss.Specs
 
 		public void ignores_non_stringable_members() {
 			Check.That(
-				() => PowerArgs.Parse("-MyList", "42").Into<MyArgsWithNonStrings>().MyList == null);
+				() => PowerArgs.Parse("-NonStringable", "42").Into<MyArgsWithNonStrings>().MyList == null);
+		}
+
+		public void fills_list_like_with_members() {
+			Check.That(
+				() => PowerArgs.Parse("-MyList", "1,2,3").Into<MyArgsWithNonStrings>().MyList.SequenceEqual(new [] { 1, 2, 3 }));
 		}
 
 		public void attempts_to_parse_DateTime() {

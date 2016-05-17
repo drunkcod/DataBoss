@@ -3,7 +3,9 @@ using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Reflection;
 
 namespace DataBoss
@@ -170,6 +172,22 @@ namespace DataBoss
 					result = targetType.GetConstructor(new[] { t }).Invoke(new[] { inner });
 					return true;
 				}
+			}
+			var add = targetType
+				.GetMethods(BindingFlags.Instance | BindingFlags.Public)
+				.Where(x => x.Name == "Add")
+				.Select(x => new { Add = x, Parameters = x.GetParameters() })
+				.FirstOrDefault(x => x.Parameters.Length == 1);
+			if(add != null) {
+				var parse = add.Parameters[0].ParameterType.GetMethod("Parse", new [] { typeof(string) });
+				if(parse == null) {
+					result = null;
+					return false;
+				}
+				result = targetType.GetConstructor(Type.EmptyTypes).Invoke(new object[0]);
+				foreach(var item in input.Split(','))
+					add.Add.Invoke(result, new [] { parse.Invoke(null, new object[] { item }) });
+				return true;
 			}
 			result = null;
 			return false;
