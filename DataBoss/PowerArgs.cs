@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
@@ -40,6 +41,8 @@ namespace DataBoss
 
 	public class PowerArgs : IEnumerable<KeyValuePair<string, string>>
 	{
+		static readonly ConcurrentDictionary<Type, Action<object, string>> AddItemCache = new ConcurrentDictionary<Type, Action<object, string>>();
+
 		readonly Dictionary<string, string> args = new Dictionary<string, string>();
 		readonly List<string> commands = new List<string>(); 
 
@@ -173,24 +176,41 @@ namespace DataBoss
 					return true;
 				}
 			}
-			var add = targetType
-				.GetMethods(BindingFlags.Instance | BindingFlags.Public)
-				.Where(x => x.Name == "Add")
-				.Select(x => new { Add = x, Parameters = x.GetParameters() })
-				.FirstOrDefault(x => x.Parameters.Length == 1);
-			if(add != null) {
-				var parse = add.Parameters[0].ParameterType.GetMethod("Parse", new [] { typeof(string) });
-				if(parse == null) {
-					result = null;
-					return false;
-				}
+
+			Action<object, string> addItem;
+			if(TryGetAddItem(targetType, out addItem)) {
 				result = targetType.GetConstructor(Type.EmptyTypes).Invoke(new object[0]);
 				foreach(var item in input.Split(','))
-					add.Add.Invoke(result, new [] { parse.Invoke(null, new object[] { item }) });
+					addItem(result, item);
 				return true;
 			}
 			result = null;
 			return false;
+		}
+
+		static bool TryGetAddItem(Type targetType, out Action<object, string> output)
+		{
+			output = AddItemCache.GetOrAdd(targetType, targetTyp => {
+				var adder = targetType
+					.GetMethods(BindingFlags.Instance | BindingFlags.Public)
+					.Where(x => x.Name == "Add")
+					.Select(x => new { Add = x, Parameters = x.GetParameters() })
+					.FirstOrDefault(x => x.Parameters.Length == 1);
+
+				var parse = adder?.Parameters[0].ParameterType.GetMethod("Parse", new [] { typeof(string) });
+				if(parse == null)
+					return null;
+				
+				var target = Expression.Parameter(typeof(object));
+				var value = Expression.Parameter(typeof(string));
+				return Expression
+					.Lambda<Action<object,string>>(
+						Expression.Call(Expression.Convert(target, targetType), adder.Add, Expression.Call(null,parse, value)), 
+						target, value)
+					.Compile();
+			});
+
+			return output != null;
 		}
 
 		public IEnumerator<KeyValuePair<string, string>> GetEnumerator() {
