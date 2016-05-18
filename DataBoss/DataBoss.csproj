@@ -59,6 +59,12 @@
     <Compile Include="DataGrid.cs" />
     <Compile Include="Data\DbObjectReader.cs" />
     <Compile Include="Data\FieldMapping.cs" />
+    <Compile Include="Diagnostics\DatabaseInfo.cs" />
+    <Compile Include="Diagnostics\QueryInfo.cs" />
+    <Compile Include="Diagnostics\QuerySample.cs" />
+    <Compile Include="Diagnostics\RequestInfo.cs" />
+    <Compile Include="Diagnostics\SqlServer2000QuerySampler.cs" />
+    <Compile Include="Diagnostics\SqlServer2005QuerySampler.cs" />
     <Compile Include="DictionaryExtensions.cs" />
     <Compile Include="DisplayObject.cs" />
     <Compile Include="EventHandlerExtensions.cs" />

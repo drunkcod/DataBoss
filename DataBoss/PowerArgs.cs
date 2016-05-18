@@ -4,7 +4,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
-using System.Diagnostics;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -203,9 +202,10 @@ namespace DataBoss
 				
 				var target = Expression.Parameter(typeof(object));
 				var value = Expression.Parameter(typeof(string));
-				return Expression
-					.Lambda<Action<object,string>>(
-						Expression.Call(Expression.Convert(target, targetType), adder.Add, Expression.Call(null,parse, value)), 
+				return Expression.Lambda<Action<object,string>>(
+						Expression.Call(
+							Expression.Convert(target, targetType), adder.Add, 
+							Expression.Call(null,parse, value)), 
 						target, value)
 					.Compile();
 			});
