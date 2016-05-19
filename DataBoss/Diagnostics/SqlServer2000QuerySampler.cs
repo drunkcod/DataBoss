@@ -5,7 +5,7 @@ using DataBoss.Data;
 
 namespace DataBoss.Diagnostics
 {
-	public class SqlServer2000QuerySampler
+	public class SqlServer2000QuerySampler : ISqlServerQuerySampler
 	{
 		class RequestInfo2000
 		{

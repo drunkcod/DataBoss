@@ -65,6 +65,7 @@
     <Compile Include="Diagnostics\RequestInfo.cs" />
     <Compile Include="Diagnostics\SqlServer2000QuerySampler.cs" />
     <Compile Include="Diagnostics\SqlServer2005QuerySampler.cs" />
+    <Compile Include="Diagnostics\SqlServerQuerySampler.cs" />
     <Compile Include="DictionaryExtensions.cs" />
     <Compile Include="DisplayObject.cs" />
     <Compile Include="EventHandlerExtensions.cs" />
