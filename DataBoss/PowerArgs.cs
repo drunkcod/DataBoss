@@ -160,11 +160,15 @@ namespace DataBoss
 				result = input;
 				return true;
 			}
-			if(targetType == typeof(DateTime)) {
-				DateTime value;
-				if(DateTime.TryParse(input, out value)) {
-					result = value;
+			var hasParse = targetType.GetMethod("Parse", new []{ typeof(string) } );
+			if(hasParse != null) {
+				try {
+					result = hasParse.Invoke(null, new object[] { input });
 					return true;
+				}
+				catch {
+					result = null;
+					return false;
 				}
 			}
 			if(targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(Nullable<>)) {

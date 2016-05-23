@@ -122,5 +122,15 @@ namespace DataBoss.Specs
 			var e = Check.Exception<PowerArgsValidationException>(() => PowerArgs.Validate(new MyRequiredArgs()));
 			Check.That(() => e.Errors.Count == 2);
 		}
+
+		class MyArgsWithFlags
+		{
+			public bool MyFlag;
+		}
+
+		public void bools_need_no_value() {
+			Check.That(
+				() => PowerArgs.Parse("-MyFlag", "true").Into<MyArgsWithFlags>().MyFlag == true);
+		}
 	}
 }
