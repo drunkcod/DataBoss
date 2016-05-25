@@ -20,7 +20,7 @@ namespace DataBoss
 
 		public bool HasQueryBatches => true;
 
-		public IEnumerable<string> GetQueryBatches() {
+		public IEnumerable<DataBossQueryBatch> GetQueryBatches() {
 			var batch = new StringBuilder();
 			Action<string> append = x => (batch.Length == 0 ? batch : batch.AppendLine()).Append(x);
 			
@@ -31,7 +31,7 @@ namespace DataBoss
 						if(m.Index > 0)
 							append(line.Substring(0, m.Index));
 						if(batch.Length > 0) {
-							yield return batch.ToString();
+							yield return new DataBossQueryBatch(batch.ToString());
 							batch.Clear();
 						}
 					} else {
@@ -40,7 +40,7 @@ namespace DataBoss
 				}
 			}
 			if(batch.Length > 0)
-				yield return batch.ToString();
+				yield return new DataBossQueryBatch(batch.ToString());
 		}
 
 		IEnumerable<IDataBossMigration> IDataBossMigration.GetSubMigrations() {

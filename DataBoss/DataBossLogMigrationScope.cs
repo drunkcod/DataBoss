@@ -29,7 +29,7 @@ namespace DataBoss
 			inner.Begin(info);
 		}
 
-		public bool Execute(string query) {
+		public bool Execute(DataBossQueryBatch query) {
 			return inner.Execute(query); 
 		}
 

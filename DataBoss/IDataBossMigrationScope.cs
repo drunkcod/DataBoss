@@ -8,7 +8,7 @@ namespace DataBoss
 		event EventHandler<ErrorEventArgs> OnError;
 
 		void Begin(DataBossMigrationInfo info);
-		bool Execute(string query);
+		bool Execute(DataBossQueryBatch query);
 		void Done();
 	}
 }

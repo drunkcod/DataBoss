@@ -15,9 +15,9 @@ namespace DataBoss
 			get { throw new NotImplementedException(); }
 		}
 
-		public bool HasQueryBatches { get { return false; } }
+		public bool HasQueryBatches => false;
 
-		public IEnumerable<string> GetQueryBatches() {
+		public IEnumerable<DataBossQueryBatch> GetQueryBatches() {
 			yield break;
 		}
 

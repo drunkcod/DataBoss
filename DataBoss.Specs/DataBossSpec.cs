@@ -2,7 +2,6 @@
 using Cone;
 using DataBoss.Schema;
 using System.Data.Linq;
-using System.Data.Linq.Mapping;
 using System.Data.SqlClient;
 using System.Linq;
 using DataBoss.SqlServer;
@@ -49,9 +48,9 @@ namespace DataBoss.Specs
 			};
 
 			Apply(failingMigration, migrator => {
-				migrator.Execute("create table Foo(Id int not null)");//should work
-				migrator.Execute("select syntax error");//should error
-				migrator.Execute("create table Foo(Id int not null)");//should be ignored
+				migrator.Execute(new DataBossQueryBatch("create table Foo(Id int not null)"));//should work
+				migrator.Execute(new DataBossQueryBatch("select syntax error"));//should error
+				migrator.Execute(new DataBossQueryBatch("create table Foo(Id int not null)"));//should be ignored
 			});
 
 			Check.That(
@@ -71,7 +70,7 @@ namespace DataBoss.Specs
 			};
 
 			Apply(migration, migrator => {
-				migrator.Execute("create table Bar(Id int not null)");
+				migrator.Execute(new DataBossQueryBatch("create table Bar(Id int not null)"));
 			});
 
 			Check.That(() => SysObjects.Any(x => x.Name == "Bar"));

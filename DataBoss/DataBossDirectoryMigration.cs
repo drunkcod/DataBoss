@@ -71,6 +71,6 @@ namespace DataBoss
 
 		public bool HasQueryBatches => false;
 
-		public IEnumerable<string> GetQueryBatches() { yield break; }
+		public IEnumerable<DataBossQueryBatch> GetQueryBatches() { yield break; }
 	}
 }

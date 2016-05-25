@@ -27,11 +27,11 @@ namespace DataBoss
 			cmd.ExecuteNonQuery();
 		}
 
-		public bool Execute(string query) {
+		public bool Execute(DataBossQueryBatch query) {
 			if(isFaulted)
 				return false;
 
-			using(var q = new SqlCommand(query, db, cmd.Transaction))
+			using(var q = new SqlCommand(query.ToString(), db, cmd.Transaction))
 				try {
 					q.ExecuteNonQuery();
 					return true;

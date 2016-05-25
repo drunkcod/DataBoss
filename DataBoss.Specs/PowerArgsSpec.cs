@@ -128,7 +128,7 @@ namespace DataBoss.Specs
 			public bool MyFlag;
 		}
 
-		public void bools_need_no_value() {
+		public void flags() {
 			Check.That(
 				() => PowerArgs.Parse("-MyFlag", "true").Into<MyArgsWithFlags>().MyFlag == true);
 		}

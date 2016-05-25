@@ -19,7 +19,7 @@ namespace DataBoss.Specs
 		}
 
 		public void doesnt_add_extra_newlines() {
-			Check.That(() => new DataBossTextMigration(() => new StringReader("select 42\nGO")).GetQueryBatches().Single() == "select 42");
+			Check.That(() => new DataBossTextMigration(() => new StringReader("select 42\nGO")).GetQueryBatches().Single().ToString() == "select 42");
 		}
 	}
 }

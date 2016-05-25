@@ -13,14 +13,14 @@ namespace DataBoss.Specs
 		{
 			public void Dispose() { }
 
-			public readonly List<string> ExecutedQueries = new List<string>(); 
-			public Func<string, bool> OnExecute;
+			public readonly List<DataBossQueryBatch> ExecutedQueries = new List<DataBossQueryBatch>(); 
+			public Func<DataBossQueryBatch, bool> OnExecute;
 
 			public event EventHandler<ErrorEventArgs> OnError;
 
 			public void Begin(DataBossMigrationInfo info) {}
 
-			public bool Execute(string query) {
+			public bool Execute(DataBossQueryBatch query) {
 				var result = true;
 				if(OnExecute != null) {
 					try {
@@ -49,7 +49,7 @@ namespace DataBoss.Specs
 
 			Check.That(
 				() => scope.ExecutedQueries.Count == 1,
-				() => scope.ExecutedQueries.SequenceEqual(new[] { "First!" }));
+				() => scope.ExecutedQueries.SequenceEqual(new[] { new DataBossQueryBatch("First!"), }));
 		}
 
 		public void breaks_appliction_on_first_query_failure() {

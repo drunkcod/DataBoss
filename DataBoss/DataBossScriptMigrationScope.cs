@@ -21,10 +21,10 @@ namespace DataBoss
 		public void Begin(DataBossMigrationInfo info) {
 			id = info.Id;
 			context = info.Context;
-			Execute($"insert __DataBossHistory(Id, Context, Name, StartedAt, [User]) values({id}, '{info.Context}', '{info.Name}', getdate(), '{Environment.UserName}')");
+			Execute(new DataBossQueryBatch($"insert __DataBossHistory(Id, Context, Name, StartedAt, [User]) values({id}, '{info.Context}', '{info.Name}', getdate(), '{Environment.UserName}')"));
 		}
 
-		public bool Execute(string query) {
+		public bool Execute(DataBossQueryBatch query) {
 			try {
 				output.WriteLine(query);
 				output.WriteLine(BatchSeparator);
@@ -36,7 +36,7 @@ namespace DataBoss
 		}
 
 		public void Done() {
-			Execute("update __DataBossHistory set FinishedAt = getdate() where Id = " + id + " and Context = '" + context + "'");
+			Execute(new DataBossQueryBatch("update __DataBossHistory set FinishedAt = getdate() where Id = " + id + " and Context = '" + context + "'"));
 			output.Flush();
 		}
 
