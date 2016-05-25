@@ -29,7 +29,7 @@ namespace DataBoss.Diagnostics
 				@"select
 			[Request.SessionId] = r.session_id,
 			[Request.RequestId] = r.request_id,
-			[Request.StartTime] = r.start_time,		
+			[Request.StartTime] = r.start_time,
 			[Request.StatementStartOffset] = r.statement_start_offset,
 			[Request.StatementEndOffset] = r.statement_end_offset,
 			[Request.HostName] = s.host_name,
