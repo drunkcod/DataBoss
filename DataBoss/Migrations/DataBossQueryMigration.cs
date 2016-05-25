@@ -3,17 +3,16 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
-using DataBoss.Migrations;
 
-namespace DataBoss
+namespace DataBoss.Migrations
 {
-	public class DataBossTextMigration : IDataBossMigration
+	public class DataBossQueryMigration : IDataBossMigration
 	{
 		static readonly Regex BatchEx = new Regex(@"(?:\s*go\s*$)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
 		readonly Func<TextReader> getReader;
  
-		public DataBossTextMigration(Func<TextReader> getReader) {
+		public DataBossQueryMigration(Func<TextReader> getReader) {
 			this.getReader = getReader;
 		}
 

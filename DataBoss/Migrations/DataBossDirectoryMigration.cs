@@ -26,23 +26,23 @@ namespace DataBoss.Migrations
 
 		public IEnumerable<IDataBossMigration> GetSubMigrations() {
 			return
-				GetTextMigrations()
-					.Concat(GetDirectoryMigraions())
+				GetFileMigrations()
+					.Concat(GetDirectoryMigrations())
 					.OrderBy(x => x.Info.Id);
 		}
 
-		IEnumerable<IDataBossMigration> GetTextMigrations() {
+		IEnumerable<IDataBossMigration> GetFileMigrations() {
 			return Directory.GetFiles(path, "*.sql")
 				.ConvertAll(x => new {
 					m = IdNameEx.Match(Path.GetFileNameWithoutExtension(x)),
 					path = x,
 				}).Where(x => x.m.Success)
-				.Select(x => new DataBossTextMigration(() => File.OpenText(x.path)) {
+				.Select(x => new DataBossQueryMigration(() => File.OpenText(x.path)) {
 					Info = GetMigrationInfo(x.m),
 				});
 		}
 
-		IEnumerable<IDataBossMigration> GetDirectoryMigraions() {
+		IEnumerable<IDataBossMigration> GetDirectoryMigrations() {
 			return Directory.GetDirectories(path)
 				.ConvertAll(x => new {
 					m = IdNameEx.Match(Path.GetFileName(x)),
@@ -53,7 +53,7 @@ namespace DataBoss.Migrations
 					info = GetMigrationInfo(x.m),
 				})
 				.Select(x => new DataBossDirectoryMigration(
-					x.path, 
+					x.path,
 					x.info,
 					string.IsNullOrEmpty(childContext) ? x.info.Id.ToString() : childContext + "." + x.info.Id
 					));

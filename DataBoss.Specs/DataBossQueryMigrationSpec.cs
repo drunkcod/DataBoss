@@ -1,11 +1,12 @@
 ﻿using Cone;
 using System.IO;
 using System.Linq;
+using DataBoss.Migrations;
 
 namespace DataBoss.Specs
 {
-	[Describe(typeof(DataBossTextMigration))]
-	public class DataBossTextMigrationSpec
+	[Describe(typeof(DataBossQueryMigration))]
+	public class DataBossQueryMigrationSpec
 	{
 		[DisplayAs("'{0}' has {1} batches", Heading = "supports GO as batch separator")
 		,Row("GO", 0)
@@ -15,11 +16,11 @@ namespace DataBoss.Specs
 		,Row("select 1\\nGO\\nselect 2", 2)]
 		public void supports_GO_as_batch_separator(string input, int batchCount) {
 			input = input.Replace("\\n", "\n");
-			Check.That(() => new DataBossTextMigration(() => new StringReader(input)).GetQueryBatches().Count() == batchCount);
+			Check.That(() => new DataBossQueryMigration(() => new StringReader(input)).GetQueryBatches().Count() == batchCount);
 		}
 
 		public void doesnt_add_extra_newlines() {
-			Check.That(() => new DataBossTextMigration(() => new StringReader("select 42\nGO")).GetQueryBatches().Single().ToString() == "select 42");
+			Check.That(() => new DataBossQueryMigration(() => new StringReader("select 42\nGO")).GetQueryBatches().Single().ToString() == "select 42");
 		}
 	}
 }
