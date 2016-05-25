@@ -25,6 +25,7 @@ namespace DataBoss
 			};
 			foreach(var item in environmentVariables)
 				si.EnvironmentVariables.Add(item.Key, item.Value);
+
 			var p = Process.Start(si);
 			p.EnableRaisingEvents = true;
 			p.OutputDataReceived += (_ , e) => OutputDataReceived?.Invoke(this, e);

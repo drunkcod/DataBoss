@@ -68,7 +68,7 @@ namespace DataBoss.Specs
 		}
 
 		IDataBossMigration TextMigration(string s) {
-			return new DataBossQueryMigration(() => new StringReader(s));
+			return new DataBossQueryMigration(() => new StringReader(s), new DataBossMigrationInfo());
 		}
 	}
 }

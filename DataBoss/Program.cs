@@ -76,7 +76,7 @@ namespace DataBoss
 				var message = new StringBuilder();
 				message.AppendLine("Pending migrations:");
 				foreach(var item in pending)
-					message.AppendFormat("  {0} - {1}", item.Info.FullId, item.Info.Name);
+					message.AppendFormat("  {0} - {1}\n", item.Info.FullId, item.Info.Name);
 				log.Info(message.ToString());
 			}
 			return pending.Count;

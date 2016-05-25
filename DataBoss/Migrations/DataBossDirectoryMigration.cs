@@ -7,7 +7,7 @@ namespace DataBoss.Migrations
 {
 	public class DataBossDirectoryMigration : IDataBossMigration
 	{
-		static readonly Regex IdNameEx = new Regex(@"(?<id>\d+)(?<name>.*)$");
+		static readonly Regex IdNameEx = new Regex(@"(?<id>\d+)(?<name>.*?)\.(sql|cmd)$");
 		static readonly int IdGroup = IdNameEx.GroupNumberFromName("id");
 		static readonly int NameGroup = IdNameEx.GroupNumberFromName("name");
 
@@ -32,13 +32,17 @@ namespace DataBoss.Migrations
 		}
 
 		IEnumerable<IDataBossMigration> GetFileMigrations() {
-			return Directory.GetFiles(path, "*.sql")
+			return Directory.GetFiles(path, "*")
 				.ConvertAll(x => new {
-					m = IdNameEx.Match(Path.GetFileNameWithoutExtension(x)),
+					m = IdNameEx.Match(x),
 					path = x,
 				}).Where(x => x.m.Success)
-				.Select(x => new DataBossQueryMigration(() => File.OpenText(x.path)) {
-					Info = GetMigrationInfo(x.m),
+				.Select(x => {
+					var info = GetMigrationInfo(x.m);
+
+					return Path.GetExtension(x.path) == ".sql"
+						? (IDataBossMigration)new DataBossQueryMigration(() => File.OpenText(x.path), info)
+						: new DataBossExternalCommandMigration(() => File.OpenText(x.path), info);
 				});
 		}
 

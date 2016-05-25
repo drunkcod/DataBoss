@@ -33,36 +33,32 @@ namespace DataBoss.Migrations
 		{
 			if(isFaulted)
 				return false;
-			switch(query.BatchType)
-			{
-				default: return false;
-				case DataBossQueryBatchType.Query: return ExecuteQuery(query);
-				case DataBossQueryBatchType.ExternalCommand: return ExecuteCommand(query);
+			try {
+				switch(query.BatchType) {
+					default: return false;
+					case DataBossQueryBatchType.Query: return ExecuteQuery(query);
+					case DataBossQueryBatchType.ExternalCommand: return ExecuteCommand(query);
+				}
+			} catch(Exception e) {
+				isFaulted = true;
+				OnError.Raise(this, new ErrorEventArgs(e));
+				return false;
 			}
 		}
 
 		private bool ExecuteQuery(DataBossQueryBatch query)
 		{
-			using (var q = new SqlCommand(query.ToString(), db, cmd.Transaction))
-				try
-				{
+			using (var q = new SqlCommand(query.ToString(), db, cmd.Transaction)) {
 					q.ExecuteNonQuery();
 					return true;
-				}
-				catch (SqlException e)
-				{
-					isFaulted = true;
-					OnError.Raise(this, new ErrorEventArgs(e));
-					return false;
-				}
+			}
 		}
 
 		private bool ExecuteCommand(DataBossQueryBatch command)
 		{
-			shellExecute.Execute(command.ToString(), new []{
+			return shellExecute.Execute(command.ToString(), new []{
 				new KeyValuePair<string, string>("DATABOSS_CONNECTION", db.ConnectionString), 
 			});
-			return false;
 		}
 
 		public void Done() {
