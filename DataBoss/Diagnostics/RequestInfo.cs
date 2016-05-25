@@ -13,5 +13,6 @@ namespace DataBoss.Diagnostics
 		public int ElapsedMilliseconds;
 		public int StatementStartOffset;
 		public int StatementEndOffset;
+		public float PercentComplete;
 	}
 }
