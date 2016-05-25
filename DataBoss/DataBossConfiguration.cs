@@ -33,7 +33,7 @@ namespace DataBoss
 			? path
 			: path + ".databoss";
 			using (var input = File.OpenRead(target))
-				return Load(Path.GetDirectoryName(target), input);
+				return Load(Path.GetDirectoryName(Path.GetFullPath(target)), input);
 		}
 
 		public static DataBossConfiguration Load(string roothPath, Stream input) {
