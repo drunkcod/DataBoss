@@ -1,6 +1,6 @@
 using System.Xml.Serialization;
 
-namespace DataBoss
+namespace DataBoss.Migrations
 {
 	public class DataBossMigrationPath
 	{

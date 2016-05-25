@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Cone;
+using DataBoss.Migrations;
 
 namespace DataBoss.Specs
 {
@@ -49,7 +50,7 @@ namespace DataBoss.Specs
 
 			Check.That(
 				() => scope.ExecutedQueries.Count == 1,
-				() => scope.ExecutedQueries.SequenceEqual(new[] { new DataBossQueryBatch("First!"), }));
+				() => scope.ExecutedQueries.SequenceEqual(new[] { DataBossQueryBatch.Query("First!"), }));
 		}
 
 		public void breaks_appliction_on_first_query_failure() {

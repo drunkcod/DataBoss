@@ -3,7 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 
-namespace DataBoss
+namespace DataBoss.Migrations
 {
 	public class DataBossDirectoryMigration : IDataBossMigration
 	{

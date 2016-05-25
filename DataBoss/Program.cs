@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using DataBoss.Migrations;
 using DataBoss.Schema;
 
 namespace DataBoss
@@ -142,7 +143,7 @@ namespace DataBoss
 
 		IDataBossMigrationScope GetTargetScope(DataBossConfiguration config) {
 			if(string.IsNullOrEmpty(config.Script)) {
-				return new DataBossLogMigrationScope(log, new DataBossSqlMigrationScope(db));
+				return new DataBossLogMigrationScope(log, new DataBossMigrationScope(db, new DataBossShellExecute()));
 			}
 			return config.Script == "con:"
 				? new DataBossScriptMigrationScope(Console.Out, false) 

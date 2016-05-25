@@ -4,6 +4,7 @@ using DataBoss.Schema;
 using System.Data.Linq;
 using System.Data.SqlClient;
 using System.Linq;
+using DataBoss.Migrations;
 using DataBoss.SqlServer;
 
 namespace DataBoss.Specs
@@ -12,6 +13,8 @@ namespace DataBoss.Specs
 	public class DataBossSpec
 	{
 		SqlConnection Connection;
+		DataBossShellExecute ShellExecute;
+		string ShellExecuteOutput;
 		Program DataBoss;
 		DataContext Context;
 
@@ -22,6 +25,9 @@ namespace DataBoss.Specs
 				Database = "DataBoss Tests",
 			};
 			Connection = new SqlConnection(config.GetConnectionString());
+			ShellExecuteOutput = string.Empty;
+			ShellExecute = new DataBossShellExecute();
+			ShellExecute.OutputDataReceived += (_, e) => ShellExecuteOutput += e.Data; 
 			DataBoss = new Program(new NullDataBossLog(), Connection);
 			Context = new DataContext(Connection, new DataBossMappingSource());
 			DataBoss.Initialize(config);
@@ -48,9 +54,9 @@ namespace DataBoss.Specs
 			};
 
 			Apply(failingMigration, migrator => {
-				migrator.Execute(new DataBossQueryBatch("create table Foo(Id int not null)"));//should work
-				migrator.Execute(new DataBossQueryBatch("select syntax error"));//should error
-				migrator.Execute(new DataBossQueryBatch("create table Foo(Id int not null)"));//should be ignored
+				migrator.Execute(DataBossQueryBatch.Query("create table Foo(Id int not null)"));//should work
+				migrator.Execute(DataBossQueryBatch.Query("select syntax error"));//should error
+				migrator.Execute(DataBossQueryBatch.Query("create table Foo(Id int not null)"));//should be ignored
 			});
 
 			Check.That(
@@ -70,14 +76,27 @@ namespace DataBoss.Specs
 			};
 
 			Apply(migration, migrator => {
-				migrator.Execute(new DataBossQueryBatch("create table Bar(Id int not null)"));
+				migrator.Execute(DataBossQueryBatch.Query("create table Bar(Id int not null)"));
 			});
 
 			Check.That(() => SysObjects.Any(x => x.Name == "Bar"));
 		}
 
+		public void external_command_gets_connection_string_in_environment_variable()
+		{
+			var migration = new DataBossMigrationInfo {
+				Id = Migrations.Max(x => (long?)x.Id).GetValueOrDefault() + 1,
+				Name = "External Command",
+			};
+
+			Apply(migration, migrator => {
+				migrator.Execute(DataBossQueryBatch.ExternalCommand("cmd /C echo %DATABOSS_CONNECTION%"));
+			});
+			Check.That(() => ShellExecuteOutput == Connection.ConnectionString);
+		}
+
 		void Apply(DataBossMigrationInfo info, Action<IDataBossMigrationScope> scope) {
-			var migrator = new DataBossSqlMigrationScope(Connection);
+			var migrator = new DataBossMigrationScope(Connection, ShellExecute);
 			migrator.Begin(info);
 			scope(migrator);
 			migrator.Done();

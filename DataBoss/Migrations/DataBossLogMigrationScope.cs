@@ -2,7 +2,7 @@
 using System.Diagnostics;
 using System.IO;
 
-namespace DataBoss
+namespace DataBoss.Migrations
 {
 	class DataBossLogMigrationScope : IDataBossMigrationScope
 	{

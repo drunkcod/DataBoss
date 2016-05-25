@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 
-namespace DataBoss
+namespace DataBoss.Migrations
 {
 	class DataBossScriptMigrationScope : IDataBossMigrationScope
 	{
@@ -21,7 +21,7 @@ namespace DataBoss
 		public void Begin(DataBossMigrationInfo info) {
 			id = info.Id;
 			context = info.Context;
-			Execute(new DataBossQueryBatch($"insert __DataBossHistory(Id, Context, Name, StartedAt, [User]) values({id}, '{info.Context}', '{info.Name}', getdate(), '{Environment.UserName}')"));
+			Execute(DataBossQueryBatch.Query($"insert __DataBossHistory(Id, Context, Name, StartedAt, [User]) values({id}, '{info.Context}', '{info.Name}', getdate(), '{Environment.UserName}')"));
 		}
 
 		public bool Execute(DataBossQueryBatch query) {
@@ -36,7 +36,7 @@ namespace DataBoss
 		}
 
 		public void Done() {
-			Execute(new DataBossQueryBatch("update __DataBossHistory set FinishedAt = getdate() where Id = " + id + " and Context = '" + context + "'"));
+			Execute(DataBossQueryBatch.Query("update __DataBossHistory set FinishedAt = getdate() where Id = " + id + " and Context = '" + context + "'"));
 			output.Flush();
 		}
 

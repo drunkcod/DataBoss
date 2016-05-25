@@ -43,18 +43,20 @@
   <ItemGroup>
     <Compile Include="CustomAttributeProviderExtensions.cs" />
     <Compile Include="DataBossCommandAttribute.cs" />
-    <Compile Include="DataBossCompositeMigration.cs" />
+    <Compile Include="Migrations\DataBossCompositeMigration.cs" />
     <Compile Include="DataBossConfiguration.cs" />
     <Compile Include="DataBossConsoleLog.cs" />
-    <Compile Include="DataBossLogMigrationScope.cs" />
-    <Compile Include="DataBossDirectoryMigration.cs" />
+    <Compile Include="Migrations\DataBossLogMigrationScope.cs" />
+    <Compile Include="Migrations\DataBossDirectoryMigration.cs" />
     <Compile Include="DataBossMigrationExtensions.cs" />
-    <Compile Include="DataBossMigrationInfo.cs" />
-    <Compile Include="DataBossMigrationPath.cs" />
+    <Compile Include="Migrations\DataBossMigrationInfo.cs" />
+    <Compile Include="Migrations\DataBossMigrationPath.cs" />
     <Compile Include="DataBossMigrator.cs" />
+    <Compile Include="DataBossQueryBatch.cs" />
     <Compile Include="DataBossScripter.cs" />
-    <Compile Include="DataBossScriptMigrationScope.cs" />
-    <Compile Include="DataBossSqlMigrationScope.cs" />
+    <Compile Include="Migrations\DataBossScriptMigrationScope.cs" />
+    <Compile Include="Migrations\DataBossMigrationScope.cs" />
+    <Compile Include="DataBossShellExecute.cs" />
     <Compile Include="DataBossTextMigration.cs" />
     <Compile Include="DataGrid.cs" />
     <Compile Include="Data\DbObjectReader.cs" />
@@ -72,7 +74,6 @@
     <Compile Include="IDataBossLog.cs" />
     <Compile Include="IDataBossMigration.cs" />
     <Compile Include="IDataBossMigrationScope.cs" />
-    <Compile Include="MissingLinqExtensions.cs" />
     <Compile Include="MissinqLinq.cs" />
     <Compile Include="ObjectReader.cs" />
     <Compile Include="ObjectVisualizer.cs" />

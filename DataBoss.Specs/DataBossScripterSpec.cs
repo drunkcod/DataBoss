@@ -2,6 +2,7 @@
 using DataBoss.Schema;
 using System;
 using System.ComponentModel.DataAnnotations;
+using DataBoss.Migrations;
 
 namespace DataBoss.Specs
 {

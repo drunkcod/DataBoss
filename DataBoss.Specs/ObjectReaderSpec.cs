@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using Cone;
 using Cone.Core;
+using DataBoss.Migrations;
 
 namespace DataBoss.Specs
 {

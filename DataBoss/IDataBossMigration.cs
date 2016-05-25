@@ -1,18 +1,8 @@
 using System.Collections.Generic;
+using DataBoss.Migrations;
 
 namespace DataBoss
 {
-	public struct DataBossQueryBatch
-	{
-		readonly string batch;
-
-		public DataBossQueryBatch(string batch) {
-			this.batch = batch;
-		}
-
-		public override string ToString() => batch;
-	}
-
 	public interface IDataBossMigration
 	{
 		DataBossMigrationInfo Info { get; }

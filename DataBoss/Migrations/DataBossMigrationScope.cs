@@ -1,21 +1,23 @@
 using System;
+using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.IO;
 
-namespace DataBoss
+namespace DataBoss.Migrations
 {
-	public class DataBossSqlMigrationScope : IDataBossMigrationScope
+	public class DataBossMigrationScope : IDataBossMigrationScope
 	{
 		readonly SqlConnection db;
+		readonly DataBossShellExecute shellExecute;
 		SqlCommand cmd;
 		bool isFaulted;
 
-		public DataBossSqlMigrationScope(SqlConnection db) {
+		public DataBossMigrationScope(SqlConnection db, DataBossShellExecute shellExecute) {
 			this.db = db;
+			this.shellExecute = shellExecute;
 		}
 
 		public event EventHandler<ErrorEventArgs> OnError;
-
 
 		public void Begin(DataBossMigrationInfo info) {
 			cmd = new SqlCommand("insert __DataBossHistory(Id, Context, Name, StartedAt, [User]) values(@id, @context, @name, getdate(), @user)", db, db.BeginTransaction("LikeABoss"));
@@ -27,19 +29,40 @@ namespace DataBoss
 			cmd.ExecuteNonQuery();
 		}
 
-		public bool Execute(DataBossQueryBatch query) {
+		public bool Execute(DataBossQueryBatch query)
+		{
 			if(isFaulted)
 				return false;
+			switch(query.BatchType)
+			{
+				default: return false;
+				case DataBossQueryBatchType.Query: return ExecuteQuery(query);
+				case DataBossQueryBatchType.ExternalCommand: return ExecuteCommand(query);
+			}
+		}
 
-			using(var q = new SqlCommand(query.ToString(), db, cmd.Transaction))
-				try {
+		private bool ExecuteQuery(DataBossQueryBatch query)
+		{
+			using (var q = new SqlCommand(query.ToString(), db, cmd.Transaction))
+				try
+				{
 					q.ExecuteNonQuery();
 					return true;
-				} catch(SqlException e) { 
+				}
+				catch (SqlException e)
+				{
 					isFaulted = true;
 					OnError.Raise(this, new ErrorEventArgs(e));
 					return false;
 				}
+		}
+
+		private bool ExecuteCommand(DataBossQueryBatch command)
+		{
+			shellExecute.Execute(command.ToString(), new []{
+				new KeyValuePair<string, string>("DATABOSS_CONNECTION", db.ConnectionString), 
+			});
+			return false;
 		}
 
 		public void Done() {

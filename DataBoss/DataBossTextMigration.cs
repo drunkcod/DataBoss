@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
+using DataBoss.Migrations;
 
 namespace DataBoss
 {
@@ -31,7 +32,7 @@ namespace DataBoss
 						if(m.Index > 0)
 							append(line.Substring(0, m.Index));
 						if(batch.Length > 0) {
-							yield return new DataBossQueryBatch(batch.ToString());
+							yield return DataBossQueryBatch.Query(batch.ToString());
 							batch.Clear();
 						}
 					} else {
@@ -40,7 +41,7 @@ namespace DataBoss
 				}
 			}
 			if(batch.Length > 0)
-				yield return new DataBossQueryBatch(batch.ToString());
+				yield return DataBossQueryBatch.Query(batch.ToString());
 		}
 
 		IEnumerable<IDataBossMigration> IDataBossMigration.GetSubMigrations() {
