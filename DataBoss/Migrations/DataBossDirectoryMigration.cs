@@ -12,7 +12,6 @@ namespace DataBoss.Migrations
 		static readonly int NameGroup = IdNameEx.GroupNumberFromName("name");
 
 		readonly string path;
-		readonly DataBossMigrationInfo info;
 		readonly string childContext;
 
 		public DataBossDirectoryMigration(string path, DataBossMigrationInfo info) : this(path, info, info.Context)
@@ -20,61 +19,50 @@ namespace DataBoss.Migrations
 
 		DataBossDirectoryMigration(string path, DataBossMigrationInfo info, string childContext) {
 			this.path = path;
-			this.info = info;
+			this.Info = info;
 			this.childContext = childContext;
 		}
 
-		public IEnumerable<IDataBossMigration> GetSubMigrations() {
-			return
-				GetFileMigrations()
-					.Concat(GetDirectoryMigrations())
-					.OrderBy(x => x.Info.Id);
+		public IEnumerable<IDataBossMigration> GetSubMigrations() =>
+			GetFileMigrations()
+			.Concat(GetDirectoryMigrations())
+			.OrderBy(x => x.Info.Id);
+
+		IEnumerable<IDataBossMigration> GetFileMigrations() =>
+			GetMigrations(Directory.GetFiles(path, "*"))
+			.Select(x => 
+				Path.GetExtension(x.Key) == ".sql"
+					? (IDataBossMigration)new DataBossQueryMigration(() => File.OpenText(x.Key), x.Value)
+					: new DataBossExternalCommandMigration(() => File.OpenText(x.Key), x.Value)
+			);
+
+		IEnumerable<IDataBossMigration> GetDirectoryMigrations() => 
+			GetMigrations(Directory.GetDirectories(path))
+			.Select(x => new DataBossDirectoryMigration(
+				x.Key,
+				x.Value,
+				string.IsNullOrEmpty(childContext) ? x.Value.Id.ToString() : childContext + "." + x.Value.Id
+			));
+
+		IEnumerable<KeyValuePair<string, DataBossMigrationInfo>> GetMigrations(string[] paths) {
+			for(var i = 0; i != paths.Length; ++i) {
+				var m = IdNameEx.Match(Path.GetFileName(paths[i]));
+				if(m.Success)
+					yield return new KeyValuePair<string, DataBossMigrationInfo>(
+						paths[i], GetMigrationInfo(m)
+					);
+			}
 		}
 
-		IEnumerable<IDataBossMigration> GetFileMigrations() {
-			return Directory.GetFiles(path, "*")
-				.ConvertAll(x => new {
-					m = IdNameEx.Match(x),
-					path = x,
-				}).Where(x => x.m.Success)
-				.Select(x => {
-					var info = GetMigrationInfo(x.m);
-
-					return Path.GetExtension(x.path) == ".sql"
-						? (IDataBossMigration)new DataBossQueryMigration(() => File.OpenText(x.path), info)
-						: new DataBossExternalCommandMigration(() => File.OpenText(x.path), info);
-				});
-		}
-
-		IEnumerable<IDataBossMigration> GetDirectoryMigrations() {
-			return Directory.GetDirectories(path)
-				.ConvertAll(x => new {
-					m = IdNameEx.Match(Path.GetFileName(x)),
-					path = x
-				}).Where(x => x.m.Success)
-				.Select(x => new {
-					x.path,
-					info = GetMigrationInfo(x.m),
-				})
-				.Select(x => new DataBossDirectoryMigration(
-					x.path,
-					x.info,
-					string.IsNullOrEmpty(childContext) ? x.info.Id.ToString() : childContext + "." + x.info.Id
-					));
-		}
-
-		DataBossMigrationInfo GetMigrationInfo(Match m) {
-			return new DataBossMigrationInfo {
+		DataBossMigrationInfo GetMigrationInfo(Match m) =>
+			new DataBossMigrationInfo {
 				Id = long.Parse(m.Groups[IdGroup].Value),
 				Context = childContext,
 				Name = m.Groups[NameGroup].Value.Trim(),
 			};
-		}
 
-		public DataBossMigrationInfo Info => info;
-
+		public DataBossMigrationInfo Info { get; }
 		public bool HasQueryBatches => false;
-
 		public IEnumerable<DataBossQueryBatch> GetQueryBatches() { yield break; }
 	}
 }

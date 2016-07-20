@@ -8,9 +8,12 @@ namespace DataBoss.Diagnostics
 		public QuerySample(RequestInfo request, byte[] sql) {
 			this.Request = request;
 			this.Query = Encoding.Unicode.GetString(sql);
+
+			var count = (request.StatementEndOffset == -1 ? sql.Length : request.StatementEndOffset) - request.StatementStartOffset; 
+			var start = request.StatementStartOffset;
 			this.ActiveStatement = Encoding.Unicode.GetString(sql, 
-				request.StatementStartOffset, 
-				(request.StatementEndOffset == -1 ? sql.Length : request.StatementEndOffset) - request.StatementStartOffset);
+				Math.Min(sql.Length - 1, start), 
+				Math.Max(0, count));
 		}
 		public readonly RequestInfo Request;
 		public TimeSpan Elapsed => TimeSpan.FromMilliseconds(Request.ElapsedMilliseconds);
