@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -63,6 +64,6 @@ namespace DataBoss.Migrations
 
 		public DataBossMigrationInfo Info { get; }
 		public bool HasQueryBatches => false;
-		public IEnumerable<DataBossQueryBatch> GetQueryBatches() { yield break; }
+		public IEnumerable<DataBossQueryBatch> GetQueryBatches() => Enumerable.Empty<DataBossQueryBatch>();
 	}
 }
