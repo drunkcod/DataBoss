@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using Cone;
 using Cone.Core;
@@ -61,16 +62,11 @@ namespace DataBoss.Specs
 
 			public Guid GetGuid(int i) { throw new NotImplementedException(); }
 
-			public short GetInt16(int i) { throw new NotImplementedException(); }
-
+			public short GetInt16(int i) => (short)GetValue(i);
 			public int GetInt32(int i) => (int)GetValue(i);
-
 			public long GetInt64(int i) => (long)GetValue(i);
-
 			public float GetFloat(int i) => (float)GetValue(i);
-
-			public double GetDouble(int i) { throw new NotImplementedException(); }
-
+			public double GetDouble(int i) => (double)GetValue(i);
 			public string GetString(int i) => (string)GetValue(i);
 
 			public decimal GetDecimal(int i) { throw new NotImplementedException(); }
@@ -129,15 +125,25 @@ namespace DataBoss.Specs
 
 		class ValueRow<T> { public T Value; }
 
-		public void supports_float_field() {
+		[Row(typeof(float), 3.14f)
+		,Row(typeof(double), 42.17)
+		,Row(typeof(int), 1)
+		,Row(typeof(short), (short)2)
+		,DisplayAs("{0}", Heading = "supports field of type")]
+		public void supports_field_of_type(Type type, object value) {
+			var check = (Action<object>)Delegate.CreateDelegate(typeof(Action<object>), GetType().GetMethod("CheckTSupport", BindingFlags.Static | BindingFlags.NonPublic).MakeGenericMethod(type));
+			check(value);
+		}
+
+		static void CheckTSupport<T>(object value) {
 			var source = new SimpleDataReader("Value");
-			var expected = new ValueRow<float> { Value = 3.14f };
+			var expected = new ValueRow<T> { Value = (T)value };
 			source.Add(expected.Value);
 			var reader = new ObjectReader();
-			var rows = (ValueRow<float>[])Check.That(() => reader.Read<ValueRow<float>>(source).ToArray() != null);
+			var rows = (ValueRow<T>[])Check.That(() => reader.Read<ValueRow<T>>(source).ToArray() != null);
 			Check.That(
 				() => rows.Length == 1,
-				() => rows[0].Value == expected.Value);
+				() => rows[0].Value.Equals(expected.Value));
 		}
 
 		public void supports_binary_field() {

@@ -8,7 +8,7 @@ namespace DataBoss.Migrations
 {
 	public class DataBossDirectoryMigration : IDataBossMigration
 	{
-		static readonly Regex IdNameEx = new Regex(@"(?<id>\d+)(?<name>.*?)\.(sql|cmd)$");
+		static readonly Regex IdNameEx = new Regex(@"(?<id>\d+)(?<name>.*?)(\.(sql|cmd))?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 		static readonly int IdGroup = IdNameEx.GroupNumberFromName("id");
 		static readonly int NameGroup = IdNameEx.GroupNumberFromName("name");
 
@@ -31,11 +31,13 @@ namespace DataBoss.Migrations
 
 		IEnumerable<IDataBossMigration> GetFileMigrations() =>
 			GetMigrations(Directory.GetFiles(path, "*"))
-			.Select(x => 
-				Path.GetExtension(x.Key) == ".sql"
-					? (IDataBossMigration)new DataBossQueryMigration(() => File.OpenText(x.Key), x.Value)
-					: new DataBossExternalCommandMigration(() => File.OpenText(x.Key), x.Value)
-			);
+			.Select(x => {
+				switch(Path.GetExtension(x.Key).ToLower()) {
+					default: throw new ArgumentException($"Unsupported migration {x.Key}");
+					case ".sql": return (IDataBossMigration)new DataBossQueryMigration(() => File.OpenText(x.Key), x.Value);
+					case ".cmd": return new DataBossExternalCommandMigration(() => File.OpenText(x.Key), x.Value);
+				}
+			});
 
 		IEnumerable<IDataBossMigration> GetDirectoryMigrations() => 
 			GetMigrations(Directory.GetDirectories(path))
@@ -45,7 +47,7 @@ namespace DataBoss.Migrations
 				string.IsNullOrEmpty(childContext) ? x.Value.Id.ToString() : childContext + "." + x.Value.Id
 			));
 
-		IEnumerable<KeyValuePair<string, DataBossMigrationInfo>> GetMigrations(string[] paths) {
+		public IEnumerable<KeyValuePair<string, DataBossMigrationInfo>> GetMigrations(string[] paths) {
 			for(var i = 0; i != paths.Length; ++i) {
 				var m = IdNameEx.Match(Path.GetFileName(paths[i]));
 				if(m.Success)

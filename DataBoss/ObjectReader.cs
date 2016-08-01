@@ -24,6 +24,8 @@ namespace DataBoss
 			readonly Dictionary<string, int> fields = new Dictionary<string, int>();
 			Dictionary<string, FieldMap> subFields;
 
+			public int MinOrdinal => fields.Count == 0 ? -1 : fields.Min(x => x.Value);
+
 			public void Add(string name, int ordinal) {
 				if(name.Contains('.')) {
 					var parts = name.Split('.');
@@ -113,14 +115,17 @@ namespace DataBoss
 					.Select(x => {
 						var ordinal = 0;
 						if(fieldMap.TryGetOrdinal(x.Name, out ordinal))
-							return Expression.Bind(x, ReadField(x.FieldType, ordinal));
+							return new { ordinal, binding = Expression.Bind(x, ReadField(x.FieldType, ordinal)) };
 
 						FieldMap subField;
 						if(fieldMap.TryGetSubMap(x.Name, out subField))
-							return Expression.Bind(x, MemberInit(x.FieldType, subField));
+							return new { ordinal = subField.MinOrdinal, binding = Expression.Bind(x, MemberInit(x.FieldType, subField)) };
 
-						return null;
-					}).Where(x => x != null);
+						return new { ordinal = -1, binding = (MemberAssignment)null };
+					})
+					.Where(x => x.binding != null)
+					.OrderBy(x => x.ordinal)
+					.Select(x => x.binding);
 			}
 
 			private static bool IsNullable(Type fieldType, ref Type recordType) {
