@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Data;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -13,104 +11,24 @@ namespace DataBoss.Specs
 	[Describe(typeof(ObjectReader))]
 	public class ObjectReaderSpec
 	{
-		class SimpleDataReader : IDataReader
-		{
-			readonly string[] names;
-			
-			readonly List<object[]> records = new List<object[]>();
-			int currentRecord;
-			public SimpleDataReader(params string[] names) {
-				this.names = names;
-			}
+		ObjectReader ObjectReader;
 
-			public void Add(params object[] record) {
-				if(record.Length != names.Length)
-					throw new InvalidOperationException("Invalid record length");
-				records.Add(record);
-			}
-
-			public int Count => records.Count;
-			public int FieldCount => names.Length;
-
-			public bool Read() {
-				if(currentRecord == records.Count)
-					return false;
-				++currentRecord;
-				return true;
-			}
-			public string GetName(int i) { return names[i]; }
-			public object GetValue(int i) { return records[currentRecord - 1][i]; }
-
-			public void Dispose() { }
-
-			public string GetDataTypeName(int i) { throw new NotImplementedException(); }
-			public Type GetFieldType(int i) { throw new NotImplementedException(); }
-
-			public int GetValues(object[] values) { throw new NotImplementedException(); }
-
-			public int GetOrdinal(string name) { throw new NotImplementedException(); }
-
-			public bool GetBoolean(int i) { throw new NotImplementedException(); }
-
-			public byte GetByte(int i) { throw new NotImplementedException(); }
-
-			public long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) { throw new NotImplementedException(); }
-
-			public char GetChar(int i) { throw new NotImplementedException(); }
-
-			public long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) { throw new NotImplementedException(); }
-
-			public Guid GetGuid(int i) { throw new NotImplementedException(); }
-
-			public short GetInt16(int i) => (short)GetValue(i);
-			public int GetInt32(int i) => (int)GetValue(i);
-			public long GetInt64(int i) => (long)GetValue(i);
-			public float GetFloat(int i) => (float)GetValue(i);
-			public double GetDouble(int i) => (double)GetValue(i);
-			public string GetString(int i) => (string)GetValue(i);
-
-			public decimal GetDecimal(int i) { throw new NotImplementedException(); }
-
-			public DateTime GetDateTime(int i) { throw new NotImplementedException(); }
-
-			public IDataReader GetData(int i) { throw new NotImplementedException(); }
-
-			public bool IsDBNull(int i) => GetValue(i) == null;
-
-			object IDataRecord.this[int i]
-			{
-				get { throw new NotImplementedException(); }
-			}
-
-			object IDataRecord.this[string name]
-			{
-				get { throw new NotImplementedException(); }
-			}
-
-			public void Close() { throw new NotImplementedException(); }
-
-			public DataTable GetSchemaTable() { throw new NotImplementedException(); }
-
-			public bool NextResult() { throw new NotImplementedException(); }
-
-			public int Depth { get { throw new NotImplementedException(); } }
-			public bool IsClosed { get { throw new NotImplementedException(); } }
-			public int RecordsAffected { get { throw new NotImplementedException(); } }
+		[BeforeEach] 
+		public void given_a_new_ObjectReader() {
+			this.ObjectReader = new ObjectReader();
 		}
 
 		public void converts_all_rows() {
-			var source = new SimpleDataReader("Id", "Context", "Name");
-			source.Add(1L, "", "First");
-			source.Add(2L, "", "Second");
-			var reader = new ObjectReader();
-			Check.That(() => reader.Read<DataBossMigrationInfo>(source).Count() == source.Count);
+			var source = new SimpleDataReader("Id", "Context", "Name") {
+				{ 1L, "", "First" },
+				{ 2L, "", "Second" }
+			};
+			Check.That(() => ObjectReader.Read<DataBossMigrationInfo>(source).Count() == source.Count);
 		}
 
 		public void reads_public_fields() {
-			var source = new SimpleDataReader("Id", "Context", "Name");
-			source.Add(1L, "", "First");
-			var reader = new ObjectReader();
-			var read = reader.Read<DataBossMigrationInfo>(source).Single();
+			var source = new SimpleDataReader("Id", "Context", "Name") { { 1L, "", "First" } };
+			var read = ObjectReader.Read<DataBossMigrationInfo>(source).Single();
 			Check.That(
 				() => read.Id == 1,
 				() => read.Context == "",
@@ -131,75 +49,68 @@ namespace DataBoss.Specs
 		,Row(typeof(short), (short)2)
 		,DisplayAs("{0}", Heading = "supports field of type")]
 		public void supports_field_of_type(Type type, object value) {
-			var check = (Action<object>)Delegate.CreateDelegate(typeof(Action<object>), GetType().GetMethod("CheckTSupport", BindingFlags.Static | BindingFlags.NonPublic).MakeGenericMethod(type));
-			check(value);
+			var check = (Action<ObjectReader,object>)Delegate.CreateDelegate(typeof(Action<ObjectReader,object>), GetType().GetMethod("CheckTSupport", BindingFlags.Static | BindingFlags.NonPublic).MakeGenericMethod(type));
+			check(ObjectReader, value);
 		}
 
-		static void CheckTSupport<T>(object value) {
+		static void CheckTSupport<T>(ObjectReader reader, object value) {
 			var source = new SimpleDataReader("Value");
 			var expected = new ValueRow<T> { Value = (T)value };
 			source.Add(expected.Value);
-			var reader = new ObjectReader();
-			var rows = (ValueRow<T>[])Check.That(() => reader.Read<ValueRow<T>>(source).ToArray() != null);
-			Check.That(
-				() => rows.Length == 1,
-				() => rows[0].Value.Equals(expected.Value));
+			Check.With(() => reader.Read<ValueRow<T>>(source).ToArray())
+			.That(
+				rows => rows.Length == 1,
+				rows => rows[0].Value.Equals(expected.Value));
 		}
 
 		public void supports_binary_field() {
-			var source = new SimpleDataReader("Value");
 			var expected = new ValueRow<byte[]> { Value = Encoding.UTF8.GetBytes("Hello World!") };
-			source.Add(expected.Value);
-			var reader = new ObjectReader();
-			var rows = (ValueRow<byte[]>[])Check.That(() => reader.Read<ValueRow<byte[]>>(source).ToArray() != null);
-			Check.That(
-				() => rows.Length == 1,
-				() => rows[0].Value == expected.Value);
+			var source = new SimpleDataReader("Value") { expected.Value };
+			Check.With(() => ObjectReader.Read<ValueRow<byte[]>>(source).ToArray())
+			.That(
+				rows => rows.Length == 1,
+				rows => rows[0].Value == expected.Value);
 		}
 
 		public void supports_nested_fields() {
-			var source = new SimpleDataReader("Value.Value");
 			var expected = new ValueRow<ValueRow<int>> { Value = new ValueRow<int> { Value = 42 } };
-			source.Add(expected.Value.Value);
-			var reader = new ObjectReader();
-			var rows = (ValueRow<ValueRow<int>>[])Check.That(() => reader.Read<ValueRow<ValueRow<int>>>(source).ToArray() != null);
-			Check.That(
-				() => rows.Length == 1,
-				() => rows[0].Value.Value == expected.Value.Value);
+			var source = new SimpleDataReader("Value.Value") { expected.Value.Value };
+			Check.With(() => ObjectReader.Read<ValueRow<ValueRow<int>>>(source).ToArray())
+			.That(
+				rows => rows.Length == 1,
+				rows => rows[0].Value.Value == expected.Value.Value);
 		}
 
 		public void supports_deeply_nested_fields() {
-			var source = new SimpleDataReader("Value.Value.Value");
 			var expected = new ValueRow<ValueRow<ValueRow<int>>> { Value = new ValueRow<ValueRow<int>> { Value = new ValueRow<int> { Value = 42 } } };
-			source.Add(expected.Value.Value.Value);
-			var reader = new ObjectReader();
-			var rows = (ValueRow<ValueRow<ValueRow<int>>>[])Check.That(() => reader.Read<ValueRow<ValueRow<ValueRow<int>>>>(source).ToArray() != null);
-			Check.That(
-				() => rows.Length == 1,
-				() => rows[0].Value.Value.Value == expected.Value.Value.Value);
+			var source = new SimpleDataReader("Value.Value.Value") { expected.Value.Value.Value };
+			Check.With(() => ObjectReader.Read<ValueRow<ValueRow<ValueRow<int>>>>(source).ToArray())
+			.That(
+				rows => rows.Length == 1,
+				rows => rows[0].Value.Value.Value == expected.Value.Value.Value
+			);
 		}
 
 		public void can_read_nullable_field() {
-			var source = new SimpleDataReader("Value");
-			source.Add(3.14f);
-			source.Add(new object[] { null });
-			var reader = new ObjectReader();
-			Check.That(
-				() => reader.Read<ValueRow<float?>>(source).First().Value == 3.14f,
-				() => reader.Read<ValueRow<float?>>(source).Last().Value == null);
+			var source = new SimpleDataReader("Value") {
+				3.14f,
+				new object[] { null }
+			};
+			Check.With(() => ObjectReader.Read<ValueRow<float?>>(source))
+			.That(
+				rows => rows.First().Value == 3.14f,
+				rows => rows.Last().Value == null);
 		}
 
 		struct StructRow<T> { public T Value; }
 
 		public void can_read_structs() {
-			var source = new SimpleDataReader("Value");
 			var expected = new StructRow<float> { Value = 3.14f };
-			source.Add(expected.Value);
-			var reader = new ObjectReader();
-			var rows = (StructRow<float>[])Check.That(() => reader.Read<StructRow<float>>(source).ToArray() != null);
-			Check.That(
-				() => rows.Length == 1,
-				() => rows[0].Value == expected.Value);
+			var source = new SimpleDataReader("Value") { expected.Value };
+			Check.With(() => ObjectReader.Read<StructRow<float>>(source).ToArray())
+			.That(
+				rows => rows.Length == 1,
+				rows => rows[0].Value == expected.Value);
 		}
 
 		class MyThing
@@ -209,14 +120,12 @@ namespace DataBoss.Specs
 		}
 
 		public void can_use_parameterized_ctor() {
-			var source = new SimpleDataReader("value");
 			var expected = new MyThing(42);
-			source.Add(expected.Value);
-			var reader = new ObjectReader();
-			var rows = (MyThing[])Check.That(() => reader.Read<MyThing>(source).ToArray() != null);
-			Check.That(
-				() => rows.Length == 1,
-				() => rows[0].Value == expected.Value);
+			var source = new SimpleDataReader("value") { expected.Value };
+			Check.With(() => ObjectReader.Read<MyThing>(source).ToArray())
+			.That(
+				rows => rows.Length == 1,
+				rows => rows[0].Value == expected.Value);
 		}
 	}
 }

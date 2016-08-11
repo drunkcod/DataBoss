@@ -1,7 +1,6 @@
 using System.Data.SqlClient;
 using DataBoss.Data;
 using DataBoss.Diagnostics;
-using DataBoss.Util;
 
 namespace DataBoss
 {
