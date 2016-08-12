@@ -113,19 +113,28 @@ namespace DataBoss.Specs
 				rows => rows[0].Value == expected.Value);
 		}
 
-		class MyThing
+		class MyThing<T>
 		{
-			public MyThing(int value) { this.Value = value; }
-			public int Value { get; }
+			public MyThing(T value) { this.Value = value; }
+			public T Value { get; }
 		}
 
 		public void can_use_parameterized_ctor() {
-			var expected = new MyThing(42);
+			var expected = new MyThing<int>(42);
 			var source = new SimpleDataReader("value") { expected.Value };
-			Check.With(() => ObjectReader.Read<MyThing>(source).ToArray())
+			Check.With(() => ObjectReader.Read<MyThing<int>>(source).ToArray())
 			.That(
 				rows => rows.Length == 1,
 				rows => rows[0].Value == expected.Value);
+		}
+
+		public void ctors_can_have_complex_arguments() {
+			var expected = new MyThing<MyThing<int>> (new MyThing<int>(42));
+			var source = new SimpleDataReader("value.value") { expected.Value.Value };
+			Check.With(() => ObjectReader.Read<MyThing<MyThing<int>>>(source).ToArray())
+			.That(
+				rows => rows.Length == 1,
+				rows => rows[0].Value.Value == expected.Value.Value);
 		}
 	}
 }

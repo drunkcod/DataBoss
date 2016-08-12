@@ -13,10 +13,7 @@ namespace DataBoss.Diagnostics
 			public byte[] sql_handle;
 		}
 
-		struct QueryText
-		{
-			public byte[] text;
-		}
+		struct QueryText { public byte[] text; }
 
 		readonly DbObjectReader reader;
 	
@@ -24,8 +21,7 @@ namespace DataBoss.Diagnostics
 			this.reader = reader;
 		}
 
-		public IEnumerable<QuerySample> TakeSample(SqlConnection db)
-		{
+		public IEnumerable<QuerySample> TakeSample() {
 			var reqs = reader.Read<RequestInfo2000>(@"
 				select
 					[Request.SessionId] = r.session_id,

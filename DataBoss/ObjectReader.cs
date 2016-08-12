@@ -12,7 +12,7 @@ namespace DataBoss
 		static readonly MethodInfo IsDBNull = typeof(IDataRecord).GetMethod("IsDBNull");
 
 		public IEnumerable<T> Read<T>(IDataReader source) {
-			var converter = MakeConverter<T>(source).Compile();
+			var converter = GetConverter<T>(source);
 			while(source.Read()) {
 				yield return converter(source);
 			}
@@ -65,12 +65,16 @@ namespace DataBoss
 					return Expression.Condition(
 						Expression.Call(arg0, IsDBNull, o),
 						Expression.Default(fieldType),
-						Convert(Expression.Call(arg0, GetGetMethod(arg0, recordType), o), fieldType));
+						ReadFieldAs(recordType, o, fieldType));
 
-				return Convert(Expression.Call(arg0, GetGetMethod(arg0, fieldType), o), fieldType);
+				return ReadFieldAs(fieldType, o, fieldType);
 			}
 
-			public Expression<Func<IDataRecord,T>> Converter<T>(FieldMap map) => Expression.Lambda<Func<IDataRecord,T>>(MemberInit(typeof(T), map), arg0);
+			Expression ReadFieldAs(Type fieldType, Expression ordinal, Type targetType) => 
+				Convert(Expression.Call(arg0, GetGetMethod(arg0, fieldType), ordinal), targetType);
+
+			public Expression<Func<IDataRecord,T>> Converter<T>(FieldMap map) => 
+				Expression.Lambda<Func<IDataRecord,T>>(MemberInit(typeof(T), map), arg0);
 
 			static Expression Convert(Expression expr, Type targetType) =>
 				expr.Type == targetType
@@ -88,40 +92,47 @@ namespace DataBoss
 					.OrderByDescending(x => x.p.Length);
 				foreach(var item in ctors) {
 					var pn = new Expression[item.p.Length];
-					if(TryMaParameters(map, item.p, ReadField, pn))
+					if(TryMaParameters(map, item.p, pn))
 						return Expression.New(item.ctor, pn);
 				}
 
-				return Expression.New(fieldType);
+				if(fieldType.IsValueType)
+					return Expression.New(fieldType);
+
+				throw new InvalidOperationException("No suitable constructor found for " + fieldType);
 			}
 
-			static bool TryMaParameters(FieldMap map, ParameterInfo[] parameters, Func<Type, int, Expression> read, Expression[] exprs) {
-				int ordinal;
+			bool TryMaParameters(FieldMap map, ParameterInfo[] parameters, Expression[] exprs) {
+				int ordinal; 
+				FieldMap subMap;
 				for(var i = 0; i != parameters.Length; ++i)
-					if(!map.TryGetOrdinal(parameters[i].Name, out ordinal))
-						return false;
-					else exprs[i] = read(parameters[i].ParameterType, ordinal);
+					if(map.TryGetOrdinal(parameters[i].Name, out ordinal))
+						exprs[i] = ReadField(parameters[i].ParameterType, ordinal);
+					else if(map.TryGetSubMap(parameters[i].Name, out subMap)) {
+						exprs[i] = MemberInit(parameters[i].ParameterType, subMap);
+					}
+					else return false;
 				return true;
 			} 
 
 			IEnumerable<MemberAssignment> GetFields(FieldMap fieldMap, Type targetType) {
-				return targetType
-					.GetFields()
-					.Where(x => !x.IsInitOnly)
-					.Select(x => {
-						var ordinal = 0;
-						if(fieldMap.TryGetOrdinal(x.Name, out ordinal))
-							return new { ordinal, binding = Expression.Bind(x, ReadField(x.FieldType, ordinal)) };
-
-						FieldMap subField;
-						if(fieldMap.TryGetSubMap(x.Name, out subField))
-							return new { ordinal = subField.MinOrdinal, binding = Expression.Bind(x, MemberInit(x.FieldType, subField)) };
-
-						return new { ordinal = -1, binding = (MemberAssignment)null };
-					})
-					.Where(x => x.binding != null)
-					.OrderBy(x => x.ordinal)
-					.Select(x => x.binding);
+				var fields = targetType.GetFields();
+				var ordinals = new int[fields.Length];
+				var bindings = new MemberAssignment[fields.Length];
+				var found = 0;
+				FieldMap subField;
+				foreach(var x in fields) {
+					if(fieldMap.TryGetOrdinal(x.Name, out ordinals[found])) {
+						bindings[found] = Expression.Bind(x, ReadField(x.FieldType, ordinals[found]));
+						++found;
+					}
+					else if(fieldMap.TryGetSubMap(x.Name, out subField)) {
+						ordinals[found] = subField.MinOrdinal;
+						bindings[found++] = Expression.Bind(x, MemberInit(x.FieldType, subField));
+					}
+				}
+				Array.Sort(ordinals, bindings, 0, found);
+				return new ArraySegment<MemberAssignment>(bindings, 0, found);
 			}
 
 			private static bool IsNullable(Type fieldType, ref Type recordType) {
@@ -148,6 +159,9 @@ namespace DataBoss
 				return fieldType.Name;
 			}
 		}
+
+		public static Func<IDataRecord,T> GetConverter<T>(IDataReader reader) => 
+			MakeConverter<T>(reader).Compile();
 
 		public static Expression<Func<IDataRecord, T>> MakeConverter<T>(IDataReader reader) {
 			var fieldMap = new FieldMap();
