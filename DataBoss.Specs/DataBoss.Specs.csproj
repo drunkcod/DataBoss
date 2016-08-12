@@ -52,6 +52,7 @@
     <Compile Include="DataBossScripterSpec.cs" />
     <Compile Include="DataBossSpec.cs" />
     <Compile Include="DataBossQueryMigrationSpec.cs" />
+    <Compile Include="Data\DbObjectReaderSpec.cs" />
     <Compile Include="Data\SequenceDataReaderSpec.cs" />
     <Compile Include="ObjectReaderSpec.cs" />
     <Compile Include="ObjectVisualizerSpec.cs" />

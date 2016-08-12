@@ -35,8 +35,8 @@ namespace DataBoss.Diagnostics
 					[Request.ProgramName] = s.program_name,
 					text = cast(text as varbinary(max))
 				from sys.dm_exec_requests r
-				cross apply sys.dm_exec_sql_text(r.sql_handle)
 				inner join sys.dm_exec_sessions s on s.session_id = r.session_id
+				cross apply sys.dm_exec_sql_text(r.sql_handle)
 				where r.session_id != @@spid
 				and r.database_id = db_id()
 			").Select(x => new QuerySample(x.Request, x.text));
