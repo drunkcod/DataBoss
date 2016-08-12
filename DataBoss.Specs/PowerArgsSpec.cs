@@ -38,11 +38,11 @@ namespace DataBoss.Specs
 		}
 
 		public void captures_non_options() {
-			var args = PowerArgs.Parse("Hello", "World");
-			Check.That(
-				() => args.Commands.Count == 2, 
-				() => args.Commands[0] == "Hello",
-				() => args.Commands[1] == "World");
+			Check.With(() => PowerArgs.Parse("Hello", "World"))
+			.That(
+				args => args.Commands.Count == 2, 
+				args => args.Commands[0] == "Hello",
+				args => args.Commands[1] == "World");
 		}
 
 		public void can_TryGetArg() {

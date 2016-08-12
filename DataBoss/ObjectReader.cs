@@ -13,7 +13,6 @@ namespace DataBoss
 
 		public IEnumerable<T> Read<T>(IDataReader source) {
 			var converter = MakeConverter<T>(source).Compile();
-
 			while(source.Read()) {
 				yield return converter(source);
 			}
@@ -57,7 +56,7 @@ namespace DataBoss
 
 		class ConverterFactory
 		{
-			public ParameterExpression arg0 = Expression.Parameter(typeof(IDataRecord), "x");
+			readonly ParameterExpression arg0 = Expression.Parameter(typeof(IDataRecord), "x");
 
 			Expression ReadField(Type fieldType, int ordinal) {
 				var recordType = fieldType;
@@ -73,20 +72,17 @@ namespace DataBoss
 
 			public Expression<Func<IDataRecord,T>> Converter<T>(FieldMap map) => Expression.Lambda<Func<IDataRecord,T>>(MemberInit(typeof(T), map), arg0);
 
-			static Expression Convert(Expression expr, Type targetType) {
-				return expr.Type == targetType
-					? expr
-					: Expression.Convert(expr, targetType);
-			} 
+			static Expression Convert(Expression expr, Type targetType) =>
+				expr.Type == targetType
+				? expr
+				: Expression.Convert(expr, targetType);
 			
 			Expression MemberInit(Type fieldType, FieldMap map) =>
 				Expression.MemberInit(
 					GetCtor(map, fieldType),
-					GetFields(map, fieldType)
-				);
+					GetFields(map, fieldType));
 
-			NewExpression GetCtor(FieldMap map, Type fieldType)
-			{
+			NewExpression GetCtor(FieldMap map, Type fieldType) {
 				var ctors = fieldType.GetConstructors()
 					.Select(ctor => new { ctor, p = ctor.GetParameters() })
 					.OrderByDescending(x => x.p.Length);
@@ -140,12 +136,6 @@ namespace DataBoss
 				if(getter != null)
 					return getter;
 
-				if(fieldType == typeof(byte[])) {
-					var getValue = arg0.Type.GetMethod("GetValue");
-					if(getValue != null)
-						return getValue;
-				}
-
 				throw new NotSupportedException("Can't read field of type:" + fieldType);
 			}
 
@@ -153,6 +143,7 @@ namespace DataBoss
 				switch(fieldType.FullName) {
 					case "System.Single": return "Float";
 					case "System.Object": return "Value";
+					case "System.Byte[]": return "Value";
 				}
 				return fieldType.Name;
 			}

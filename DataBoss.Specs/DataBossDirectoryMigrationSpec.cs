@@ -9,9 +9,8 @@ namespace DataBoss.Specs
 	{
 		public void excludes_files_extension_from_name() {
 			var directory = new DataBossDirectoryMigration("MyDirectory", new DataBossMigrationInfo());
-
-			
 			var migrations = directory.GetMigrations(new [] { "001 First File Migration.sql" }).ToArray();
+
 			Check.That(
 				() => migrations.Length == 1,
 				() => migrations[0].Key == "001 First File Migration.sql",
@@ -22,8 +21,8 @@ namespace DataBoss.Specs
 
 		public void directory_migrations_use_path_minus_id_as_name() {
 			var directory = new DataBossDirectoryMigration("MyDirectory", new DataBossMigrationInfo());
-			
 			var migrations = directory.GetMigrations(new [] { "001 First" }).ToArray();
+
 			Check.That(() => migrations.Length == 1);
 			Check.That(
 				() => migrations[0].Key == "001 First",
