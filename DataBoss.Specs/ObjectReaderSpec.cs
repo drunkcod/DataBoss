@@ -11,13 +11,6 @@ namespace DataBoss.Specs
 	[Describe(typeof(ObjectReader))]
 	public class ObjectReaderSpec
 	{
-		ObjectReader ObjectReader;
-
-		[BeforeEach] 
-		public void given_a_new_ObjectReader() {
-			this.ObjectReader = new ObjectReader();
-		}
-
 		public void converts_all_rows() {
 			var source = new SimpleDataReader("Id", "Context", "Name") {
 				{ 1L, "", "First" },
@@ -49,15 +42,15 @@ namespace DataBoss.Specs
 		,Row(typeof(short), (short)2)
 		,DisplayAs("{0}", Heading = "supports field of type")]
 		public void supports_field_of_type(Type type, object value) {
-			var check = (Action<ObjectReader,object>)Delegate.CreateDelegate(typeof(Action<ObjectReader,object>), GetType().GetMethod("CheckTSupport", BindingFlags.Static | BindingFlags.NonPublic).MakeGenericMethod(type));
-			check(ObjectReader, value);
+			var check = (Action<object>)Delegate.CreateDelegate(typeof(Action<object>), GetType().GetMethod("CheckTSupport", BindingFlags.Static | BindingFlags.NonPublic).MakeGenericMethod(type));
+			check(value);
 		}
 
-		static void CheckTSupport<T>(ObjectReader reader, object value) {
+		static void CheckTSupport<T>(object value) {
 			var source = new SimpleDataReader("Value");
 			var expected = new ValueRow<T> { Value = (T)value };
 			source.Add(expected.Value);
-			Check.With(() => reader.Read<ValueRow<T>>(source).ToArray())
+			Check.With(() => ObjectReader.Read<ValueRow<T>>(source).ToArray())
 			.That(
 				rows => rows.Length == 1,
 				rows => rows[0].Value.Equals(expected.Value));

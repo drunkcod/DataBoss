@@ -11,7 +11,7 @@ namespace DataBoss
 	{
 		static readonly MethodInfo IsDBNull = typeof(IDataRecord).GetMethod("IsDBNull");
 
-		public IEnumerable<T> Read<T>(IDataReader source) {
+		public static IEnumerable<T> Read<T>(IDataReader source) {
 			var converter = GetConverter<T>(source);
 			while(source.Read()) {
 				yield return converter(source);

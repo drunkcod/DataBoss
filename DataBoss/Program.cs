@@ -180,7 +180,7 @@ namespace DataBoss
 					throw new InvalidOperationException($"DataBoss has not been initialized, run: {ProgramName} init <target>");
 				cmd.CommandText = scripter.Select(typeof(DataBossMigrationInfo), typeof(DataBossHistory));
 				using(var reader = cmd.ExecuteReader()) {
-					return objectReader.Read<DataBossMigrationInfo>(reader).ToList();
+					return ObjectReader.Read<DataBossMigrationInfo>(reader).ToList();
 				}
 			}
 		}
