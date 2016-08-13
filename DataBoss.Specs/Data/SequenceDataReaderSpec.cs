@@ -70,8 +70,7 @@ namespace DataBoss.Specs.Data
 				Check.That(() => reader.FieldCount == 2);
 				Check.That(
 					() => reader.GetOrdinal("TheProp") == 0,
-					() => reader.GetOrdinal("TheField") == 1
-				);
+					() => reader.GetOrdinal("TheField") == 1);
 			}
 
 			public void maps_given_members() {
@@ -85,8 +84,20 @@ namespace DataBoss.Specs.Data
 				Check.That(() => reader.FieldCount == 2);
 				Check.That(
 					() => reader.GetOrdinal("TheProp") == 0,
-					() => reader.GetOrdinal("TheField") == 1
-				);
+					() => reader.GetOrdinal("TheField") == 1);
+			}
+
+			public void map_all() {
+				var reader = SequenceDataReader.Create(new[] {
+					new DataThingy {
+						TheField = 42,
+						TheProp = "FooBar"
+					}
+				}, x => x.MapAll());
+
+				Check.That(() => reader.FieldCount == 2);
+				Check.That(
+					() => reader.GetOrdinal("TheProp") != reader.GetOrdinal("TheField"));
 			}
 		}
 	}
