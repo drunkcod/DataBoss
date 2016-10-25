@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Data.SqlClient;
 using System.Linq;
 using DataBoss.Data;
 
@@ -21,7 +20,8 @@ namespace DataBoss.Diagnostics
 			this.reader = reader;
 		}
 
-		public IEnumerable<QuerySample> TakeSample() {
+		public IEnumerable<QuerySample> TakeSample(QuerySampleMode mode) {
+			var foo = mode == QuerySampleMode.ActiveDatabase ? "and r.database_id = db_id()" : string.Empty;
 			var reqs = reader.Read<RequestInfo2000>(@"
 				select
 					[Request.SessionId] = r.session_id,
@@ -38,8 +38,7 @@ namespace DataBoss.Diagnostics
 				from sys.dm_exec_requests r
 				join sys.dm_exec_sessions s on s.session_id = r.session_id
 				where sql_handle is not null
-				and r.session_id != @@spid
-				and r.database_id = db_id()")
+				and r.session_id != @@spid " + foo)
 				.ToList();
 
 			return reader.Query(@"

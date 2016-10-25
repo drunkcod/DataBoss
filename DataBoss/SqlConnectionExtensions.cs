@@ -16,6 +16,16 @@ namespace DataBoss
 			return cmd;
 		}
 
+		public static object ExecuteNonQuery(this SqlConnection connection, string cmdText) {
+			using(var q = connection.CreateCommand(cmdText))
+				return q.ExecuteNonQuery();
+		}
+
+		public static object ExecuteNonQuery<T>(this SqlConnection connection, string cmdText, T args) {
+			using(var q = CreateCommand(connection, cmdText, args))
+				return q.ExecuteNonQuery();
+		}
+
 		public static DatabaseInfo GetDatabaseInfo(this SqlConnection connection)
 		{
 			var reader = new DbObjectReader(connection);

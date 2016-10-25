@@ -11,8 +11,9 @@ namespace DataBoss.Diagnostics
 			this.reader = reader;
 		}
 
-		public IEnumerable<QuerySample> TakeSample() {
-			return reader.Read<QuerySample>(@"
+		public IEnumerable<QuerySample> TakeSample(QuerySampleMode mode) {
+			var foo = mode == QuerySampleMode.ActiveDatabase ? "and r.database_id = db_id()" : string.Empty;
+			return reader.Read<QuerySample>($@"
 				select
 					[request.SessionId] = r.session_id,
 					[request.RequestId] = r.request_id,
@@ -28,8 +29,7 @@ namespace DataBoss.Diagnostics
 				from sys.dm_exec_requests r
 				inner join sys.dm_exec_sessions s on s.session_id = r.session_id
 				cross apply sys.dm_exec_sql_text(r.sql_handle)
-				where r.session_id != @@spid
-				and r.database_id = db_id()");
+				where r.session_id != @@spid " + foo);
 		}
 	}
 }

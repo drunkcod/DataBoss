@@ -11,9 +11,11 @@ namespace DataBoss.Diagnostics
 
 			var count = (request.StatementEndOffset == -1 ? sql.Length : request.StatementEndOffset) - request.StatementStartOffset; 
 			var start = request.StatementStartOffset;
-			this.ActiveStatement = Encoding.Unicode.GetString(sql, 
+			try {
+				this.ActiveStatement = Encoding.Unicode.GetString(sql, 
 				Math.Min(sql.Length - 1, start), 
 				Math.Max(0, count));
+			} catch { this.ActiveStatement = String.Empty; }
 		}
 		public readonly RequestInfo Request;
 		public TimeSpan Elapsed => TimeSpan.FromMilliseconds(Request.ElapsedMilliseconds);

@@ -3,9 +3,15 @@ using DataBoss.Data;
 
 namespace DataBoss.Diagnostics
 {
+	public enum QuerySampleMode
+	{
+		ActiveDatabase,
+		Global
+	}
+
 	public interface ISqlServerQuerySampler
 	{
-		IEnumerable<QuerySample> TakeSample(); 
+		IEnumerable<QuerySample> TakeSample(QuerySampleMode mode); 
 	}
 
 	public static class SqlServerQuerySampler
