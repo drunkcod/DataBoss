@@ -35,6 +35,8 @@ namespace DataBoss.Data
 
 	public class DbObjectReader
 	{
+		static Regex FormatEx = new Regex(@"(@[A-Za-z_]+)");
+
 		readonly SqlConnection db;
 
 		public TimeSpan? CommandTimeout = TimeSpan.FromSeconds(30);
@@ -46,6 +48,7 @@ namespace DataBoss.Data
 		public DbObjectQuery Query<T>(string command, T args) =>
 			new DbObjectQuery(() => {
 				var cmd = CreateCommand();
+				cmd.CommandText = command;
 				cmd.Parameters.AddRange(ToParams.Invoke(args));
 				return cmd;
 			});
@@ -54,8 +57,7 @@ namespace DataBoss.Data
 			new DbObjectQuery(() => {
 				var q = new StringBuilder();
 				var cmd = CreateCommand();
-				var format = Regex.Replace(command, @"(@[A-Za-z_]+)", "$1$${0}");
-
+				var format = FormatEx.Replace(command, "$1$${0}");
 				using(var item = args.GetEnumerator())
 					for(var n = 0; item.MoveNext(); ++n) {
 						var p = ToParams.Invoke(toArg(item.Current));
