@@ -87,6 +87,7 @@
     <Compile Include="Data\SequenceDataReader.cs" />
     <Compile Include="SqlConnectionExtensions.cs" />
     <Compile Include="SqlServer\SysObjects.cs" />
+    <Compile Include="Testing\DatabaseSetup.cs" />
     <Compile Include="ToParams.cs" />
   </ItemGroup>
   <ItemGroup>

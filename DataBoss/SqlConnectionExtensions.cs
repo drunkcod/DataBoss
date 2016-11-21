@@ -1,4 +1,4 @@
-using System.Data.SqlClient;
+﻿using System.Data.SqlClient;
 using DataBoss.Data;
 using DataBoss.Diagnostics;
 
@@ -14,6 +14,16 @@ namespace DataBoss
 			var cmd = new SqlCommand(cmdText, connection);
 			cmd.Parameters.AddRange(ToParams.Invoke(args));
 			return cmd;
+		}
+
+		public static object ExecuteScalar(this SqlConnection connection, string cmdText) {
+			using(var q = connection.CreateCommand(cmdText))
+				return q.ExecuteScalar();
+		}
+
+		public static object ExecuteScalar<T>(this SqlConnection connection, string cmdText, T args) {
+			using(var q = CreateCommand(connection, cmdText, args))
+				return q.ExecuteScalar();
 		}
 
 		public static object ExecuteNonQuery(this SqlConnection connection, string cmdText) {

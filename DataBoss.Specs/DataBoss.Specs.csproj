@@ -59,6 +59,7 @@
     <Compile Include="PowerArgsSpec.cs" />
     <Compile Include="SimpleDataReader.cs" />
     <Compile Include="StubAttributeProvider.cs" />
+    <Compile Include="Testing\DatabaseSetupSpec.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DataBoss\DataBoss.csproj">
