@@ -1,8 +1,8 @@
-using System;
+﻿using System;
 
 namespace DataBoss
 {
-	class DataBossConsoleLog : IDataBossLog
+	public class DataBossConsoleLog : IDataBossLog
 	{
 		public void Info(string format, params object[] args)
 		{

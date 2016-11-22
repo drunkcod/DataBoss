@@ -1,11 +1,11 @@
-﻿using System;
-using Cone;
+﻿using Cone;
+using DataBoss.Migrations;
 using DataBoss.Schema;
+using DataBoss.SqlServer;
+using System;
 using System.Data.Linq;
 using System.Data.SqlClient;
 using System.Linq;
-using DataBoss.Migrations;
-using DataBoss.SqlServer;
 
 namespace DataBoss.Specs
 {
@@ -15,7 +15,7 @@ namespace DataBoss.Specs
 		SqlConnection Connection;
 		DataBossShellExecute ShellExecute;
 		string ShellExecuteOutput;
-		Program DataBoss;
+		DataBoss DataBoss;
 		DataContext Context;
 
 		[BeforeEach]
@@ -25,12 +25,13 @@ namespace DataBoss.Specs
 				Database = "DataBoss Tests",
 			};
 			Connection = new SqlConnection(config.GetConnectionString());
+			Connection.Open();
 			ShellExecuteOutput = string.Empty;
 			ShellExecute = new DataBossShellExecute();
 			ShellExecute.OutputDataReceived += (_, e) => ShellExecuteOutput += e.Data; 
-			DataBoss = new Program(new NullDataBossLog(), Connection);
+			DataBoss = DataBoss.Create(config, new NullDataBossLog());
 			Context = new DataContext(Connection, new DataBossMappingSource());
-			DataBoss.Initialize(config);
+			DataBoss.Initialize();
 		}
 
 		[AfterEach]
@@ -64,7 +65,7 @@ namespace DataBoss.Specs
 				() => !SysObjects.Any(x => x.Name == "Foo"));
 		}
 
-		public void happy_path_is_happ() {
+		public void happy_path_is_happy() {
 
 			if(Context.GetTable<SysObjects>().Any(x => x.Name == "Bar"))
 				using(var cmd = new SqlCommand("drop table Bar", Connection))
