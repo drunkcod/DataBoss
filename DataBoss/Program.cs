@@ -37,9 +37,7 @@ namespace DataBoss
 
 			try {
 				var cc = DataBossConfiguration.ParseCommandConfig(args);
-
-				DataBossAction command;
-				if(!TryGetCommand(cc.Key, out command)) {
+				if(!TryGetCommand(cc.Key, out var command)) {
 					log.Info(GetUsageString());
 					return -1;
 				}

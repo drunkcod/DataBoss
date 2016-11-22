@@ -6,44 +6,46 @@ namespace DataBoss.Testing
 {
 	public static class DatabaseSetup
 	{
-		public const string InstanceNameFormat = "💣 {0}";
+		public static Func<string,string> FormatInstanceName = x => $"💣 {x}";
+		public static string ServerConnectionString = "Server=.;Integrated Security=SSPI";
 
 		static readonly ConcurrentDictionary<string, string> DatabaseInstances = new ConcurrentDictionary<string, string>();
 
 		public static string GetInstance(string name) =>
 			DatabaseInstances.GetOrAdd(name, key => {
-				SqlConnection.ClearAllPools();
-				var instanceName = string.Format(InstanceNameFormat, key);
-				WithLocalConnection(db => {
-					using(var cmd = db.CreateCommand("select case when exists(select null from sys.databases where name = @instanceName) then 1 else 0 end", new { instanceName })) {
-						if((int)cmd.ExecuteScalar() == 1) {
-							cmd.CommandText = $"drop database [{instanceName}]";
-							cmd.ExecuteNonQuery();
-						}
-					}
-					db.ExecuteNonQuery($"create database [{instanceName}]");
-					db.ExecuteNonQuery($"alter database[{instanceName}] set recovery simple");
+				var instanceName = FormatInstanceName(key);
+				ExecuteCommands(cmd => {
+					var found = (int)cmd.ExecuteScalar("select case when exists(select null from sys.databases where name = @instanceName) then 1 else 0 end", new { instanceName });
+					if(found== 1)
+						ForceDropDatabase(instanceName);
+					cmd.ExecuteNonQuery($"create database [{instanceName}]");
+					cmd.ExecuteNonQuery($"alter database[{instanceName}] set recovery simple");
 				});
-				return $"Server=.;Integrated Security=SSPI;Database={instanceName}";
+				return new SqlConnectionStringBuilder(ServerConnectionString) { InitialCatalog = instanceName }.ToString();
 			});
 
 		public static void DeleteInstances() {
-			foreach(var item in DatabaseInstances.ToArray())
-				WithLocalConnection(db => {
-					var instanceName = string.Format(InstanceNameFormat, item.Key);
-					db.ExecuteNonQuery($"alter database [{instanceName}] set single_user with rollback immediate");
-					db.ExecuteNonQuery($"drop database [{instanceName}]");
-				});
-			DatabaseInstances.Clear();
+			foreach(var item in DatabaseInstances.ToArray()) {
+				ForceDropDatabase(FormatInstanceName(item.Key));
+				DatabaseInstances.TryRemove(item.Key, out var ignored);
+			}
+		}
+
+		static void ForceDropDatabase(string instanceName) {
+			ExecuteCommands(cmd => {
+				cmd.ExecuteNonQuery($"alter database [{instanceName}] set single_user with rollback immediate");
+				cmd.ExecuteNonQuery($"drop database [{instanceName}]");
+			});
 		}
 
 		public static void RegisterForAutoCleanup() =>
 			AppDomain.CurrentDomain.DomainUnload += (_, __) => DeleteInstances();
 
-		static void WithLocalConnection(Action<SqlConnection> withDb) {
-			using(var db = new SqlConnection("Server=.;Integrated Security=SSPI")) {
+		static void ExecuteCommands(Action<SqlCommand> execute) {
+			using(var db = new SqlConnection(ServerConnectionString)) {
 				db.Open();
-				withDb(db);
+				using(var cmd = db.CreateCommand())
+					execute(cmd);
 			}
 		}
 	}

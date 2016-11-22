@@ -85,6 +85,7 @@
     <Compile Include="Schema\ClusteredAttribute.cs" />
     <Compile Include="Schema\DataBossHistory.cs" />
     <Compile Include="Data\SequenceDataReader.cs" />
+    <Compile Include="SqlCommandExtensions.cs" />
     <Compile Include="SqlConnectionExtensions.cs" />
     <Compile Include="SqlServer\SysObjects.cs" />
     <Compile Include="Testing\DatabaseSetup.cs" />
