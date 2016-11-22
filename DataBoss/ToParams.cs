@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Linq;
@@ -42,5 +42,7 @@ namespace DataBoss
 				Expression.New(ItemCtor, Expression.Constant(name), value);
 
 		public static SqlParameter[] Invoke<T>(T input) => Extractor<T>.Invoke(input);
+
+		public static void AddTo<T>(SqlCommand command, T args) => command.Parameters.AddRange(Invoke(args));
 	}
 }

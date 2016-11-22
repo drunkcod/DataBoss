@@ -27,7 +27,7 @@ namespace DataBoss.Testing
 
 		int CountDatabasesByName(string name) => (int)ExecuteScalar(
 			"select count(*) from master.sys.databases where name = @instanceName", new {
-				instanceName = string.Format(DatabaseSetup.InstanceNameFormat, name)
+				instanceName = DatabaseSetup.FormatInstanceName(name)
 			});
 
 		object ExecuteScalar<T>(string query, T args) {
