@@ -9,23 +9,27 @@ namespace DataBoss.Testing
 		public static Func<string,string> FormatInstanceName = x => $"💣 {x}";
 		public static string ServerConnectionString = "Server=.;Integrated Security=SSPI";
 
-		static readonly ConcurrentDictionary<string, string> DatabaseInstances = new ConcurrentDictionary<string, string>();
+		static readonly ConcurrentDictionary<string, SqlConnectionStringBuilder> DatabaseInstances = new ConcurrentDictionary<string, SqlConnectionStringBuilder>();
 
-		public static string GetInstance(string name) =>
+		public static SqlConnectionStringBuilder GetTemporaryInstance(string name) => GetTemporaryInstance(name, _ => { });
+
+		public static SqlConnectionStringBuilder GetTemporaryInstance(string name, Action<SqlConnectionStringBuilder> init) =>
 			DatabaseInstances.GetOrAdd(name, key => {
 				var instanceName = FormatInstanceName(key);
 				ExecuteCommands(cmd => {
 					var found = (int)cmd.ExecuteScalar("select case when exists(select null from sys.databases where name = @instanceName) then 1 else 0 end", new { instanceName });
-					if(found== 1)
+					if(found == 1)
 						ForceDropDatabase(instanceName);
 					cmd.ExecuteNonQuery($"create database [{instanceName}]");
 					cmd.ExecuteNonQuery($"alter database[{instanceName}] set recovery simple");
 				});
-				return new SqlConnectionStringBuilder(ServerConnectionString) { InitialCatalog = instanceName }.ToString();
+				var cs = new SqlConnectionStringBuilder(ServerConnectionString) { InitialCatalog = instanceName };
+				init(cs);
+				return cs;
 			});
 
 		public static void DeleteInstances() {
-			string ignored;
+			SqlConnectionStringBuilder ignored;
 			foreach(var item in DatabaseInstances.ToArray()) {
 				ForceDropDatabase(FormatInstanceName(item.Key));
 				DatabaseInstances.TryRemove(item.Key, out ignored);

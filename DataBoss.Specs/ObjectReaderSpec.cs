@@ -38,9 +38,10 @@ namespace DataBoss.Specs
 
 		[Row(typeof(float), 3.14f)
 		,Row(typeof(double), 42.17)
-		,Row(typeof(int), 1)
-		,Row(typeof(short), (short)2)
-		,DisplayAs("{0}", Heading = "supports field of type")]
+		,Row(typeof(int), int.MaxValue)
+		,Row(typeof(short), short.MaxValue)
+		,Row(typeof(byte), byte.MaxValue)
+		, DisplayAs("{0}", Heading = "supports field of type")]
 		public void supports_field_of_type(Type type, object value) {
 			var check = (Action<object>)Delegate.CreateDelegate(typeof(Action<object>), GetType().GetMethod("CheckTSupport", BindingFlags.Static | BindingFlags.NonPublic).MakeGenericMethod(type));
 			check(value);

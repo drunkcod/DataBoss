@@ -15,14 +15,14 @@ namespace DataBoss.Testing
 
 			Check.That(() => CountDatabasesByName(name) == 0);
 
-			DatabaseSetup.GetInstance(name);
+			DatabaseSetup.GetTemporaryInstance(name);
 
 			Check.That(() => CountDatabasesByName(name) == 1);			
 		}
 
 		public void instance_is_created_only_once() {
 			var name = Guid.NewGuid().ToString();
-			Check.That(() => DatabaseSetup.GetInstance(name) == DatabaseSetup.GetInstance(name));
+			Check.That(() => DatabaseSetup.GetTemporaryInstance(name) == DatabaseSetup.GetTemporaryInstance(name));
 		}
 
 		int CountDatabasesByName(string name) => (int)ExecuteScalar(

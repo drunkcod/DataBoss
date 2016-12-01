@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Xml.Serialization;
 using DataBoss.Migrations;
+using System.Data.SqlClient;
 
 namespace DataBoss
 {
@@ -27,6 +28,17 @@ namespace DataBoss
 
 		[XmlIgnore]
 		public string Script;
+
+		[XmlIgnore]
+		public bool UseIntegratedSecurity => string.IsNullOrEmpty(User);
+
+		public static DataBossConfiguration Create(SqlConnectionStringBuilder connectionString, params DataBossMigrationPath[] migrationPaths) {
+			return new DataBossConfiguration {
+				Database = connectionString.InitialCatalog,
+				ServerInstance = connectionString.DataSource,
+				Migrations = migrationPaths,
+			};
+		}
 
 		public static DataBossConfiguration Load(string path) {
 			var target = path.EndsWith(".databoss") 
@@ -81,7 +93,7 @@ namespace DataBoss
 		}
 
 		public string GetCredentials() {
-			if(string.IsNullOrEmpty(User))
+			if(UseIntegratedSecurity)
 				return "Integrated Security=SSPI";
 			if(string.IsNullOrEmpty(Password))
 				throw new ArgumentException("No Password given for user '" + User + "'");

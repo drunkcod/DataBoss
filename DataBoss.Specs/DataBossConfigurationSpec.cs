@@ -1,6 +1,8 @@
 ﻿using Cone;
+using DataBoss.Migrations;
 using System;
 using System.Collections.Generic;
+using System.Data.SqlClient;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -71,6 +73,21 @@ namespace DataBoss.Specs
 		public void Migrations_have_absolute_paths() {
 			var config = DataBossConfiguration.Load("X:\\Project", StringStream("<db><migrations path=\"Migrations\"/></db>"));
 			Check.That(() => config.Migrations[0].Path == "X:\\Project\\Migrations");
+		}
+
+		public void can_be_created_from_SqlConnectionStringBuilder() {
+			Check.With(() => DataBossConfiguration.Create(new SqlConnectionStringBuilder("Server=TheServer;Initial Catalog=TheDatabase")))
+				.That(
+					x => x.ServerInstance == "TheServer",
+					x => x.Database == "TheDatabase",
+					x => x.UseIntegratedSecurity);				
+		}
+
+		public void can_specify_migrations_when_created_from_connection_string() {
+			var cs = new SqlConnectionStringBuilder("Server=TheServer;Initial Catalog=TheDatabase");
+			var migrations = new DataBossMigrationPath[0];
+			Check.With(() => DataBossConfiguration.Create(cs, migrations))
+				.That(x => x.Migrations == migrations);
 		}
 
 		Stream StringStream(string data) {
