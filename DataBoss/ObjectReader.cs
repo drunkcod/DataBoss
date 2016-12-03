@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -9,19 +9,20 @@ namespace DataBoss
 {
 	public class ObjectReader
 	{
-		static readonly MethodInfo IsDBNull = typeof(IDataRecord).GetMethod("IsDBNull");
-
-		public static IEnumerable<T> Read<T>(IDataReader source) {
-			var converter = GetConverter<T>(source);
-			while(source.Read()) {
-				yield return converter(source);
-			}
-		} 
+		public static ObjectReader<TReader> For<TReader>(TReader reader) where TReader : IDataReader =>
+			new ObjectReader<TReader>(reader); 
 
 		class FieldMap
 		{
 			readonly Dictionary<string, int> fields = new Dictionary<string, int>();
 			Dictionary<string, FieldMap> subFields;
+
+			public static FieldMap Create(IDataRecord reader) {
+				var fieldMap = new FieldMap();
+				for(var i = 0; i != reader.FieldCount; ++i)
+					fieldMap.Add(reader.GetName(i), i);
+				return fieldMap;
+			}
 
 			public int MinOrdinal => fields.Count == 0 ? -1 : fields.Min(x => x.Value);
 
@@ -29,10 +30,9 @@ namespace DataBoss
 				if(name.Contains('.')) {
 					var parts = name.Split('.');
 					var x = this;
-					var n = 0;
-					for(; n != parts.Length - 1; ++n)
+					for(var n = 0; n != parts.Length - 1; ++n)
 						x = x[parts[n]];
-					x.Add(parts[n], ordinal);
+					x.Add(parts[parts.Length - 1], ordinal);
 				}
 				else fields[name] = ordinal;
 			}
@@ -56,31 +56,17 @@ namespace DataBoss
 
 		class ConverterFactory
 		{
-			readonly ParameterExpression arg0 = Expression.Parameter(typeof(IDataRecord), "x");
+			readonly ParameterExpression arg0;
+			readonly MethodInfo isDBNull;
 
-			Expression ReadField(Type fieldType, int ordinal) {
-				var recordType = fieldType;
-				var o = Expression.Constant(ordinal);
-				if (fieldType == typeof(string) || IsNullable(fieldType, ref recordType))
-					return Expression.Condition(
-						Expression.Call(arg0, IsDBNull, o),
-						Expression.Default(fieldType),
-						ReadFieldAs(recordType, o, fieldType));
-
-				return ReadFieldAs(fieldType, o, fieldType);
+			public ConverterFactory(Type reader) {
+				this.arg0 = Expression.Parameter(reader, "x");
+				this.isDBNull = reader.GetMethod("IsDBNull");
 			}
 
-			Expression ReadFieldAs(Type fieldType, Expression ordinal, Type targetType) => 
-				Convert(Expression.Call(arg0, GetGetMethod(arg0, fieldType), ordinal), targetType);
+			public LambdaExpression Converter(FieldMap map, Type source) =>
+				Expression.Lambda(MemberInit(source, map), arg0);
 
-			public Expression<Func<IDataRecord,T>> Converter<T>(FieldMap map) => 
-				Expression.Lambda<Func<IDataRecord,T>>(MemberInit(typeof(T), map), arg0);
-
-			static Expression Convert(Expression expr, Type targetType) =>
-				expr.Type == targetType
-				? expr
-				: Expression.Convert(expr, targetType);
-			
 			Expression MemberInit(Type fieldType, FieldMap map) =>
 				Expression.MemberInit(
 					GetCtor(map, fieldType),
@@ -92,7 +78,7 @@ namespace DataBoss
 					.OrderByDescending(x => x.p.Length);
 				foreach(var item in ctors) {
 					var pn = new Expression[item.p.Length];
-					if(TryMaParameters(map, item.p, pn))
+					if(TryMapParameters(map, item.p, pn))
 						return Expression.New(item.ctor, pn);
 				}
 
@@ -102,55 +88,86 @@ namespace DataBoss
 				throw new InvalidOperationException("No suitable constructor found for " + fieldType);
 			}
 
-			bool TryMaParameters(FieldMap map, ParameterInfo[] parameters, Expression[] exprs) {
-				int ordinal; 
-				FieldMap subMap;
-				for(var i = 0; i != parameters.Length; ++i)
-					if(map.TryGetOrdinal(parameters[i].Name, out ordinal))
-						exprs[i] = ReadField(parameters[i].ParameterType, ordinal);
-					else if(map.TryGetSubMap(parameters[i].Name, out subMap)) {
-						exprs[i] = MemberInit(parameters[i].ParameterType, subMap);
-					}
-					else return false;
-				return true;
-			} 
-
-			IEnumerable<MemberAssignment> GetFields(FieldMap fieldMap, Type targetType) {
+			ArraySegment<MemberAssignment> GetFields(FieldMap map, Type targetType) {
 				var fields = targetType.GetFields();
 				var ordinals = new int[fields.Length];
 				var bindings = new MemberAssignment[fields.Length];
 				var found = 0;
-				FieldMap subField;
+				KeyValuePair<int, Expression> binding;
 				foreach(var x in fields) {
-					if(fieldMap.TryGetOrdinal(x.Name, out ordinals[found])) {
-						bindings[found] = Expression.Bind(x, ReadField(x.FieldType, ordinals[found]));
-						++found;
-					}
-					else if(fieldMap.TryGetSubMap(x.Name, out subField)) {
-						ordinals[found] = subField.MinOrdinal;
-						bindings[found++] = Expression.Bind(x, MemberInit(x.FieldType, subField));
-					}
+					if(!TryReadOrInit(map, x.FieldType, x.Name, out binding))
+						continue;
+					ordinals[found] = binding.Key;
+					bindings[found] = Expression.Bind(x, binding.Value);
+					++found;
 				}
 				Array.Sort(ordinals, bindings, 0, found);
 				return new ArraySegment<MemberAssignment>(bindings, 0, found);
 			}
 
-			private static bool IsNullable(Type fieldType, ref Type recordType) {
+			bool TryMapParameters(FieldMap map, ParameterInfo[] parameters, Expression[] exprs) {
+				KeyValuePair<int, Expression> binding;
+				for(var i = 0; i != parameters.Length; ++i) {
+					if(!TryReadOrInit(map, parameters[i].ParameterType, parameters[i].Name, out binding))
+						return false;
+					exprs[i] = binding.Value;
+				}
+				return true;
+			}
+
+			bool TryReadOrInit(FieldMap map, Type itemType, string itemName, out KeyValuePair<int, Expression> found) {
+				int ordinal;
+				if(map.TryGetOrdinal(itemName, out ordinal)) {
+					found = new KeyValuePair<int, Expression>(ordinal, ReadField(itemType, ordinal));
+					return true;
+				}
+
+				FieldMap subMap;
+				if(map.TryGetSubMap(itemName, out subMap)) {
+					found = new KeyValuePair<int, Expression>(subMap.MinOrdinal, MemberInit(itemType, subMap));
+					return true;
+				}
+
+				found = default(KeyValuePair<int, Expression>);
+				return false;
+			}
+
+			Expression ReadField(Type fieldType, int ordinal) {
+				var recordType = fieldType;
+				var o = Expression.Constant(ordinal);
+				if (fieldType == typeof(string) || IsNullable(fieldType, ref recordType))
+					return Expression.Condition(
+						Expression.Call(arg0, isDBNull, o),
+						Expression.Default(fieldType),
+						ReadFieldAs(recordType, o, fieldType));
+
+				return ReadFieldAs(fieldType, o, fieldType);
+			}
+
+			Expression ReadFieldAs(Type fieldType, Expression ordinal, Type targetType) => 
+				Convert(Expression.Call(arg0, GetGetMethod(fieldType), ordinal), targetType);
+
+			MethodInfo GetGetMethod(Type fieldType) {
+				var getter = arg0.Type.GetMethod("Get" + MapFieldType(fieldType));
+				if(getter != null)
+					return getter;
+
+				throw new NotSupportedException($"Can't read field of type: {fieldType} given {arg0.Type}");
+			}
+
+			static Expression Convert(Expression expr, Type targetType) =>
+				expr.Type == targetType
+				? expr
+				: Expression.Convert(expr, targetType);
+			
+			static bool IsNullable(Type fieldType, ref Type recordType) {
 				var isNullable = fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(Nullable<>);
 				if(isNullable)
 					recordType = fieldType.GetGenericArguments()[0];
 				return isNullable;
 			}
 
-			private static MethodInfo GetGetMethod(Expression arg0, Type fieldType) {
-				var getter = arg0.Type.GetMethod("Get" + MapFieldType(fieldType));
-				if(getter != null)
-					return getter;
-
-				throw new NotSupportedException("Can't read field of type:" + fieldType);
-			}
-
-			private static string MapFieldType(Type fieldType) {
+			static string MapFieldType(Type fieldType) {
 				switch(fieldType.FullName) {
 					case "System.Single": return "Float";
 					case "System.Object": return "Value";
@@ -160,15 +177,29 @@ namespace DataBoss
 			}
 		}
 
-		public static Func<IDataRecord,T> GetConverter<T>(IDataReader reader) => 
-			MakeConverter<T>(reader).Compile();
+		public static Func<TReader, T> GetConverter<TReader, T>(TReader reader) where TReader : IDataRecord => 
+			MakeConverter<TReader, T>(reader).Compile();
 
-		public static Expression<Func<IDataRecord, T>> MakeConverter<T>(IDataReader reader) {
-			var fieldMap = new FieldMap();
-			for(var i = 0; i != reader.FieldCount; ++i)
-				fieldMap.Add(reader.GetName(i), i);
-			var rr = new ConverterFactory();
-			return rr.Converter<T>(fieldMap);
+		public static Expression<Func<TReader, T>> MakeConverter<TReader, T>(TReader reader) where TReader : IDataRecord =>
+			(Expression<Func<TReader, T>>)new ConverterFactory(typeof(TReader)).Converter(FieldMap.Create(reader), typeof(T));
+	}
+
+	public struct ObjectReader<TReader> : IDisposable where TReader : IDataReader
+	{
+		readonly TReader reader;
+		public ObjectReader(TReader reader) { this.reader = reader; }
+
+		void IDisposable.Dispose() => reader.Dispose();
+
+		public Func<TReader, T> GetConverter<T>() => ObjectReader.GetConverter<TReader, T>(reader);
+
+		public IEnumerable<T> Read<T>() {
+			var converter = GetConverter<T>();
+			while(reader.Read()) {
+				yield return converter(reader);
+			}
 		}
+
+		public bool NextResult() => reader.NextResult();
 	}
 }

@@ -127,9 +127,8 @@ namespace DataBoss
 				if(cmd.ExecuteScalar() is DBNull)
 					throw new InvalidOperationException($"DataBoss has not been initialized, run: {Program.ProgramName} init <target>");
 				cmd.CommandText = scripter.Select(typeof(DataBossMigrationInfo), typeof(DataBossHistory));
-				using(var reader = cmd.ExecuteReader()) {
-					return ObjectReader.Read<DataBossMigrationInfo>(reader).ToList();
-				}
+				using(var reader = ObjectReader.For(cmd.ExecuteReader()))
+					return reader.Read<DataBossMigrationInfo>().ToList();
 			}
 		}
 	}

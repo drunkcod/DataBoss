@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Linq;
@@ -19,13 +19,11 @@ namespace DataBoss.Data
 			using(var q = getCommand()) {
 				if(string.IsNullOrEmpty(q.CommandText))
 					yield break;
-				using(var r = q.ExecuteReader()) {
-					var materialize = ObjectReader.GetConverter<TOutput>(r);
+				using(var r = ObjectReader.For(q.ExecuteReader()))
 					do {
-						while(r.Read())
-							yield return materialize(r);
+						foreach(var item in r.Read<TOutput>())
+							yield return item;
 					} while(r.NextResult());
-				}
 			}
 		}
 
