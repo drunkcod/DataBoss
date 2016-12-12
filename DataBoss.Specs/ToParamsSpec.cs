@@ -8,14 +8,12 @@ namespace DataBoss.Specs
 	[Describe(typeof(ToParams))]
 	public class ToParamsSpec
 	{
-		public void complext_type() {
+		public void complext_type() =>
 			Check.With(() => ToParams.Invoke(new { Args = new { Foo = 1, Bar = "Hello" } }))
 				.That(
 					x => x.Length == 2,
 					x => x.Any(p => p.ParameterName == "@Args_Foo"),
-					x => x.Any(p => p.ParameterName == "@Args_Bar")
-				);
-		}
+					x => x.Any(p => p.ParameterName == "@Args_Bar"));
 
 		[Row(typeof(string))
 		,Row(typeof(DateTime))
