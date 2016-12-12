@@ -1,6 +1,7 @@
 ﻿using System.Data.SqlClient;
 using DataBoss.Data;
 using DataBoss.Diagnostics;
+using System;
 
 namespace DataBoss
 {
@@ -34,6 +35,11 @@ namespace DataBoss
 		public static int ExecuteNonQuery<T>(this SqlConnection connection, string cmdText, T args) {
 			using(var q = CreateCommand(connection, cmdText, args))
 				return q.ExecuteNonQuery();
+		}
+
+		public static void WithCommand(this SqlConnection connection, Action<SqlCommand> useCommand) {
+			using(var cmd = connection.CreateCommand())
+				useCommand(cmd);
 		}
 
 		public static DatabaseInfo GetDatabaseInfo(this SqlConnection connection)

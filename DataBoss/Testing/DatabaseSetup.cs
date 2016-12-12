@@ -49,8 +49,7 @@ namespace DataBoss.Testing
 		static void ExecuteCommands(Action<SqlCommand> execute) {
 			using(var db = new SqlConnection(ServerConnectionString)) {
 				db.Open();
-				using(var cmd = db.CreateCommand())
-					execute(cmd);
+				db.WithCommand(execute);
 			}
 		}
 	}

@@ -9,8 +9,7 @@ namespace DataBoss
 {
 	public static class ToParams
 	{
-		static HashSet<Type> mappedTypes = new HashSet<Type>
-		{
+		static HashSet<Type> mappedTypes = new HashSet<Type> {
 			typeof(string),
 			typeof(DateTime),
 			typeof(Decimal),
@@ -37,15 +36,14 @@ namespace DataBoss
 		static IEnumerable<Expression> ExtractValues(Type type, string prefix, Expression input) {
 			foreach(var value in type.GetProperties()
 				.Where(x => x.CanRead)
-				.Select(x => new { Member = x as MemberInfo, Type = x.PropertyType })
-				.Concat(type.GetFields().Select(x => new { Member = x as MemberInfo, Type = x.FieldType }))
+				.Concat<MemberInfo>(type.GetFields())
 			) {
-				var name = prefix + value.Member.Name;
-				var readMember = Expression.MakeMemberAccess(input, value.Member);
-				if(HasSqlTypeMapping(value.Type))
+				var name = prefix + value.Name;
+				var readMember = Expression.MakeMemberAccess(input, value);
+				if(HasSqlTypeMapping(readMember.Type))
 					yield return MakeSqlParameter(name, readMember);
 				else
-					foreach(var item in ExtractValues(value.Type, name + "_", readMember))
+					foreach(var item in ExtractValues(readMember.Type, name + "_", readMember))
 						yield return item;
 			}
 		}
