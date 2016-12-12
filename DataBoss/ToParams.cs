@@ -9,6 +9,13 @@ namespace DataBoss
 {
 	public static class ToParams
 	{
+		static HashSet<Type> mappedTypes = new HashSet<Type>
+		{
+			typeof(string),
+			typeof(DateTime),
+			typeof(Decimal),
+			typeof(byte[]),
+		};
 		static class Extractor<T>
 		{
 			internal static Func<object, SqlParameter[]> Invoke = CreateExtractor(typeof(T));
@@ -24,19 +31,29 @@ namespace DataBoss
 				Expression.Invoke(Expression.Lambda(
 					Expression.NewArrayInit(
 						typeof(SqlParameter),
-						ExtractValues(type, typedInput)
+						ExtractValues(type, "@", typedInput)
 					), typedInput),
 					Expression.Convert(input, type)), input
 				).Compile();
 		}
 
-		static IEnumerable<Expression> ExtractValues(Type type, Expression input) {
-			return type.GetProperties()
+		static IEnumerable<Expression> ExtractValues(Type type, string prefix, Expression input) {
+			foreach(var value in type.GetProperties()
 				.Where(x => x.CanRead)
-				.Cast<MemberInfo>()
-				.Concat(type.GetFields())
-				.Select(item => MakeItem("@" + item.Name, Expression.Convert(Expression.MakeMemberAccess(input, item), typeof(object))));
+				.Select(x => new { Member = x as MemberInfo, Type = x.PropertyType })
+				.Concat(type.GetFields().Select(x => new { Member = x as MemberInfo, Type = x.FieldType }))
+			) {
+				var name = prefix + value.Member.Name;
+				var readMember = Expression.MakeMemberAccess(input, value.Member);
+				if(HasSqlTypeMapping(value.Type))
+					yield return MakeItem(name, Expression.Convert(readMember, typeof(object)));
+				else
+					foreach(var item in ExtractValues(value.Type, name + "_", readMember))
+						yield return item;
+			}
 		}
+
+		public static bool HasSqlTypeMapping(Type t) => t.IsPrimitive || mappedTypes.Contains(t);
 
 		static Expression MakeItem(string name, Expression value) => 
 				Expression.New(ItemCtor, Expression.Constant(name), value);

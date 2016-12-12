@@ -130,5 +130,14 @@ namespace DataBoss.Specs
 				rows => rows.Length == 1,
 				rows => rows[0].Value.Value == expected.Value.Value);
 		}
+
+		public void Action_support() {
+			var expected = new MyThing<int>(42);
+			var source = new SimpleDataReader("value") { expected.Value };
+			MyThing<int> actual = null;
+			ObjectReader.For(source).Read((MyThing<int> x) => actual = x);
+			Check.That(() => actual != null);
+			Check.That(() => actual.Value == expected.Value); 
+		}
 	}
 }

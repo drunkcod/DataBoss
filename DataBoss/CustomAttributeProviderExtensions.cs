@@ -1,8 +1,8 @@
-using System;
+﻿using System;
 using System.Linq;
 using System.Reflection;
 
-namespace DataBoss
+namespace DataBoss.Core
 {
 	static class CustomAttributeProviderExtensions
 	{

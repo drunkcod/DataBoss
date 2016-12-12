@@ -195,9 +195,14 @@ namespace DataBoss
 
 		public IEnumerable<T> Read<T>() {
 			var converter = GetConverter<T>();
-			while(reader.Read()) {
+			while(reader.Read())
 				yield return converter(reader);
-			}
+		}
+
+		public void Read<T>(Action<T> handleItem) {
+			var converter = GetConverter<T>();
+			while(reader.Read())
+				handleItem(converter(reader));
 		}
 
 		public bool NextResult() => reader.NextResult();
