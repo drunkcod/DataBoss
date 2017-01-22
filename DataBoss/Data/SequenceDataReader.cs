@@ -48,7 +48,6 @@ namespace DataBoss.Data
 				return false;
 			accessor(data.Current, current);
 			return true;
-
 		}
 
 		public bool NextResult() => false;

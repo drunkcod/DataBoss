@@ -1,5 +1,6 @@
 Artifacts/
 Build/
 packages/
+.vs/
 *.swp
 *.suo

@@ -45,6 +45,7 @@
     <Compile Include="DataBoss.cs" />
     <Compile Include="DataBossCommandAttribute.cs" />
     <Compile Include="Diagnostics\SqlServerMaintenancePlanWizard.cs" />
+    <Compile Include="ExpressionExtensions.cs" />
     <Compile Include="Migrations\DataBossCompositeMigration.cs" />
     <Compile Include="DataBossConfiguration.cs" />
     <Compile Include="DataBossConsoleLog.cs" />

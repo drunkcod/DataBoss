@@ -7,7 +7,7 @@ using System.Reflection;
 
 namespace DataBoss
 {
-	public class ObjectReader
+	public static class ObjectReader
 	{
 		public static ObjectReader<TReader> For<TReader>(TReader reader) where TReader : IDataReader =>
 			new ObjectReader<TReader>(reader); 
@@ -61,11 +61,11 @@ namespace DataBoss
 
 			public ConverterFactory(Type reader) {
 				this.arg0 = Expression.Parameter(reader, "x");
-				this.isDBNull = reader.GetMethod("IsDBNull");
+				this.isDBNull = reader.GetMethod(nameof(IDataReader.IsDBNull));
 			}
 
-			public LambdaExpression Converter(FieldMap map, Type source) =>
-				Expression.Lambda(MemberInit(source, map), arg0);
+			public LambdaExpression Converter(FieldMap map, Type result) =>
+				Expression.Lambda(MemberInit(result, map), arg0);
 
 			Expression MemberInit(Type fieldType, FieldMap map) =>
 				Expression.MemberInit(

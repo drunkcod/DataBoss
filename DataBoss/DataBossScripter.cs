@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Text;
 using DataBoss.Schema;
 using DataBoss.Core;
+using System.Data;
 
 namespace DataBoss
 {
@@ -39,31 +40,39 @@ namespace DataBoss
 
 		class DataBossTable
 		{
-			readonly Type tableType;
+			readonly List<DataBossTableColumn> columns;
 
 			public static DataBossTable From(Type tableType) {
 				var tableAttribute = tableType.Single<TableAttribute>();
-				return new DataBossTable(tableType, tableAttribute.Name, tableAttribute.Schema);
-			}
-
-			DataBossTable(Type tableType, string name, string schema) {
-				this.tableType = tableType;
-				this.Name = name;
-				this.Schema = schema;
-			}
-
-			public readonly string Name;
-			public readonly string Schema;
-
-			public IEnumerable<DataBossTableColumn> GetColumns() {
-				return tableType.GetFields()
+				return new DataBossTable(tableAttribute.Name, tableAttribute.Schema, 
+					tableType.GetFields()
 					.Select(field => new {
 						field,
 						column = field.SingleOrDefault<ColumnAttribute>()
 					}).Where(x => x.column != null)
 					.OrderBy(x => x.column.Order)
-					.Select(x => new DataBossTableColumn(x.field.FieldType, x.field, x.column.Name ?? x.field.Name));
+					.Select(x => new DataBossTableColumn(x.field.FieldType, x.field, x.column.Name ?? x.field.Name)));
 			}
+
+			public DataBossTable(string name, string schema, IEnumerable<DataBossTableColumn> columns) {
+				this.Name = name;
+				this.Schema = schema;
+				this.columns = columns.ToList();
+			}
+
+			public readonly string Name;
+			public readonly string Schema;
+			public IReadOnlyList<DataBossTableColumn> Columns => columns.AsReadOnly();
+		}
+
+		class NullAttributeProvider : ICustomAttributeProvider
+		{
+			public object[] GetCustomAttributes(bool inherit) => new object[0];
+
+			public object[] GetCustomAttributes(Type attributeType, bool inherit) =>
+				new object[0];
+
+			public bool IsDefined(Type attributeType, bool inherit) => false;
 		}
 
 		public string CreateMissing(Type tableType) {
@@ -80,9 +89,16 @@ namespace DataBoss
 				.ToString();
 		}
 
-		public string ScriptTable(Type tableType) {
-			return ScriptTable(DataBossTable.From(tableType), new StringBuilder())
-				.ToString();
+		public string ScriptTable(Type tableType) =>
+			ScriptTable(DataBossTable.From(tableType), new StringBuilder()).ToString();
+
+		public string ScriptTable(string name, IDataRecord record) {
+			var columns = new List<DataBossTableColumn>();
+			var noAttributes = new NullAttributeProvider();
+			for(var i = 0; i != record.FieldCount; ++i)
+				columns.Add(new DataBossTableColumn(record.GetFieldType(i), noAttributes, record.GetName(i)));
+			var table = new DataBossTable(name, string.Empty, columns);
+			return ScriptTable(table, new StringBuilder()).ToString();
 		}
 
 		StringBuilder ScriptTable(DataBossTable table, StringBuilder result) {
@@ -90,16 +106,18 @@ namespace DataBoss
 			AppendTableName(result, table)
 				.Append("(");
 			
-			table.GetColumns().ForEach(x => ScriptColumn(result, x));
+			var sep = "\r\n\t";
+			foreach(var item in table.Columns) {
+				ScriptColumn(result.Append(sep), item);
+				sep = ",\r\n\t";
+			}
 
 			result.AppendLine();
 			return result.Append(')');
 		}
 
-		StringBuilder ScriptColumn(StringBuilder result, DataBossTableColumn column) {
-			result.AppendLine();
-			return result.AppendFormat("\t[{0}] {1},", column.Name, ToDbType(column.ColumnType, column));
-		}
+		StringBuilder ScriptColumn(StringBuilder result, DataBossTableColumn column) =>
+			result.AppendFormat("[{0}] {1}", column.Name, ToDbType(column.ColumnType, column));
 
 		public string ScriptConstraints(Type tableType) {
 			var result = new StringBuilder();
@@ -108,9 +126,7 @@ namespace DataBoss
 		}
 
 		StringBuilder ScriptConstraints(DataBossTable table, StringBuilder result) {
-			var columns = table.GetColumns().ToList();
-
-			var clustered = columns.Where(x => x.Any<ClusteredAttribute>())
+			var clustered = table.Columns.Where(x => x.Any<ClusteredAttribute>())
 				.Select(x => x.Name)
 				.ToList();
 			if(clustered.Count > 0)
@@ -120,7 +136,7 @@ namespace DataBoss
 					string.Join(",", clustered)
 				).AppendLine();
 
-			var keys = columns.Where(x => x.Any<KeyAttribute>())
+			var keys = table.Columns.Where(x => x.Any<KeyAttribute>())
 				.Select(x => x.Name)
 				.ToList();
 			if(keys.Count > 0) {

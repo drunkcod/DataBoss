@@ -34,21 +34,20 @@ namespace DataBoss.Data
 
 		public int Map(MemberInfo memberInfo) {
 			var m = Expression.MakeMemberAccess(source, memberInfo);
-			return Map(memberInfo.Name, m.Type, Expression.Convert(m, typeof(object)));
+			return Map(memberInfo.Name, m.Type, m);
 		}
 
-		public int Map(string name, Func<T, object> selector) => 
-			Map(name, typeof(object), Expression.Invoke(Expression.Constant(selector), source));
+		public int Map<TField>(string name, Func<T, TField> selector) => 
+			Map(name, typeof(TField), Expression.Invoke(Expression.Constant(selector), source));
 
 		int Map(string name, Type type, Expression selector) {
 			var ordinal = selectors.Length;
 			Array.Resize(ref selectors, ordinal + 1);
-
 			selectors[ordinal] = new KeyValuePair<KeyValuePair<string,Type>, Expression>(
 					new KeyValuePair<string, Type>(name, type),
 				Expression.Assign(
 					Expression.ArrayAccess(target, Expression.Constant(ordinal)),
-					selector));
+					selector.Box()));
 
 			return ordinal;
 		}

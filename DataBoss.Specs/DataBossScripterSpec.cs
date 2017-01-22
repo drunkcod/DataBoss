@@ -3,6 +3,8 @@ using DataBoss.Schema;
 using System;
 using System.ComponentModel.DataAnnotations;
 using DataBoss.Migrations;
+using System.Data;
+using DataBoss.Data;
 
 namespace DataBoss.Specs
 {
@@ -40,6 +42,16 @@ namespace DataBoss.Specs
 			Check.That(() => scripter.Select(typeof(DataBossMigrationInfo), typeof(DataBossHistory)) == "select Id, Context, Name from [dbo].[__DataBossHistory]");
 		}
 
+		public void can_script_IDataRecord_as_table() { 
+			var scripter = new DataBossScripter();
+			IDataRecord data = SequenceDataReader.Create(new []{ new { Id = 1, Value = "Hello" } }, x => x.MapAll());
+			Check.That(() => scripter.ScriptTable("#Hello", data) ==
+@"create table [#Hello](
+	[Id] int not null,
+	[Value] varchar(max)
+)");
+		}
+
 		public void can_script_history_table() {
 			var scripter = new DataBossScripter();
 
@@ -50,7 +62,7 @@ namespace DataBoss.Specs
 	[Name] varchar(max) not null,
 	[StartedAt] datetime not null,
 	[FinishedAt] datetime,
-	[User] varchar(max),
+	[User] varchar(max)
 )");
 		}
 		public void can_script_history_table_primary_key_constraint() {

@@ -66,7 +66,6 @@ namespace DataBoss.Specs
 		}
 
 		public void happy_path_is_happy() {
-
 			if(Context.GetTable<SysObjects>().Any(x => x.Name == "Bar"))
 				using(var cmd = new SqlCommand("drop table Bar", Connection))
 					cmd.ExecuteNonQuery();
@@ -83,8 +82,7 @@ namespace DataBoss.Specs
 			Check.That(() => SysObjects.Any(x => x.Name == "Bar"));
 		}
 
-		public void external_command_gets_connection_string_in_environment_variable()
-		{
+		public void external_command_gets_connection_string_in_environment_variable() {
 			var migration = new DataBossMigrationInfo {
 				Id = Migrations.Max(x => (long?)x.Id).GetValueOrDefault() + 1,
 				Name = "External Command",

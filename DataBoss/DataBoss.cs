@@ -16,7 +16,6 @@ namespace DataBoss
 		readonly IDataBossLog log;
 		readonly SqlConnection db;
 		readonly DataBossScripter scripter = new DataBossScripter();
-		readonly ObjectReader objectReader = new ObjectReader();
 
 		DataBoss(DataBossConfiguration config, IDataBossLog log, SqlConnection db) {
 			this.config = config;
