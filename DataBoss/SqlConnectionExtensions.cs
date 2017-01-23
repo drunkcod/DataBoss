@@ -4,6 +4,7 @@ using DataBoss.Diagnostics;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Data;
 
 namespace DataBoss
 {
@@ -59,10 +60,7 @@ namespace DataBoss
 				bulkCopy.WriteToServer(toInsert);
 			
 			var columns = string.Join(",", Enumerable.Range(1, toInsert.FieldCount - 1).Select(toInsert.GetName));
-			var reader = new DbObjectReader(connection) {
-				CommandTimeout = null,
-			};
-			return reader.Read<IdRow>($@"
+			using(var cmd = connection.CreateCommand($@"
 				insert {destinationTable} with(tablock)({columns})
 				output inserted.$identity as {nameof(IdRow.Id)}
 				select {columns}
@@ -70,7 +68,11 @@ namespace DataBoss
 				order by [$]
 			
 				drop table {TempTableName}
-			").OrderBy(x => x.Id).Select(x => x.Id).ToList();
+			")) {
+				cmd.CommandTimeout = 0;
+				using(var reader = ObjectReader.For(cmd.ExecuteReader(CommandBehavior.SingleResult | CommandBehavior.SequentialAccess)))
+					return reader.Read<IdRow>().OrderBy(x => x.Id).Select(x => x.Id).ToList();
+			}
 		}
 
 		public static void WithCommand(this SqlConnection connection, Action<SqlCommand> useCommand) {
@@ -78,18 +80,16 @@ namespace DataBoss
 				useCommand(cmd);
 		}
 
-		public static DatabaseInfo GetDatabaseInfo(this SqlConnection connection)
-		{
+		public static DatabaseInfo GetDatabaseInfo(this SqlConnection connection) {
 			var reader = new DbObjectReader(connection);
-			return reader.Single<DatabaseInfo>(
-				@"select 
-						ServerName = serverproperty('ServerName'),
-						ServerVersion = serverproperty('ProductVersion'),
-						DatabaseName = db.name,
-						DatabaseId = db.database_id,
-						CompatibilityLevel = db.compatibility_level
-					from sys.databases db where database_id = db_id()"
-				);
+			return reader.Single<DatabaseInfo>(@"
+				select 
+					ServerName = serverproperty('ServerName'),
+					ServerVersion = serverproperty('ProductVersion'),
+					DatabaseName = db.name,
+					DatabaseId = db.database_id,
+					CompatibilityLevel = db.compatibility_level
+				from sys.databases db where database_id = db_id()");
 		}
 	}
 }
