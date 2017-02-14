@@ -12,24 +12,6 @@ using DataBoss.Data;
 
 namespace DataBoss
 {
-	public struct DataBossDbType
-	{
-		public readonly string TypeName;
-		public readonly bool IsNullable;
-
-		public DataBossDbType(string name, bool isNullable) {
-			this.IsNullable = isNullable;
-			this.TypeName = name;
-		}
-
-		public static bool operator==(DataBossDbType a, DataBossDbType b) =>
-			a.TypeName == b.TypeName && a.IsNullable == b.IsNullable;
-
-		public static bool operator!=(DataBossDbType a, DataBossDbType b) => !(a == b);
-
-		public override string ToString() => TypeName + (IsNullable ? string.Empty : " not null");
-	}
-
 	public class DataBossScripter
 	{
 		class DataBossTableColumn : ICustomAttributeProvider
@@ -102,9 +84,16 @@ namespace DataBoss
 		public string ScriptTable(string name, IDataReader reader) {
 			var columns = new List<DataBossTableColumn>();
 			var schema = reader.GetSchemaTable();
-			var isNullable = schema.Columns["IsNullable"];
+			var isNullable = schema.Columns[DataReaderSchemaColumns.AllowDBNull];
+			var columnSize = schema.Columns[DataReaderSchemaColumns.ColumnSize];
 			for(var i = 0; i != reader.FieldCount; ++i)
-				columns.Add(new DataBossTableColumn(new DataBossDbType(reader.GetDataTypeName(i), (bool)schema.Rows[i][isNullable]), NullAttributeProvider.Instance, reader.GetName(i)));
+				columns.Add(new DataBossTableColumn(new DataBossDbType(
+					reader.GetDataTypeName(i),
+					columnSize == null ? new int?(): (int)schema.Rows[i][columnSize],
+					(bool)schema.Rows[i][isNullable]), 
+					NullAttributeProvider.Instance, 
+					reader.GetName(i)));
+
 			var table = new DataBossTable(name, string.Empty, columns);
 			return ScriptTable(table, new StringBuilder()).ToString();
 		}
@@ -165,7 +154,7 @@ namespace DataBoss
 				canBeNull = true;
 				type = type.GenericTypeArguments[0];
 			}
-			return new DataBossDbType(MapType(type, attributes), canBeNull);
+			return new DataBossDbType(MapType(type, attributes), null, canBeNull);
 		}
 
 		static string MapType(Type type, ICustomAttributeProvider attributes) {

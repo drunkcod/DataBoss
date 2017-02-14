@@ -46,6 +46,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DataBossConfigurationSpec.cs" />
+    <Compile Include="DataBossDbTypeSpec.cs" />
     <Compile Include="DataBossDirectoryMigrationSpec.cs" />
     <Compile Include="DataBossMappingSource.cs" />
     <Compile Include="DataBossMigratorSpec.cs" />

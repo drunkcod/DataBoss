@@ -65,6 +65,19 @@ namespace DataBoss
 			}
 		}
 
+		public static void Insert(this SqlConnection connection, string destinationTable, IDataReader toInsert) =>
+			Insert(connection, null, destinationTable, toInsert);
+
+		public static void Insert(this SqlConnection connection, SqlTransaction transaction, string destinationTable, IDataReader toInsert) {
+			using (var bulkCopy = new SqlBulkCopy(connection, SqlBulkCopyOptions.TableLock, transaction) { DestinationTableName = destinationTable }) {
+				for (var i = 0; i != toInsert.FieldCount; ++i) {
+					var n = toInsert.GetName(i);
+					bulkCopy.ColumnMappings.Add(n, n);
+				}
+				bulkCopy.WriteToServer(toInsert);
+			}
+		}
+
 		public static ICollection<int> InsertAndGetIdentities<T>(this SqlConnection connection, string destinationTable, IEnumerable<T> rows) =>
 			InsertAndGetIdentities(connection, null, destinationTable, rows);
 

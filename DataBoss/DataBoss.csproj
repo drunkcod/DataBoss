@@ -44,6 +44,8 @@
   <ItemGroup>
     <Compile Include="DataBoss.cs" />
     <Compile Include="DataBossCommandAttribute.cs" />
+    <Compile Include="DataBossDbType.cs" />
+    <Compile Include="Data\NullAttributeProvider.cs" />
     <Compile Include="Diagnostics\SqlServerMaintenancePlanWizard.cs" />
     <Compile Include="ExpressionExtensions.cs" />
     <Compile Include="Migrations\DataBossCompositeMigration.cs" />

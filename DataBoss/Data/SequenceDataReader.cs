@@ -5,6 +5,12 @@ using System.Reflection;
 
 namespace DataBoss.Data
 {
+	static class DataReaderSchemaColumns
+	{
+		public const string AllowDBNull = "AllowDBNull";
+		public const string ColumnSize = "ColumnSize";
+	}
+
 	public static class SequenceDataReader
 	{
 		public static SequenceDataReader<T> Create<T>(IEnumerable<T> data, Action<FieldMapping<T>> mapFields) {
@@ -78,7 +84,7 @@ namespace DataBoss.Data
 
 		DataTable IDataReader.GetSchemaTable() {
 			var schema = new DataTable();
-			var isNullable = schema.Columns.Add("IsNullable", typeof(bool));
+			var isNullable = schema.Columns.Add(DataReaderSchemaColumns.AllowDBNull, typeof(bool));
 			for(var i = 0; i != FieldCount; ++i) {
 				var r = schema.NewRow();
 				r[isNullable] = dbTypes[i].IsNullable;
