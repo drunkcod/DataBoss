@@ -76,11 +76,12 @@ namespace DataBoss.Data
 		//SqlBulkCopy.EnableStreaming requires this
 		public bool IsDBNull(int i) => GetValue(i) is DBNull;
 
+
 	#region Here Be Dragons (not implemented / supported)
+		DataTable IDataReader.GetSchemaTable() => throw new NotSupportedException();
 		int IDataReader.Depth { get { throw new NotSupportedException(); } }
 		bool IDataReader.IsClosed { get { throw new NotSupportedException(); } }
 		int IDataReader.RecordsAffected { get { throw new NotSupportedException(); } }
-		DataTable IDataReader.GetSchemaTable() { throw new NotSupportedException(); }
 
 		public string GetDataTypeName(int i) { throw new NotImplementedException(); }
 		public bool GetBoolean(int i) { throw new NotImplementedException(); }

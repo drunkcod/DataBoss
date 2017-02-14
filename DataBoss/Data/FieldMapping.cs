@@ -6,6 +6,20 @@ using System.Reflection;
 
 namespace DataBoss.Data
 {
+	class NullAttributeProvider : ICustomAttributeProvider
+	{
+		NullAttributeProvider() { }
+
+		public object[] GetCustomAttributes(bool inherit) => new object[0];
+
+		public object[] GetCustomAttributes(Type attributeType, bool inherit) =>
+			new object[0];
+
+		public bool IsDefined(Type attributeType, bool inherit) => false;
+
+		public static readonly NullAttributeProvider Instance = new NullAttributeProvider();
+	}
+
 	public class FieldMapping<T>
 	{
 		readonly ParameterExpression source = Expression.Parameter(typeof(T), "source");

@@ -5,6 +5,8 @@ using System.ComponentModel.DataAnnotations;
 using DataBoss.Migrations;
 using System.Data;
 using DataBoss.Data;
+using System.Data.SqlTypes;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DataBoss.Specs
 {
@@ -12,31 +14,40 @@ namespace DataBoss.Specs
 	public class DataBossScripterSpec
 	{
 		[DisplayAs("{0} maps to db type {1}")
-		,Row(typeof(DateTime?), "datetime")
-		,Row(typeof(DateTime), "datetime not null")
-		,Row(typeof(decimal?), "decimal")
-		,Row(typeof(decimal), "decimal not null")
-		,Row(typeof(int?), "int")
-		,Row(typeof(int), "int not null")
-		,Row(typeof(long?), "bigint")
-		,Row(typeof(long), "bigint not null")
-		,Row(typeof(float?), "real")
-		,Row(typeof(float), "real not null")
-		,Row(typeof(double?), "float")
-		,Row(typeof(double), "float not null")
-		,Row(typeof(string), "varchar(max)")
-		,Row(typeof(bool), "bit not null")
-		,Row(typeof(bool?), "bit")]
-		public void to_db_type(Type type, string dbType) {
-			Check.That(() => DataBossScripter.ToDbType(type, new StubAttributeProvider()) == dbType);
+		,Row(typeof(DateTime?), "datetime", true)
+		,Row(typeof(DateTime), "datetime", false)
+		,Row(typeof(int?), "int", true)
+		,Row(typeof(int), "int", false)
+		,Row(typeof(long?), "bigint", true)
+		,Row(typeof(long), "bigint", false)
+		,Row(typeof(float?), "real", true)
+		,Row(typeof(float), "real", false)
+		,Row(typeof(double?), "float", true)
+		,Row(typeof(double), "float", false)
+		,Row(typeof(string), "varchar(max)", true)
+		,Row(typeof(bool), "bit", false)
+		,Row(typeof(bool?), "bit", true)
+		,Row(typeof(SqlMoney), "money", false)
+		,Row(typeof(SqlMoney?), "money", true)]
+		public void to_db_type(Type type, string dbType, bool nullable) =>
+			Check.That(() => DataBossScripter.ToDbType(type, new StubAttributeProvider()) == new DataBossDbType(dbType, nullable));
+	
+		class MyRowType
+		{
+			[Column(TypeName = "decimal(18, 5)")]
+			public decimal Value;
+		}
+		public void to_db_type_with_column_type_override() {
+			var column = typeof(MyRowType).GetField(nameof(MyRowType.Value));
+			Check.That(() => DataBossScripter.ToDbType(column.FieldType, column) == new DataBossDbType("decimal(18, 5)", false));
 		}
 
 		public void RequiredAttribute_string_is_not_null() {
-			Check.That(() => DataBossScripter.ToDbType(typeof(string), new StubAttributeProvider().Add(new RequiredAttribute())) == "varchar(max) not null");
+			Check.That(() => DataBossScripter.ToDbType(typeof(string), new StubAttributeProvider().Add(new RequiredAttribute())) == new DataBossDbType("varchar(max)", false));
 		}
 
 		public void MaxLengthAttribute_controls_string_column_widht() {
-			Check.That(() => DataBossScripter.ToDbType(typeof(string), new StubAttributeProvider().Add(new MaxLengthAttribute(31))) == "varchar(31)");
+			Check.That(() => DataBossScripter.ToDbType(typeof(string), new StubAttributeProvider().Add(new MaxLengthAttribute(31))) == new DataBossDbType("varchar(31)", true));
 		}
 
 		public void can_script_select() {

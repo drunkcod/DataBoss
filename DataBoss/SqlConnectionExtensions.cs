@@ -12,7 +12,7 @@ namespace DataBoss
 
 	public static class SqlConnectionExtensions
 	{
-		const string TempTableName = "#$";
+		const string TempTableName = "##$";
 
 		public static SqlCommand CreateCommand(this SqlConnection connection, string cmdText) => 
 			new SqlCommand(cmdText, connection);
@@ -59,14 +59,16 @@ namespace DataBoss
 				x.Map("$", _ => ++n);
 				x.MapAll();
 			});
+
 			var scripter = new DataBossScripter();
 			connection.ExecuteNonQuery(transaction, $@"
 				{scripter.ScriptTable(TempTableName, toInsert)}
 				create clustered index [#$_$] on {TempTableName}([{toInsert.GetName(0)}])
 			");
 
-			using(var bulkCopy = new SqlBulkCopy(connection, SqlBulkCopyOptions.TableLock, transaction) { DestinationTableName = TempTableName })
+			using(var bulkCopy = new SqlBulkCopy(connection, SqlBulkCopyOptions.TableLock, transaction) { DestinationTableName = TempTableName }) { 
 				bulkCopy.WriteToServer(toInsert);
+			}
 			
 			var columns = string.Join(",", Enumerable.Range(1, toInsert.FieldCount - 1).Select(toInsert.GetName));
 			using(var cmd = connection.CreateCommand($@"
@@ -76,7 +78,7 @@ namespace DataBoss
 				from {TempTableName}
 				order by [$]
 			
-				drop table {TempTableName}
+--				drop table {TempTableName}
 			")) {
 				cmd.CommandTimeout = 0;
 				cmd.Transaction = transaction;

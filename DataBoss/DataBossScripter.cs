@@ -8,9 +8,28 @@ using System.Text;
 using DataBoss.Schema;
 using DataBoss.Core;
 using System.Data;
+using DataBoss.Data;
 
 namespace DataBoss
 {
+	public struct DataBossDbType
+	{
+		readonly string TypeName;
+		readonly bool IsNullable;
+
+		public DataBossDbType(string name, bool isNullable) {
+			this.IsNullable = isNullable;
+			this.TypeName = name;
+		}
+
+		public static bool operator==(DataBossDbType a, DataBossDbType b) =>
+			a.TypeName == b.TypeName && a.IsNullable == b.IsNullable;
+
+		public static bool operator!=(DataBossDbType a, DataBossDbType b) => !(a == b);
+
+		public override string ToString() => TypeName + (IsNullable ? string.Empty : " not null");
+	}
+
 	public class DataBossScripter
 	{
 		class DataBossTableColumn : ICustomAttributeProvider
@@ -26,16 +45,14 @@ namespace DataBoss
 				this.Name = name;
 			}
 
-			public object[] GetCustomAttributes(Type attributeType, bool inherit) {
-				return attributes.GetCustomAttributes(attributeType, inherit);
-			}
-			public object[] GetCustomAttributes(bool inherit){
-				return attributes.GetCustomAttributes(inherit);
-			}
+			public object[] GetCustomAttributes(Type attributeType, bool inherit) =>
+				attributes.GetCustomAttributes(attributeType, inherit);
 
-			public bool IsDefined(Type attributeType, bool inherit) {
-				return attributes.IsDefined(attributeType, inherit);
-			}
+			public object[] GetCustomAttributes(bool inherit) =>
+				attributes.GetCustomAttributes(inherit);
+
+			public bool IsDefined(Type attributeType, bool inherit) =>
+				attributes.IsDefined(attributeType, inherit);
 		}
 
 		class DataBossTable
@@ -65,16 +82,6 @@ namespace DataBoss
 			public IReadOnlyList<DataBossTableColumn> Columns => columns.AsReadOnly();
 		}
 
-		class NullAttributeProvider : ICustomAttributeProvider
-		{
-			public object[] GetCustomAttributes(bool inherit) => new object[0];
-
-			public object[] GetCustomAttributes(Type attributeType, bool inherit) =>
-				new object[0];
-
-			public bool IsDefined(Type attributeType, bool inherit) => false;
-		}
-
 		public string CreateMissing(Type tableType) {
 			var table = DataBossTable.From(tableType);
 
@@ -94,9 +101,8 @@ namespace DataBoss
 
 		public string ScriptTable(string name, IDataRecord record) {
 			var columns = new List<DataBossTableColumn>();
-			var noAttributes = new NullAttributeProvider();
 			for(var i = 0; i != record.FieldCount; ++i)
-				columns.Add(new DataBossTableColumn(record.GetFieldType(i), noAttributes, record.GetName(i)));
+				columns.Add(new DataBossTableColumn(record.GetFieldType(i), NullAttributeProvider.Instance, record.GetName(i)));
 			var table = new DataBossTable(name, string.Empty, columns);
 			return ScriptTable(table, new StringBuilder()).ToString();
 		}
@@ -151,12 +157,20 @@ namespace DataBoss
 			return result;
 		}
 
-		public static string ToDbType(Type type, ICustomAttributeProvider attributes) {
+		public static DataBossDbType ToDbType(Type type, ICustomAttributeProvider attributes) {
 			var canBeNull = !type.IsValueType && !attributes.Any<RequiredAttribute>();
-			return MapType(type, attributes, ref canBeNull) + (canBeNull ? string.Empty : " not null");
+			if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>)) {
+				canBeNull = true;
+				type = type.GenericTypeArguments[0];
+			}
+			return new DataBossDbType(MapType(type, attributes), canBeNull);
 		}
 
-		static string MapType(Type type, ICustomAttributeProvider attributes, ref bool canBeNull) {
+		static string MapType(Type type, ICustomAttributeProvider attributes) {
+			var column = attributes.SingleOrDefault<ColumnAttribute>();
+			if (column != null && !string.IsNullOrEmpty(column.TypeName))
+				return column.TypeName;
+
 			switch (type.FullName) {
 				case "System.Int32": return "int";
 				case "System.Int64": return "bigint";
@@ -167,13 +181,9 @@ namespace DataBoss
 					var maxLength = attributes.SingleOrDefault<MaxLengthAttribute>();
 					return string.Format("varchar({0})", maxLength == null ? "max" : maxLength.Length.ToString());
 				case "System.DateTime": return "datetime";
-				case "System.Decimal": return "decimal";
+				case "System.Data.SqlTypes.SqlMoney": return "money";
 				default:
-					if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof (Nullable<>)) {
-						canBeNull = true;
-						return MapType(type.GenericTypeArguments[0], attributes, ref canBeNull);
-					}
-					throw new NotSupportedException("Don't know how to map " + type.FullName + " to a db type");
+					throw new NotSupportedException("Don't know how to map " + type.FullName + " to a db type.\nTry providing a TypeName using System.ComponentModel.DataAnnotations.Schema.ColumnAttribute.");
 			}
 		}
 

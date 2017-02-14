@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Data.Linq.Mapping;
@@ -209,7 +209,7 @@ namespace DataBoss.Specs
 
 			public override Type Type => memberType;
 
-			public override string DbType => DataBossScripter.ToDbType(memberType, member);
+			public override string DbType => DataBossScripter.ToDbType(memberType, member).ToString();
 
 			public override MetaType DeclaringType => declaringType;
 
