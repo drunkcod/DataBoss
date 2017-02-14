@@ -50,6 +50,21 @@ namespace DataBoss
 				return q.ExecuteNonQuery();
 		}
 
+		public static void Insert<T>(this SqlConnection connection, string destinationTable, IEnumerable<T> rows) =>
+			Insert(connection, null, destinationTable, rows);
+
+		public static void Insert<T>(this SqlConnection connection, SqlTransaction transaction, string destinationTable, IEnumerable<T> rows) {
+			var toInsert = SequenceDataReader.Create(rows, x => x.MapAll());
+
+			using (var bulkCopy = new SqlBulkCopy(connection, SqlBulkCopyOptions.TableLock, transaction) { DestinationTableName = destinationTable }) {
+				for(var i = 0; i != toInsert.FieldCount; ++i) {
+					var n = toInsert.GetName(i);
+					bulkCopy.ColumnMappings.Add(n, n);
+				}
+				bulkCopy.WriteToServer(toInsert);
+			}
+		}
+
 		public static ICollection<int> InsertAndGetIdentities<T>(this SqlConnection connection, string destinationTable, IEnumerable<T> rows) =>
 			InsertAndGetIdentities(connection, null, destinationTable, rows);
 
@@ -66,9 +81,8 @@ namespace DataBoss
 				create clustered index [#$_$] on {TempTableName}([{toInsert.GetName(0)}])
 			");
 
-			using(var bulkCopy = new SqlBulkCopy(connection, SqlBulkCopyOptions.TableLock, transaction) { DestinationTableName = TempTableName }) { 
+			using(var bulkCopy = new SqlBulkCopy(connection, SqlBulkCopyOptions.TableLock, transaction) { DestinationTableName = TempTableName })
 				bulkCopy.WriteToServer(toInsert);
-			}
 			
 			var columns = string.Join(",", Enumerable.Range(1, toInsert.FieldCount - 1).Select(toInsert.GetName));
 			using(var cmd = connection.CreateCommand($@"
@@ -78,7 +92,7 @@ namespace DataBoss
 				from {TempTableName}
 				order by [$]
 			
---				drop table {TempTableName}
+				drop table {TempTableName}
 			")) {
 				cmd.CommandTimeout = 0;
 				cmd.Transaction = transaction;

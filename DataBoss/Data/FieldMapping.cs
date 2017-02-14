@@ -24,11 +24,18 @@ namespace DataBoss.Data
 
 	public class FieldMapping<T>
 	{
+		struct FieldMappingItem
+		{
+			public string Name;
+			public Type FieldType;
+			public Expression Selector;
+			public DataBossDbType DbType;
+		}
+
 		readonly ParameterExpression source = Expression.Parameter(typeof(T), "source");
 		readonly ParameterExpression target = Expression.Parameter(typeof(object[]), "target");
 
-		KeyValuePair<KeyValuePair<string,Type>, Expression>[] selectors = new KeyValuePair<KeyValuePair<string,Type>, Expression>[0];
-		List<DataBossDbType> dbTypes = new List<DataBossDbType>(); 
+		readonly List<FieldMappingItem> mappings = new List<FieldMappingItem>();
 
 		public void MapAll() {
 			foreach(var item in typeof(T).GetFields().Cast<MemberInfo>().Concat(typeof(T).GetProperties()))
@@ -51,8 +58,8 @@ namespace DataBoss.Data
 
 		public int Map(MemberInfo memberInfo) {
 			var m = Expression.MakeMemberAccess(source, memberInfo);
-			var column = memberInfo.SingleOrDefault<ColumnAttribute>();
-			return Map(column == null ? memberInfo.Name : column.Name, m.Type, DataBossScripter.ToDbType(m.Type, memberInfo), m);
+			var column = memberInfo.SingleOrDefault<ColumnAttribute>()?.Name;
+			return Map(column ?? memberInfo.Name, m.Type, DataBossScripter.ToDbType(m.Type, memberInfo), m);
 		}
 
 		public int Map<TField>(string name, Func<T, TField> selector) => 
@@ -61,23 +68,24 @@ namespace DataBoss.Data
 				Expression.Invoke(Expression.Constant(selector), source));
 
 		int Map(string name, Type type, DataBossDbType dbType, Expression selector) {
-			var ordinal = selectors.Length;
-			Array.Resize(ref selectors, ordinal + 1);
-			selectors[ordinal] = new KeyValuePair<KeyValuePair<string,Type>, Expression>(
-					new KeyValuePair<string, Type>(name, type),
-				Expression.Assign(
+			var ordinal = mappings.Count;
+			mappings.Add(new FieldMappingItem {
+				Name = name,
+				FieldType = type,
+				Selector = Expression.Assign(
 					Expression.ArrayAccess(target, Expression.Constant(ordinal)),
-					selector.Box()));
-			dbTypes.Add(dbType);
+					selector.Box()),
+				DbType = dbType,
+			});
 			return ordinal;
 		}
 
-		public string[] GetFieldNames() => Array.ConvertAll(selectors, x => x.Key.Key);
-		public Type[] GetFieldTypes() => Array.ConvertAll(selectors, x => x.Key.Value);
-		public DataBossDbType[] GetDbTypes() => dbTypes.ToArray();
+		public string[] GetFieldNames() => mappings.Select(x => x.Name).ToArray();
+		public Type[] GetFieldTypes() => mappings.Select(x => x.FieldType).ToArray();
+		public DataBossDbType[] GetDbTypes() => mappings.Select(x => x.DbType).ToArray();
 
 		public Action<T,object[]> GetAccessor() =>
 			Expression.Lambda<Action<T,object[]>>(
-				Expression.Block(selectors.Select(x => x.Value)), true, source, target).Compile();
+				Expression.Block(mappings.Select(x => x.Selector)), true, source, target).Compile();
 	}
 }
