@@ -14,6 +14,8 @@ namespace DataBoss.Specs
 		[DisplayAs("{0} maps to db type {1}")
 		,Row(typeof(DateTime?), "datetime")
 		,Row(typeof(DateTime), "datetime not null")
+		,Row(typeof(decimal?), "decimal")
+		,Row(typeof(decimal), "decimal not null")
 		,Row(typeof(int?), "int")
 		,Row(typeof(int), "int not null")
 		,Row(typeof(long?), "bigint")

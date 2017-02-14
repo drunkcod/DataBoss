@@ -1,4 +1,5 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using System.Data.SqlClient;
 using DataBoss.Data;
 
 namespace DataBoss.Diagnostics
@@ -16,6 +17,8 @@ namespace DataBoss.Diagnostics
 
 	public static class SqlServerQuerySampler
 	{
+		public static ISqlServerQuerySampler Create(SqlConnection db) => Create(db.GetDatabaseInfo(), new DbObjectReader(db));
+
 		public static ISqlServerQuerySampler Create(DatabaseInfo db, DbObjectReader reader) {
 			if(db.CompatibilityLevel < 90)
 				return new SqlServer2000QuerySampler(reader);

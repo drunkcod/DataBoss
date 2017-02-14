@@ -5,6 +5,7 @@ using System.Data.SqlClient;
 using System.IO;
 using System.Linq;
 using System.Text;
+using DataBoss.Core;
 using DataBoss.Migrations;
 using DataBoss.Schema;
 
@@ -124,7 +125,7 @@ namespace DataBoss
 		public List<DataBossMigrationInfo> GetAppliedMigrations(DataBossConfiguration config) {
 			using(var cmd = new SqlCommand("select object_id('__DataBossHistory', 'U')", db)) {
 				if(cmd.ExecuteScalar() is DBNull)
-					throw new InvalidOperationException($"DataBoss has not been initialized, run: {Program.ProgramName} init <target>");
+					throw new InvalidOperationException($"DataBoss has not been initialized, run: init <target>");
 				cmd.CommandText = scripter.Select(typeof(DataBossMigrationInfo), typeof(DataBossHistory));
 				using(var reader = ObjectReader.For(cmd.ExecuteReader()))
 					return reader.Read<DataBossMigrationInfo>().ToList();

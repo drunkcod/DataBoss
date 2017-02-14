@@ -167,6 +167,7 @@ namespace DataBoss
 					var maxLength = attributes.SingleOrDefault<MaxLengthAttribute>();
 					return string.Format("varchar({0})", maxLength == null ? "max" : maxLength.Length.ToString());
 				case "System.DateTime": return "datetime";
+				case "System.Decimal": return "decimal";
 				default:
 					if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof (Nullable<>)) {
 						canBeNull = true;

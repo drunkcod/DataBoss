@@ -14,7 +14,7 @@
 	</Target>
 	<Target Name="Package-DataBoss">
 		<ItemGroup>
-			<Monitor Include="Build\DataBoss\Release">
+			<Monitor Include="Build\DataBoss.Program\Release">
 				<Path>DataBoss</Path>
 			</Monitor>
 		</ItemGroup>
