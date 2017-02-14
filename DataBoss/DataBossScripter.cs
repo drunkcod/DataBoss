@@ -14,8 +14,8 @@ namespace DataBoss
 {
 	public struct DataBossDbType
 	{
-		readonly string TypeName;
-		readonly bool IsNullable;
+		public readonly string TypeName;
+		public readonly bool IsNullable;
 
 		public DataBossDbType(string name, bool isNullable) {
 			this.IsNullable = isNullable;
@@ -36,10 +36,10 @@ namespace DataBoss
 		{
 			readonly ICustomAttributeProvider attributes;
 
-			public readonly Type ColumnType;
 			public readonly string Name;
+			public readonly DataBossDbType ColumnType;
 
-			public DataBossTableColumn(Type columnType, ICustomAttributeProvider attributes, string name) {
+			public DataBossTableColumn(DataBossDbType columnType, ICustomAttributeProvider attributes, string name) {
 				this.ColumnType = columnType;
 				this.attributes = attributes;
 				this.Name = name;
@@ -68,7 +68,7 @@ namespace DataBoss
 						column = field.SingleOrDefault<ColumnAttribute>()
 					}).Where(x => x.column != null)
 					.OrderBy(x => x.column.Order)
-					.Select(x => new DataBossTableColumn(x.field.FieldType, x.field, x.column.Name ?? x.field.Name)));
+					.Select(x => new DataBossTableColumn(ToDbType(x.field.FieldType, x.field), x.field, x.column.Name ?? x.field.Name)));
 			}
 
 			public DataBossTable(string name, string schema, IEnumerable<DataBossTableColumn> columns) {
@@ -99,10 +99,12 @@ namespace DataBoss
 		public string ScriptTable(Type tableType) =>
 			ScriptTable(DataBossTable.From(tableType), new StringBuilder()).ToString();
 
-		public string ScriptTable(string name, IDataRecord record) {
+		public string ScriptTable(string name, IDataReader reader) {
 			var columns = new List<DataBossTableColumn>();
-			for(var i = 0; i != record.FieldCount; ++i)
-				columns.Add(new DataBossTableColumn(record.GetFieldType(i), NullAttributeProvider.Instance, record.GetName(i)));
+			var schema = reader.GetSchemaTable();
+			var isNullable = schema.Columns["IsNullable"];
+			for(var i = 0; i != reader.FieldCount; ++i)
+				columns.Add(new DataBossTableColumn(new DataBossDbType(reader.GetDataTypeName(i), (bool)schema.Rows[i][isNullable]), NullAttributeProvider.Instance, reader.GetName(i)));
 			var table = new DataBossTable(name, string.Empty, columns);
 			return ScriptTable(table, new StringBuilder()).ToString();
 		}
@@ -123,7 +125,7 @@ namespace DataBoss
 		}
 
 		StringBuilder ScriptColumn(StringBuilder result, DataBossTableColumn column) =>
-			result.AppendFormat("[{0}] {1}", column.Name, ToDbType(column.ColumnType, column));
+			result.AppendFormat("[{0}] {1}", column.Name, column.ColumnType);
 
 		public string ScriptConstraints(Type tableType) {
 			var result = new StringBuilder();

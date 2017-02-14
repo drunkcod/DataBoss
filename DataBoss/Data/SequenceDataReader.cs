@@ -29,12 +29,14 @@ namespace DataBoss.Data
 		readonly IEnumerator<T> data;
 		readonly string[] fieldNames;
 		readonly Type[] fieldTypes;
+		readonly DataBossDbType[] dbTypes;
 	
 		public SequenceDataReader(IEnumerator<T> data, FieldMapping<T> fields) {
 			this.data = data;
 			this.fieldNames = fields.GetFieldNames();
 			this.fieldTypes = fields.GetFieldTypes();
 			this.accessor = fields.GetAccessor();
+			this.dbTypes = fields.GetDbTypes();
 			this.current = new object[fieldNames.Length];
 		}
 
@@ -58,6 +60,7 @@ namespace DataBoss.Data
 
 		public string GetName(int i) => fieldNames[i];
 		public Type GetFieldType(int i) => fieldTypes[i];
+		public string GetDataTypeName(int i) => dbTypes[i].TypeName;
 		public int GetOrdinal(string name) {
 			for(var i = 0; i != fieldNames.Length; ++i)
 				if(fieldNames[i] == name)
@@ -73,17 +76,25 @@ namespace DataBoss.Data
 			return n;
 		}
 
+		DataTable IDataReader.GetSchemaTable() {
+			var schema = new DataTable();
+			var isNullable = schema.Columns.Add("IsNullable", typeof(bool));
+			for(var i = 0; i != FieldCount; ++i) {
+				var r = schema.NewRow();
+				r[isNullable] = dbTypes[i].IsNullable;
+				schema.Rows.Add(r);
+			}
+			return schema;
+		}
+
 		//SqlBulkCopy.EnableStreaming requires this
 		public bool IsDBNull(int i) => GetValue(i) is DBNull;
 
-
-	#region Here Be Dragons (not implemented / supported)
-		DataTable IDataReader.GetSchemaTable() => throw new NotSupportedException();
+		#region Here Be Dragons (not implemented / supported)
 		int IDataReader.Depth { get { throw new NotSupportedException(); } }
 		bool IDataReader.IsClosed { get { throw new NotSupportedException(); } }
 		int IDataReader.RecordsAffected { get { throw new NotSupportedException(); } }
 
-		public string GetDataTypeName(int i) { throw new NotImplementedException(); }
 		public bool GetBoolean(int i) { throw new NotImplementedException(); }
 		public byte GetByte(int i) { throw new NotImplementedException(); }
 		public long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) { throw new NotImplementedException(); }

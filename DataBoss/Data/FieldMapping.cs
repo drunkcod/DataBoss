@@ -26,6 +26,7 @@ namespace DataBoss.Data
 		readonly ParameterExpression target = Expression.Parameter(typeof(object[]), "target");
 
 		KeyValuePair<KeyValuePair<string,Type>, Expression>[] selectors = new KeyValuePair<KeyValuePair<string,Type>, Expression>[0];
+		List<DataBossDbType> dbTypes = new List<DataBossDbType>(); 
 
 		public void MapAll() {
 			foreach(var item in typeof(T).GetFields().Cast<MemberInfo>().Concat(typeof(T).GetProperties()))
@@ -62,12 +63,13 @@ namespace DataBoss.Data
 				Expression.Assign(
 					Expression.ArrayAccess(target, Expression.Constant(ordinal)),
 					selector.Box()));
-
+			dbTypes.Add(DataBossScripter.ToDbType(type, NullAttributeProvider.Instance));
 			return ordinal;
 		}
 
 		public string[] GetFieldNames() => Array.ConvertAll(selectors, x => x.Key.Key);
 		public Type[] GetFieldTypes() => Array.ConvertAll(selectors, x => x.Key.Value);
+		public DataBossDbType[] GetDbTypes() => dbTypes.ToArray();
 
 		public Action<T,object[]> GetAccessor() =>
 			Expression.Lambda<Action<T,object[]>>(

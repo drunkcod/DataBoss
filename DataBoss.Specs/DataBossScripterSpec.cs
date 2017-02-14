@@ -55,9 +55,9 @@ namespace DataBoss.Specs
 			Check.That(() => scripter.Select(typeof(DataBossMigrationInfo), typeof(DataBossHistory)) == "select Id, Context, Name from [dbo].[__DataBossHistory]");
 		}
 
-		public void can_script_IDataRecord_as_table() { 
+		public void can_script_reader_as_table() { 
 			var scripter = new DataBossScripter();
-			IDataRecord data = SequenceDataReader.Create(new []{ new { Id = 1, Value = "Hello" } }, x => x.MapAll());
+			var data = SequenceDataReader.Create(new []{ new { Id = 1, Value = "Hello" } }, x => x.MapAll());
 			Check.That(() => scripter.ScriptTable("#Hello", data) ==
 @"create table [#Hello](
 	[Id] int not null,
