@@ -12,7 +12,7 @@ namespace DataBoss
 
 	public static class SqlConnectionExtensions
 	{
-		const string TempTableName = "##$";
+		const string TempTableName = "#$";
 
 		public static SqlCommand CreateCommand(this SqlConnection connection, string cmdText) => 
 			new SqlCommand(cmdText, connection);

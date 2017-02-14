@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using DataBoss.Core;
 
 namespace DataBoss.Data
 {
@@ -49,13 +51,16 @@ namespace DataBoss.Data
 
 		public int Map(MemberInfo memberInfo) {
 			var m = Expression.MakeMemberAccess(source, memberInfo);
-			return Map(memberInfo.Name, m.Type, m);
+			var column = memberInfo.SingleOrDefault<ColumnAttribute>();
+			return Map(column == null ? memberInfo.Name : column.Name, m.Type, DataBossScripter.ToDbType(m.Type, memberInfo), m);
 		}
 
 		public int Map<TField>(string name, Func<T, TField> selector) => 
-			Map(name, typeof(TField), Expression.Invoke(Expression.Constant(selector), source));
+			Map(name, typeof(TField), 
+				DataBossScripter.ToDbType(typeof(TField), NullAttributeProvider.Instance), 
+				Expression.Invoke(Expression.Constant(selector), source));
 
-		int Map(string name, Type type, Expression selector) {
+		int Map(string name, Type type, DataBossDbType dbType, Expression selector) {
 			var ordinal = selectors.Length;
 			Array.Resize(ref selectors, ordinal + 1);
 			selectors[ordinal] = new KeyValuePair<KeyValuePair<string,Type>, Expression>(
@@ -63,7 +68,7 @@ namespace DataBoss.Data
 				Expression.Assign(
 					Expression.ArrayAccess(target, Expression.Constant(ordinal)),
 					selector.Box()));
-			dbTypes.Add(DataBossScripter.ToDbType(type, NullAttributeProvider.Instance));
+			dbTypes.Add(dbType);
 			return ordinal;
 		}
 
