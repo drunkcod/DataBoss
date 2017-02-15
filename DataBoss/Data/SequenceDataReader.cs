@@ -88,8 +88,9 @@ namespace DataBoss.Data
 			var columnSize = schema.Columns.Add(DataReaderSchemaColumns.ColumnSize, typeof(int));
 			for(var i = 0; i != FieldCount; ++i) {
 				var r = schema.NewRow();
-				r[isNullable] = dbTypes[i].IsNullable;
-				r[columnSize] = dbTypes[i].ColumnSize;
+				var dbType = dbTypes[i];
+				r[isNullable] = dbType.IsNullable;
+				r[columnSize] = dbType.ColumnSize.HasValue ? (object)dbType.ColumnSize.Value : DBNull.Value;
 				schema.Rows.Add(r);
 			}
 			return schema;

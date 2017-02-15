@@ -86,13 +86,15 @@ namespace DataBoss
 			var schema = reader.GetSchemaTable();
 			var isNullable = schema.Columns[DataReaderSchemaColumns.AllowDBNull];
 			var columnSize = schema.Columns[DataReaderSchemaColumns.ColumnSize];
-			for(var i = 0; i != reader.FieldCount; ++i)
+			for(var i = 0; i != reader.FieldCount; ++i) {
+				var r = schema.Rows[i];
 				columns.Add(new DataBossTableColumn(new DataBossDbType(
 					reader.GetDataTypeName(i),
-					columnSize == null ? new int?(): (int)schema.Rows[i][columnSize],
-					(bool)schema.Rows[i][isNullable]), 
+					(columnSize == null  || r[columnSize] is DBNull) ? new int?(): (int)r[columnSize],
+					(bool)r[isNullable]), 
 					NullAttributeProvider.Instance, 
 					reader.GetName(i)));
+			}
 
 			var table = new DataBossTable(name, string.Empty, columns);
 			return ScriptTable(table, new StringBuilder()).ToString();
