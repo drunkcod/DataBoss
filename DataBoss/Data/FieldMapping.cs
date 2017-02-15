@@ -45,12 +45,12 @@ namespace DataBoss.Data
 		public int Map(MemberInfo memberInfo) {
 			var m = Expression.MakeMemberAccess(source, memberInfo);
 			var column = memberInfo.SingleOrDefault<ColumnAttribute>()?.Name;
-			return Map(column ?? memberInfo.Name, m.Type, DataBossScripter.ToDbType(m.Type, memberInfo), m);
+			return Map(column ?? memberInfo.Name, m.Type, DataBossDbType.ToDbType(m.Type, memberInfo), m);
 		}
 
 		public int Map<TField>(string name, Func<T, TField> selector) => 
-			Map(name, typeof(TField), 
-				DataBossScripter.ToDbType(typeof(TField), NullAttributeProvider.Instance), 
+			Map(name, typeof(TField),
+				DataBossDbType.ToDbType(typeof(TField), NullAttributeProvider.Instance), 
 				Expression.Invoke(Expression.Constant(selector), source));
 
 		int Map(string name, Type type, DataBossDbType dbType, Expression selector) {

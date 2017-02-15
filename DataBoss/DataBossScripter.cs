@@ -2,13 +2,13 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Data;
 using System.Linq;
 using System.Reflection;
 using System.Text;
-using DataBoss.Schema;
 using DataBoss.Core;
-using System.Data;
 using DataBoss.Data;
+using DataBoss.Schema;
 
 namespace DataBoss
 {
@@ -50,7 +50,7 @@ namespace DataBoss
 						column = field.SingleOrDefault<ColumnAttribute>()
 					}).Where(x => x.column != null)
 					.OrderBy(x => x.column.Order)
-					.Select(x => new DataBossTableColumn(ToDbType(x.field.FieldType, x.field), x.field, x.column.Name ?? x.field.Name)));
+					.Select(x => new DataBossTableColumn(DataBossDbType.ToDbType(x.field.FieldType, x.field), x.field, x.column.Name ?? x.field.Name)));
 			}
 
 			public DataBossTable(string name, string schema, IEnumerable<DataBossTableColumn> columns) {
@@ -146,36 +146,6 @@ namespace DataBoss
 					.Append(")");
 			}
 			return result;
-		}
-
-		public static DataBossDbType ToDbType(Type type, ICustomAttributeProvider attributes) {
-			var canBeNull = !type.IsValueType && !attributes.Any<RequiredAttribute>();
-			if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>)) {
-				canBeNull = true;
-				type = type.GenericTypeArguments[0];
-			}
-			return new DataBossDbType(MapType(type, attributes), null, canBeNull);
-		}
-
-		static string MapType(Type type, ICustomAttributeProvider attributes) {
-			var column = attributes.SingleOrDefault<ColumnAttribute>();
-			if (column != null && !string.IsNullOrEmpty(column.TypeName))
-				return column.TypeName;
-
-			switch (type.FullName) {
-				case "System.Int32": return "int";
-				case "System.Int64": return "bigint";
-				case "System.Single": return "real";
-				case "System.Double": return "float";
-				case "System.Boolean": return "bit";
-				case "System.String":
-					var maxLength = attributes.SingleOrDefault<MaxLengthAttribute>();
-					return string.Format("varchar({0})", maxLength == null ? "max" : maxLength.Length.ToString());
-				case "System.DateTime": return "datetime";
-				case "System.Data.SqlTypes.SqlMoney": return "money";
-				default:
-					throw new NotSupportedException("Don't know how to map " + type.FullName + " to a db type.\nTry providing a TypeName using System.ComponentModel.DataAnnotations.Schema.ColumnAttribute.");
-			}
 		}
 
 		public string Select(Type rowType, Type tableType) {

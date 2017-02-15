@@ -85,9 +85,11 @@ namespace DataBoss.Data
 		DataTable IDataReader.GetSchemaTable() {
 			var schema = new DataTable();
 			var isNullable = schema.Columns.Add(DataReaderSchemaColumns.AllowDBNull, typeof(bool));
+			var columnSize = schema.Columns.Add(DataReaderSchemaColumns.ColumnSize, typeof(int));
 			for(var i = 0; i != FieldCount; ++i) {
 				var r = schema.NewRow();
 				r[isNullable] = dbTypes[i].IsNullable;
+				r[columnSize] = dbTypes[i].ColumnSize;
 				schema.Rows.Add(r);
 			}
 			return schema;

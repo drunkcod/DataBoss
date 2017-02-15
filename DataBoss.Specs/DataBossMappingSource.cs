@@ -209,7 +209,7 @@ namespace DataBoss.Specs
 
 			public override Type Type => memberType;
 
-			public override string DbType => DataBossScripter.ToDbType(memberType, member).ToString();
+			public override string DbType => DataBossDbType.ToDbType(memberType, member).ToString();
 
 			public override MetaType DeclaringType => declaringType;
 
