@@ -10,7 +10,7 @@ namespace DataBoss
 	public static class ObjectReader
 	{
 		public static ObjectReader<TReader> For<TReader>(TReader reader) where TReader : IDataReader =>
-			new ObjectReader<TReader>(reader); 
+			new ObjectReader<TReader>(reader);
 
 		class FieldMap
 		{
@@ -61,7 +61,7 @@ namespace DataBoss
 
 			public ConverterFactory(Type reader) {
 				this.arg0 = Expression.Parameter(reader, "x");
-				this.isDBNull = reader.GetMethod(nameof(IDataReader.IsDBNull));
+				this.isDBNull = reader.GetMethod(nameof(IDataRecord.IsDBNull)) ?? typeof(IDataRecord).GetMethod(nameof(IDataRecord.IsDBNull));
 			}
 
 			public LambdaExpression Converter(FieldMap map, Type result) =>
@@ -148,7 +148,8 @@ namespace DataBoss
 				Convert(Expression.Call(arg0, GetGetMethod(fieldType), ordinal), targetType);
 
 			MethodInfo GetGetMethod(Type fieldType) {
-				var getter = arg0.Type.GetMethod("Get" + MapFieldType(fieldType));
+				var getterName = "Get" + MapFieldType(fieldType);
+				var getter = arg0.Type.GetMethod(getterName) ?? typeof(IDataRecord).GetMethod("Get" + MapFieldType(fieldType));
 				if(getter != null)
 					return getter;
 
@@ -177,10 +178,10 @@ namespace DataBoss
 			}
 		}
 
-		public static Func<TReader, T> GetConverter<TReader, T>(TReader reader) where TReader : IDataRecord => 
+		public static Func<TReader, T> GetConverter<TReader, T>(TReader reader) where TReader : IDataReader => 
 			MakeConverter<TReader, T>(reader).Compile();
 
-		public static Expression<Func<TReader, T>> MakeConverter<TReader, T>(TReader reader) where TReader : IDataRecord =>
+		public static Expression<Func<TReader, T>> MakeConverter<TReader, T>(TReader reader) where TReader : IDataReader =>
 			(Expression<Func<TReader, T>>)new ConverterFactory(typeof(TReader)).Converter(FieldMap.Create(reader), typeof(T));
 	}
 

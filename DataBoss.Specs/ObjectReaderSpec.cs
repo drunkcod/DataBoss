@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Data;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -17,6 +18,14 @@ namespace DataBoss.Specs
 				{ 2L, "", "Second" }
 			};
 			Check.That(() => ObjectReader.For(source).Read<DataBossMigrationInfo>().Count() == source.Count);
+		}
+
+		public void works_given_interface_reference() {
+			var source = new SimpleDataReader("Id", "Context", "Name") {
+				{ 1L, "", "First" },
+				{ 2L, "", "Second" }
+			};
+			Check.That(() => ObjectReader.For(source as IDataReader).Read<DataBossMigrationInfo>().Count() == source.Count);
 		}
 
 		public void reads_public_fields() {
