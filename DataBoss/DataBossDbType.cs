@@ -55,6 +55,10 @@ namespace DataBoss
 
 		public override string ToString() => FormatType() + (IsNullable ? string.Empty : " not null");
 
+		public override int GetHashCode() => TypeName.GetHashCode();
+
+		public override bool Equals(object obj) => (obj is DataBossDbType && this == (DataBossDbType)obj) || obj.Equals(this);
+
 		string FormatType() {
 			if(IsWideType(TypeName)) return FormatWideType();
 			return TypeName;

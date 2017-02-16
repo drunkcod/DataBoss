@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.Data.SqlTypes;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -10,9 +11,13 @@ namespace DataBoss
 	public static class ToParams
 	{
 		static HashSet<Type> mappedTypes = new HashSet<Type> {
+			typeof(object),
 			typeof(string),
 			typeof(DateTime),
 			typeof(Decimal),
+			typeof(Guid),
+			typeof(SqlDecimal),
+			typeof(SqlMoney),
 			typeof(byte[]),
 		};
 
