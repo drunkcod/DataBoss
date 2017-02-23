@@ -2,18 +2,15 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
-using System.Linq;
 using DataBoss.Data;
 using DataBoss.Diagnostics;
 
 namespace DataBoss
 {
 	struct IdRow { public int Id; }
-
+	
 	public static class SqlConnectionExtensions
 	{
-		const string TempTableName = "#$";
-
 		public static SqlCommand CreateCommand(this SqlConnection connection, string cmdText) => 
 			new SqlCommand(cmdText, connection);
 
@@ -54,65 +51,20 @@ namespace DataBoss
 			Insert(connection, null, destinationTable, rows);
 
 		public static void Insert<T>(this SqlConnection connection, SqlTransaction transaction, string destinationTable, IEnumerable<T> rows) {
-			var toInsert = SequenceDataReader.Create(rows, x => x.MapAll());
-
-			using (var bulkCopy = new SqlBulkCopy(connection, SqlBulkCopyOptions.TableLock, transaction) { DestinationTableName = destinationTable }) {
-				for(var i = 0; i != toInsert.FieldCount; ++i) {
-					var n = toInsert.GetName(i);
-					bulkCopy.ColumnMappings.Add(n, n);
-				}
-				bulkCopy.WriteToServer(toInsert);
-			}
+			new DataBossBulkCopy(connection, transaction).Insert(destinationTable, rows);
 		}
 
 		public static void Insert(this SqlConnection connection, string destinationTable, IDataReader toInsert) =>
 			Insert(connection, null, destinationTable, toInsert);
 
-		public static void Insert(this SqlConnection connection, SqlTransaction transaction, string destinationTable, IDataReader toInsert) {
-			using (var bulkCopy = new SqlBulkCopy(connection, SqlBulkCopyOptions.TableLock, transaction) { DestinationTableName = destinationTable }) {
-				for (var i = 0; i != toInsert.FieldCount; ++i) {
-					var n = toInsert.GetName(i);
-					bulkCopy.ColumnMappings.Add(n, n);
-				}
-				bulkCopy.WriteToServer(toInsert);
-			}
-		}
+		public static void Insert(this SqlConnection connection, SqlTransaction transaction, string destinationTable, IDataReader toInsert) =>
+			new DataBossBulkCopy(connection, transaction).Insert(destinationTable, toInsert);
 
 		public static ICollection<int> InsertAndGetIdentities<T>(this SqlConnection connection, string destinationTable, IEnumerable<T> rows) =>
 			InsertAndGetIdentities(connection, null, destinationTable, rows);
 
-		public static ICollection<int> InsertAndGetIdentities<T>(this SqlConnection connection, SqlTransaction transaction, string destinationTable, IEnumerable<T> rows) {
-			var n = 0;
-			var toInsert = SequenceDataReader.Create(rows, x => {
-				x.Map("$", _ => ++n);
-				x.MapAll();
-			});
-
-			var scripter = new DataBossScripter();
-			connection.ExecuteNonQuery(transaction, $@"
-				{scripter.ScriptTable(TempTableName, toInsert)}
-				create clustered index [#$_$] on {TempTableName}([{toInsert.GetName(0)}])
-			");
-
-			using(var bulkCopy = new SqlBulkCopy(connection, SqlBulkCopyOptions.TableLock, transaction) { DestinationTableName = TempTableName })
-				bulkCopy.WriteToServer(toInsert);
-			
-			var columns = string.Join(",", Enumerable.Range(1, toInsert.FieldCount - 1).Select(toInsert.GetName));
-			using(var cmd = connection.CreateCommand($@"
-				insert {destinationTable} with(tablock)({columns})
-				output inserted.$identity as {nameof(IdRow.Id)}
-				select {columns}
-				from {TempTableName}
-				order by [$]
-			
-				drop table {TempTableName}
-			")) {
-				cmd.CommandTimeout = 0;
-				cmd.Transaction = transaction;
-				using(var reader = ObjectReader.For(cmd.ExecuteReader(CommandBehavior.SingleResult | CommandBehavior.SequentialAccess)))
-					return reader.Read<IdRow>().OrderBy(x => x.Id).Select(x => x.Id).ToList();
-			}
-		}
+		public static ICollection<int> InsertAndGetIdentities<T>(this SqlConnection connection, SqlTransaction transaction, string destinationTable, IEnumerable<T> rows) =>
+			new DataBossBulkCopy(connection, transaction).InsertAndGetIdentities(destinationTable, rows);
 
 		public static void WithCommand(this SqlConnection connection, Action<SqlCommand> useCommand) {
 			using(var cmd = connection.CreateCommand())

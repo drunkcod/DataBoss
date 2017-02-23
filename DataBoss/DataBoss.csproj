@@ -43,6 +43,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DataBoss.cs" />
+    <Compile Include="DataBossBulkCopy.cs" />
     <Compile Include="DataBossCommandAttribute.cs" />
     <Compile Include="DataBossDbType.cs" />
     <Compile Include="Data\NullAttributeProvider.cs" />

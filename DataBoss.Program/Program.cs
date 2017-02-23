@@ -6,6 +6,7 @@ using DataBoss.Core;
 
 namespace DataBoss
 {
+
 	delegate int DataBossAction(DataBoss program);
 
 	class Program
@@ -17,7 +18,6 @@ namespace DataBoss
 				Console.WriteLine(GetUsageString());
 				return 0;
 			}
-
 			var log = new DataBossConsoleLog();
 			try {
 				var cc = DataBossConfiguration.ParseCommandConfig(args);

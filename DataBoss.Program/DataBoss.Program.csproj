@@ -8,7 +8,7 @@
     <ProjectGuid>{8E941F8D-9745-44C9-AC73-DF5E079D8E8E}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <RootNamespace>DataBoss</RootNamespace>
-    <AssemblyName>DataBoss</AssemblyName>
+    <AssemblyName>DataBoss.Program</AssemblyName>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
   </PropertyGroup>
@@ -35,9 +35,6 @@
     <Reference Include="Microsoft.CSharp" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\DataBoss\Properties\AssemblyInfo.cs">
-      <Link>Properties\AssemblyInfo.cs</Link>
-    </Compile>
     <Compile Include="..\DataBoss\Properties\Version.cs">
       <Link>Properties\Version.cs</Link>
     </Compile>
@@ -50,4 +47,7 @@
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <Target Name="AfterBuild">
+    <Move SourceFiles="$(OutputPath)$(AssemblyName).exe" DestinationFiles="$(OutputPath)DataBoss.exe" />
+  </Target>
 </Project>

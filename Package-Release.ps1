@@ -9,4 +9,4 @@ $MSBuildPath = [IO.Directory]::GetFiles(
 & $MSBuildPath DataBoss\DataBoss.sln /t:Clean /p:Configuration=Release /v:m /nologo
 & $MSBuildPath Build.proj /t:Package /p:Configuration=Release /p:Build=$Build /v:m /nologo
 
-& ./Tools/NuGet.exe pack DataBoss\DataBoss.csproj -OutputDirectory Artifacts -Properties Configuration=Release
+& ./Tools/NuGet.exe pack DataBoss\DataBoss.csproj -OutputDirectory Artifacts -Properties "Configuration=Release;id=DataBoss"

@@ -33,6 +33,8 @@ namespace DataBoss
 				return new DataBossDbType(column.TypeName, null, canBeNull);
 
 			switch (type.FullName) {
+				case "System.Byte": return new DataBossDbType("tinyint", 1, canBeNull);
+				case "System.Int16": return new DataBossDbType("smallint", 2, canBeNull);
 				case "System.Int32": return new DataBossDbType("int", 4, canBeNull);
 				case "System.Int64": return new DataBossDbType("bigint", 8, canBeNull);
 				case "System.Single": return new DataBossDbType("real", 4, canBeNull);
@@ -59,10 +61,8 @@ namespace DataBoss
 
 		public override bool Equals(object obj) => (obj is DataBossDbType && this == (DataBossDbType)obj) || obj.Equals(this);
 
-		string FormatType() {
-			if(IsWideType(TypeName)) return FormatWideType();
-			return TypeName;
-		}
+		string FormatType() => 
+			IsWideType(TypeName) ? FormatWideType() : TypeName;
 
 		string FormatWideType() =>
 			(!ColumnSize.HasValue || ColumnSize.Value == 1) ? TypeName : $"{TypeName}({FormatWidth(ColumnSize.Value)})";
