@@ -46,6 +46,7 @@
     <Compile Include="DataBossBulkCopy.cs" />
     <Compile Include="DataBossCommandAttribute.cs" />
     <Compile Include="DataBossDbType.cs" />
+    <Compile Include="Data\DbObjectQuery.cs" />
     <Compile Include="Data\NullAttributeProvider.cs" />
     <Compile Include="Diagnostics\SqlServerMaintenancePlanWizard.cs" />
     <Compile Include="ExpressionExtensions.cs" />
