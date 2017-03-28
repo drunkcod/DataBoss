@@ -1,7 +1,7 @@
-﻿using System.Data.SqlClient;
-using System.Linq;
-using Cone;
+﻿using Cone;
 using DataBoss.Data;
+using System.Data.SqlClient;
+using System.Linq;
 
 namespace DataBoss.Specs.Data
 {
