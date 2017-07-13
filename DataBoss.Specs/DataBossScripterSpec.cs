@@ -2,6 +2,7 @@
 using DataBoss.Data;
 using DataBoss.Migrations;
 using DataBoss.Schema;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace DataBoss.Specs
 {
@@ -44,6 +45,28 @@ namespace DataBoss.Specs
 
 alter table [__DataBossHistory]
 add constraint PK___DataBossHistory primary key(Id,Context)");
+		}
+
+		[Context("Type to table")]
+		public class DataBossScripterTypeToTableSpec
+		{
+			[Table("MyTable")]
+			class HavingOrderedAndNotColumns
+			{
+				[Column(Order = 1)]
+				public int Id;
+				[Column]
+				public int Other;
+			}
+
+			public void puts_ordered_columns_before_non_determined_ones() {
+				var scripter = new DataBossScripter();
+				Check.That(() => scripter.ScriptTable(typeof(HavingOrderedAndNotColumns)) ==
+@"create table [MyTable](
+	[Id] int not null,
+	[Other] int not null
+)");
+			}
 		}
 	}
 }

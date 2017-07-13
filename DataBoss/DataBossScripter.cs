@@ -49,8 +49,14 @@ namespace DataBoss
 						field,
 						column = field.SingleOrDefault<ColumnAttribute>()
 					}).Where(x => x.column != null)
-					.OrderBy(x => x.column.Order)
-					.Select(x => new DataBossTableColumn(DataBossDbType.ToDbType(x.field.FieldType, x.field), x.field, x.column.Name ?? x.field.Name)));
+					.Select(x => new {
+						Order = x.column.Order == -1 ? int.MaxValue : x.column.Order,
+						x.field.FieldType,
+						Field = x.field,
+						Name = x.column.Name ?? x.field.Name,
+					})
+					.OrderBy(x => x.Order)
+					.Select(x => new DataBossTableColumn(DataBossDbType.ToDbType(x.FieldType, x.Field), x.Field, x.Name)));
 			}
 
 			public DataBossTable(string name, string schema, IEnumerable<DataBossTableColumn> columns) {
@@ -61,6 +67,8 @@ namespace DataBoss
 
 			public readonly string Name;
 			public readonly string Schema;
+
+			public string FullName => string.IsNullOrEmpty(Schema) ? $"[{Name}]" : $"[{Schema}].[{Name}]";
 			public IReadOnlyList<DataBossTableColumn> Columns => columns.AsReadOnly();
 		}
 
@@ -68,7 +76,7 @@ namespace DataBoss
 			var table = DataBossTable.From(tableType);
 
 			var result = new StringBuilder();
-			result.AppendFormat("if object_id('{0}', 'U') is null begin", table.Name)
+			result.AppendFormat("if object_id('{0}', 'U') is null begin", table.FullName)
 				.AppendLine();
 			ScriptTable(table, result)
 				.AppendLine();
@@ -129,19 +137,16 @@ namespace DataBoss
 				.Select(x => x.Name)
 				.ToList();
 			if(clustered.Count > 0)
-				result.AppendFormat("create clustered index IX_{0}_{1} on [{0}]({2})",
-					table.Name,
-					string.Join("_", clustered),
-					string.Join(",", clustered)
-				).AppendLine();
+				AppendTableName(result.AppendFormat("create clustered index IX_{0}_{1} on ", table.Name, string.Join("_", clustered)), table)
+				.AppendFormat("({0})", string.Join(",", clustered))
+				.AppendLine();
 
 			var keys = table.Columns.Where(x => x.Any<KeyAttribute>())
 				.Select(x => x.Name)
 				.ToList();
 			if(keys.Count > 0) {
-				result
-					.AppendFormat(result.Length == 0 ? string.Empty : Environment.NewLine)
-					.AppendFormat("alter table [{0}]", table.Name)
+				result.AppendFormat(result.Length == 0 ? string.Empty : Environment.NewLine);
+				AppendTableName(result.AppendFormat("alter table "), table)
 					.AppendLine()
 					.AppendFormat("add constraint PK_{0} primary key(", table.Name)
 					.Append(string.Join(",", keys))

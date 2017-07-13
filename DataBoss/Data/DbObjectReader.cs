@@ -7,7 +7,6 @@ using System.Text.RegularExpressions;
 
 namespace DataBoss.Data
 {
-
 	public class DbObjectReader
 	{
 		static Regex FormatEx = new Regex(@"(@[A-Za-z_]+)");

@@ -7,6 +7,7 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Text.RegularExpressions;
 
 namespace DataBoss
 {
@@ -94,7 +95,7 @@ namespace DataBoss
 		}
 
 		static bool MatchArg(string item, out string result) {
-			if(item.StartsWith("-")) {
+			if(Regex.IsMatch(item , "^-[^0-9]")) {
 				result = item.Substring(1);
 				return true;
 			}

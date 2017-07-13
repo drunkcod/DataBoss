@@ -20,17 +20,17 @@ namespace DataBoss.Specs
 		public void merges_comma_separated_values_to_one()
 		{
 			var args = PowerArgs.Parse(
-				"-1", "A,", "B",
-				"-2", "A", ",B",
-				"-3", "A", ",", "B",
-				"-4", "A,", "B,", "C"
+				"-A", "A,", "B",
+				"-B", "A", ",B",
+				"-C", "A", ",", "B",
+				"-D", "A,", "B,", "C"
 			);
 			Check.That(
 				() => args.Count == 4, 
-				() => args["1"] == "A,B",
-				() => args["2"] == "A,B",
-				() => args["3"] == "A,B",
-				() => args["4"] == "A,B,C");
+				() => args["A"] == "A,B",
+				() => args["B"] == "A,B",
+				() => args["C"] == "A,B",
+				() => args["D"] == "A,B,C");
 		}
 
 		public void missing_args_yields_InvalidOperationException() {
@@ -131,6 +131,13 @@ namespace DataBoss.Specs
 		public void flags() {
 			Check.That(
 				() => PowerArgs.Parse("-MyFlag", "true").Into<MyArgsWithFlags>().MyFlag == true);
+		}
+
+		public void numbers_are_not_parameter_names() {
+			var args = PowerArgs.Parse("-Value", "-1");
+			Check.That(
+				() => args.Count == 1,
+				() => args["Value"] == "-1");
 		}
 	}
 }

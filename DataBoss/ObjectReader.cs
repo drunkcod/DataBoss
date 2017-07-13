@@ -156,10 +156,8 @@ namespace DataBoss
 				throw new NotSupportedException($"Can't read field of type: {fieldType} given {arg0.Type}");
 			}
 
-			static Expression Convert(Expression expr, Type targetType) =>
-				expr.Type == targetType
-				? expr
-				: Expression.Convert(expr, targetType);
+			static Expression Convert(Expression expr, Type targetType) => 
+				expr.Type == targetType ? expr : Expression.Convert(expr, targetType);
 			
 			static bool IsNullable(Type fieldType, ref Type recordType) {
 				var isNullable = fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(Nullable<>);
