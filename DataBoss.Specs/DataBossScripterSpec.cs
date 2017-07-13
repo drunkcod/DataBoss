@@ -41,9 +41,9 @@ namespace DataBoss.Specs
 			var scripter = new DataBossScripter();
 
 			Check.That(() => scripter.ScriptConstraints(typeof(DataBossHistory)) == 
-@"create clustered index IX___DataBossHistory_StartedAt on [__DataBossHistory](StartedAt)
+@"create clustered index IX___DataBossHistory_StartedAt on [dbo].[__DataBossHistory](StartedAt)
 
-alter table [__DataBossHistory]
+alter table [dbo].[__DataBossHistory]
 add constraint PK___DataBossHistory primary key(Id,Context)");
 		}
 
