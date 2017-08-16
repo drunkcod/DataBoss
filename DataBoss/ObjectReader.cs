@@ -70,7 +70,7 @@ namespace DataBoss
 			Expression MemberInit(Type fieldType, FieldMap map) =>
 				Expression.MemberInit(
 					GetCtor(map, fieldType),
-					GetFields(map, fieldType));
+					GetMembers(map, fieldType));
 
 			NewExpression GetCtor(FieldMap map, Type fieldType) {
 				var ctors = fieldType.GetConstructors()
@@ -88,17 +88,18 @@ namespace DataBoss
 				throw new InvalidOperationException("No suitable constructor found for " + fieldType);
 			}
 
-			ArraySegment<MemberAssignment> GetFields(FieldMap map, Type targetType) {
+			ArraySegment<MemberAssignment> GetMembers(FieldMap map, Type targetType) {
 				var fields = targetType.GetFields();
-				var ordinals = new int[fields.Length];
-				var bindings = new MemberAssignment[fields.Length];
+				var props = targetType.GetProperties().Where(x => x.CanWrite).ToArray();
+				var ordinals = new int[fields.Length + props.Length];
+				var bindings = new MemberAssignment[fields.Length + props.Length];
 				var found = 0;
 				KeyValuePair<int, Expression> binding;
-				foreach(var x in fields) {
+				foreach(var x in fields.Select(x => new { x.Name, x.FieldType, Member = (MemberInfo)x }).Concat(props.Select(x => new { x.Name, FieldType = x.PropertyType, Member = (MemberInfo)x }))) {
 					if(!TryReadOrInit(map, x.FieldType, x.Name, out binding))
 						continue;
 					ordinals[found] = binding.Key;
-					bindings[found] = Expression.Bind(x, binding.Value);
+					bindings[found] = Expression.Bind(x.Member, binding.Value);
 					++found;
 				}
 				Array.Sort(ordinals, bindings, 0, found);

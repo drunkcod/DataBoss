@@ -148,5 +148,19 @@ namespace DataBoss.Specs
 			Check.That(() => actual != null);
 			Check.That(() => actual.Value == expected.Value); 
 		}
+
+		class ValueProp<T>
+		{
+			public T Value { get; set; }
+		}
+
+		public void can_read_props() {
+			var expected = new ValueProp<float> { Value = 2.78f };
+			var source = new SimpleDataReader("Value") { expected.Value };
+			Check.With(() => ObjectReader.For(source).Read<ValueProp<float>>().ToArray())
+			.That(
+				rows => rows.Length == 1,
+				rows => rows[0].Value == expected.Value);
+		}
 	}
 }
