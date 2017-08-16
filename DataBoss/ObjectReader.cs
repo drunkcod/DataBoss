@@ -89,13 +89,14 @@ namespace DataBoss
 			}
 
 			ArraySegment<MemberAssignment> GetMembers(FieldMap map, Type targetType) {
-				var fields = targetType.GetFields();
-				var props = targetType.GetProperties().Where(x => x.CanWrite).ToArray();
-				var ordinals = new int[fields.Length + props.Length];
-				var bindings = new MemberAssignment[fields.Length + props.Length];
+				var fields = targetType.GetFields().Select(x => new { x.Name, x.FieldType, Member = (MemberInfo)x });
+				var props = targetType.GetProperties().Where(x => x.CanWrite).Select(x => new { x.Name, FieldType = x.PropertyType, Member = (MemberInfo)x });
+				var members = fields.Concat(props).ToArray();
+				var ordinals = new int[members.Length];
+				var bindings = new MemberAssignment[members.Length];
 				var found = 0;
 				KeyValuePair<int, Expression> binding;
-				foreach(var x in fields.Select(x => new { x.Name, x.FieldType, Member = (MemberInfo)x }).Concat(props.Select(x => new { x.Name, FieldType = x.PropertyType, Member = (MemberInfo)x }))) {
+				foreach(var x in members) {
 					if(!TryReadOrInit(map, x.FieldType, x.Name, out binding))
 						continue;
 					ordinals[found] = binding.Key;
