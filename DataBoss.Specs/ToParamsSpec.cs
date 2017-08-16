@@ -3,6 +3,7 @@ using Cone.Core;
 using System;
 using System.Linq;
 using System.Data.SqlTypes;
+using System.Data;
 
 namespace DataBoss.Specs
 {
@@ -31,5 +32,17 @@ namespace DataBoss.Specs
 			Check.With(() => ToParams.Invoke(new { Value = nullableInt.HasValue ? (object)nullableInt.Value : DBNull.Value }))
 				.That(x => x.Length == 1, x => x.Any(p => p.ParameterName == "@Value"));
 		}
+
+		public void nullable_values() => Check.With(() => 
+			ToParams.Invoke(new {
+				HasValue = new int?(1),
+				NoInt32 = new int?(),
+			}))
+			.That(
+				paras => paras.Length == 2,
+				paras => paras[0].Value.Equals(1),
+				paras => paras[0].SqlDbType == SqlDbType.Int,
+				paras => paras[1].Value == DBNull.Value,
+				paras => paras[1].SqlDbType == SqlDbType.Int);
 	}
 }

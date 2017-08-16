@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.SqlClient;
 using System.Data.SqlTypes;
 using System.Linq;
@@ -27,6 +28,7 @@ namespace DataBoss
 		}
 
 		static readonly ConstructorInfo SqlParameterCtor = typeof(SqlParameter).GetConstructor(new[] { typeof(string), typeof(object) });
+		static readonly ConstructorInfo SqlEmptyCtor = typeof(SqlParameter).GetConstructor(new[] { typeof(string), typeof(SqlDbType) });
 
 		static LambdaExpression CreateExtractor(Type type) {
 			var typedInput = Expression.Parameter(type);
@@ -47,6 +49,8 @@ namespace DataBoss
 				var readMember = Expression.MakeMemberAccess(input, value);
 				if(HasSqlTypeMapping(readMember.Type))
 					yield return MakeSqlParameter(name, readMember);
+				else if(IsNullable(readMember.Type)) 
+					yield return MakeParameterFromNullable(name, readMember);
 				else
 					foreach(var item in ExtractValues(readMember.Type, name + "_", readMember))
 						yield return item;
@@ -55,8 +59,18 @@ namespace DataBoss
 
 		public static bool HasSqlTypeMapping(Type t) => t.IsPrimitive || mappedTypes.Contains(t);
 
+		public static bool IsNullable(Type t) => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(Nullable<>);
+
 		static Expression MakeSqlParameter(string name, Expression value) => 
 			Expression.New(SqlParameterCtor, Expression.Constant(name), Expression.Convert(value, typeof(object)));
+
+		static Expression MakeParameterFromNullable(string name, Expression value) =>
+				Expression.Condition(Expression.MakeMemberAccess(value, value.Type.GetProperty(nameof(Nullable<int>.HasValue))),
+					Expression.New(SqlParameterCtor, Expression.Constant(name), Expression.Convert(Expression.MakeMemberAccess(value, value.Type.GetProperty(nameof(Nullable<int>.Value))), typeof(object))), 
+					Expression.MemberInit(
+						Expression.New(SqlEmptyCtor, Expression.Constant(name), Expression.Constant(DataBossDbType.ToSqlDbType(value.Type.GetGenericArguments().Single()))),
+						Expression.Bind(typeof(SqlParameter).GetProperty(nameof(SqlParameter.Value)), Expression.Constant(DBNull.Value))
+					));
 
 		public static SqlParameter[] Invoke<T>(T input) => Extractor<T>.GetParameters(input);
 

@@ -3,6 +3,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Reflection;
 using DataBoss.Core;
+using System.Data;
 
 namespace DataBoss
 {
@@ -48,6 +49,20 @@ namespace DataBoss
 				default:
 					throw new NotSupportedException("Don't know how to map " + type.FullName + " to a db type.\nTry providing a TypeName using System.ComponentModel.DataAnnotations.Schema.ColumnAttribute.");
 			}
+		}
+
+		internal static SqlDbType ToSqlDbType(Type type) {
+			switch(type.FullName) {
+				case "System.Byte": return SqlDbType.TinyInt;
+				case "System.Int16": return SqlDbType.SmallInt;
+				case "System.Int32": return SqlDbType.Int;
+				case "System.Int64": return SqlDbType.BigInt;
+				case "System.Single": return SqlDbType.Real;;
+				case "System.Double": return SqlDbType.Float;
+				case "System.Boolean": return SqlDbType.Bit;
+				case "System.DateTime": return SqlDbType.DateTime;
+			}
+			return SqlDbType.NVarChar;
 		}
 
 		public static bool operator==(DataBossDbType a, DataBossDbType b) =>

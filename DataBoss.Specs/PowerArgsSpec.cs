@@ -45,6 +45,16 @@ namespace DataBoss.Specs
 				args => args.Commands[1] == "World");
 		}
 
+		public void captures_numbers_as_options()
+		{
+			Check.With(() => PowerArgs.Parse("-Foo", "Bar", "1", "-1"))
+			.That(
+				args => args.Commands.Count == 2,
+				args => args.Commands[0] == "1",
+				args => args.Commands[1] == "-1");
+
+		}
+
 		public void can_TryGetArg() {
 			var args = PowerArgs.Parse("-Foo", "Bar");
 			string value;
