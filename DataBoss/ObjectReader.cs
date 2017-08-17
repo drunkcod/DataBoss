@@ -137,7 +137,7 @@ namespace DataBoss
 					Type baseType = null;
 					if(field.FieldType != itemType && !(IsNullable(itemType, ref baseType) && baseType == field.FieldType))
 						throw new InvalidOperationException($"Can't read '{itemName}' of type {itemType.Name} given {field.FieldType.Name}");
-					found = new KeyValuePair<int, Expression>(field.Ordinal, ReadField(itemType, field.Ordinal));
+					found = new KeyValuePair<int, Expression>(field.Ordinal, ReadField(field, itemType));
 					return true;
 				}
 
@@ -151,16 +151,16 @@ namespace DataBoss
 				return false;
 			}
 
-			Expression ReadField(Type fieldType, int ordinal) {
-				var recordType = fieldType;
-				var o = Expression.Constant(ordinal);
-				if (fieldType == typeof(string) || IsNullable(fieldType, ref recordType))
+			Expression ReadField(FieldMapItem field, Type itemType) {
+				var recordType = itemType;
+				var o = Expression.Constant(field.Ordinal);
+				if (itemType == typeof(string) || IsNullable(itemType, ref recordType))
 					return Expression.Condition(
 						Expression.Call(arg0, isDBNull, o),
-						Expression.Default(fieldType),
-						ReadFieldAs(recordType, o, fieldType));
+						Expression.Default(itemType),
+						ReadFieldAs(recordType, o, itemType));
 
-				return ReadFieldAs(fieldType, o, fieldType);
+				return ReadFieldAs(field.FieldType, o, itemType);
 			}
 
 			Expression ReadFieldAs(Type fieldType, Expression ordinal, Type targetType) => 
