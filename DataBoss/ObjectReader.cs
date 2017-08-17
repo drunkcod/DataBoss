@@ -140,7 +140,9 @@ namespace DataBoss
 					Func<Expression,Type, Expression> conversion;
 					if(!TryGetConverter(field.FieldType, itemType, out conversion))
 						throw new InvalidOperationException($"Can't read '{itemName}' of type {itemType.Name} given {field.FieldType.Name}");
-					found = new KeyValuePair<int, Expression>(field.Ordinal, ReadField(field, itemType, conversion));
+					var o = Expression.Constant(field.Ordinal);
+					var readIt = conversion(ReadField(field.FieldType, o), itemType);
+					found = new KeyValuePair<int, Expression>(field.Ordinal, ReadField(field, o, itemType, readIt));
 					return true;
 				}
 
@@ -160,6 +162,7 @@ namespace DataBoss
 					converter = Convert;
 					return true;
 				}
+
 				var customConversion = customConversions?.FirstOrDefault(x => x.Item1 == from && x.Item2 == to);
 				if(customConversion != null) {
 					converter = (x, _) => Expression.Invoke(Expression.Constant(customConversion.Item3), x);
@@ -169,25 +172,18 @@ namespace DataBoss
 				return false;
 			}
 
-			Expression ReadField(FieldMapItem field, Type itemType, Func<Expression, Type, Expression> convertField) {
+			Expression ReadField(FieldMapItem field, Expression o, Type itemType, Expression readIt) {
 				var recordType = itemType;
-				var o = Expression.Constant(field.Ordinal);
-				if (itemType == typeof(string)) 
-					return Expression.Condition(
-						Expression.Call(arg0, isDBNull, o),
-						Expression.Default(typeof(string)),
-						ReadFieldAs(field.FieldType, o, itemType, convertField));					
-				else if(IsNullable(itemType, ref recordType))
+				if(itemType == typeof(string) || IsNullable(itemType, ref recordType))
 					return Expression.Condition(
 						Expression.Call(arg0, isDBNull, o),
 						Expression.Default(itemType),
-						ReadFieldAs(recordType, o, itemType, convertField));
-
-				return ReadFieldAs(field.FieldType, o, itemType, convertField);
+						readIt);
+				return readIt;
 			}
 
-			Expression ReadFieldAs(Type fieldType, Expression ordinal, Type targetType, Func<Expression, Type, Expression> convertField) => 
-				convertField(Expression.Call(arg0, GetGetMethod(fieldType), ordinal), targetType);
+			Expression ReadField(Type fieldType, Expression ordinal) => 
+				Expression.Call(arg0, GetGetMethod(fieldType), ordinal);
 
 			MethodInfo GetGetMethod(Type fieldType) {
 				var getterName = "Get" + MapFieldType(fieldType);
