@@ -175,8 +175,9 @@ namespace DataBoss.Specs
 		public void custom_converter() {
 			var expected = new ValueProp<int> { Value = 42 };
 			var source = new SimpleDataReader(Col<int>("Value")) { expected.Value };
-			var reader = ObjectReader.For(source);
-			reader.AddConverter((int x) => x.ToString());
+			var reader = ObjectReader
+				.For(source)
+				.WithConverter((int x) => x.ToString());
 			Check
 				.With(() => reader.Read<ValueProp<string>>().ToArray())
 				.That(x => x[0].Value == "42");

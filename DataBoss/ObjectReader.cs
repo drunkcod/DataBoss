@@ -242,8 +242,10 @@ namespace DataBoss
 
 		public Func<TReader, T> GetConverter<T>() => ObjectReader.GetConverter<TReader, T>(reader, customConversions);
 
-		public void AddConverter<TFrom, TTo>(Func<TFrom, TTo> convert) =>
+		public ObjectReader<TReader> WithConverter<TFrom, TTo>(Func<TFrom, TTo> convert) {
 			(customConversions ?? (customConversions = new List<Tuple<Type, Type, Delegate>>())).Add(Tuple.Create(typeof(TFrom), typeof(TTo), (Delegate)convert));
+			return this;
+		}
 
 		public IEnumerable<T> Read<T>() {
 			var converter = GetConverter<T>();
