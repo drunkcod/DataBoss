@@ -2,28 +2,27 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data;
-using Cone.Core;
 
 namespace DataBoss.Specs
 {
 	class SimpleDataReader : IDataReader, IEnumerable<object[]>
 	{
-		readonly string[] names;			
+		readonly KeyValuePair<string, Type>[] fields;			
 		readonly List<object[]> records = new List<object[]>();
 		int currentRecord;
 
-		public SimpleDataReader(params string[] names) {
-			this.names = names;
+		public SimpleDataReader(params KeyValuePair<string, Type>[] fields) {
+			this.fields = fields;
 		}
 
 		public void Add(params object[] record) {
-			if(record.Length != names.Length)
+			if(record.Length != fields.Length)
 				throw new InvalidOperationException("Invalid record length");
 			records.Add(record);
 		}
 
 		public int Count => records.Count;
-		public int FieldCount => names.Length;
+		public int FieldCount => fields.Length;
 
 		public bool Read() {
 			if(currentRecord == records.Count)
@@ -31,15 +30,15 @@ namespace DataBoss.Specs
 			++currentRecord;
 			return true;
 		}
-		public string GetName(int i) { return names[i]; }
-		public object GetValue(int i) { return records[currentRecord - 1][i]; }
+		public string GetName(int i) => fields[i].Key;
+		public Type GetFieldType(int i) => fields[i].Value;
+		public object GetValue(int i) => records[currentRecord - 1][i];
 
 		public void Dispose() { }
 
 		public string GetDataTypeName(int i) { throw new NotImplementedException(); }
-		public Type GetFieldType(int i) { throw new NotImplementedException(); }
 		public int GetValues(object[] values) { throw new NotImplementedException(); }
-		public int GetOrdinal(string name) => names.IndexOf(name);
+		public int GetOrdinal(string name) => Array.FindIndex(fields, x => x.Key == name);
 	
 		public long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) { throw new NotImplementedException(); }
 		public long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) { throw new NotImplementedException(); }

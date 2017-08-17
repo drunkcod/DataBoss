@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -12,32 +12,46 @@ namespace DataBoss
 		public static ObjectReader<TReader> For<TReader>(TReader reader) where TReader : IDataReader =>
 			new ObjectReader<TReader>(reader);
 
+		struct FieldMapItem
+		{
+			public readonly int Ordinal;
+			public readonly Type FieldType;
+
+			public FieldMapItem(int ordinal, Type fieldType) {
+				this.Ordinal = ordinal;
+				this.FieldType = fieldType;
+			}
+
+			public override string ToString() => $"({Ordinal}, {FieldType.FullName})";
+		}
 		class FieldMap
 		{
-			readonly Dictionary<string, int> fields = new Dictionary<string, int>();
+			readonly Dictionary<string, FieldMapItem> fields = new Dictionary<string, FieldMapItem>();
 			Dictionary<string, FieldMap> subFields;
 
 			public static FieldMap Create(IDataRecord reader) {
 				var fieldMap = new FieldMap();
 				for(var i = 0; i != reader.FieldCount; ++i)
-					fieldMap.Add(reader.GetName(i), i);
+					fieldMap.Add(reader.GetName(i), i, reader.GetFieldType(i));
 				return fieldMap;
 			}
 
-			public int MinOrdinal => fields.Count == 0 ? -1 : fields.Min(x => x.Value);
+			public int MinOrdinal => fields.Count == 0 ? -1 : fields.Min(x => x.Value.Ordinal);
 
-			public void Add(string name, int ordinal) {
+			public void Add(string name, int ordinal, Type fieldType) {
 				if(name.Contains('.')) {
 					var parts = name.Split('.');
 					var x = this;
 					for(var n = 0; n != parts.Length - 1; ++n)
 						x = x[parts[n]];
-					x.Add(parts[parts.Length - 1], ordinal);
+					x.Add(parts[parts.Length - 1], ordinal, fieldType);
 				}
-				else fields[name] = ordinal;
+				else fields.Add(name, new FieldMapItem(ordinal, fieldType));
 			}
 
-			public bool TryGetOrdinal(string key, out int ordinal) => fields.TryGetValue(key, out ordinal);
+			public bool TryGetOrdinal(string key, out FieldMapItem item) =>
+				fields.TryGetValue(key, out item);
+
 			public bool TryGetSubMap(string key, out FieldMap subMap) {
 				if(subFields != null && subFields.TryGetValue(key, out subMap))
 					return true;
@@ -118,9 +132,12 @@ namespace DataBoss
 			}
 
 			bool TryReadOrInit(FieldMap map, Type itemType, string itemName, out KeyValuePair<int, Expression> found) {
-				int ordinal;
-				if(map.TryGetOrdinal(itemName, out ordinal)) {
-					found = new KeyValuePair<int, Expression>(ordinal, ReadField(itemType, ordinal));
+				FieldMapItem field;
+				if(map.TryGetOrdinal(itemName, out field)) {
+					Type baseType = null;
+					if(field.FieldType != itemType && !(IsNullable(itemType, ref baseType) && baseType == field.FieldType))
+						throw new InvalidOperationException($"Can't read '{itemName}' of type {itemType.Name} given {field.FieldType.Name}");
+					found = new KeyValuePair<int, Expression>(field.Ordinal, ReadField(itemType, field.Ordinal));
 					return true;
 				}
 
