@@ -24,6 +24,7 @@ namespace DataBoss
 
 			public override string ToString() => $"({Ordinal}, {FieldType.FullName})";
 		}
+
 		class FieldMap
 		{
 			readonly Dictionary<string, FieldMapItem> fields = new Dictionary<string, FieldMapItem>();
@@ -72,10 +73,12 @@ namespace DataBoss
 		{
 			readonly ParameterExpression arg0;
 			readonly MethodInfo isDBNull;
+			readonly List<Tuple<Type, Type, Delegate>> customConversions;
 
-			public ConverterFactory(Type reader) {
+			public ConverterFactory(Type reader, List<Tuple<Type, Type, Delegate>> customConversions) {
 				this.arg0 = Expression.Parameter(reader, "x");
 				this.isDBNull = reader.GetMethod(nameof(IDataRecord.IsDBNull)) ?? typeof(IDataRecord).GetMethod(nameof(IDataRecord.IsDBNull));
+				this.customConversions = customConversions;
 			}
 
 			public LambdaExpression Converter(FieldMap map, Type result) =>
@@ -135,7 +138,7 @@ namespace DataBoss
 				FieldMapItem field;
 				if(map.TryGetOrdinal(itemName, out field)) {
 					Type baseType = null;
-					if(field.FieldType != itemType && !(IsNullable(itemType, ref baseType) && baseType == field.FieldType))
+					if(!CanConvert(field.FieldType, itemType))
 						throw new InvalidOperationException($"Can't read '{itemName}' of type {itemType.Name} given {field.FieldType.Name}");
 					found = new KeyValuePair<int, Expression>(field.Ordinal, ReadField(field, itemType));
 					return true;
@@ -149,6 +152,12 @@ namespace DataBoss
 
 				found = default(KeyValuePair<int, Expression>);
 				return false;
+			}
+
+			bool CanConvert(Type from, Type to) {
+				Type baseType = null;
+				return from == to
+				|| (IsNullable(to, ref baseType) && baseType == from);
 			}
 
 			Expression ReadField(FieldMapItem field, Type itemType) {
@@ -195,21 +204,32 @@ namespace DataBoss
 			}
 		}
 
-		public static Func<TReader, T> GetConverter<TReader, T>(TReader reader) where TReader : IDataReader => 
-			MakeConverter<TReader, T>(reader).Compile();
+		public static Func<TReader, T> GetConverter<TReader, T>(TReader reader, List<Tuple<Type, Type, Delegate>> customConversions) where TReader : IDataReader => 
+			MakeConverter<TReader, T>(reader, customConversions).Compile();
 
 		public static Expression<Func<TReader, T>> MakeConverter<TReader, T>(TReader reader) where TReader : IDataReader =>
-			(Expression<Func<TReader, T>>)new ConverterFactory(typeof(TReader)).Converter(FieldMap.Create(reader), typeof(T));
+			MakeConverter<TReader, T>(reader, new List<Tuple<Type, Type, Delegate>>());
+
+		public static Expression<Func<TReader, T>> MakeConverter<TReader, T>(TReader reader, List<Tuple<Type, Type, Delegate>> customConversions) where TReader : IDataReader =>
+			(Expression<Func<TReader, T>>)new ConverterFactory(typeof(TReader), customConversions).Converter(FieldMap.Create(reader), typeof(T));
 	}
 
 	public struct ObjectReader<TReader> : IDisposable where TReader : IDataReader
 	{
 		readonly TReader reader;
-		public ObjectReader(TReader reader) { this.reader = reader; }
+		List<Tuple<Type, Type, Delegate>> customConversions;
+
+		public ObjectReader(TReader reader) { 
+			this.reader = reader; 
+			this.customConversions = null;
+		}
 
 		void IDisposable.Dispose() => reader.Dispose();
 
-		public Func<TReader, T> GetConverter<T>() => ObjectReader.GetConverter<TReader, T>(reader);
+		public Func<TReader, T> GetConverter<T>() => ObjectReader.GetConverter<TReader, T>(reader, customConversions);
+
+		public void AddConverter<TFrom, TTo>(Func<TFrom, TTo> convert) =>
+			(customConversions ?? (customConversions = new List<Tuple<Type, Type, Delegate>>())).Add(Tuple.Create(typeof(TFrom), typeof(TTo), (Delegate)convert));
 
 		public IEnumerable<T> Read<T>() {
 			var converter = GetConverter<T>();

@@ -171,5 +171,15 @@ namespace DataBoss.Specs
 			var source = new SimpleDataReader(Col<float>("Value")) { expected.Value };
 			Check.Exception<InvalidOperationException>(() => ObjectReader.For(source).Read<ValueProp<int>>().Count());
 		}
+
+		public void custom_converter() {
+			var expected = new ValueProp<int> { Value = 42 };
+			var source = new SimpleDataReader(Col<int>("Value")) { expected.Value };
+			var reader = ObjectReader.For(source);
+			reader.AddConverter((int x) => x.ToString());
+			Check
+				.With(() => reader.Read<ValueProp<string>>().ToArray())
+				.That(x => x[0].Value == "42");
+		}
 	}
 }
