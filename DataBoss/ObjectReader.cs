@@ -137,10 +137,10 @@ namespace DataBoss
 			bool TryReadOrInit(FieldMap map, Type itemType, string itemName, out KeyValuePair<int, Expression> found) {
 				FieldMapItem field;
 				if(map.TryGetOrdinal(itemName, out field)) {
-					Type baseType = null;
-					if(!CanConvert(field.FieldType, itemType))
+					Func<Expression,Type, Expression> conversion;
+					if(!TryGetConverter(field.FieldType, itemType, out conversion))
 						throw new InvalidOperationException($"Can't read '{itemName}' of type {itemType.Name} given {field.FieldType.Name}");
-					found = new KeyValuePair<int, Expression>(field.Ordinal, ReadField(field, itemType));
+					found = new KeyValuePair<int, Expression>(field.Ordinal, ReadField(field, itemType, conversion));
 					return true;
 				}
 
@@ -154,26 +154,40 @@ namespace DataBoss
 				return false;
 			}
 
-			bool CanConvert(Type from, Type to) {
+			bool TryGetConverter(Type from, Type to, out Func<Expression, Type, Expression> converter) {
 				Type baseType = null;
-				return from == to
-				|| (IsNullable(to, ref baseType) && baseType == from);
+				if(from == to || (IsNullable(to, ref baseType) && baseType == from)) {
+					converter = Convert;
+					return true;
+				}
+				var customConversion = customConversions?.FirstOrDefault(x => x.Item1 == from && x.Item2 == to);
+				if(customConversion != null) {
+					converter = (x, _) => Expression.Invoke(Expression.Constant(customConversion.Item3), x);
+					return true;
+				}
+				converter = null;
+				return false;
 			}
 
-			Expression ReadField(FieldMapItem field, Type itemType) {
+			Expression ReadField(FieldMapItem field, Type itemType, Func<Expression, Type, Expression> convertField) {
 				var recordType = itemType;
 				var o = Expression.Constant(field.Ordinal);
-				if (itemType == typeof(string) || IsNullable(itemType, ref recordType))
+				if (itemType == typeof(string)) 
+					return Expression.Condition(
+						Expression.Call(arg0, isDBNull, o),
+						Expression.Default(typeof(string)),
+						ReadFieldAs(field.FieldType, o, itemType, convertField));					
+				else if(IsNullable(itemType, ref recordType))
 					return Expression.Condition(
 						Expression.Call(arg0, isDBNull, o),
 						Expression.Default(itemType),
-						ReadFieldAs(recordType, o, itemType));
+						ReadFieldAs(recordType, o, itemType, convertField));
 
-				return ReadFieldAs(field.FieldType, o, itemType);
+				return ReadFieldAs(field.FieldType, o, itemType, convertField);
 			}
 
-			Expression ReadFieldAs(Type fieldType, Expression ordinal, Type targetType) => 
-				Convert(Expression.Call(arg0, GetGetMethod(fieldType), ordinal), targetType);
+			Expression ReadFieldAs(Type fieldType, Expression ordinal, Type targetType, Func<Expression, Type, Expression> convertField) => 
+				convertField(Expression.Call(arg0, GetGetMethod(fieldType), ordinal), targetType);
 
 			MethodInfo GetGetMethod(Type fieldType) {
 				var getterName = "Get" + MapFieldType(fieldType);
@@ -208,7 +222,7 @@ namespace DataBoss
 			MakeConverter<TReader, T>(reader, customConversions).Compile();
 
 		public static Expression<Func<TReader, T>> MakeConverter<TReader, T>(TReader reader) where TReader : IDataReader =>
-			MakeConverter<TReader, T>(reader, new List<Tuple<Type, Type, Delegate>>());
+			MakeConverter<TReader, T>(reader, null);
 
 		public static Expression<Func<TReader, T>> MakeConverter<TReader, T>(TReader reader, List<Tuple<Type, Type, Delegate>> customConversions) where TReader : IDataReader =>
 			(Expression<Func<TReader, T>>)new ConverterFactory(typeof(TReader), customConversions).Converter(FieldMap.Create(reader), typeof(T));
