@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -160,6 +160,15 @@ namespace DataBoss
 			if(targetType == typeof(string)) {
 				result = input;
 				return true;
+			}
+			if(targetType.IsEnum) {
+				try {
+					result = Enum.Parse(targetType, input);
+					return true;
+				} catch {
+					result = null;
+					return false;
+				}
 			}
 			var hasParse = targetType.GetMethod("Parse", new []{ typeof(string) } );
 			if(hasParse != null) {

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
@@ -149,5 +149,30 @@ namespace DataBoss.Specs
 				() => args.Count == 1,
 				() => args["Value"] == "-1");
 		}
+
+		enum MyEnum
+		{
+			Nothing,
+			Something
+		}
+
+		class MyArgsWithEnum
+		{
+			public MyEnum A;
+			public MyEnum B;
+			[DefaultValue(MyEnum.Something)]
+			public MyEnum C;
+			public MyEnum FromInt;
+		}
+
+		public void enums() => Check
+			.With(() => PowerArgs.Parse("-A", "Nothing", "-B", "Something", "-FromInt", $"{(int)MyEnum.Something}"))
+			.That(
+				args => args.Count == 3,
+				args => args.Into<MyArgsWithEnum>().A == MyEnum.Nothing,
+				args => args.Into<MyArgsWithEnum>().B == MyEnum.Something,
+				args => args.Into<MyArgsWithEnum>().C == MyEnum.Something,
+				args => args.Into<MyArgsWithEnum>().FromInt == MyEnum.Something
+			);
 	}
 }
