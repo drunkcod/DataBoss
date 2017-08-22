@@ -157,27 +157,38 @@ namespace DataBoss
 			}
 
 			bool TryConvertField(Expression rawField, Type to, out Expression convertedField) {
-				Type baseType = null;
-				var from = rawField.Type;
-				if(from == to) { 
-					convertedField = rawField;
-					return true;
-				}
-
-				if((IsNullable(to, ref baseType) && baseType == from) || (from == typeof(object) && to == typeof(byte[]))) {
-					convertedField = Expression.Convert(rawField, to);
-					return true;
-				}
-
-				var customConversion = customConversions?.FirstOrDefault(x => x.Item1 == from && x.Item2 == to);
-				if(customConversion != null) {
-					convertedField = Expression.Invoke(Expression.Constant(customConversion.Item3), rawField);
-					return true;
-				}
-
-				convertedField = null;
-				return false;
+				convertedField = GetConversionOrDefault(rawField, to, null);
+				return convertedField != null;
 			}
+
+			Expression GetConversionOrDefault(Expression rawField, Type to, Expression defalt) {
+				var from = rawField.Type;
+				if(from == to) 
+					return rawField;
+
+				Type baseType = null;
+				if(IsNullable(to, ref baseType)) {
+					if((baseType == from))
+						return Expression.Convert(rawField, to);
+					 else {
+						var customNullabeConversion = GetConverterOrDefault(from, baseType);
+						if(customNullabeConversion != null)
+							return Expression.Convert(Expression.Invoke(Expression.Constant(customNullabeConversion), rawField), to);
+					}
+				}
+
+				if(from == typeof(object) && to == typeof(byte[]))
+					return Expression.Convert(rawField, to);
+
+				var customConversion = GetConverterOrDefault(from, to);
+				if(customConversion != null) 
+					return Expression.Invoke(Expression.Constant(customConversion), rawField);
+				
+				return defalt;
+			}
+
+			Delegate GetConverterOrDefault(Type from, Type to) =>
+				customConversions?.FirstOrDefault(x => x.Item1 == from && x.Item2 == to)?.Item3;
 
 			Expression DbNullToDefault(Expression o, Type itemType, Expression readIt) {
 				var recordType = itemType;

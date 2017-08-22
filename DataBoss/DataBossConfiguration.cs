@@ -1,10 +1,11 @@
-﻿using System;
+using DataBoss.Core;
+using DataBoss.Migrations;
+using System;
 using System.Collections.Generic;
+using System.Data.SqlClient;
 using System.IO;
 using System.Linq;
 using System.Xml.Serialization;
-using DataBoss.Migrations;
-using System.Data.SqlClient;
 
 namespace DataBoss
 {
@@ -52,7 +53,7 @@ namespace DataBoss
 			var xml = new XmlSerializer(typeof(DataBossConfiguration));
 			var config = (DataBossConfiguration)xml.Deserialize(input);
 
-			config.Migrations = Array.ConvertAll(config.Migrations, x => new DataBossMigrationPath {
+			config.Migrations = config.Migrations.ConvertAll(x => new DataBossMigrationPath {
 				Context = x.Context,
 				Path = Path.Combine(roothPath, x.Path)
 			});
