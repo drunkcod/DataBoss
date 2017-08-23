@@ -192,7 +192,6 @@ namespace DataBoss.Specs
 			Check
 				.With(() => reader.Read<ValueProp<long?>>().ToArray())
 				.That(x => x[0].Value == 12345);
-
 		}
 	}
 }
