@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
@@ -52,6 +52,13 @@ namespace DataBoss.Data
 			Map(name, typeof(TField),
 				DataBossDbType.ToDbType(typeof(TField), NullAttributeProvider.Instance), 
 				Expression.Invoke(Expression.Constant(selector), source));
+
+		public int Map(string name, LambdaExpression selector) {
+			if(selector.Parameters.Single().Type != typeof(T))
+				throw new InvalidOperationException($"Wrong paramter type, expecte {typeof(T)}");
+			return Map(name, selector.ReturnType, DataBossDbType.ToDbType(selector.ReturnType, NullAttributeProvider.Instance), 
+				Expression.Invoke(selector, source));
+		}
 
 		int Map(string name, Type type, DataBossDbType dbType, Expression selector) {
 			var ordinal = mappings.Count;
