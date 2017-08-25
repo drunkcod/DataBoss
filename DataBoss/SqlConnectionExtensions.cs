@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
@@ -45,6 +45,15 @@ namespace DataBoss
 		public static int ExecuteNonQuery<T>(this SqlConnection connection, string cmdText, T args) {
 			using(var q = CreateCommand(connection, cmdText, args))
 				return q.ExecuteNonQuery();
+		}
+
+		public static void Into<T>(this SqlConnection connection, string destinationTable, IEnumerable<T> rows) =>
+			Into(connection, destinationTable, SequenceDataReader.Create(rows, x => x.MapAll()));
+
+		public static void Into(this SqlConnection connection, string destinationTable, IDataReader toInsert) {
+			var scripter = new DataBossScripter();
+			connection.ExecuteNonQuery(scripter.ScriptTable(destinationTable, toInsert));
+			connection.Insert(destinationTable, toInsert);
 		}
 
 		public static void Insert<T>(this SqlConnection connection, string destinationTable, IEnumerable<T> rows) =>
