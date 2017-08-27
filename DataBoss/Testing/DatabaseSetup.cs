@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Data.SqlClient;
 
@@ -7,7 +7,7 @@ namespace DataBoss.Testing
 	public static class DatabaseSetup
 	{
 		public static Func<string,string> FormatInstanceName = x => $"💣 {x}";
-		public static string ServerConnectionString = "Server=.;Integrated Security=SSPI";
+		public static string ServerConnectionString = "Integrated Security=SSPI";
 
 		static readonly ConcurrentDictionary<string, SqlConnectionStringBuilder> DatabaseInstances = new ConcurrentDictionary<string, SqlConnectionStringBuilder>();
 
