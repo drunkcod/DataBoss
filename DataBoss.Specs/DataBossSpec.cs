@@ -1,7 +1,8 @@
-﻿using Cone;
+using Cone;
 using DataBoss.Migrations;
 using DataBoss.Schema;
 using DataBoss.SqlServer;
+using DataBoss.Testing;
 using System;
 using System.Data.Linq;
 using System.Data.SqlClient;
@@ -12,17 +13,24 @@ namespace DataBoss.Specs
 	[Feature("DataBoss")]
 	public class DataBossSpec
 	{
+		string DatabaseName;
 		SqlConnection Connection;
 		DataBossShellExecute ShellExecute;
 		string ShellExecuteOutput;
 		DataBoss DataBoss;
 		DataContext Context;
 
+		[BeforeAll]
+		public void EnsureTestInstance() {
+			DatabaseName = DatabaseSetup.GetTemporaryInstance("DataBoss Tests").InitialCatalog;
+			DatabaseSetup.RegisterForAutoCleanup();
+		}
+
 		[BeforeEach]
 		public void BeforeEach() {
 			var config = new DataBossConfiguration {
 				ServerInstance = ".",
-				Database = "DataBoss Tests",
+				Database = DatabaseName,
 			};
 			Connection = new SqlConnection(config.GetConnectionString());
 			Connection.Open();
