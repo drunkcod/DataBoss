@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
@@ -72,7 +72,10 @@ namespace DataBoss
 		}
 
 		SqlBulkCopy NewBulkCopy(string destinationTable) {
-			var bulkCopy = new SqlBulkCopy(Connection, SqlBulkCopyOptions.TableLock, Transaction) { DestinationTableName = destinationTable };
+			var bulkCopy = new SqlBulkCopy(Connection, SqlBulkCopyOptions.TableLock, Transaction) { 
+				DestinationTableName = destinationTable,
+				EnableStreaming = true,
+			};
 			if(CommandTimeout.HasValue)
 				bulkCopy.BulkCopyTimeout = CommandTimeout.Value;
 			return bulkCopy;
