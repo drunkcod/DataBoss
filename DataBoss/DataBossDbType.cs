@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Reflection;
@@ -21,9 +21,9 @@ namespace DataBoss
 
 		public static DataBossDbType ToDbType(Type type, ICustomAttributeProvider attributes) {
 			var canBeNull = !type.IsValueType && !attributes.Any<RequiredAttribute>();
-			if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>)) {
+			if (type.TryGetNullableTargetType(out var newTargetType)) {
 				canBeNull = true;
-				type = type.GenericTypeArguments[0];
+				type = newTargetType;
 			}
 			return MapType(type, attributes, canBeNull);
 		}

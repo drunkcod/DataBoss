@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Reflection;
@@ -99,26 +99,24 @@ namespace DataBoss.Data
 		//SqlBulkCopy.EnableStreaming requires this
 		public bool IsDBNull(int i) => GetValue(i) is DBNull;
 
-		#region Here Be Dragons (not implemented / supported)
 		int IDataReader.Depth { get { throw new NotSupportedException(); } }
 		bool IDataReader.IsClosed { get { throw new NotSupportedException(); } }
 		int IDataReader.RecordsAffected { get { throw new NotSupportedException(); } }
 
-		public bool GetBoolean(int i) { throw new NotImplementedException(); }
-		public byte GetByte(int i) { throw new NotImplementedException(); }
+		public bool GetBoolean(int i) => (bool)GetValue(i);
+		public byte GetByte(int i) => (byte)GetValue(i);
 		public long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) { throw new NotImplementedException(); }
-		public char GetChar(int i) { throw new NotImplementedException(); }
+		public char GetChar(int i) => (char)GetValue(i);
 		public long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) { throw new NotImplementedException(); }
-		public Guid GetGuid(int i) { throw new NotImplementedException(); }
-		public short GetInt16(int i) { throw new NotImplementedException(); }
-		public int GetInt32(int i) { throw new NotImplementedException(); }
-		public long GetInt64(int i) { throw new NotImplementedException(); }
-		public float GetFloat(int i) { throw new NotImplementedException(); }
-		public double GetDouble(int i) { throw new NotImplementedException(); }
-		public string GetString(int i) { throw new NotImplementedException(); }
-		public decimal GetDecimal(int i) { throw new NotImplementedException(); }
-		public DateTime GetDateTime(int i) { throw new NotImplementedException(); }
+		public Guid GetGuid(int i) => (Guid)GetValue(i);
+		public short GetInt16(int i) => (short)GetValue(i);
+		public int GetInt32(int i) => (int)GetValue(i);
+		public long GetInt64(int i) => (long)GetValue(i);
+		public float GetFloat(int i) => (float)GetValue(i);
+		public double GetDouble(int i) => (double)GetValue(i);
+		public string GetString(int i) => (string)GetValue(i);
+		public decimal GetDecimal(int i) => (decimal)GetValue(i);
+		public DateTime GetDateTime(int i) => (DateTime)GetValue(i);
 		public IDataReader GetData(int i) { throw new NotImplementedException(); }
-	#endregion
 	}
 }

@@ -99,6 +99,7 @@
     <Compile Include="SqlServer\SysObjects.cs" />
     <Compile Include="Testing\DatabaseSetup.cs" />
     <Compile Include="ToParams.cs" />
+    <Compile Include="TypeExtensions.cs" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Usage.txt">

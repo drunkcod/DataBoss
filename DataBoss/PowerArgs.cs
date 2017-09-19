@@ -181,9 +181,8 @@ namespace DataBoss
 					return false;
 				}
 			}
-			if(targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(Nullable<>)) {
+			if(targetType.TryGetNullableTargetType(out var t)) {
 				object inner;
-				var t = targetType.GetGenericArguments()[0];
 				if(TryParse(input, t, out inner)) {
 					result = targetType.GetConstructor(new[] { t }).Invoke(new[] { inner });
 					return true;

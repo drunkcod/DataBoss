@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
@@ -49,7 +49,7 @@ namespace DataBoss
 				var readMember = Expression.MakeMemberAccess(input, value);
 				if(HasSqlTypeMapping(readMember.Type))
 					yield return MakeSqlParameter(name, readMember);
-				else if(IsNullable(readMember.Type)) 
+				else if(readMember.Type.IsNullable()) 
 					yield return MakeParameterFromNullable(name, readMember);
 				else
 					foreach(var item in ExtractValues(readMember.Type, name + "_", readMember))
@@ -58,8 +58,6 @@ namespace DataBoss
 		}
 
 		public static bool HasSqlTypeMapping(Type t) => t.IsPrimitive || mappedTypes.Contains(t);
-
-		public static bool IsNullable(Type t) => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(Nullable<>);
 
 		static Expression MakeSqlParameter(string name, Expression value) => 
 			Expression.New(SqlParameterCtor, Expression.Constant(name), Expression.Convert(value, typeof(object)));

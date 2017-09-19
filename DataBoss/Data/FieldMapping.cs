@@ -79,6 +79,10 @@ namespace DataBoss.Data
 
 		int Map(string name, Type type, DataBossDbType dbType, Expression selector) {
 			var ordinal = mappings.Count;
+			if(type.TryGetNullableTargetType(out var newTargetType)) {
+				type = newTargetType;
+				selector = Expression.Coalesce(selector.Box(), Expression.Constant(DBNull.Value));
+			}
 			mappings.Add(new FieldMappingItem {
 				Name = name,
 				FieldType = type,

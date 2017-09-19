@@ -213,9 +213,9 @@ namespace DataBoss
 			}
 
 			static bool IsNullable(Type fieldType, ref Type recordType) {
-				var isNullable = fieldType.IsGenericType && fieldType.GetGenericTypeDefinition() == typeof(Nullable<>);
+				var isNullable = fieldType.TryGetNullableTargetType(out var newRecordType);
 				if(isNullable)
-					recordType = fieldType.GetGenericArguments()[0];
+					recordType = newRecordType;
 				return isNullable;
 			}
 
