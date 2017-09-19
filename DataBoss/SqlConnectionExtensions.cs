@@ -84,8 +84,8 @@ namespace DataBoss
 			var reader = new DbObjectReader(connection);
 			return reader.Single<DatabaseInfo>(@"
 				select 
-					ServerName = serverproperty('ServerName'),
-					ServerVersion = serverproperty('ProductVersion'),
+					ServerName = cast(serverproperty('ServerName') as nvarchar(max)),
+					ServerVersion = cast(serverproperty('ProductVersion') as nvarchar(max)),
 					DatabaseName = db.name,
 					DatabaseId = db.database_id,
 					CompatibilityLevel = db.compatibility_level

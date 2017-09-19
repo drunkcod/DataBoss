@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data.SqlClient;
@@ -9,6 +10,30 @@ namespace DataBoss.Data
 {
 	public class DataBossConnectionProvider
 	{
+		public struct ProviderStatistics : IEnumerable<KeyValuePair<string, long>>
+		{
+			readonly Dictionary<string, long> stats;
+
+			public ProviderStatistics(Dictionary<string, long> stats) {
+				this.stats = stats;
+			}
+
+			public long BytesReceived => GetOrDefault(nameof(BytesReceived));
+			public long ConnectionsCreated => GetOrDefault(nameof(ConnectionsCreated));
+			public long LiveConnections => GetOrDefault(nameof(LiveConnections));
+			public long SelectCount => GetOrDefault(nameof(SelectCount));
+			public long SelectRows => GetOrDefault(nameof(SelectRows));
+
+			public long this[string key] => stats[key];
+			public IEnumerator<KeyValuePair<string, long>> GetEnumerator() => stats.GetEnumerator();
+			IEnumerator IEnumerable.GetEnumerator() => stats.GetEnumerator();
+
+			long GetOrDefault(string key) {
+				stats.TryGetValue(key, out var value);
+				return value;
+			}
+		}
+
 		readonly string connectionString;
 		readonly ConcurrentDictionary<int, SqlConnection> connections = new ConcurrentDictionary<int, SqlConnection>();
 		readonly ConcurrentDictionary<string, long> accumulatedStats = new ConcurrentDictionary<string, long>();
@@ -44,8 +69,11 @@ namespace DataBoss.Data
 				item.StatisticsEnabled = value;
 		}
 
-		public Dictionary<string, long> RetreiveStatistics() {
-			var stats = new Dictionary<string, long>(accumulatedStats);
+		public ProviderStatistics RetrieveStatistics() {
+			var stats = new Dictionary<string, long>(accumulatedStats) {
+				{ nameof(ConnectionsCreated), ConnectionsCreated },
+				{ nameof(LiveConnections), LiveConnections },
+			};
 			var connectionStats = Array.ConvertAll(
 					connections.Values.ToArray(),
 					x => x.RetrieveStatistics());
@@ -57,7 +85,7 @@ namespace DataBoss.Data
 					stats[key] = found + (long)itemStats.Value;
 				}
 			}
-			return stats;
+			return new ProviderStatistics(stats);
 		}
 
 		public void ResetStatistics() { 

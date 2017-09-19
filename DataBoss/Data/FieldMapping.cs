@@ -56,8 +56,25 @@ namespace DataBoss.Data
 		public int Map(string name, LambdaExpression selector) {
 			if(selector.Parameters.Single().Type != typeof(T))
 				throw new InvalidOperationException($"Wrong paramter type, expecte {typeof(T)}");
-			return Map(name, selector.ReturnType, DataBossDbType.ToDbType(selector.ReturnType, NullAttributeProvider.Instance), 
-				Expression.Invoke(selector, source));
+			var replacer = new NodeReplacementVisitor();
+			replacer.AddReplacement(selector.Parameters[0], source);
+			return Map(name, 
+				selector.ReturnType, 
+				DataBossDbType.ToDbType(selector.ReturnType, NullAttributeProvider.Instance), 
+				replacer.Visit(selector.Body));
+		}
+
+		class NodeReplacementVisitor : ExpressionVisitor
+		{
+			readonly Dictionary<Expression, Expression> theReplacements = new Dictionary<Expression, Expression>();
+
+			public void AddReplacement(Expression a, Expression b) => theReplacements.Add(a, b);
+
+			public override Expression Visit(Expression node) {
+				if(theReplacements.TryGetValue(node, out var found))
+					return found;
+				return base.Visit(node);
+			}
 		}
 
 		int Map(string name, Type type, DataBossDbType dbType, Expression selector) {
@@ -78,7 +95,12 @@ namespace DataBoss.Data
 		public DataBossDbType[] GetDbTypes() => mappings.Select(x => x.DbType).ToArray();
 
 		public Action<T,object[]> GetAccessor() =>
+			GetAccessorExpression().Compile();
+
+		public Expression<Action<T,object[]>> GetAccessorExpression() =>
 			Expression.Lambda<Action<T,object[]>>(
-				Expression.Block(mappings.Select(x => x.Selector)), true, source, target).Compile();
+				mappings.Count == 1 
+				? mappings[0].Selector
+				: Expression.Block(mappings.Select(x => x.Selector)), true, source, target);
 	}
 }

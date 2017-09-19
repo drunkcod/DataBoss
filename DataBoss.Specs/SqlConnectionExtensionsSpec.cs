@@ -1,11 +1,8 @@
-﻿using Cone;
+using Cone;
 using DataBoss.Data;
-using System;
-using System.Collections.Generic;
+using DataBoss.Testing;
 using System.Data.SqlClient;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace DataBoss.Specs
 {
@@ -16,7 +13,7 @@ namespace DataBoss.Specs
 
 		[BeforeEach]
 		public void BeforeEach() { 
-			Connection = new SqlConnection(Testing.DatabaseSetup.GetTemporaryInstance("DataBoss").ToString());
+			Connection = new SqlConnection(DatabaseSetup.GetTemporaryInstance("DataBoss").ToString());
 			Connection.Open();
 		}
 
@@ -50,5 +47,9 @@ namespace DataBoss.Specs
 					zipped => zipped[1] == new { SequenceId = 2, Id = 2, Value = "Second" },
 					zipped => zipped[2] == new { SequenceId = 3, Id = 3, Value = "Third" });
 		}
+
+		public void db_info() => Check
+			.With(() => Connection.GetDatabaseInfo())
+			.That(db => db.DatabaseName == (string)Connection.ExecuteScalar("select db_name()"));
 	}
 }

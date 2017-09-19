@@ -32,7 +32,7 @@ namespace DataBoss.Data.Specs
 			using(var db = connections.NewConnection()) {
 				db.Open();
 				db.ExecuteScalar("select 42");
-				Check.With(() => connections.RetreiveStatistics())
+				Check.With(() => connections.RetrieveStatistics())
 					.That(stats => stats["SelectCount"] == 1);
 			}
 		}
@@ -47,8 +47,8 @@ namespace DataBoss.Data.Specs
 				db.Open();
 				db.ExecuteScalar("select 2");
 			}
-			Check.With(() => connections.RetreiveStatistics())
-				.That(stats => stats["SelectCount"] == 2);
+			Check.With(() => connections.RetrieveStatistics())
+				.That(stats => stats.SelectCount == 2);
 		}
 
 		public void reset_statistics() {
@@ -57,7 +57,7 @@ namespace DataBoss.Data.Specs
 				db.Open();
 				db.ExecuteScalar("select 3");
 				connections.ResetStatistics();
-				Check.With(() => connections.RetreiveStatistics())
+				Check.With(() => connections.RetrieveStatistics())
 					.That(stats => stats["SelectCount"] == 0);
 			}
 		}

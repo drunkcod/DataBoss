@@ -1,11 +1,7 @@
 using Cone;
-using DataBoss.Data;
 using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.Diagnostics;
 using System.Linq.Expressions;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace DataBoss.Data
 {
@@ -24,11 +20,19 @@ namespace DataBoss.Data
 
 		public void untyped_lambda_mapping() {
 			var fieldMapping = new FieldMapping<MyThing>();
-			fieldMapping.Map("Borken", MakeLambda((MyThing x) => x.Value));
+			fieldMapping.Map("LambdaValue", MakeLambda((MyThing x) => x.Value));
 			var accessor = fieldMapping.GetAccessor();
 			var result = new object[1];
 			accessor(new MyThing { Value = 1 }, result);
 			Check.That(() => (int)result[0] == 1);
+		}
+
+		public void lambdas_not_wrapped_uncessarily() {
+			var fieldMapping = new FieldMapping<MyThing>();
+			Func<MyThing, int> failToGetValue = x => { throw new InvalidOperationException(); };
+			fieldMapping.Map("Borken", MakeLambda<MyThing, int>(x => failToGetValue(x)));
+
+			Check.That(() => fieldMapping.GetAccessorExpression().Body.ToString().StartsWith("(target[0] = Convert(Invoke(value("));
 		}
 
 		LambdaExpression MakeLambda<TArg, TResult>(Expression<Func<TArg, TResult>> expr) => expr;
