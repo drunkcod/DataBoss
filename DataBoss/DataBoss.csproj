@@ -85,7 +85,7 @@
     <Compile Include="IDataBossLog.cs" />
     <Compile Include="IDataBossMigration.cs" />
     <Compile Include="IDataBossMigrationScope.cs" />
-    <Compile Include="MissinqLinq.cs" />
+    <Compile Include="Linq\MissinqLinq.cs" />
     <Compile Include="ObjectReader.cs" />
     <Compile Include="ObjectVisualizer.cs" />
     <Compile Include="PowerArgs.cs" />

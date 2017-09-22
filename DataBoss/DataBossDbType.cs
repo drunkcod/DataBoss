@@ -1,9 +1,9 @@
+using DataBoss.Linq;
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using System.Reflection;
-using DataBoss.Core;
 using System.Data;
+using System.Reflection;
 
 namespace DataBoss
 {

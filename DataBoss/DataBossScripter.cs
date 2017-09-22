@@ -1,4 +1,7 @@
-﻿using System;
+using DataBoss.Data;
+using DataBoss.Linq;
+using DataBoss.Schema;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -6,9 +9,6 @@ using System.Data;
 using System.Linq;
 using System.Reflection;
 using System.Text;
-using DataBoss.Core;
-using DataBoss.Data;
-using DataBoss.Schema;
 
 namespace DataBoss
 {

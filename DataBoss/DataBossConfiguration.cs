@@ -1,4 +1,4 @@
-using DataBoss.Core;
+using DataBoss.Linq;
 using DataBoss.Migrations;
 using System;
 using System.Collections.Generic;
