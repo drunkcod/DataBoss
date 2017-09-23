@@ -55,6 +55,19 @@ namespace DataBoss.Linq
 				yield return new ArrayGrouping<TKey, TElement>(acc.ToArray(), c);
 			}
 		}
+
+		public static void Consume<T>(this IEnumerable<T> items) {
+			using(var xs = items.GetEnumerator())
+				while(xs.MoveNext())
+					;
+		}
+
+		public static IEnumerable<T> Inspect<T>(this IEnumerable<T> items, Action<T> inspectElement) {
+			foreach(var item in items) {
+				inspectElement(item);
+				yield return item;
+			}
+		}
 	}
 
 	static class TextReaderExtensions

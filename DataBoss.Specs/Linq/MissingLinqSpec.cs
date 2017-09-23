@@ -1,5 +1,6 @@
 using Cone;
 using DataBoss.Linq;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace DataBoss.Specs.Linq
@@ -25,6 +26,14 @@ namespace DataBoss.Specs.Linq
 				xs => xs[1].Single() == items[2],
 				xs => xs[2].Key == 1,
 				xs => xs[2].Single() == items[3]);
+		}
+
+		public void Inspect() { 
+			var items = new [] { "First", "Second", "Third" };
+			var seen = new List<string>();
+
+			items.Inspect(seen.Add).Consume();
+			Check.That(() => seen.SequenceEqual(items));
 		}
 	}
 }
