@@ -17,7 +17,8 @@ namespace DataBoss.Linq
 				action(item);
 		}
 
-		class ArrayGrouping<TKey, TElement> : IGrouping<TKey, TElement>
+		class ArrayGrouping<TKey, TElement> : IGrouping<TKey, TElement>, 
+			ICollection<TElement>//To enable System.Linq.Enumerable fast-paths.
 		{
 			readonly TElement[] items;
 			readonly TKey key;
@@ -28,33 +29,45 @@ namespace DataBoss.Linq
 			}
 
 			public TKey Key => key;
+			public int Count => items.Length;
+			public bool IsReadOnly => true;
+
+			public void Add(TElement item) => throw NotSupported();
+			public void Clear() => throw NotSupported();
+			public bool Remove(TElement item) => throw NotSupported();
+
+			public bool Contains(TElement item) => Array.IndexOf(items, item) != -1;
+			public void CopyTo(TElement[] array, int arrayIndex) => items.CopyTo(array, arrayIndex);
+
 			public IEnumerator<TElement> GetEnumerator() => ((IEnumerable<TElement>)items).GetEnumerator();
 			IEnumerator IEnumerable.GetEnumerator() => items.GetEnumerator();
+
+			static InvalidOperationException NotSupported() => new InvalidOperationException("ArrayGrouping IsReadonly");
 		}
 
 		public static IEnumerable<IGrouping<TKey, TElement>> ChunkBy<TElement, TKey>(this IEnumerable<TElement> items, Func<TElement, TKey> selector) { 
-			using (var x = items.GetEnumerator())
-			{
+			using (var x = items.GetEnumerator()) {
 				if (!x.MoveNext())
 					yield break;
 				var c = selector(x.Current);
 				var acc = new List<TElement>();
-				for (;;)
-				{
+				for (;;) {
 					acc.Add(x.Current);
 					if (!x.MoveNext())
 						break;
 					var key = selector(x.Current);
-					if (!c.Equals(key))
-					{
-						yield return new ArrayGrouping<TKey, TElement>(acc.ToArray(), c);
+					if (!c.Equals(key)) {
+						yield return MakeArrayGrouping(c, acc);
 						c = key;
 						acc.Clear();
 					}
 				}
-				yield return new ArrayGrouping<TKey, TElement>(acc.ToArray(), c);
+				yield return MakeArrayGrouping(c, acc);
 			}
 		}
+
+		static ArrayGrouping<TKey, TElement> MakeArrayGrouping<TKey, TElement>(TKey key, IEnumerable<TElement> items) =>
+			new ArrayGrouping<TKey, TElement>(items.ToArray(), key);
 
 		public static void Consume<T>(this IEnumerable<T> items) {
 			using(var xs = items.GetEnumerator())

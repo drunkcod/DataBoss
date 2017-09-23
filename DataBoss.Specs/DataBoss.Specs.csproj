@@ -31,7 +31,8 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Cone, Version=2017.8.27.1, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\DataBoss\packages\Cone.2017.8.27.1\lib\net45\Cone.dll</HintPath>
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\Cone\Build\Cone.dll</HintPath>
     </Reference>
     <Reference Include="Cone.Expectations, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>..\DataBoss\packages\Cone.2017.8.27.1\lib\net45\Cone.Expectations.dll</HintPath>

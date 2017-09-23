@@ -27,6 +27,9 @@ namespace DataBoss.Specs.Linq
 				xs => xs[2].Key == 1,
 				xs => xs[2].Single() == items[3]);
 		}
+	
+		public void ChunkBy_grouping_is_collection() =>
+			Check.With(() => new[] { 1, }.ChunkBy(x => x)).That(chunks => chunks.First() is ICollection<int>);
 
 		public void Inspect() { 
 			var items = new [] { "First", "Second", "Third" };
