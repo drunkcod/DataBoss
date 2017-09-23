@@ -45,17 +45,20 @@ namespace DataBoss.Linq
 			static InvalidOperationException NotSupported() => new InvalidOperationException("ArrayGrouping IsReadonly");
 		}
 
-		public static IEnumerable<IGrouping<TKey, TElement>> ChunkBy<TElement, TKey>(this IEnumerable<TElement> items, Func<TElement, TKey> selector) { 
+		public static IEnumerable<IGrouping<TKey, TElement>> ChunkBy<TElement, TKey>(this IEnumerable<TElement> items, Func<TElement, TKey> selector) =>
+			ChunkBy(items, selector, id => id);
+
+		public static IEnumerable<IGrouping<TKey, TElement>> ChunkBy<T, TKey, TElement>(this IEnumerable<T> items, Func<T, TKey> keySelector, Func<T, TElement> elementSelector) { 
 			using (var x = items.GetEnumerator()) {
 				if (!x.MoveNext())
 					yield break;
-				var c = selector(x.Current);
+				var c = keySelector(x.Current);
 				var acc = new List<TElement>();
 				for (;;) {
-					acc.Add(x.Current);
+					acc.Add(elementSelector(x.Current));
 					if (!x.MoveNext())
 						break;
-					var key = selector(x.Current);
+					var key = keySelector(x.Current);
 					if (!c.Equals(key)) {
 						yield return MakeArrayGrouping(c, acc);
 						c = key;

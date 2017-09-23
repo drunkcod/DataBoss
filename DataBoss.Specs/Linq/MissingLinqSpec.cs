@@ -27,6 +27,18 @@ namespace DataBoss.Specs.Linq
 				xs => xs[2].Key == 1,
 				xs => xs[2].Single() == items[3]);
 		}
+
+		public void ChunkBy_with_element_selector() { 
+			var items = new [] { 
+				new { id = 1 },
+				new { id = 2 },
+			};
+
+			Check.With(() => items.ChunkBy(x => x.id, x => x.id.ToString()).ToList()).That(
+				xs => xs.Count == 2,
+				xs => xs[0].Key == 1,
+				xs => xs[0].ElementAt(0) == items[0].id.ToString());
+			}
 	
 		public void ChunkBy_grouping_is_collection() =>
 			Check.With(() => new[] { 1, }.ChunkBy(x => x)).That(chunks => chunks.First() is ICollection<int>);

@@ -30,12 +30,11 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Cone, Version=2017.8.27.1, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\Cone\Build\Cone.dll</HintPath>
+    <Reference Include="Cone, Version=2017.9.23.1, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\DataBoss\packages\Cone.2017.9.23.1\lib\net45\Cone.dll</HintPath>
     </Reference>
     <Reference Include="Cone.Expectations, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\DataBoss\packages\Cone.2017.8.27.1\lib\net45\Cone.Expectations.dll</HintPath>
+      <HintPath>..\DataBoss\packages\Cone.2017.9.23.1\lib\net45\Cone.Expectations.dll</HintPath>
       <Private>True</Private>
     </Reference>
     <Reference Include="System" />
@@ -72,16 +71,16 @@
     <Compile Include="ToParamsSpec.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\DataBoss\DataBoss.csproj">
-      <Project>{c698683c-1c33-46fe-bda9-54b54144a7ce}</Project>
-      <Name>DataBoss</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
     <Folder Include="Properties\" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\DataBoss\DataBoss.csproj">
+      <Project>{c698683c-1c33-46fe-bda9-54b54144a7ce}</Project>
+      <Name>DataBoss</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
