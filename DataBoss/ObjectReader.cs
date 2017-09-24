@@ -73,9 +73,9 @@ namespace DataBoss
 		{
 			readonly ParameterExpression arg0;
 			readonly MethodInfo isDBNull;
-			readonly List<Tuple<Type, Type, Delegate>> customConversions;
+			readonly ConverterCollection customConversions;
 
-			public ConverterFactory(Type reader, List<Tuple<Type, Type, Delegate>> customConversions) {
+			public ConverterFactory(Type reader, ConverterCollection customConversions) {
 				this.arg0 = Expression.Parameter(reader, "x");
 				this.isDBNull = reader.GetMethod(nameof(IDataRecord.IsDBNull)) ?? typeof(IDataRecord).GetMethod(nameof(IDataRecord.IsDBNull));
 				this.customConversions = customConversions;
@@ -187,8 +187,11 @@ namespace DataBoss
 				return defalt;
 			}
 
-			Delegate GetConverterOrDefault(Type from, Type to) =>
-				customConversions?.FirstOrDefault(x => x.Item1 == from && x.Item2 == to)?.Item3;
+			Delegate GetConverterOrDefault(Type from, Type to) {
+				if(customConversions == null || !customConversions.TryGetConverter(from, to, out var converter))
+					return null;
+				return converter;
+			}
 
 			Expression DbNullToDefault(Expression o, Type itemType, Expression readIt) {
 				var recordType = itemType;
@@ -229,20 +232,44 @@ namespace DataBoss
 			}
 		}
 
-		public static Func<TReader, T> GetConverter<TReader, T>(TReader reader, List<Tuple<Type, Type, Delegate>> customConversions) where TReader : IDataReader => 
+		public static Func<TReader, T> GetConverter<TReader, T>(TReader reader, ConverterCollection customConversions) where TReader : IDataReader => 
 			MakeConverter<TReader, T>(reader, customConversions).Compile();
 
 		public static Expression<Func<TReader, T>> MakeConverter<TReader, T>(TReader reader) where TReader : IDataReader =>
 			MakeConverter<TReader, T>(reader, null);
 
-		public static Expression<Func<TReader, T>> MakeConverter<TReader, T>(TReader reader, List<Tuple<Type, Type, Delegate>> customConversions) where TReader : IDataReader =>
+		public static Expression<Func<TReader, T>> MakeConverter<TReader, T>(TReader reader, ConverterCollection customConversions) where TReader : IDataReader =>
 			(Expression<Func<TReader, T>>)new ConverterFactory(typeof(TReader), customConversions).Converter(FieldMap.Create(reader), typeof(T));
+	}
+
+	public class ConverterCollection
+	{
+		KeyValuePair<Type, Delegate>[] converters = new KeyValuePair<Type, Delegate>[8];
+		int count = 0;
+
+		public void Add<TFrom, TTo>(Func<TFrom, TTo> converter) => Add(typeof(TFrom), converter);
+
+		void Add(Type from, Delegate converter) {
+			if(count == converters.Length)
+				Array.Resize(ref converters, count << 1);
+			converters[count++] = new KeyValuePair<Type, Delegate>(from, converter);
+		}
+
+		public bool TryGetConverter(Type from, Type to, out Delegate converter) {
+			var found = Array.FindIndex(converters, 0, count, x => x.Key == from && x.Value.Method.ReturnType == to);
+			if(found != -1) {
+				converter = converters[found].Value;
+				return true;
+			}
+			converter = null;
+			return false;
+		}
 	}
 
 	public struct ObjectReader<TReader> : IDisposable where TReader : IDataReader
 	{
 		readonly TReader reader;
-		List<Tuple<Type, Type, Delegate>> customConversions;
+		ConverterCollection customConversions;
 
 		public ObjectReader(TReader reader) { 
 			this.reader = reader; 
@@ -254,7 +281,7 @@ namespace DataBoss
 		public Func<TReader, T> GetConverter<T>() => ObjectReader.GetConverter<TReader, T>(reader, customConversions);
 
 		public ObjectReader<TReader> WithConverter<TFrom, TTo>(Func<TFrom, TTo> convert) {
-			(customConversions ?? (customConversions = new List<Tuple<Type, Type, Delegate>>())).Add(Tuple.Create(typeof(TFrom), typeof(TTo), (Delegate)convert));
+			(customConversions ?? (customConversions = new ConverterCollection())).Add(convert);
 			return this;
 		}
 
