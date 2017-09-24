@@ -45,6 +45,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ConverterCollection.cs" />
     <Compile Include="DataBoss.cs" />
     <Compile Include="DataBossBulkCopy.cs" />
     <Compile Include="DataBossCommandAttribute.cs" />

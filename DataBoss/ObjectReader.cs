@@ -171,26 +171,26 @@ namespace DataBoss
 					if((baseType == from))
 						return Expression.Convert(rawField, to);
 					 else {
-						var customNullabeConversion = GetConverterOrDefault(from, baseType);
+						var customNullabeConversion = GetConverterOrDefault(rawField, from, baseType);
 						if(customNullabeConversion != null)
-							return Expression.Convert(Expression.Invoke(Expression.Constant(customNullabeConversion), rawField), to);
+							return Expression.Convert(customNullabeConversion, to);
 					}
 				}
 
 				if(from == typeof(object) && to == typeof(byte[]))
 					return Expression.Convert(rawField, to);
 
-				var customConversion = GetConverterOrDefault(from, to);
+				var customConversion = GetConverterOrDefault(rawField, from, to);
 				if(customConversion != null) 
-					return Expression.Invoke(Expression.Constant(customConversion), rawField);
+					return customConversion;
 				
 				return defalt;
 			}
 
-			Delegate GetConverterOrDefault(Type from, Type to) {
+			Expression GetConverterOrDefault(Expression rawField, Type from, Type to) {
 				if(customConversions == null || !customConversions.TryGetConverter(from, to, out var converter))
 					return null;
-				return converter;
+				return Expression.Invoke(Expression.Constant(converter), rawField);
 			}
 
 			Expression DbNullToDefault(Expression o, Type itemType, Expression readIt) {
@@ -240,30 +240,6 @@ namespace DataBoss
 
 		public static Expression<Func<TReader, T>> MakeConverter<TReader, T>(TReader reader, ConverterCollection customConversions) where TReader : IDataReader =>
 			(Expression<Func<TReader, T>>)new ConverterFactory(typeof(TReader), customConversions).Converter(FieldMap.Create(reader), typeof(T));
-	}
-
-	public class ConverterCollection
-	{
-		KeyValuePair<Type, Delegate>[] converters = new KeyValuePair<Type, Delegate>[8];
-		int count = 0;
-
-		public void Add<TFrom, TTo>(Func<TFrom, TTo> converter) => Add(typeof(TFrom), converter);
-
-		void Add(Type from, Delegate converter) {
-			if(count == converters.Length)
-				Array.Resize(ref converters, count << 1);
-			converters[count++] = new KeyValuePair<Type, Delegate>(from, converter);
-		}
-
-		public bool TryGetConverter(Type from, Type to, out Delegate converter) {
-			var found = Array.FindIndex(converters, 0, count, x => x.Key == from && x.Value.Method.ReturnType == to);
-			if(found != -1) {
-				converter = converters[found].Value;
-				return true;
-			}
-			converter = null;
-			return false;
-		}
 	}
 
 	public struct ObjectReader<TReader> : IDisposable where TReader : IDataReader
