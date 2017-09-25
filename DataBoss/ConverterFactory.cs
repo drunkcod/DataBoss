@@ -7,19 +7,50 @@ using System.Reflection;
 
 namespace DataBoss
 {
+	public interface IConverterCache
+	{
+		LambdaExpression GetOrAdd(FieldMap map, Type result, Func<FieldMap, Type, LambdaExpression> createConverter);	
+	}
+
+	class NullConverterCache : IConverterCache
+	{
+		NullConverterCache() { }
+
+		public static IConverterCache Instance = new NullConverterCache();
+
+		public LambdaExpression GetOrAdd(FieldMap map, Type result, Func<FieldMap, Type, LambdaExpression> createConverter) =>
+			createConverter(map, result);
+	}
+
 	public class ConverterFactory
 	{
+		class DefaultConverterCache : IConverterCache
+		{
+			readonly Dictionary<string, LambdaExpression> converterCache = new Dictionary<string, LambdaExpression>(); 
+
+			public LambdaExpression GetOrAdd(FieldMap map, Type result, Func<FieldMap, Type, LambdaExpression> createConverter) =>
+				converterCache.GetOrAdd($"({map}) -> {result}", _ => createConverter(map, result));
+		}
+
 		readonly ParameterExpression arg0;
 		readonly MethodInfo isDBNull;
 		readonly ConverterCollection customConversions;
+		readonly IConverterCache converterCache;
 
-		public ConverterFactory(Type reader, ConverterCollection customConversions) {
+		public ConverterFactory(Type reader, ConverterCollection customConversions) : this(reader, customConversions, new DefaultConverterCache())
+		{ }
+
+		public ConverterFactory(Type reader, ConverterCollection customConversions, IConverterCache converterCache) {
 			this.arg0 = Expression.Parameter(reader, "x");
 			this.isDBNull = reader.GetMethod(nameof(IDataRecord.IsDBNull)) ?? typeof(IDataRecord).GetMethod(nameof(IDataRecord.IsDBNull));
 			this.customConversions = new ConverterCollection(customConversions);
+			this.converterCache = converterCache;
 		}
 
 		public LambdaExpression Converter(FieldMap map, Type result) =>
+			converterCache.GetOrAdd(map, result, BuildConverter);
+
+		LambdaExpression BuildConverter(FieldMap map, Type result) => 
 			Expression.Lambda(MemberInit(result, map), arg0);
 
 		Expression MemberInit(Type fieldType, FieldMap map) =>

@@ -17,7 +17,7 @@ namespace DataBoss
 			MakeConverter<TReader, T>(reader, null);
 
 		public static Expression<Func<TReader, T>> MakeConverter<TReader, T>(TReader reader, ConverterCollection customConversions) where TReader : IDataReader =>
-			(Expression<Func<TReader, T>>)new ConverterFactory(typeof(TReader), customConversions).Converter(FieldMap.Create(reader), typeof(T));
+			(Expression<Func<TReader, T>>)new ConverterFactory(typeof(TReader), customConversions, NullConverterCache.Instance).Converter(FieldMap.Create(reader), typeof(T));
 	}
 
 	public struct ObjectReader<TReader> : IDisposable where TReader : IDataReader

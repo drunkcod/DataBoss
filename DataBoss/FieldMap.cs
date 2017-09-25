@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Text;
 
 namespace DataBoss
 {
@@ -20,7 +21,6 @@ namespace DataBoss
 
 	public class FieldMap
 	{
-
 		readonly Dictionary<string, FieldMapItem> fields = new Dictionary<string, FieldMapItem>();
 		Dictionary<string, FieldMap> subFields;
 
@@ -41,7 +41,7 @@ namespace DataBoss
 					x = x[parts[n]];
 				x.Add(parts[parts.Length - 1], ordinal, fieldType);
 			}
-			else fields.Add(name, new FieldMapItem(ordinal, fieldType));
+			fields.Add(name, new FieldMapItem(ordinal, fieldType));
 		}
 
 		public bool TryGetOrdinal(string key, out FieldMapItem item) =>
@@ -53,6 +53,8 @@ namespace DataBoss
 			subMap = null;
 			return false;
 		}
+
+		public override string ToString() => string.Join(", ", fields.OrderBy(x => x.Value.Ordinal).Select(x => $"{x.Value.FieldType} [{x.Key}]"));
 
 		FieldMap this[string name] {
 			get {
