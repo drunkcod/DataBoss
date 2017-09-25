@@ -7,9 +7,22 @@ using System.Reflection;
 
 namespace DataBoss
 {
+	public class Converter
+	{
+		Delegate compiled;
+
+		public readonly LambdaExpression Expression;
+		public Delegate Compiled => compiled ?? (compiled = Expression.Compile());
+
+		public Converter(LambdaExpression expression) {
+			this.Expression = expression;
+			this.compiled = null;
+		}
+	}
+
 	public interface IConverterCache
 	{
-		LambdaExpression GetOrAdd(FieldMap map, Type result, Func<FieldMap, Type, LambdaExpression> createConverter);	
+		Converter GetOrAdd(FieldMap map, Type result, Func<FieldMap, Type, LambdaExpression> createConverter);	
 	}
 
 	class NullConverterCache : IConverterCache
@@ -18,18 +31,18 @@ namespace DataBoss
 
 		public static IConverterCache Instance = new NullConverterCache();
 
-		public LambdaExpression GetOrAdd(FieldMap map, Type result, Func<FieldMap, Type, LambdaExpression> createConverter) =>
-			createConverter(map, result);
+		public Converter GetOrAdd(FieldMap map, Type result, Func<FieldMap, Type, LambdaExpression> createConverter) =>
+			new Converter(createConverter(map, result));
 	}
 
 	public class ConverterFactory
 	{
 		class DefaultConverterCache : IConverterCache
 		{
-			readonly Dictionary<string, LambdaExpression> converterCache = new Dictionary<string, LambdaExpression>(); 
+			readonly Dictionary<string, Converter> converterCache = new Dictionary<string, Converter>(); 
 
-			public LambdaExpression GetOrAdd(FieldMap map, Type result, Func<FieldMap, Type, LambdaExpression> createConverter) =>
-				converterCache.GetOrAdd($"({map}) -> {result}", _ => createConverter(map, result));
+			public Converter GetOrAdd(FieldMap map, Type result, Func<FieldMap, Type, LambdaExpression> createConverter) =>
+				converterCache.GetOrAdd($"({map}) -> {result}", _ => NullConverterCache.Instance.GetOrAdd(map, result, createConverter));
 		}
 
 		readonly ParameterExpression arg0;
@@ -47,7 +60,7 @@ namespace DataBoss
 			this.converterCache = converterCache;
 		}
 
-		public LambdaExpression Converter(FieldMap map, Type result) =>
+		public Converter GetConverter(FieldMap map, Type result) =>
 			converterCache.GetOrAdd(map, result, BuildConverter);
 
 		LambdaExpression BuildConverter(FieldMap map, Type result) => 

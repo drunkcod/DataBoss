@@ -1,10 +1,6 @@
 using Cone;
-using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace DataBoss.Specs
 {
@@ -19,7 +15,7 @@ namespace DataBoss.Specs
 			map.Add("value", 1, typeof(string));
 
 			var targetType = typeof(KeyValuePair<int, string>);
-			Check.That(() => factory.Converter(map, targetType) == factory.Converter(map, targetType));
+			Check.That(() => factory.GetConverter(map, targetType).Compiled == factory.GetConverter(map, targetType).Compiled);
 		}
 	}
 }
