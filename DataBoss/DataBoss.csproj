@@ -46,6 +46,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ConverterCollection.cs" />
+    <Compile Include="ConverterFactory.cs" />
     <Compile Include="DataBoss.cs" />
     <Compile Include="DataBossBulkCopy.cs" />
     <Compile Include="DataBossCommandAttribute.cs" />
@@ -55,6 +56,7 @@
     <Compile Include="Data\NullAttributeProvider.cs" />
     <Compile Include="Diagnostics\SqlServerMaintenancePlanWizard.cs" />
     <Compile Include="ExpressionExtensions.cs" />
+    <Compile Include="FieldMap.cs" />
     <Compile Include="Migrations\DataBossCompositeMigration.cs" />
     <Compile Include="DataBossConfiguration.cs" />
     <Compile Include="DataBossConsoleLog.cs" />

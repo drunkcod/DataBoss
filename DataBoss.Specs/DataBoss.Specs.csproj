@@ -48,6 +48,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ConverterFactorySpec.cs" />
     <Compile Include="DataBossConfigurationSpec.cs" />
     <Compile Include="DataBossConnectionProviderSpec.cs" />
     <Compile Include="DataBossDbTypeSpec.cs" />
