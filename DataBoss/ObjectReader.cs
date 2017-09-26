@@ -11,16 +11,16 @@ namespace DataBoss
 			new ObjectReader<TReader>(reader);
 
 		public static Func<TReader, T> GetConverter<TReader, T>(TReader reader, ConverterCollection customConversions) where TReader : IDataReader => 
-			(Func<TReader, T>)ConverterFactory(typeof(TReader), customConversions).GetConverter(FieldMap.Create(reader), typeof(T)).Compiled;
+			ConverterFactory(customConversions).GetConverter<TReader, T>(reader).Compiled;
 
 		public static Expression<Func<TReader, T>> MakeConverter<TReader, T>(TReader reader) where TReader : IDataReader =>
 			MakeConverter<TReader, T>(reader, null);
 
 		public static Expression<Func<TReader, T>> MakeConverter<TReader, T>(TReader reader, ConverterCollection customConversions) where TReader : IDataReader =>
-			(Expression<Func<TReader, T>>)ConverterFactory(typeof(TReader), customConversions).GetConverter(FieldMap.Create(reader), typeof(T)).Expression;
+			ConverterFactory(customConversions).GetConverter<TReader, T>(reader).Expression;
 
-		static ConverterFactory ConverterFactory(Type readerType, ConverterCollection customConversions) => 
-			new ConverterFactory(readerType, customConversions, NullConverterCache.Instance);
+		static ConverterFactory ConverterFactory(ConverterCollection customConversions) => 
+			new ConverterFactory(customConversions, NullConverterCache.Instance);
 	}
 
 	public struct ObjectReader<TReader> : IDisposable where TReader : IDataReader
@@ -37,13 +37,15 @@ namespace DataBoss
 			new ConvertingObjectReader<TReader>(this).WithConverter(convert);
 
 		public IEnumerable<T> Read<T>() => Read<T>((ConverterCollection)null);
+		
 		public IEnumerable<T> Read<T>(ConverterCollection converters) {
 			var converter = GetConverter<T>(converters);
 			while(reader.Read())
 				yield return converter(reader);
 		}
+
 		public IEnumerable<T> Read<T>(ConverterFactory converters) {
-			var converter = (Func<TReader, T>)converters.GetConverter(FieldMap.Create(reader), typeof(T)).Compiled;
+			var converter = converters.GetConverter<TReader, T>(reader).Compiled;
 			while(reader.Read())
 				yield return converter(reader);
 		}
