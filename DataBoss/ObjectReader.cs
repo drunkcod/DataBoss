@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq.Expressions;
+using DataBoss.Data;
 
 namespace DataBoss
 {
@@ -57,7 +58,8 @@ namespace DataBoss
 				handleItem(converter(reader));
 		}
 
-		Func<TReader, T> GetConverter<T>(ConverterCollection converters) => ObjectReader.GetConverter<TReader, T>(reader, converters);
+		Func<TReader, T> GetConverter<T>(ConverterCollection converters) => 
+			ObjectReader.GetConverter<TReader, T>(reader, converters);
 
 		public bool NextResult() => reader.NextResult();
 	}

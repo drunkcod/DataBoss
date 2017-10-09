@@ -4,7 +4,7 @@ using System.Data;
 using System.Linq;
 using System.Text;
 
-namespace DataBoss
+namespace DataBoss.Data
 {
 	public struct FieldMapItem
 	{

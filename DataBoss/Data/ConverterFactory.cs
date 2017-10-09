@@ -5,59 +5,8 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace DataBoss
+namespace DataBoss.Data
 {
-	public class DataRecordConverter
-	{
-		Delegate compiled;
-
-		public readonly LambdaExpression Expression;
-		public Delegate Compiled => compiled ?? (compiled = Expression.Compile());
-
-		public DataRecordConverter(LambdaExpression expression) {
-			this.Expression = expression;
-			this.compiled = null;
-		}
-	}
-
-	public struct DataRecordConverter<TReader, T>
-	{
-		readonly DataRecordConverter converter;
-
-		public DataRecordConverter(DataRecordConverter converter) {
-			this.converter = converter;
-		}
-
-		public Expression<Func<TReader, T>> Expression => (Expression<Func<TReader, T>>)converter.Expression;
-		public Func<TReader, T> Compiled => (Func<TReader, T>)converter.Compiled;
-	}
-
-	public interface IConverterCache
-	{
-		DataRecordConverter GetOrAdd<TReader>(TReader reader, Type result, Func<FieldMap, Type, LambdaExpression> createConverter) where TReader : IDataReader;
-	}
-
-	class NullConverterCache : IConverterCache
-	{
-		NullConverterCache() { }
-
-		public static IConverterCache Instance = new NullConverterCache();
-
-		public DataRecordConverter GetOrAdd<TReader>(TReader reader, Type result, Func<FieldMap, Type, LambdaExpression> createConverter) where TReader : IDataReader =>
-			new DataRecordConverter(createConverter(FieldMap.Create(reader), result));
-	}
-
-	class DefaultConverterCache : IConverterCache
-	{
-		readonly Dictionary<string, DataRecordConverter> converterCache = new Dictionary<string, DataRecordConverter>(); 
-
-		public DataRecordConverter GetOrAdd<TReader>(TReader reader, Type result, Func<FieldMap, Type, LambdaExpression> createConverter) where TReader : IDataReader =>
-			converterCache.GetOrAdd($"{typeof(TReader)}({FieldKey(reader)}) -> {result}", _ => NullConverterCache.Instance.GetOrAdd(reader, result, createConverter));
-
-		static string FieldKey(IDataReader reader) =>
-			string.Join(", ", Enumerable.Range(0, reader.FieldCount).Select(ordinal => $"{reader.GetFieldType(ordinal)} [{reader.GetName(ordinal)}]"));
-	}
-
 	public class ConverterFactory
 	{
 		class ConverterContext
@@ -100,7 +49,7 @@ namespace DataBoss
 		readonly ConverterCollection customConversions;
 		readonly IConverterCache converterCache;
 
-		public ConverterFactory(ConverterCollection customConversions) : this(customConversions, new DefaultConverterCache())
+		public ConverterFactory(ConverterCollection customConversions) : this(customConversions, new ConcurrentConverterCache())
 		{ }
 
 		public ConverterFactory(ConverterCollection customConversions, IConverterCache converterCache) {

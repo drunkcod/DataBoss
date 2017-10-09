@@ -45,18 +45,20 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ConverterCollection.cs" />
-    <Compile Include="ConverterFactory.cs" />
+    <Compile Include="Data\ConverterCollection.cs" />
+    <Compile Include="Data\ConverterFactory.cs" />
     <Compile Include="DataBoss.cs" />
     <Compile Include="DataBossBulkCopy.cs" />
     <Compile Include="DataBossCommandAttribute.cs" />
     <Compile Include="DataBossDbType.cs" />
+    <Compile Include="Data\DataRecordConverter.cs" />
     <Compile Include="Data\DataBossConnectionProvider.cs" />
     <Compile Include="Data\DbObjectQuery.cs" />
     <Compile Include="Data\NullAttributeProvider.cs" />
+    <Compile Include="Data\ConverterCache.cs" />
     <Compile Include="Diagnostics\SqlServerMaintenancePlanWizard.cs" />
     <Compile Include="ExpressionExtensions.cs" />
-    <Compile Include="FieldMap.cs" />
+    <Compile Include="Data\FieldMap.cs" />
     <Compile Include="Migrations\DataBossCompositeMigration.cs" />
     <Compile Include="DataBossConfiguration.cs" />
     <Compile Include="DataBossConsoleLog.cs" />
