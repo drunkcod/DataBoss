@@ -11,53 +11,60 @@ namespace DataBoss.Specs.Data
 	{
 		SqlConnection Db;
 
-		struct Row { public int Value; }
+		RetryStrategy retryAlways => (n, e) => TimeSpan.Zero;
+		int rowsRead;
+		int ReadInt0(SqlDataReader r) {
+			++rowsRead;
+			return r.GetInt32(0);
+		}
 
 		[BeforeEach]
 		public void given_a_object_reader() {
 			Db = new SqlConnection("Server=.;Integrated Security=SSPI");
 			Db.Open();
+			rowsRead = 0;
 		}
 
 		public void Single_raises_appropriate_exception_when_more_than_one_element() {
-			var rows = new SqlCommandEnumerable<int>(() => Db.CreateCommand("select * from (values(1),(2))Foo(Id)"), r => reader => reader.GetInt32(0));
+			var rows = IntRows("select * from (values(1),(2))Foo(Id)");
 
-			Check.Exception<InvalidOperationException>(() => rows.Single((n, e) => TimeSpan.Zero));
+			Check.Exception<InvalidOperationException>(() => rows.Single(retryAlways));
 		}
 		
 		public void Single_raises_appropriate_exception_when_no_element() {
-			var rows = new SqlCommandEnumerable<int>(() => Db.CreateCommand("select top 0 * from (values(1),(2))Foo(Id)"), r => reader => reader.GetInt32(0));
+			var rows = IntRows("select top 0 * from (values(1),(2))Foo(Id)");
 
-			Check.Exception<InvalidOperationException>(() => rows.Single((n, e) => TimeSpan.Zero));
+			Check.Exception<InvalidOperationException>(() => rows.Single(retryAlways));
 		}
 
 		public void Single_consumes_at_most_two_elements() {
-			var rowsRead = 0;
-			var rows = new SqlCommandEnumerable<int>(() => Db.CreateCommand("select * from (values(1),(2),(3))Foo(Id)"), r => reader => ++rowsRead);
+			var rows = IntRows("select * from (values(1),(2),(3))Foo(Id)");
+			try { rows.Single(retryAlways); } catch { }
 
-			try { rows.Single((n, e) => TimeSpan.Zero); } catch { }
 			Check.That(() => rowsRead == 2);
 		}
 
 		public void SingleOrDefault_raises_appropriate_exception_when_more_than_one_element() {
-			var rows = new SqlCommandEnumerable<int>(() => Db.CreateCommand("select * from (values(1),(2))Foo(Id)"), r => reader => reader.GetInt32(0));
+			var rows = IntRows("select * from (values(1),(2))Foo(Id)");
 
-			Check.Exception<InvalidOperationException>(() => rows.SingleOrDefault((n, e) => TimeSpan.Zero));
+			Check.Exception<InvalidOperationException>(() => rows.SingleOrDefault(retryAlways));
 		}
 		
 		public void SingleOrDefault_returns_default_when_no_element() {
-			var rows = new SqlCommandEnumerable<int>(() => Db.CreateCommand("select top 0 * from (values(1),(2))Foo(Id)"), r => reader => reader.GetInt32(0));
+			var rows = IntRows("select top 0 * from (values(1),(2))Foo(Id)");
 
-			Check.That(() => rows.SingleOrDefault((n, e) => TimeSpan.Zero) == default(int));
+			Check.That(() => rows.SingleOrDefault(retryAlways) == default(int));
 		}
 
 		public void SingleOrDefault_consumes_at_most_two_elements() {
-			var rowsRead = 0;
-			var rows = new SqlCommandEnumerable<int>(() => Db.CreateCommand("select * from (values(1),(2),(3))Foo(Id)"), r => reader => ++rowsRead);
+			var rows = IntRows("select * from (values(1),(2),(3))Foo(Id)");
+			try { rows.SingleOrDefault(retryAlways); } catch { }
 
-			try { rows.SingleOrDefault((n, e) => TimeSpan.Zero); } catch { }
 			Check.That(() => rowsRead == 2);
 		}
+
+		SqlCommandEnumerable<int> IntRows(string query) =>
+			new SqlCommandEnumerable<int>(() => Db.CreateCommand(query), r => ReadInt0);
 	}
 
 	[Describe(typeof(DbObjectReader), Category = "Database")]
