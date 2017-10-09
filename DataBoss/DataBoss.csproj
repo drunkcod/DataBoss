@@ -56,6 +56,7 @@
     <Compile Include="Data\DbObjectQuery.cs" />
     <Compile Include="Data\NullAttributeProvider.cs" />
     <Compile Include="Data\ConverterCache.cs" />
+    <Compile Include="Data\SqlCommandEnumerable.cs" />
     <Compile Include="Diagnostics\SqlServerMaintenancePlanWizard.cs" />
     <Compile Include="ExpressionExtensions.cs" />
     <Compile Include="Data\FieldMap.cs" />
@@ -101,6 +102,7 @@
     <Compile Include="Data\SequenceDataReader.cs" />
     <Compile Include="SqlCommandExtensions.cs" />
     <Compile Include="SqlConnectionExtensions.cs" />
+    <Compile Include="SqlServer\SqlErrors.cs" />
     <Compile Include="SqlServer\SysObjects.cs" />
     <Compile Include="Testing\DatabaseSetup.cs" />
     <Compile Include="ToParams.cs" />
@@ -114,6 +116,7 @@
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>

@@ -1,4 +1,4 @@
-﻿using Cone;
+using Cone;
 using DataBoss.Data;
 using System;
 using System.Data.SqlClient;
@@ -6,6 +6,60 @@ using System.Linq;
 
 namespace DataBoss.Specs.Data
 {
+	[Describe(typeof(SqlCommandEnumerable<>), Category = "Database")]
+	public class SqlCommandEnumerableSpec
+	{
+		SqlConnection Db;
+
+		struct Row { public int Value; }
+
+		[BeforeEach]
+		public void given_a_object_reader() {
+			Db = new SqlConnection("Server=.;Integrated Security=SSPI");
+			Db.Open();
+		}
+
+		public void Single_raises_appropriate_exception_when_more_than_one_element() {
+			var rows = new SqlCommandEnumerable<int>(() => Db.CreateCommand("select * from (values(1),(2))Foo(Id)"), r => reader => reader.GetInt32(0));
+
+			Check.Exception<InvalidOperationException>(() => rows.Single((n, e) => TimeSpan.Zero));
+		}
+		
+		public void Single_raises_appropriate_exception_when_no_element() {
+			var rows = new SqlCommandEnumerable<int>(() => Db.CreateCommand("select top 0 * from (values(1),(2))Foo(Id)"), r => reader => reader.GetInt32(0));
+
+			Check.Exception<InvalidOperationException>(() => rows.Single((n, e) => TimeSpan.Zero));
+		}
+
+		public void Single_consumes_at_most_two_elements() {
+			var rowsRead = 0;
+			var rows = new SqlCommandEnumerable<int>(() => Db.CreateCommand("select * from (values(1),(2),(3))Foo(Id)"), r => reader => ++rowsRead);
+
+			try { rows.Single((n, e) => TimeSpan.Zero); } catch { }
+			Check.That(() => rowsRead == 2);
+		}
+
+		public void SingleOrDefault_raises_appropriate_exception_when_more_than_one_element() {
+			var rows = new SqlCommandEnumerable<int>(() => Db.CreateCommand("select * from (values(1),(2))Foo(Id)"), r => reader => reader.GetInt32(0));
+
+			Check.Exception<InvalidOperationException>(() => rows.SingleOrDefault((n, e) => TimeSpan.Zero));
+		}
+		
+		public void SingleOrDefault_returns_default_when_no_element() {
+			var rows = new SqlCommandEnumerable<int>(() => Db.CreateCommand("select top 0 * from (values(1),(2))Foo(Id)"), r => reader => reader.GetInt32(0));
+
+			Check.That(() => rows.SingleOrDefault((n, e) => TimeSpan.Zero) == default(int));
+		}
+
+		public void SingleOrDefault_consumes_at_most_two_elements() {
+			var rowsRead = 0;
+			var rows = new SqlCommandEnumerable<int>(() => Db.CreateCommand("select * from (values(1),(2),(3))Foo(Id)"), r => reader => ++rowsRead);
+
+			try { rows.SingleOrDefault((n, e) => TimeSpan.Zero); } catch { }
+			Check.That(() => rowsRead == 2);
+		}
+	}
+
 	[Describe(typeof(DbObjectReader), Category = "Database")]
 	public class DbObjectReaderSpec
 	{
