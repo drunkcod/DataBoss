@@ -32,7 +32,10 @@ namespace DataBoss.Data
 			}
 		}
 
-		public T Single(RetryStrategy retry) {
+		public T Single(RetryStrategy retry) => SingleCore(retry, () => throw new InvalidOperationException("No rows returned."));
+		public T SingleOrDefault(RetryStrategy retry) => SingleCore(retry, () => default(T));
+
+		T SingleCore(RetryStrategy retry, Func<T> handleDefault) {
 			for(var n = 1;; ++n) { 
 				var it = GetEnumerator();
 				try {
@@ -51,29 +54,7 @@ namespace DataBoss.Data
 					it.Dispose();
 				}
 			}
-			NoRow: throw new InvalidOperationException("No rows returned.");
-			TooManyRows: throw new InvalidOperationException("More than one result row.");
-		}
-
-		public T SingleOrDefault(RetryStrategy retry) {
-			for(var n = 1;; ++n) { 
-				var it = GetEnumerator();
-				try {
-					if(!it.MoveNext())
-						return default(T);
-					var r = it.Current;
-					if(it.MoveNext())
-						goto TooManyRows;
-					return r;
-				} catch(Exception e) {
-					var again = retry(n, e);
-					if(!again.HasValue)
-						throw;
-					Thread.Sleep(again.Value);
-				} finally {
-					it.Dispose();
-				}
-			}
+			NoRow: return handleDefault();
 			TooManyRows: throw new InvalidOperationException("More than one result row.");
 		}
 
