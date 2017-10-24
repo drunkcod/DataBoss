@@ -61,6 +61,7 @@
     <Compile Include="Data\DbObjectReaderSpec.cs" />
     <Compile Include="Data\FieldMappingSpec.cs" />
     <Compile Include="Data\SequenceDataReaderSpec.cs" />
+    <Compile Include="Data\SqlQuery.cs" />
     <Compile Include="Linq\MissingLinqSpec.cs" />
     <Compile Include="ObjectReaderSpec.cs" />
     <Compile Include="ObjectVisualizerSpec.cs" />

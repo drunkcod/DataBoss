@@ -57,6 +57,7 @@
     <Compile Include="Data\NullAttributeProvider.cs" />
     <Compile Include="Data\ConverterCache.cs" />
     <Compile Include="Data\SqlCommandEnumerable.cs" />
+    <Compile Include="Data\SqlQuery.cs" />
     <Compile Include="Diagnostics\SqlServerMaintenancePlanWizard.cs" />
     <Compile Include="ExpressionExtensions.cs" />
     <Compile Include="Data\FieldMap.cs" />
