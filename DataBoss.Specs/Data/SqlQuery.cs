@@ -23,5 +23,12 @@ namespace DataBoss.Data.Specs
 		public void select_recursive_ctor() => Check
 			.With(() => SqlQuery.Select(() => new MyRow<KeyValuePair<int, int>> { Whatever = new KeyValuePair<int, int>(SqlQuery.Column<int>("Answer", "Key"), SqlQuery.Column<int>("Answer", "Value")) }))
 			.That(q => q.ToString() == "select [Whatever.key] = Answer.Key, [Whatever.value] = Answer.Value");
+
+		public void select_non_inline_method_call_column_definition()
+		{
+			var source = SqlQuery.Column<int>("Answers", "Value");
+			Check.With(() => SqlQuery.Select(() => new { TheAnswer = source }))
+				.That(q => q.ToString() == "select [TheAnswer] = Answers.Value");
+		}
 	}
 }

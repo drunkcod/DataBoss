@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
 
 namespace DataBoss.Data
 {
@@ -21,9 +22,6 @@ namespace DataBoss.Data
 	}
 	public class SqlQueryColumn<T> : SqlQueryColumn
 	{
-		readonly string table;
-		readonly string name;
-
 		public SqlQueryColumn(string table, string name) : base(table, name) { }
 
 		public static implicit operator T(SqlQueryColumn<T> self) => default(T);
@@ -58,10 +56,8 @@ namespace DataBoss.Data
 
 		static IEnumerable<KeyValuePair<string, SqlQueryColumn>> CreateBindings(string context, NewExpression ctor) {
 			var p = ctor.Constructor.GetParameters();
-			for (var i = 0; i != p.Length; ++i) {
-				var m = (MethodCallExpression)((UnaryExpression)ctor.Arguments[i]).Operand;
-				yield return CreateBinding(context + p[i].Name, m);
-			}
+			for (var i = 0; i != p.Length; ++i)
+				yield return CreateBinding(context + p[i].Name, ctor.Arguments[i]);
 		}
 
 		static IEnumerable<KeyValuePair<string, SqlQueryColumn>> CreateBindings(string context, MemberInitExpression init) {
@@ -75,14 +71,22 @@ namespace DataBoss.Data
 				if(a.NodeType == ExpressionType.MemberInit || a.NodeType == ExpressionType.New)
 					foreach(var subitem in CreateBindings(context + name + ".", a))
 						yield return subitem;
-				else { 
-					var m = (MethodCallExpression)((UnaryExpression)a).Operand;
-					yield return CreateBinding(context + name, m);
-				}
+				else 
+					yield return CreateBinding(context + name, a);
 			}
 		}
 
-		static KeyValuePair<string, SqlQueryColumn> CreateBinding(string name, MethodCallExpression columnBinding) =>
-			new KeyValuePair<string, SqlQueryColumn>(name, (SqlQueryColumn)Delegate.CreateDelegate(typeof(Func<string, string, SqlQueryColumn>), columnBinding.Method).DynamicInvoke(columnBinding.Arguments.Select(x => ((ConstantExpression)x).Value).ToArray()));
+		static SqlQueryColumn EvalAsQueryColumn(Expression expr) {
+			if(expr.NodeType == ExpressionType.MemberAccess) {
+				var m = (MemberExpression)expr;
+				return (SqlQueryColumn)((FieldInfo)m.Member).GetValue(((ConstantExpression)m.Expression).Value);
+			} else { 
+				var m = (MethodCallExpression)((UnaryExpression)expr).Operand;
+				return (SqlQueryColumn)Delegate.CreateDelegate(typeof(Func<string, string, SqlQueryColumn>), m.Method).DynamicInvoke(m.Arguments.Select(x => ((ConstantExpression)x).Value).ToArray());
+			}
+		}
+
+		static KeyValuePair<string, SqlQueryColumn> CreateBinding(string name, Expression columnBinding) =>
+			new KeyValuePair<string, SqlQueryColumn>(name, EvalAsQueryColumn(columnBinding));
 	}
 }
