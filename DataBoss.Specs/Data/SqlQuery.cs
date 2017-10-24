@@ -35,10 +35,18 @@ namespace DataBoss.Data.Specs
 				.That(q => q.ToString() == "select [TheAnswer] = Answers.Value");
 		}
 
-		public void select_null_column() {
-			Check
+		public void select_null_column() => Check
 			.With(() => SqlQuery.Select(() => new { Value = SqlQuery.Null<int?>() }))
 			.That(q => q.ToString() == "select [Value] = cast(null as int)");
-		}
+
+		public struct MyStruct { public int Value; }
+
+		public void select_without_ctor() => Check
+			.With(() => SqlQuery.Select(() => new MyStruct { Value = SqlQuery.Column<int>("MyTable", "Id") }))
+			.That(q => q.ToString() == "select [Value] = MyTable.Id");
+
+		public void select_formatting_indented() => Check
+			.With(() => SqlQuery.Select(() => new {  Value = SqlQuery.Column<int>("Source", "Column")}))
+			.That(q => q.ToString(SqlQueryFormatting.Indented) == "select\n\t[Value] = Source.Column\n");
 	}
 }

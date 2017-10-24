@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Text;
 
 namespace DataBoss.Data
 {
@@ -65,12 +66,27 @@ namespace DataBoss.Data
 
 		internal SqlQuerySelect(KeyValuePair<string, SqlQueryColumn>[] selectList) { this.selectList = selectList; }
 
-		public override string ToString()
-		{
+		public override string ToString() => ToString(SqlQueryFormatting.Default);
+
+		public string ToString(SqlQueryFormatting formatting) {
+			var query = new StringBuilder("select");
+			var sep = formatting == SqlQueryFormatting.Default 
+				? new { Begin = " ", End = string.Empty}
+				: new { Begin = "\n\t", End = "\n" };
 			if (selectList.Length == 0)
 				return "select *";
-			return "select " + string.Join(", ", Array.ConvertAll(selectList, x => $"[{x.Key}] = {x.Value}"));
+			return query
+				.Append(sep.Begin)
+				.Append(string.Join("," + sep.Begin, Array.ConvertAll(selectList, x => $"[{x.Key}] = {x.Value}")))
+				.Append(sep.End)
+				.ToString();
 		}
+	}
+
+	public enum SqlQueryFormatting
+	{
+		Default,
+		Indented,
 	}
 
 	public class SqlQuery
@@ -88,7 +104,9 @@ namespace DataBoss.Data
 		}
 
 		static IEnumerable<KeyValuePair<string, SqlQueryColumn>> CreateBindings(string context, NewExpression ctor) {
-			var p = ctor.Constructor.GetParameters();
+			if(ctor.Constructor == null)
+				return Enumerable.Empty<KeyValuePair<string, SqlQueryColumn>>();
+			var p = ctor.Constructor.GetParameters(); 
 			return Enumerable.Range(0, p.Length).SelectMany(n => CreateChildBinding(context + p[n].Name, ctor.Arguments[n]));			
 		}
 
