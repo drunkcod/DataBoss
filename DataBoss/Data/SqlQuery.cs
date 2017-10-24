@@ -89,25 +89,22 @@ namespace DataBoss.Data
 
 		static IEnumerable<KeyValuePair<string, SqlQueryColumn>> CreateBindings(string context, NewExpression ctor) {
 			var p = ctor.Constructor.GetParameters();
-			for (var i = 0; i != p.Length; ++i)
-				yield return CreateBinding(context + p[i].Name, ctor.Arguments[i]);
+			return Enumerable.Range(0, p.Length).SelectMany(n => CreateChildBinding(context + p[n].Name, ctor.Arguments[n]));			
 		}
 
-		static IEnumerable<KeyValuePair<string, SqlQueryColumn>> CreateBindings(string context, MemberInitExpression init) {
-			foreach(var item in CreateBindings(context, init.NewExpression))
-				yield return item;
+		static IEnumerable<KeyValuePair<string, SqlQueryColumn>> CreateBindings(string context, MemberInitExpression init) =>
+			CreateBindings(context, init.NewExpression)
+			.Concat(init.Bindings.SelectMany(x => CreateChildBinding(context + x.Member.Name, (x as MemberAssignment).Expression)));
 
-			var q = init.Bindings.ToArray();
-			for (var i = 0; i != q.Length; ++i) {
-				var name = q[i].Member.Name;
-				var a = ((MemberAssignment)q[i]).Expression;
-				if(a.NodeType == ExpressionType.MemberInit || a.NodeType == ExpressionType.New)
-					foreach(var subitem in CreateBindings(context + name + ".", a))
-						yield return subitem;
-				else 
-					yield return CreateBinding(context + name, a);
-			}
+		static IEnumerable<KeyValuePair<string, SqlQueryColumn>> CreateChildBinding(string name, Expression a) {
+			if (HasChildBindings(a))
+				foreach (var child in CreateBindings(name + ".", a))
+					yield return child;
+			else
+				yield return CreateBinding(name, a);
 		}
+
+		static bool HasChildBindings(Expression a) => a.NodeType == ExpressionType.MemberInit || a.NodeType == ExpressionType.New;
 
 		static SqlQueryColumn EvalAsQueryColumn(Expression expr) {
 			switch(expr.NodeType)

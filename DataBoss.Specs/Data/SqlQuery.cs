@@ -24,6 +24,10 @@ namespace DataBoss.Data.Specs
 			.With(() => SqlQuery.Select(() => new MyRow<KeyValuePair<int, int>> { Whatever = new KeyValuePair<int, int>(SqlQuery.Column<int>("Answer", "Key"), SqlQuery.Column<int>("Answer", "Value")) }))
 			.That(q => q.ToString() == "select [Whatever.key] = Answer.Key, [Whatever.value] = Answer.Value");
 
+		public void select_recursive_member_init() => Check
+			.With(() => SqlQuery.Select(() => new KeyValuePair<int, MyRow<int>>(SqlQuery.Column<int>("Things", "Id"), new MyRow<int> { Whatever = SqlQuery.Column<int>("Answer", "Value") })))
+			.That(q => q.ToString() == "select [key] = Things.Id, [value.Whatever] = Answer.Value");
+
 		public void select_non_inline_method_call_column_definition()
 		{
 			var source = SqlQuery.Column<int>("Answers", "Value");
