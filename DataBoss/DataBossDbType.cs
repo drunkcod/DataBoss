@@ -19,6 +19,7 @@ namespace DataBoss
 			this.IsNullable = isNullable;
 		}
 
+		public static DataBossDbType ToDbType(Type type) => ToDbType(type, type);
 		public static DataBossDbType ToDbType(Type type, ICustomAttributeProvider attributes) {
 			var canBeNull = !type.IsValueType && !attributes.Any<RequiredAttribute>();
 			if (type.TryGetNullableTargetType(out var newTargetType)) {

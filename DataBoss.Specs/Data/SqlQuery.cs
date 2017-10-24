@@ -30,5 +30,11 @@ namespace DataBoss.Data.Specs
 			Check.With(() => SqlQuery.Select(() => new { TheAnswer = source }))
 				.That(q => q.ToString() == "select [TheAnswer] = Answers.Value");
 		}
+
+		public void select_null_column() {
+			Check
+			.With(() => SqlQuery.Select(() => new { Value = SqlQuery.Null<int?>() }))
+			.That(q => q.ToString() == "select [Value] = cast(null as int)");
+		}
 	}
 }

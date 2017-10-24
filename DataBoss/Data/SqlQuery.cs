@@ -1,28 +1,60 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 
 namespace DataBoss.Data
 {
+	public enum SqlQueryColumnType
+	{
+		TableColumn,
+		Query,
+	}
+
 	public class SqlQueryColumn
 	{
-		readonly string table;
-		readonly string name;
+		readonly SqlQueryColumnType columnType;
+		readonly object stuff;
 
-		public SqlQueryColumn(string table, string name)
-		{
-			this.table = table;
-			this.name = name;
+		protected SqlQueryColumn(SqlQueryColumnType columnType, object stuff) {
+			this.columnType = columnType;
+			this.stuff = stuff;
 		}
 
-		public override string ToString() => $"{table}.{name}";
+		protected SqlQueryColumn(string table, string column) {
+			this.columnType = SqlQueryColumnType.TableColumn;
+			this.stuff = new [] { table, column };
+		}
+
+		public static SqlQueryColumn TableColumn(string table, string column) => new SqlQueryColumn(table, column);
+		public static SqlQueryColumn Query(string query) => new SqlQueryColumn(SqlQueryColumnType.Query, query);
+
+		public override string ToString() {
+			switch(columnType) { 
+				case SqlQueryColumnType.Query: return (string)stuff;
+				case SqlQueryColumnType.TableColumn: 
+					var parts = (string[])stuff;
+					return $"{parts[0]}.{parts[1]}";
+			}
+			throw new InvalidOperationException();
+		}
 
 	}
 	public class SqlQueryColumn<T> : SqlQueryColumn
 	{
 		public SqlQueryColumn(string table, string name) : base(table, name) { }
+		SqlQueryColumn(string query) : base(SqlQueryColumnType.Query, query) { }
+
+		public static SqlQueryColumn<T> Null { 
+			get {
+				var dbType = DataBossDbType.ToDbType(typeof(T));
+				if(!dbType.IsNullable)
+					throw new InvalidOperationException("Column is not nullable");
+				return new SqlQueryColumn<T>($"cast(null as {dbType})");
+			}
+		}
 
 		public static implicit operator T(SqlQueryColumn<T> self) => default(T);
 	}
@@ -44,6 +76,7 @@ namespace DataBoss.Data
 	public class SqlQuery
 	{
 		public static SqlQueryColumn<T> Column<T>(string table, string name) => new SqlQueryColumn<T>(table, name);
+		public static SqlQueryColumn<T> Null<T>() => SqlQueryColumn<T>.Null;
 		public static SqlQuerySelect Select<T>(Expression<Func<T>> selector) => new SqlQuerySelect(CreateBindings(string.Empty, selector.Body).ToArray());
 
 		static IEnumerable<KeyValuePair<string, SqlQueryColumn>> CreateBindings(string context, Expression expr) {
@@ -77,12 +110,26 @@ namespace DataBoss.Data
 		}
 
 		static SqlQueryColumn EvalAsQueryColumn(Expression expr) {
-			if(expr.NodeType == ExpressionType.MemberAccess) {
-				var m = (MemberExpression)expr;
-				return (SqlQueryColumn)((FieldInfo)m.Member).GetValue(((ConstantExpression)m.Expression).Value);
-			} else { 
-				var m = (MethodCallExpression)((UnaryExpression)expr).Operand;
-				return (SqlQueryColumn)Delegate.CreateDelegate(typeof(Func<string, string, SqlQueryColumn>), m.Method).DynamicInvoke(m.Arguments.Select(x => ((ConstantExpression)x).Value).ToArray());
+			switch(expr.NodeType)
+			{
+				default: throw new NotSupportedException($"Unsupported NodeType '{expr.NodeType}'");
+				case ExpressionType.MemberAccess: return (SqlQueryColumn)GetMember(expr as MemberExpression);
+				case ExpressionType.Convert: return EvalAsQueryColumn((expr as UnaryExpression).Operand);
+				case ExpressionType.Call:
+					var m = expr as MethodCallExpression;
+					return (SqlQueryColumn)m.Method.Invoke(null, m.Arguments.Select(x => ((ConstantExpression)x).Value).ToArray());
+			}
+		}
+
+		static object GetMember(MemberExpression m) {
+			switch(m.Member.MemberType) { 
+				default: throw new NotSupportedException($"Unsupported MemberType '{m.Member.MemberType}'");
+				case MemberTypes.Field: return ((FieldInfo)m.Member).GetValue(((ConstantExpression)m.Expression).Value);
+				case MemberTypes.Property: 
+					var prop = m.Member as PropertyInfo;
+					if(m.Expression == null)
+						return prop.GetValue(null);
+					return prop.GetValue(((ConstantExpression)m.Expression).Value);
 			}
 		}
 
