@@ -52,5 +52,9 @@ namespace DataBoss.Data.Specs
 		public void from() => Check
 			.With(() => SqlQuery.Select(() => new MyRow<int>()).From("MyTable"))
 			.That(q => q.ToString() == "select * from MyTable");
+
+		public void join() => Check
+			.With(() => SqlQuery.Select(() => new MyRow<int>()).From("MyTable").Join("MyOtherTable", () => SqlQuery.Column<int>("MyTable", "Id") == SqlQuery.Column<int>("MyOtherTable", "Id")))
+			.That(q => q.ToString() == "select * from MyTable join MyOtherTable on MyTable.Id = MyOtherTable.Id");
 	}
 }

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Text;
 
 namespace DataBoss.Data
 {
@@ -59,31 +58,6 @@ namespace DataBoss.Data
 		public static implicit operator T(SqlQueryColumn<T> self) => default(T);
 	}
 
-	public class SqlQuerySelect
-	{
-		readonly KeyValuePair<string, SqlQueryColumn>[] selectList;
-
-		internal SqlQuerySelect(KeyValuePair<string, SqlQueryColumn>[] selectList) { this.selectList = selectList; }
-
-		public SqlQueryFrom From(string table) => new SqlQueryFrom(this, table);
-
-		public override string ToString() => ToString(SqlQueryFormatting.Default);
-
-		public string ToString(SqlQueryFormatting formatting) {
-			var query = new StringBuilder("select");
-			var sep = formatting == SqlQueryFormatting.Default 
-				? new { Begin = " ", End = string.Empty}
-				: new { Begin = "\n\t", End = "\n" };
-			if (selectList.Length == 0)
-				return "select *";
-			return query
-				.Append(sep.Begin)
-				.Append(string.Join("," + sep.Begin, Array.ConvertAll(selectList, x => $"[{x.Key}] = {x.Value}")))
-				.Append(sep.End)
-				.ToString();
-		}
-	}
-
 	public class SqlQueryFrom
 	{
 		readonly SqlQuerySelect select;
@@ -94,7 +68,45 @@ namespace DataBoss.Data
 			this.table = table;
 		}
 
-		public override string ToString() => select.ToString() + " from " + table;
+		public SqlQueryJoin Join(string table, Expression<Func<bool>> expr) => SqlQueryJoin.Create(this, table, expr);
+
+		public override string ToString() => ToString(SqlQueryFormatting.Default);
+		public string ToString(SqlQueryFormatting formatting) => select.ToString(formatting) + " from " + table;
+	}
+
+	public class SqlQueryJoin
+	{
+		readonly SqlQueryFrom from;
+		readonly string table;
+		readonly string expr;
+
+		internal static SqlQueryJoin Create(SqlQueryFrom from, string table, Expression<Func<bool>> expr)
+		{
+			var e = (BinaryExpression)expr.Body;
+			var left = SqlQuery.EvalAsQueryColumn(e.Left);
+			var right = SqlQuery.EvalAsQueryColumn(e.Right);
+			
+			return new SqlQueryJoin(from, table, $"{left} {GetBinaryOp(e.NodeType)} {right}");
+		}
+
+		static string GetBinaryOp(ExpressionType type) {
+			switch(type)
+			{
+				default: throw new NotSupportedException($"Unsupported binary op '{type}'");
+				case ExpressionType.Equal: return "=";
+			}
+		}
+
+		SqlQueryJoin(SqlQueryFrom from, string table, string expr)
+		{
+			this.from = from;
+			this.table = table;
+			this.expr = expr;
+		}
+
+		public override string ToString() => ToString(SqlQueryFormatting.Default);
+		public string ToString(SqlQueryFormatting formatting) => from.ToString(formatting) + " join " + table + " on " + expr;
+
 	}
 
 	public enum SqlQueryFormatting
@@ -138,7 +150,7 @@ namespace DataBoss.Data
 
 		static bool HasChildBindings(Expression a) => a.NodeType == ExpressionType.MemberInit || a.NodeType == ExpressionType.New;
 
-		static SqlQueryColumn EvalAsQueryColumn(Expression expr) {
+		internal static SqlQueryColumn EvalAsQueryColumn(Expression expr) {
 			switch(expr.NodeType)
 			{
 				default: throw new NotSupportedException($"Unsupported NodeType '{expr.NodeType}'");
