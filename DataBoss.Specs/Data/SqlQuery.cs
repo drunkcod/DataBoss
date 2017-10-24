@@ -15,5 +15,13 @@ namespace DataBoss.Data.Specs
 		public void select_member_init() => Check
 			.With(() => SqlQuery.Select(() => new MyRow<float> { Whatever = SqlQuery.Column<float>("Your", "Boat") }))
 			.That(q => q.ToString() == "select [Whatever] = Your.Boat");
+
+		public void select_recursive_init() => Check
+			.With(() => SqlQuery.Select(() => new MyRow<MyRow<int>> { Whatever = new MyRow<int> { Whatever = SqlQuery.Column<int>("Answer", "Value") } }))
+			.That(q => q.ToString() == "select [Whatever.Whatever] = Answer.Value");
+
+		public void select_recursive_ctor() => Check
+			.With(() => SqlQuery.Select(() => new MyRow<KeyValuePair<int, int>> { Whatever = new KeyValuePair<int, int>(SqlQuery.Column<int>("Answer", "Key"), SqlQuery.Column<int>("Answer", "Value")) }))
+			.That(q => q.ToString() == "select [Whatever.key] = Answer.Key, [Whatever.value] = Answer.Value");
 	}
 }

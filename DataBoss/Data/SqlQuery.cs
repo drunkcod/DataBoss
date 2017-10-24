@@ -46,29 +46,43 @@ namespace DataBoss.Data
 	public class SqlQuery
 	{
 		public static SqlQueryColumn<T> Column<T>(string table, string name) => new SqlQueryColumn<T>(table, name);
-		public static SqlQuerySelect Select<T>(Expression<Func<T>> selector)
-		{
-			var init = selector.Body as MemberInitExpression;
-			var body = init != null ? init.NewExpression : selector.Body as NewExpression;
-			if (body == null)
-				throw new NotSupportedException("Can't create select from " + selector.Body.NodeType);
-			var p = body.Constructor.GetParameters();
-			var q = init?.Bindings.ToArray() ?? new MemberBinding[0];
-			var args = new KeyValuePair<string, SqlQueryColumn>[p.Length + q.Length];
-			var n = 0;
-			for (var i = 0; i != p.Length; ++i, ++n)
-			{
-				var m = (MethodCallExpression)((UnaryExpression)body.Arguments[i]).Operand;
-				args[n] = new KeyValuePair<string, SqlQueryColumn>(p[i].Name, (SqlQueryColumn)Delegate.CreateDelegate(typeof(Func<string, string, SqlQueryColumn>), m.Method).DynamicInvoke(m.Arguments.Select(x => ((ConstantExpression)x).Value).ToArray()));
-			}
-			for(var i = 0; i != q.Length; ++i, ++n)
-			{
-				var a = ((MemberAssignment)q[i]).Expression;
-				var m = (MethodCallExpression)((UnaryExpression)a).Operand;
-				args[n] = new KeyValuePair<string, SqlQueryColumn>(q[i].Member.Name, (SqlQueryColumn)Delegate.CreateDelegate(typeof(Func<string, string, SqlQueryColumn>), m.Method).DynamicInvoke(m.Arguments.Select(x => ((ConstantExpression)x).Value).ToArray()));
-			}
-			return new SqlQuerySelect(args);
-		}
-	}
+		public static SqlQuerySelect Select<T>(Expression<Func<T>> selector) => new SqlQuerySelect(CreateBindings(string.Empty, selector.Body).ToArray());
 
+		static IEnumerable<KeyValuePair<string, SqlQueryColumn>> CreateBindings(string context, Expression expr) {
+			switch(expr.NodeType) {
+				default: throw new NotSupportedException("Can't create select from " + expr);
+				case ExpressionType.New: return CreateBindings(context, (NewExpression)expr);
+				case ExpressionType.MemberInit: return CreateBindings(context, (MemberInitExpression)expr);
+			}
+		}
+
+		static IEnumerable<KeyValuePair<string, SqlQueryColumn>> CreateBindings(string context, NewExpression ctor) {
+			var p = ctor.Constructor.GetParameters();
+			for (var i = 0; i != p.Length; ++i) {
+				var m = (MethodCallExpression)((UnaryExpression)ctor.Arguments[i]).Operand;
+				yield return CreateBinding(context + p[i].Name, m);
+			}
+		}
+
+		static IEnumerable<KeyValuePair<string, SqlQueryColumn>> CreateBindings(string context, MemberInitExpression init) {
+			foreach(var item in CreateBindings(context, init.NewExpression))
+				yield return item;
+
+			var q = init.Bindings.ToArray();
+			for (var i = 0; i != q.Length; ++i) {
+				var name = q[i].Member.Name;
+				var a = ((MemberAssignment)q[i]).Expression;
+				if(a.NodeType == ExpressionType.MemberInit || a.NodeType == ExpressionType.New)
+					foreach(var subitem in CreateBindings(context + name + ".", a))
+						yield return subitem;
+				else { 
+					var m = (MethodCallExpression)((UnaryExpression)a).Operand;
+					yield return CreateBinding(context + name, m);
+				}
+			}
+		}
+
+		static KeyValuePair<string, SqlQueryColumn> CreateBinding(string name, MethodCallExpression columnBinding) =>
+			new KeyValuePair<string, SqlQueryColumn>(name, (SqlQueryColumn)Delegate.CreateDelegate(typeof(Func<string, string, SqlQueryColumn>), columnBinding.Method).DynamicInvoke(columnBinding.Arguments.Select(x => ((ConstantExpression)x).Value).ToArray()));
+	}
 }
