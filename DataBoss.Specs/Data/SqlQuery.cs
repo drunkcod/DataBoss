@@ -48,5 +48,9 @@ namespace DataBoss.Data.Specs
 		public void select_formatting_indented() => Check
 			.With(() => SqlQuery.Select(() => new {  Value = SqlQuery.Column<int>("Source", "Column")}))
 			.That(q => q.ToString(SqlQueryFormatting.Indented) == "select\n\t[Value] = Source.Column\n");
+
+		public void from() => Check
+			.With(() => SqlQuery.Select(() => new MyRow<int>()).From("MyTable"))
+			.That(q => q.ToString() == "select * from MyTable");
 	}
 }

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -66,6 +65,8 @@ namespace DataBoss.Data
 
 		internal SqlQuerySelect(KeyValuePair<string, SqlQueryColumn>[] selectList) { this.selectList = selectList; }
 
+		public SqlQueryFrom From(string table) => new SqlQueryFrom(this, table);
+
 		public override string ToString() => ToString(SqlQueryFormatting.Default);
 
 		public string ToString(SqlQueryFormatting formatting) {
@@ -81,6 +82,19 @@ namespace DataBoss.Data
 				.Append(sep.End)
 				.ToString();
 		}
+	}
+
+	public class SqlQueryFrom
+	{
+		readonly SqlQuerySelect select;
+		readonly string table;
+
+		internal SqlQueryFrom(SqlQuerySelect select, string table) { 
+			this.select = select;
+			this.table = table;
+		}
+
+		public override string ToString() => select.ToString() + " from " + table;
 	}
 
 	public enum SqlQueryFormatting
