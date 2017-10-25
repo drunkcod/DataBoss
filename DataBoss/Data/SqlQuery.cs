@@ -58,57 +58,6 @@ namespace DataBoss.Data
 		public static implicit operator T(SqlQueryColumn<T> self) => default(T);
 	}
 
-	public class SqlQueryFrom
-	{
-		readonly SqlQuerySelect select;
-		readonly string table;
-
-		internal SqlQueryFrom(SqlQuerySelect select, string table) { 
-			this.select = select;
-			this.table = table;
-		}
-
-		public SqlQueryJoin Join(string table, Expression<Func<bool>> expr) => SqlQueryJoin.Create(this, table, expr);
-
-		public override string ToString() => ToString(SqlQueryFormatting.Default);
-		public string ToString(SqlQueryFormatting formatting) => select.ToString(formatting) + " from " + table;
-	}
-
-	public class SqlQueryJoin
-	{
-		readonly SqlQueryFrom from;
-		readonly string table;
-		readonly string expr;
-
-		internal static SqlQueryJoin Create(SqlQueryFrom from, string table, Expression<Func<bool>> expr)
-		{
-			var e = (BinaryExpression)expr.Body;
-			var left = SqlQuery.EvalAsQueryColumn(e.Left);
-			var right = SqlQuery.EvalAsQueryColumn(e.Right);
-			
-			return new SqlQueryJoin(from, table, $"{left} {GetBinaryOp(e.NodeType)} {right}");
-		}
-
-		static string GetBinaryOp(ExpressionType type) {
-			switch(type)
-			{
-				default: throw new NotSupportedException($"Unsupported binary op '{type}'");
-				case ExpressionType.Equal: return "=";
-			}
-		}
-
-		SqlQueryJoin(SqlQueryFrom from, string table, string expr)
-		{
-			this.from = from;
-			this.table = table;
-			this.expr = expr;
-		}
-
-		public override string ToString() => ToString(SqlQueryFormatting.Default);
-		public string ToString(SqlQueryFormatting formatting) => from.ToString(formatting) + " join " + table + " on " + expr;
-
-	}
-
 	public enum SqlQueryFormatting
 	{
 		Default,

@@ -58,6 +58,8 @@
     <Compile Include="Data\ConverterCache.cs" />
     <Compile Include="Data\SqlCommandEnumerable.cs" />
     <Compile Include="Data\SqlQuery.cs" />
+    <Compile Include="Data\SqlQueryFrom.cs" />
+    <Compile Include="Data\SqlQueryJoin.cs" />
     <Compile Include="Data\SqlQuerySelect.cs" />
     <Compile Include="Diagnostics\SqlServerMaintenancePlanWizard.cs" />
     <Compile Include="ExpressionExtensions.cs" />
