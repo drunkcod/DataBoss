@@ -49,7 +49,6 @@
     <Compile Include="DataBossBulkCopy.cs" />
     <Compile Include="DataBossCommandAttribute.cs" />
     <Compile Include="DataBossDbType.cs" />
-    <Compile Include="Data\DataBossConnectionProvider.cs" />
     <Compile Include="Data\DbObjectQuery.cs" />
     <Compile Include="Data\NullAttributeProvider.cs" />
     <Compile Include="Data\SqlCommandEnumerable.cs" />
