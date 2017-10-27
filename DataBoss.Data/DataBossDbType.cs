@@ -5,7 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Data;
 using System.Reflection;
 
-namespace DataBoss
+namespace DataBoss.Data
 {
 	public struct DataBossDbType
 	{
@@ -52,7 +52,7 @@ namespace DataBoss
 			}
 		}
 
-		internal static SqlDbType ToSqlDbType(Type type) {
+		public static SqlDbType ToSqlDbType(Type type) {
 			switch(type.FullName) {
 				case "System.Byte": return SqlDbType.TinyInt;
 				case "System.Int16": return SqlDbType.SmallInt;

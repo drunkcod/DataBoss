@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using System.Reflection;
 
 namespace DataBoss.Data
 {
-	class NullAttributeProvider : ICustomAttributeProvider
+	public class NullAttributeProvider : ICustomAttributeProvider
 	{
 		NullAttributeProvider() { }
 

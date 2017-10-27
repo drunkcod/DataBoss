@@ -86,7 +86,7 @@ namespace DataBoss.Linq
 		}
 	}
 
-	static class TextReaderExtensions
+	public static class TextReaderExtensions
 	{
 		public static IEnumerable<string> AsEnumerable(this Func<TextReader> self) {
 			using(var text = self())

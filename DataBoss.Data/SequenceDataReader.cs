@@ -5,7 +5,7 @@ using System.Reflection;
 
 namespace DataBoss.Data
 {
-	static class DataReaderSchemaColumns
+	public static class DataReaderSchemaColumns
 	{
 		public const string AllowDBNull = "AllowDBNull";
 		public const string ColumnSize = "ColumnSize";
