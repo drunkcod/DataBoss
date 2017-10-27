@@ -45,25 +45,21 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Data\ConverterCollection.cs" />
-    <Compile Include="Data\ConverterFactory.cs" />
     <Compile Include="DataBoss.cs" />
     <Compile Include="DataBossBulkCopy.cs" />
     <Compile Include="DataBossCommandAttribute.cs" />
     <Compile Include="DataBossDbType.cs" />
-    <Compile Include="Data\DataRecordConverter.cs" />
     <Compile Include="Data\DataBossConnectionProvider.cs" />
     <Compile Include="Data\DbObjectQuery.cs" />
     <Compile Include="Data\NullAttributeProvider.cs" />
-    <Compile Include="Data\ConverterCache.cs" />
     <Compile Include="Data\SqlCommandEnumerable.cs" />
     <Compile Include="Data\SqlQuery.cs" />
     <Compile Include="Data\SqlQueryFrom.cs" />
     <Compile Include="Data\SqlQueryJoin.cs" />
     <Compile Include="Data\SqlQuerySelect.cs" />
+    <Compile Include="Data\SqlStringBuilder.cs" />
     <Compile Include="Diagnostics\SqlServerMaintenancePlanWizard.cs" />
     <Compile Include="ExpressionExtensions.cs" />
-    <Compile Include="Data\FieldMap.cs" />
     <Compile Include="Migrations\DataBossCompositeMigration.cs" />
     <Compile Include="DataBossConfiguration.cs" />
     <Compile Include="DataBossConsoleLog.cs" />
@@ -96,7 +92,6 @@
     <Compile Include="IDataBossMigration.cs" />
     <Compile Include="IDataBossMigrationScope.cs" />
     <Compile Include="Linq\MissinqLinq.cs" />
-    <Compile Include="ObjectReader.cs" />
     <Compile Include="ObjectVisualizer.cs" />
     <Compile Include="PowerArgs.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -120,7 +115,12 @@
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <ProjectReference Include="..\DataBoss.Data\DataBoss.Data.csproj">
+      <Project>{4762c02c-a4cd-4c1c-8eca-bc58034c6042}</Project>
+      <Name>DataBoss.Data</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>

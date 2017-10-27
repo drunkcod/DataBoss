@@ -1,3 +1,4 @@
+using DataBoss.Data;
 using DataBoss.Linq;
 using DataBoss.Migrations;
 using DataBoss.Schema;
