@@ -49,7 +49,6 @@
     <Compile Include="DataBossBulkCopy.cs" />
     <Compile Include="DataBossCommandAttribute.cs" />
     <Compile Include="Data\DbObjectQuery.cs" />
-    <Compile Include="Data\SqlCommandEnumerable.cs" />
     <Compile Include="Data\SqlQuery.cs" />
     <Compile Include="Data\SqlQueryFrom.cs" />
     <Compile Include="Data\SqlQueryJoin.cs" />
