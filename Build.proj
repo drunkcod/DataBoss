@@ -9,8 +9,7 @@
 	</PropertyGroup>
 
 	<Target Name="Build">
-		<MSBuild BuildInParallel="True" UnloadProjectsOnCompletion="True"
-			Projects="DataBoss\DataBoss.sln" />
+		<Exec Command="dotnet msbuild DataBoss\DataBoss.sln /nologo /m /p:Configuration=$(Configuration)" />
 	</Target>
 	<Target Name="Package-DataBoss">
 		<ItemGroup>

@@ -2,7 +2,7 @@
 	<UsingTask
 		TaskName="Zip"
 		TaskFactory="CodeTaskFactory"
-		AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.v12.0.dll" >
+		AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.v15.0.dll" >
 		<ParameterGroup>
 			<Include Required="True" ParameterType="Microsoft.Build.Framework.ITaskItem[]" />
 			<Exclude ParameterType="System.String[]" />

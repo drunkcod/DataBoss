@@ -1,4 +1,3 @@
-using DataBoss.Data;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -8,7 +7,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 
-namespace DataBoss
+namespace DataBoss.Data
 {
 	public static class ToParams
 	{

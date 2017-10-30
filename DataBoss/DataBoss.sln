@@ -9,6 +9,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataBoss.Specs", "..\DataBo
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{6C61E09D-69AC-474F-8A80-18863A9662E8}"
 	ProjectSection(SolutionItems) = preProject
+		..\.editorconfig = ..\.editorconfig
 		..\Build.proj = ..\Build.proj
 		..\Tools\DataBoss.targets = ..\Tools\DataBoss.targets
 		..\Package-Release.ps1 = ..\Package-Release.ps1
@@ -17,7 +18,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataBoss.Program", "..\DataBoss.Program\DataBoss.Program.csproj", "{8E941F8D-9745-44C9-AC73-DF5E079D8E8E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataBoss.Data", "..\DataBoss.Data\DataBoss.Data.csproj", "{4762C02C-A4CD-4C1C-8ECA-BC58034C6042}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss.Data", "..\DataBoss.Data\DataBoss.Data.csproj", "{4762C02C-A4CD-4C1C-8ECA-BC58034C6042}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
