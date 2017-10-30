@@ -1,12 +1,13 @@
-using Cone;
-using DataBoss.Data;
-using DataBoss.Testing;
 using System.Data.SqlClient;
 using System.Linq;
+using Cone;
+using DataBoss.Data;
+using DataBoss.Diagnostics;
+using DataBoss.Testing;
 
 namespace DataBoss.Specs
 {
-	[Describe(typeof(SqlConnectionExtensions))]
+	[Feature("SqlConnection extensions")]
 	public class SqlConnectionExtensionsSpec
 	{
 		SqlConnection Connection;

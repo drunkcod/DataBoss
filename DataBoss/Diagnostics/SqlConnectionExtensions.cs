@@ -1,8 +1,7 @@
 using System.Data.SqlClient;
 using DataBoss.Data;
-using DataBoss.Diagnostics;
 
-namespace DataBoss
+namespace DataBoss.Diagnostics
 {
 	public static class SqlConnectionExtensions
 	{
