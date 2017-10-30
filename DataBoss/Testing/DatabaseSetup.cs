@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Data.SqlClient;
+using DataBoss.Data;
 
 namespace DataBoss.Testing
 {

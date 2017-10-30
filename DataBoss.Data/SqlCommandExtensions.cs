@@ -1,7 +1,7 @@
 using DataBoss.Data;
 using System.Data.SqlClient;
 
-namespace DataBoss
+namespace DataBoss.Data
 {
 	public static class SqlCommandExtensions
 	{

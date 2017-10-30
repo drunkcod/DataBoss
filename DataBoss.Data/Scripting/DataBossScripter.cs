@@ -1,6 +1,3 @@
-using DataBoss.Data;
-using DataBoss.Linq;
-using DataBoss.Schema;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -9,8 +6,9 @@ using System.Data;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using DataBoss.Linq;
 
-namespace DataBoss
+namespace DataBoss.Data.Scripting
 {
 	public class DataBossScripter
 	{

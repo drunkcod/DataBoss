@@ -4,12 +4,17 @@
     <TargetFrameworks>netstandard2.0;net45</TargetFrameworks>
     <OutputPath>$(SolutionDir)..\Build\$(MSBuildProjectName)\$(Configuration)</OutputPath>
     <IntermediateOutputPath>$(SolutionDir)..\Build\obj\$(MSBuildProjectName)</IntermediateOutputPath>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
     <PackageReference Include="System.Data.SqlClient">
       <Version>4.4.0</Version>
     </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\DataBoss\Properties\Version.cs" Link="Version.cs" />
   </ItemGroup>
 
   <ItemGroup>
