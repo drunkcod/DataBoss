@@ -66,6 +66,7 @@
     <Compile Include="ObjectReaderSpec.cs" />
     <Compile Include="ObjectVisualizerSpec.cs" />
     <Compile Include="PowerArgsSpec.cs" />
+    <Compile Include="SequenceComparerSpec.cs" />
     <Compile Include="SimpleDataReader.cs" />
     <Compile Include="SqlConnectionExtensionsSpec.cs" />
     <Compile Include="StubAttributeProvider.cs" />
