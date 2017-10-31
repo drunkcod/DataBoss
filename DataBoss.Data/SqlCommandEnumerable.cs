@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.Linq;
 using System.Threading;
 
 namespace DataBoss.Data
@@ -58,17 +59,46 @@ namespace DataBoss.Data
 		}
 
 		public IEnumerator<T> GetEnumerator() {
-			using(var q = getCommand()) {
-				if(string.IsNullOrEmpty(q.CommandText))
-					yield break;
-				using(var r = q.ExecuteReader()) {
-					var materialize = converterFactory(r);
-					do {
-						while(r.Read())
-							yield return materialize(r);
-					} while(r.NextResult());
-				}
+			var q = getCommand();
+			if (string.IsNullOrEmpty(q.CommandText))
+				return Enumerable.Empty<T>().GetEnumerator();
+			var r = q.ExecuteReader();
+			return new SqlReaderEnumerator<T>(q, r, converterFactory(r));
+		}
+
+		class SqlReaderEnumerator<T> : IEnumerator<T>
+		{
+			readonly SqlCommand command;
+			readonly Func<SqlDataReader, T> materialize;
+			SqlDataReader reader;
+
+			public SqlReaderEnumerator(SqlCommand command, SqlDataReader reader, Func<SqlDataReader, T> materialize) {
+				this.command = command;
+				this.reader = reader;
+				this.materialize = materialize;
 			}
+
+			public T Current => materialize(reader);
+			object IEnumerator.Current => Current;
+
+			public void Dispose() {
+				if(reader != null) {
+					command.Cancel();
+					reader.Dispose();
+				}
+				command.Dispose();
+			}
+
+			public bool MoveNext() {
+				if(reader != null && !reader.Read()) { 
+					reader.Dispose();
+					reader = null;
+					return false;
+				}
+				return true;
+			}
+
+			public void Reset() => reader = command.ExecuteReader();
 		}
 
 		IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();

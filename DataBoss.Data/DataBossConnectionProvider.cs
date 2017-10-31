@@ -45,7 +45,9 @@ namespace DataBoss.Data
 			this.connectionString = connectionString;
 		}
 
-		public SqlConnection NewConnection() {
+		public SqlConnection NewConnection() => NewConnection(connectionString);
+
+		public SqlConnection NewConnection(string connectionString) {
 			var db = new SqlConnection(connectionString) {
 				StatisticsEnabled = statisticsEnabled,
 			};
