@@ -5,58 +5,63 @@ using Cone;
 
 namespace DataBoss.Specs
 {
-	class SequenceSetComparer
+	public class SequenceChangeDetector<TItem, TKnown>
 	{
-		static Action<int> Nop => x => { };
+		public Action<TItem> OnMissing;
+		public Action<TKnown> OnExtra;
 
-		public Action<int> OnMissing = Nop;
-		public Action<int> OnExtra = Nop;
-
-		public void FindChanges(IEnumerable<int> a, Func<int, int> keySelectorA , IEnumerable<int> b, Func<int, int> keySelectorB) {
+		public void FindChanges<TKey>(IEnumerable<TItem> a, Func<TItem, TKey> keySelectorA , IEnumerable<TKnown> b, Func<TKnown, TKey> keySelectorB) where TKey : IComparable<TKey> {
 			using(var xs = a.GetEnumerator())
 			using(var ys = b.GetEnumerator()) { 
 				var moreA = xs.MoveNext();
 				var moreB = ys.MoveNext();
-				var keyA = keySelectorA(xs.Current);
-				var keyB = keySelectorB(ys.Current);
-				while(moreA && moreB) {
-					if(keyA == keyB) { 
-						moreA = MoveNextKey(xs, keySelectorA, out keyA);
-						moreB = MoveNextKey(ys, keySelectorB, out keyB);
-					} else if(keyA < keyB) {
-						OnMissing(xs.Current);
-						moreA = MoveNextKey(xs, keySelectorA, out keyA);
-					} else {
-						OnExtra(ys.Current);
-						moreB = MoveNextKey(ys, keySelectorB, out keyB);
+				if(moreA && moreB) {
+					var keyA = keySelectorA(xs.Current);
+					var keyB = keySelectorB(ys.Current);
+					while (moreA && moreB) {
+						var c = keyA.CompareTo(keyB);
+						if (c == 0) { 
+							moreA = MoveNextKey(xs, keySelectorA, out keyA);
+							moreB = MoveNextKey(ys, keySelectorB, out keyB);
+						} else if(c < 0) {
+							OnMissing?.Invoke(xs.Current);
+							moreA = MoveNextKey(xs, keySelectorA, out keyA);
+						} else {
+							OnExtra?.Invoke(ys.Current);
+							moreB = MoveNextKey(ys, keySelectorB, out keyB);
+						}
 					}
 				}
-				if (moreA)
-					do { OnExtra(xs.Current); } while ((MoveNextKey(xs, keySelectorA, out keyA)));
+				if (moreA && OnMissing != null)
+					do { OnMissing(xs.Current); } while ((MoveNextKey(xs, keySelectorA, out var _)));
 
-				if (moreB)
-					do { OnExtra(ys.Current); } while((MoveNextKey(ys, keySelectorB, out keyB)));
+				if (moreB && OnExtra != null)
+					do { OnExtra(ys.Current); } while((MoveNextKey(ys, keySelectorB, out var _)));
 			}
 		}
 
-		static bool MoveNextKey(IEnumerator<int> xs, Func<int, int> keySelector, out int nextKey) {
+		static bool MoveNextKey<T, TKey>(IEnumerator<T> xs, Func<T, TKey> keySelector, out TKey nextKey) where TKey : IComparable<TKey> {
 			var currentKey = keySelector(xs.Current);
 			while(xs.MoveNext()) { 
 				nextKey = keySelector(xs.Current);
-				if (nextKey != currentKey) 
+				var c = nextKey.CompareTo(currentKey);
+				if(c == 0)
+					continue;
+				if(c > 0)
 					return true;
+				throw new InvalidOperationException("Input must be sorted");
 			}
-			nextKey = default(int);
+			nextKey = default(TKey);
 			return false;
 		}
 	}
 
-	[Describe(typeof(SequenceSetComparer))]
+	[Describe(typeof(SequenceChangeDetector<,>))]
 	public class SequenceComparerSpec
 	{
 		public void find_missing_elements() {
 			var missing = new List<int>();
-			var comparer = new SequenceSetComparer { 
+			var comparer = new SequenceChangeDetector<int,int> { 
 				OnMissing = missing.Add,
 			};
 			var a = new [] { 1, 2, 3};
@@ -70,7 +75,7 @@ namespace DataBoss.Specs
 
 		public void find_extra_elements() {
 			var extra = new List<int>();
-			var comparer = new SequenceSetComparer {
+			var comparer = new SequenceChangeDetector<int, int> {
 				OnExtra= extra.Add,
 			};
 			var a = new[] { 1, 3, 4 };
@@ -84,7 +89,7 @@ namespace DataBoss.Specs
 
 		public void trailing_extras() {
 			var extra = new List<int>();
-			var comparer = new SequenceSetComparer {
+			var comparer = new SequenceChangeDetector<int, int> {
 				OnExtra = extra.Add,
 			};
 			var a = new[] { 1, 2 };
@@ -98,9 +103,9 @@ namespace DataBoss.Specs
 		}
 
 		public void trailing_missing() {
-			var extra = new List<int>();
-			var comparer = new SequenceSetComparer {
-				OnExtra = extra.Add,
+			var missing = new List<int>();
+			var comparer = new SequenceChangeDetector<int, int> {
+				OnMissing = missing.Add,
 			};
 			var a = new[] { 1, 2, 3, 4};
 			var b = new[] { 1, 2, };
@@ -108,8 +113,32 @@ namespace DataBoss.Specs
 			comparer.FindChanges(a, id => id, b, id => id);
 			Check.With(() => a.Except(b))
 			.That(
-				expected => expected.Count() == extra.Count,
-				expected => expected.SequenceEqual(extra));
+				expected => expected.Count() == missing.Count,
+				expected => expected.SequenceEqual(missing));
 		}
+
+		public void sequence_key_types() {
+			var knownIds = new [] { 1, 3 };
+			var items = new[] { Item(1, "A"), Item(2, "B"), Item(3, "C") };
+
+			var missing = new List<KeyValuePair<int, string>>();
+			var comparer = new SequenceChangeDetector<KeyValuePair<int, string>, int> {
+				OnMissing = missing.Add,
+			};
+
+			comparer.FindChanges(items, x => x.Key, knownIds, x => x);
+			Check.That(() => missing.Count == 1, () => missing[0].Key == 2);
+		}
+
+		public void assumes_sorted_inputs() {
+			var comparer = new SequenceChangeDetector<int, int>();
+			var a = new[] { 2, 1, };
+			var b = new[] { 1, 2, };
+
+			Check.Exception<InvalidOperationException>(() => comparer.FindChanges(a, id => id, b, id => id));
+			Check.Exception<InvalidOperationException>(() => comparer.FindChanges(b, id => id, a, id => id));
+		}
+
+		KeyValuePair<TKey, TValue> Item<TKey, TValue>(TKey key, TValue value) => new KeyValuePair<TKey, TValue>(key, value);
 	}
 }
