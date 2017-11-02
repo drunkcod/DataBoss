@@ -90,7 +90,11 @@ namespace DataBoss.Data
 			}
 
 			public bool MoveNext() {
-				if(reader != null && !reader.Read()) { 
+				if(reader == null)
+					return false;
+				read: if(!reader.Read()) {
+					if(reader.NextResult())
+						goto read;
 					reader.Dispose();
 					reader = null;
 					return false;

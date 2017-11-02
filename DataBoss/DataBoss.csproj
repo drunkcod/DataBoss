@@ -86,6 +86,7 @@
     <Compile Include="Properties\Version.cs" />
     <Compile Include="Schema\DataBossHistory.cs" />
     <Compile Include="Diagnostics\SqlConnectionExtensions.cs" />
+    <Compile Include="SequenceDifferenceFinder.cs" />
     <Compile Include="SqlServer\SqlErrors.cs" />
     <Compile Include="SqlServer\SysObjects.cs" />
     <Compile Include="Testing\DatabaseSetup.cs" />

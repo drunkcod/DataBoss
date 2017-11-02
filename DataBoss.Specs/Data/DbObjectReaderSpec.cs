@@ -41,7 +41,7 @@ namespace DataBoss.Specs.Data
 			var rows = IntRows("select * from (values(1),(2),(3))Foo(Id)");
 			try { rows.Single(retryAlways); } catch { }
 
-			Check.That(() => rowsRead == 2);
+			Check.That(() => rowsRead <= 2);
 		}
 
 		public void SingleOrDefault_raises_appropriate_exception_when_more_than_one_element() {
@@ -60,7 +60,7 @@ namespace DataBoss.Specs.Data
 			var rows = IntRows("select * from (values(1),(2),(3))Foo(Id)");
 			try { rows.SingleOrDefault(retryAlways); } catch { }
 
-			Check.That(() => rowsRead == 2);
+			Check.That(() => rowsRead <= 2);
 		}
 
 		SqlCommandEnumerable<int> IntRows(string query) =>
