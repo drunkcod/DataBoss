@@ -19,35 +19,39 @@ namespace DataBoss
 					while (moreX && moreY) {
 						var c = keyX.CompareTo(keyY);
 						if (c == 0) { 
-							moreX = MoveNextKey(xs, keySelectorX, out keyX);
-							moreY = MoveNextKey(ys, keySelectorY, out keyY);
+							moreX = MoveNextKey(xs, keySelectorX, ref keyX);
+							moreY = MoveNextKey(ys, keySelectorY, ref keyY);
 						} else if(c < 0) {
 							OnMissing?.Invoke(xs.Current);
-							moreX = MoveNextKey(xs, keySelectorX, out keyX);
+							moreX = MoveNextKey(xs, keySelectorX, ref keyX);
 						} else {
 							OnExtra?.Invoke(ys.Current);
-							moreY = MoveNextKey(ys, keySelectorY, out keyY);
+							moreY = MoveNextKey(ys, keySelectorY, ref keyY);
 						}
 					}
 				}
-				if (moreX && OnMissing != null)
-					do { OnMissing(xs.Current); } while ((MoveNextKey(xs, keySelectorX, out var _)));
+				if (moreX && OnMissing != null) { 
+					var key = keySelectorX(xs.Current);
+					do { OnMissing(xs.Current); } while ((MoveNextKey(xs, keySelectorX, ref key)));
+				}
 
-				if (moreY && OnExtra != null)
-					do { OnExtra(ys.Current); } while((MoveNextKey(ys, keySelectorY, out var _)));
+				if (moreY && OnExtra != null) { 
+					var key = keySelectorY(ys.Current);
+					do { OnExtra(ys.Current); } while((MoveNextKey(ys, keySelectorY, ref key)));
+				}
 			}
 		}
 
-		static bool MoveNextKey<T, TKey>(IEnumerator<T> xs, Func<T, TKey> keySelector, out TKey nextKey) where TKey : IComparable<TKey> {
-			var currentKey = keySelector(xs.Current);
+		static bool MoveNextKey<T, TKey>(IEnumerator<T> xs, Func<T, TKey> keySelector, ref TKey currentKey) where TKey : IComparable<TKey> {
 			if(xs.MoveNext()) { 
-				nextKey = keySelector(xs.Current);
+				var nextKey = keySelector(xs.Current);
 				var c = nextKey.CompareTo(currentKey);
-				if(c >= 0)
+				if(c >= 0) { 
+					currentKey = nextKey;
 					return true;
+				}
 				throw new InvalidOperationException("Input must be sorted");
 			}
-			nextKey = default(TKey);
 			return false;
 		}
 	}
