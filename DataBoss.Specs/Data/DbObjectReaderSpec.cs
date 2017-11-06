@@ -73,7 +73,9 @@ namespace DataBoss.Specs.Data
 		SqlConnection Db;
 		DbObjectReader DbReader;
 
+		#pragma warning disable CS0649
 		struct Row { public int Value; }
+		#pragma warning restore CS0649
 
 		[BeforeEach]
 		public void given_a_object_reader() {

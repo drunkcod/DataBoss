@@ -6,6 +6,7 @@ namespace DataBoss.Diagnostics
 {
 	public class SqlServer2000QuerySampler : ISqlServerQuerySampler
 	{
+		#pragma warning disable CS0649
 		class RequestInfo2000
 		{
 			public RequestInfo Request;
@@ -13,6 +14,7 @@ namespace DataBoss.Diagnostics
 		}
 
 		struct QueryText { public byte[] text; }
+		#pragma warning restore CS0649
 
 		readonly DbObjectReader reader;
 	

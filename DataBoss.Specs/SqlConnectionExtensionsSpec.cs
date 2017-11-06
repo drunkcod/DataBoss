@@ -24,11 +24,13 @@ namespace DataBoss.Specs
 			Connection = null;	
 		}
 
+		#pragma warning disable CS0649
 		class MyStuffRow
 		{
 			public int Id;
 			public string Value;
 		}
+		#pragma warning restore CS0649
 
 		public void insert_and_retreive_ids_is_zippable() { 
 			var destinationTableName = "#MyStuff";

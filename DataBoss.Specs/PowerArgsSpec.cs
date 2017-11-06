@@ -81,16 +81,19 @@ namespace DataBoss.Specs
 			Check.That(() => PowerArgs.Parse("-MyProp", "NewValue").Into(new MyArgs { MyProp = "Prop", MyField = "Field" }).MyProp == "NewValue");
 		}
 
+		#pragma warning disable CS0649
 		class MyArgsWithDefaults
 		{
 			[DefaultValue("42")]
 			public string TheAnswer;
 		}
+		#pragma warning restore CS0649
 
 		public void uses_defaults_if_not_specified() {
 			Check.That(() => PowerArgs.Parse().Into<MyArgsWithDefaults>().TheAnswer == "42");
 		}
 
+		#pragma warning disable CS0649
 		class MyArgsWithNonStrings
 		{
 			public IEnumerable<float> NonStringable; 
@@ -99,6 +102,7 @@ namespace DataBoss.Specs
 			public DateTime MyDateTime;
 			public DateTime? MaybeDateTime;
 		}
+		#pragma warning restore CS0649
 
 		public void ignores_non_stringable_members() {
 			Check.That(
@@ -120,6 +124,7 @@ namespace DataBoss.Specs
 				() => PowerArgs.Parse("-MaybeDateTime", "2016-02-29").Into<MyArgsWithNonStrings>().MaybeDateTime == new DateTime(2016, 02, 29));
 		}
 
+		#pragma warning disable CS0649
 		class MyRequiredArgs
 		{
 			[Required]
@@ -127,16 +132,19 @@ namespace DataBoss.Specs
 			[Required]
 			public string ImportantProp { get; set; }
 		}
+		#pragma warning restore CS0649
 
 		public void can_check_for_required_fields() {
 			var e = Check.Exception<PowerArgsValidationException>(() => PowerArgs.Validate(new MyRequiredArgs()));
 			Check.That(() => e.Errors.Count == 2);
 		}
 
+		#pragma warning disable CS0649
 		class MyArgsWithFlags
 		{
 			public bool MyFlag;
 		}
+		#pragma warning restore CS0649
 
 		public void flags() {
 			Check.That(
@@ -156,6 +164,7 @@ namespace DataBoss.Specs
 			Something
 		}
 
+		#pragma warning disable CS0649
 		class MyArgsWithEnum
 		{
 			public MyEnum A;
@@ -164,6 +173,7 @@ namespace DataBoss.Specs
 			public MyEnum C;
 			public MyEnum FromInt;
 		}
+		#pragma warning restore CS0649
 
 		public void enums() => Check
 			.With(() => PowerArgs.Parse("-A", "Nothing", "-B", "Something", "-FromInt", $"{(int)MyEnum.Something}"))

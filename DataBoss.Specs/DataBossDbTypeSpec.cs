@@ -46,11 +46,13 @@ namespace DataBoss.Specs
 		public void to_db_type(Type type, string dbType, bool nullable) =>
 			Check.That(() => DataBossDbType.ToDbType(type, new StubAttributeProvider()).ToString() == new DataBossDbType(dbType, null, nullable).ToString());
 
+		#pragma warning disable CS0649
 		class MyRowType
 		{
 			[Column(TypeName = "decimal(18, 5)")]
 			public decimal Value;
 		}
+		#pragma warning restore CS0649
 
 		public void to_db_type_with_column_type_override() {
 			var column = typeof(MyRowType).GetField(nameof(MyRowType.Value));

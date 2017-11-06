@@ -27,6 +27,7 @@ namespace DataBoss.Diagnostics
 		public double RebuildThreshold = 30.0;
 		public int PageCountThreshold = 1000;
 
+		#pragma warning disable CS0649
 		class IndexStatsRow
 		{
 			public string TableName;
@@ -34,6 +35,7 @@ namespace DataBoss.Diagnostics
 			public double AvgFragmentationInPercent;
 			public long PageCount;
 		}
+		#pragma warning restore CS0649
 
 		public IEnumerable<SqlServerMaintenancePlan> MakePlans(Func<SqlConnection> getServer, string[] dbs) {
 			using(var server = getServer()) {

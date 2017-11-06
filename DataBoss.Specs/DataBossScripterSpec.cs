@@ -51,6 +51,7 @@ add constraint PK___DataBossHistory primary key(Id,Context)");
 		[Context("Type to table")]
 		public class DataBossScripterTypeToTableSpec
 		{
+			#pragma warning disable CS0649
 			[Table("MyTable")]
 			class HavingOrderedAndNotColumns
 			{
@@ -59,6 +60,7 @@ add constraint PK___DataBossHistory primary key(Id,Context)");
 				[Column]
 				public int Other;
 			}
+			#pragma warning restore CS0649
 
 			public void puts_ordered_columns_before_non_determined_ones() {
 				var scripter = new DataBossScripter();
