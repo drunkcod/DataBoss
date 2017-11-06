@@ -1,12 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net45</TargetFramework>
-    <OutputPath>$(SolutionDir)..\Build\$(MSBuildProjectName)\$(Configuration)</OutputPath>
-    <IntermediateOutputPath>$(SolutionDir)..\Build\obj\$(MSBuildProjectName)</IntermediateOutputPath>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-  </PropertyGroup>
-  <PropertyGroup>
-    <Description>Your data. Like a Boss.</Description>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="DataBoss.Data, Version=0.0.0.39, Culture=neutral, processorArchitecture=MSIL">

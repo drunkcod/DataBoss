@@ -1,0 +1,11 @@
+<Project>
+    <PropertyGroup>
+        <BaseIntermediateOutputPath>$(SolutionDir)..\Build\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+        <OutputPath>$(SolutionDir)..\Build\$(MSBuildProjectName)\$(Configuration)</OutputPath>
+    </PropertyGroup>
+    
+    <PropertyGroup>
+        <Description>Your data. Like a Boss.</Description>
+    </PropertyGroup>
+
+</Project>
