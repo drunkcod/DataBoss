@@ -71,6 +71,9 @@ namespace DataBoss.Data
 			public void AddReplacement(Expression a, Expression b) => theReplacements.Add(a, b);
 
 			public override Expression Visit(Expression node) {
+				if(node == null)
+					return null;
+
 				if(theReplacements.TryGetValue(node, out var found))
 					return found;
 				return base.Visit(node);

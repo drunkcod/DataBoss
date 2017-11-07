@@ -35,6 +35,14 @@ namespace DataBoss.Data
 			Check.That(() => fieldMapping.GetAccessorExpression().Body.ToString().StartsWith("(target[0] = Convert(Invoke(value("));
 		}
 
+		public void static_member_lambda_mapping() {
+			var fieldMapping = new FieldMapping<MyThing>();
+			fieldMapping.Map("Empty", MakeLambda<MyThing, string>(x => string.Empty));
+
+			Check.That(() => fieldMapping.GetAccessorExpression().Body.ToString() == "(target[0] = Convert(String.Empty))");
+
+		}
+
 		LambdaExpression MakeLambda<TArg, TResult>(Expression<Func<TArg, TResult>> expr) => expr;
 	}
 }

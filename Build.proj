@@ -4,7 +4,6 @@
 	
 	<PropertyGroup>
 		<Configuration Condition="'$(Configuration)'==''">Debug</Configuration>
-	    <BaseIntermediateOutputPath>$(SolutionDir)..\Build\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
 	</PropertyGroup>
 
 	<Target Name="Build">
@@ -31,9 +30,7 @@
 			The reason for the below mess is to make MSBuild package all our stuff in parallel.
 		-->
 		<ItemGroup>
-			<PackageTargets Include="
-				Package-DataBoss;
-			" />
+			<PackageTargets Include="Package-DataBoss;" />
 			<Package Include="$(MSBuildProjectFile)">
 				<Properties>PackageTarget=%(PackageTargets.Identity);Build=$(Build)</Properties>
 			</Package>
