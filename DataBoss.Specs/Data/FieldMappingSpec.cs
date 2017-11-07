@@ -1,6 +1,5 @@
 using Cone;
 using System;
-using System.Diagnostics;
 using System.Linq.Expressions;
 
 namespace DataBoss.Data
@@ -30,17 +29,16 @@ namespace DataBoss.Data
 		public void lambdas_not_wrapped_uncessarily() {
 			var fieldMapping = new FieldMapping<MyThing>();
 			Func<MyThing, int> failToGetValue = x => { throw new InvalidOperationException(); };
-			fieldMapping.Map("Borken", MakeLambda<MyThing, int>(x => failToGetValue(x)));
+			fieldMapping.Map("Borken", MakeLambda((MyThing x) => failToGetValue(x)));
 
 			Check.That(() => fieldMapping.GetAccessorExpression().Body.ToString().StartsWith("(target[0] = Convert(Invoke(value("));
 		}
 
 		public void static_member_lambda_mapping() {
 			var fieldMapping = new FieldMapping<MyThing>();
-			fieldMapping.Map("Empty", MakeLambda<MyThing, string>(x => string.Empty));
+			fieldMapping.Map("Empty", MakeLambda((MyThing x) => string.Empty));
 
 			Check.That(() => fieldMapping.GetAccessorExpression().Body.ToString() == "(target[0] = Convert(String.Empty))");
-
 		}
 
 		LambdaExpression MakeLambda<TArg, TResult>(Expression<Func<TArg, TResult>> expr) => expr;

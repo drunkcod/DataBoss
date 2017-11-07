@@ -5,7 +5,9 @@
     </PropertyGroup>
     
     <PropertyGroup>
+        <Authors>Torbjörn Gyllebring</Authors>
         <Description>Your data. Like a Boss.</Description>
+        <RepositoryUrl>https://github.com/drunkcod/DataBoss</RepositoryUrl>
     </PropertyGroup>
 
 </Project>
