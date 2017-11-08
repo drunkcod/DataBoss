@@ -28,7 +28,7 @@ namespace DataBoss.Data
 			this.converters = new ConverterCollectionItem[8];
 		}
 
-		public ConverterCollection(ConverterCollection other) {
+		public ConverterCollection(ConverterCollection other) : this() {
 			this.inner = other;
 		}
 
