@@ -1,26 +1,35 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq.Expressions;
 
 namespace DataBoss.Data
 {
-	public class ConverterCollection : IEnumerable<Delegate>
+	public class ConverterCollection
 	{
-		KeyValuePair<Type, Delegate>[] converters;
+		struct ConverterCollectionItem
+		{
+			public readonly Type From;
+			public readonly Type To;
+			public readonly Func<Expression, Expression> MakeConverter;
+
+			public ConverterCollectionItem(Type from, Type to, Func<Expression, Expression> makeConverter) {
+				this.From = from;
+				this.To = to;
+				this.MakeConverter = makeConverter;
+			}
+		}
+
+		readonly ConverterCollection inner;
+		ConverterCollectionItem[] converters;
 		int count = 0;
 
 		public ConverterCollection() {
-			this.converters = new KeyValuePair<Type, Delegate>[8];
+			this.converters = new ConverterCollectionItem[8];
 		}
 
 		public ConverterCollection(ConverterCollection other) {
-			if(other == null) {
-				this.converters = new KeyValuePair<Type, Delegate>[0];
-			} else {
-				this.converters = new KeyValuePair<Type, Delegate>[other.count];
-				this.count = other.count;
-				Array.Copy(other.converters, this.converters, this.converters.Length);
-			}
+			this.inner = other;
 		}
 
 		public void Add<TFrom, TTo>(Func<TFrom, TTo> converter) => Add(typeof(TFrom), converter);
@@ -28,25 +37,19 @@ namespace DataBoss.Data
 		void Add(Type from, Delegate converter) {
 			if(count == converters.Length)
 				Array.Resize(ref converters, Math.Max(count << 1, 8));
-			converters[count++] = new KeyValuePair<Type, Delegate>(from, converter);
+			converters[count++] = new ConverterCollectionItem(from, converter.Method.ReturnType, x => Expression.Invoke(Expression.Constant(converter), x));
 		}
 
-		public bool TryGetConverter(Type from, Type to, out Delegate converter) {
-			var found = Array.FindIndex(converters, 0, count, x => x.Key == from && x.Value.Method.ReturnType == to);
+		public bool TryGetConverter(Expression from, Type to, out Expression converter) {
+			var found = Array.FindIndex(converters, 0, count, x => x.From == from.Type && x.To == to);
 			if(found != -1) {
-				converter = converters[found].Value;
+				converter = converters[found].MakeConverter(from);
 				return true;
 			}
+			if(inner != null)
+				return inner.TryGetConverter(from, to, out converter);
 			converter = null;
 			return false;
-		}
-
-		IEnumerator<Delegate> IEnumerable<Delegate>.GetEnumerator() => GetEnumeratorCore();
-		IEnumerator IEnumerable.GetEnumerator() => GetEnumeratorCore();
-
-		IEnumerator<Delegate> GetEnumeratorCore() {
-			for(var i = 0; i != count; ++i)
-				yield return converters[i].Value;
 		}
 	}
 }

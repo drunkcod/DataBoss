@@ -149,7 +149,7 @@ namespace DataBoss.Data
 				if((baseType == from))
 					return Expression.Convert(rawField, to);
 					else {
-					var customNullabeConversion = GetConverterOrDefault(rawField, from, baseType);
+					var customNullabeConversion = GetConverterOrDefault(rawField, baseType);
 					if(customNullabeConversion != null)
 						return Expression.Convert(customNullabeConversion, to);
 				}
@@ -158,16 +158,16 @@ namespace DataBoss.Data
 			if(from == typeof(object) && to == typeof(byte[]))
 				return Expression.Convert(rawField, to);
 
-			var customConversion = GetConverterOrDefault(rawField, from, to);
+			var customConversion = GetConverterOrDefault(rawField, to);
 			if(customConversion != null) 
 				return customConversion;
 				
 			return defalt;
 		}
 
-		Expression GetConverterOrDefault(Expression rawField, Type from, Type to) {
-			if(customConversions.TryGetConverter(from, to, out var converter))
-				return Expression.Invoke(Expression.Constant(converter), rawField);
+		Expression GetConverterOrDefault(Expression rawField, Type to) {
+			if(customConversions.TryGetConverter(rawField, to, out var converter))
+				return converter;
 			return null;
 		}
 
