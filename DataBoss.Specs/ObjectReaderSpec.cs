@@ -99,14 +99,11 @@ namespace DataBoss.Specs
 		}
 
 		public void can_read_nullable_field() {
-			var source = new SimpleDataReader(Col<float>("Value")) {
+			var source = new SimpleDataReader(Col<float>("Value.Value")) {
 				3.14f,
-				new object[] { null }
 			};
-			Check.With(() => ObjectReader.For(source).Read<ValueRow<float?>>())
-			.That(
-				rows => rows.First().Value == 3.14f,
-				rows => rows.Last().Value == null);
+			Check.With(() => ObjectReader.For(source).Read<ValueRow<StructRow<float>>>())
+			.That(rows => rows.First().Value.Value == 3.14f);
 		}
 
 		struct StructRow<T> { public T Value; }

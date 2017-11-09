@@ -115,7 +115,7 @@ namespace DataBoss.Data
 
 		bool TryReadOrInit(ConverterContext context, FieldMap map, Type itemType, string itemName, out KeyValuePair<int, Expression> found) {
 			FieldMapItem field;
-			if(map.TryGetOrdinal(itemName, out field)) {
+			if (map.TryGetOrdinal(itemName, out field)) {
 				var o = Expression.Constant(field.Ordinal);
 				Expression convertedField;
 				if(!TryConvertField(context.ReadField(field.FieldType, o), itemType, out convertedField))
@@ -148,7 +148,7 @@ namespace DataBoss.Data
 			if(to.TryGetNullableTargetType(out var baseType)) {
 				if((baseType == from))
 					return Expression.Convert(rawField, to);
-					else {
+				else {
 					var customNullabeConversion = GetConverterOrDefault(rawField, baseType);
 					if(customNullabeConversion != null)
 						return Expression.Convert(customNullabeConversion, to);

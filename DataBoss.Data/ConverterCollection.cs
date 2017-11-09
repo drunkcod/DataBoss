@@ -1,4 +1,6 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Linq.Expressions;
 
 namespace DataBoss.Data
@@ -16,36 +18,34 @@ namespace DataBoss.Data
 		}
 	}
 
-	public class ConverterCollection
+	public class ConverterCollection : IEnumerable<ConverterCollectionItem>
 	{
-
 		public static ConverterCollection StandardConversions {
 			get {
-				var c = new ConverterCollection();
 				Func<Expression, Type, Expression> convert = (x, to) => Expression.Convert(x, to);
-				c.Add(new ConverterCollectionItem(typeof(byte), typeof(short), convert));
-				c.Add(new ConverterCollectionItem(typeof(byte), typeof(ushort), convert));
-				c.Add(new ConverterCollectionItem(typeof(byte), typeof(int), convert));
-				c.Add(new ConverterCollectionItem(typeof(byte), typeof(uint), convert));
-				c.Add(new ConverterCollectionItem(typeof(byte), typeof(long), convert));
-				c.Add(new ConverterCollectionItem(typeof(byte), typeof(ulong), convert));
-				c.Add(new ConverterCollectionItem(typeof(byte), typeof(float), convert));
-				c.Add(new ConverterCollectionItem(typeof(byte), typeof(double), convert));
-				c.Add(new ConverterCollectionItem(typeof(byte), typeof(decimal), convert));
-				c.Add(new ConverterCollectionItem(typeof(short), typeof(int), convert));
-				c.Add(new ConverterCollectionItem(typeof(short), typeof(long), convert));
-				c.Add(new ConverterCollectionItem(typeof(short), typeof(float), convert));
-				c.Add(new ConverterCollectionItem(typeof(short), typeof(double), convert));
-				c.Add(new ConverterCollectionItem(typeof(short), typeof(decimal), convert));
-				c.Add(new ConverterCollectionItem(typeof(int), typeof(long), convert));
-				c.Add(new ConverterCollectionItem(typeof(int), typeof(float), convert));
-				c.Add(new ConverterCollectionItem(typeof(int), typeof(double), convert));
-				c.Add(new ConverterCollectionItem(typeof(int), typeof(decimal), convert));
-				c.Add(new ConverterCollectionItem(typeof(long), typeof(float), convert));
-				c.Add(new ConverterCollectionItem(typeof(long), typeof(double), convert));
-				c.Add(new ConverterCollectionItem(typeof(long), typeof(decimal), convert));
-				c.Add(new ConverterCollectionItem(typeof(float), typeof(double), convert));
-				return c;
+				return new ConverterCollection(
+					new ConverterCollectionItem(typeof(byte), typeof(short), convert),
+					new ConverterCollectionItem(typeof(byte), typeof(ushort), convert),
+					new ConverterCollectionItem(typeof(byte), typeof(int), convert),
+					new ConverterCollectionItem(typeof(byte), typeof(uint), convert),
+					new ConverterCollectionItem(typeof(byte), typeof(long), convert),
+					new ConverterCollectionItem(typeof(byte), typeof(ulong), convert),
+					new ConverterCollectionItem(typeof(byte), typeof(float), convert),
+					new ConverterCollectionItem(typeof(byte), typeof(double), convert),
+					new ConverterCollectionItem(typeof(byte), typeof(decimal), convert),
+					new ConverterCollectionItem(typeof(short), typeof(int), convert),
+					new ConverterCollectionItem(typeof(short), typeof(long), convert),
+					new ConverterCollectionItem(typeof(short), typeof(float), convert),
+					new ConverterCollectionItem(typeof(short), typeof(double), convert),
+					new ConverterCollectionItem(typeof(short), typeof(decimal), convert),
+					new ConverterCollectionItem(typeof(int), typeof(long), convert),
+					new ConverterCollectionItem(typeof(int), typeof(float), convert),
+					new ConverterCollectionItem(typeof(int), typeof(double), convert),
+					new ConverterCollectionItem(typeof(int), typeof(decimal), convert),
+					new ConverterCollectionItem(typeof(long), typeof(float), convert),
+					new ConverterCollectionItem(typeof(long), typeof(double), convert),
+					new ConverterCollectionItem(typeof(long), typeof(decimal), convert),
+					new ConverterCollectionItem(typeof(float), typeof(double), convert));
 			}
 		}
 
@@ -53,8 +53,10 @@ namespace DataBoss.Data
 		ConverterCollectionItem[] converters;
 		int count = 0;
 
-		public ConverterCollection() {
-			this.converters = new ConverterCollectionItem[8];
+		public ConverterCollection(params ConverterCollectionItem[] items) {
+			this.converters = new ConverterCollectionItem[items.Length];
+			Array.Copy(items, converters, converters.Length);
+			count = items.Length;
 		}
 
 		public ConverterCollection(ConverterCollection other) : this() {
@@ -66,7 +68,7 @@ namespace DataBoss.Data
 
 		public void Add(ConverterCollectionItem item) {
 			if(count == converters.Length)
-				Array.Resize(ref converters, Math.Max(count << 1, 8));
+				Array.Resize(ref converters, Math.Max(count + 4, 8));
 			converters[count++] = item;
 		}
 
@@ -81,5 +83,11 @@ namespace DataBoss.Data
 			converter = null;
 			return false;
 		}
+
+		public IEnumerator<ConverterCollectionItem> GetEnumerator() =>
+			((IEnumerable<ConverterCollectionItem>)converters).GetEnumerator();
+
+		IEnumerator IEnumerable.GetEnumerator() =>
+			converters.GetEnumerator();
 	}
 }
