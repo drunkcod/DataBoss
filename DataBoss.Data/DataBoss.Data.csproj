@@ -1,9 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFrameworks>netstandard2.0;net45</TargetFrameworks>
-    <OutputPath>$(SolutionDir)..\Build\$(MSBuildProjectName)\$(Configuration)</OutputPath>
-    <BaseIntermediateOutputPath>$(SolutionDir)..\Build\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AssemblyVersion>$(PackageVersion)</AssemblyVersion>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
