@@ -1,101 +1,22 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{E925A6BF-9C36-4CAB-A368-4EA26AA9E57C}</ProjectGuid>
-    <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>DataBoss.Specs</RootNamespace>
-    <AssemblyName>DataBoss.Specs</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
-    <OutputPath>$(SolutionDir)..\Build\$(MSBuildProjectName)\$(Configuration)</OutputPath>
-    <IntermediateOutputPath>$(SolutionDir)..\Build\obj\$(MSBuildProjectName)</IntermediateOutputPath>
+    <TargetFramework>net45</TargetFramework>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <ItemGroup>
-    <Reference Include="Cone, Version=2017.9.23.1, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\DataBoss\packages\Cone.2017.9.23.1\lib\net45\Cone.dll</HintPath>
-    </Reference>
-    <Reference Include="Cone.Expectations, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\DataBoss\packages\Cone.2017.9.23.1\lib\net45\Cone.Expectations.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
+   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.ComponentModel.DataAnnotations" />
     <Reference Include="System.Core" />
-    <Reference Include="System.Data.Linq" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
+    <Reference Include="System.Data.Linq" />
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="ConverterFactorySpec.cs" />
-    <Compile Include="DataBossConfigurationSpec.cs" />
-    <Compile Include="DataBossConnectionProviderSpec.cs" />
-    <Compile Include="DataBossDbTypeSpec.cs" />
-    <Compile Include="DataBossDirectoryMigrationSpec.cs" />
-    <Compile Include="DataBossMappingSource.cs" />
-    <Compile Include="DataBossMigratorSpec.cs" />
-    <Compile Include="DataBossScripterSpec.cs" />
-    <Compile Include="DataBossSpec.cs" />
-    <Compile Include="DataBossQueryMigrationSpec.cs" />
-    <Compile Include="Data\ConverterCollectionSpec.cs" />
-    <Compile Include="Data\DbObjectReaderSpec.cs" />
-    <Compile Include="Data\FieldMappingSpec.cs" />
-    <Compile Include="Data\SequenceDataReaderSpec.cs" />
-    <Compile Include="Data\SqlQuery.cs" />
-    <Compile Include="Linq\MissingLinqSpec.cs" />
-    <Compile Include="ObjectReaderSpec.cs" />
-    <Compile Include="ObjectVisualizerSpec.cs" />
-    <Compile Include="PowerArgsSpec.cs" />
-    <Compile Include="SequenceComparerSpec.cs" />
-    <Compile Include="SimpleDataReader.cs" />
-    <Compile Include="SqlConnectionExtensionsSpec.cs" />
-    <Compile Include="StubAttributeProvider.cs" />
-    <Compile Include="Testing\DatabaseSetupSpec.cs" />
-    <Compile Include="ToParamsSpec.cs" />
+    <ProjectReference Include="..\DataBoss.Data\DataBoss.Data.csproj" />
+    <ProjectReference Include="..\DataBoss\DataBoss.csproj" />
+    <PackageReference Include="System.ComponentModel.Annotations" Version="4.4.0" />
+    <PackageReference Include="Cone" Version="2017.9.23.1"/> 
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Properties\" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\DataBoss.Data\DataBoss.Data.csproj">
-      <Project>{4762c02c-a4cd-4c1c-8eca-bc58034c6042}</Project>
-      <Name>DataBoss.Data</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\DataBoss\DataBoss.csproj">
-      <Project>{c698683c-1c33-46fe-bda9-54b54144a7ce}</Project>
-      <Name>DataBoss</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
-       Other similar extension points exist, see Microsoft.Common.targets.
-  <Target Name="BeforeBuild">
-  </Target>
-  <Target Name="AfterBuild">
-  </Target>
-  -->
+
 </Project>
