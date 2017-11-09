@@ -5,9 +5,7 @@ using System.Data.SqlClient;
 using DataBoss.Data.Scripting;
 
 namespace DataBoss.Data
-{
-	struct IdRow { public int Id; }
-	
+{	
 	public static class SqlConnectionExtensions
 	{
 		public static SqlCommand CreateCommand(this SqlConnection connection, string cmdText) => 

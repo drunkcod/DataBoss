@@ -6,6 +6,10 @@ using DataBoss.Data.Scripting;
 
 namespace DataBoss.Data
 {
+	#pragma warning disable CS0649
+	struct IdRow { public int Id; }
+	#pragma warning restore CS0649
+
 	public class DataBossBulkCopy
 	{
 		const string TempTableName = "#$";

@@ -63,10 +63,10 @@ namespace DataBoss.Data
 			if (string.IsNullOrEmpty(q.CommandText))
 				return Enumerable.Empty<T>().GetEnumerator();
 			var r = q.ExecuteReader();
-			return new SqlReaderEnumerator<T>(q, r, converterFactory(r));
+			return new SqlReaderEnumerator(q, r, converterFactory(r));
 		}
 
-		class SqlReaderEnumerator<T> : IEnumerator<T>
+		class SqlReaderEnumerator : IEnumerator<T>
 		{
 			readonly SqlCommand command;
 			readonly Func<SqlDataReader, T> materialize;
