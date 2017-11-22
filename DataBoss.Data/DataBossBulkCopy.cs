@@ -27,10 +27,8 @@ namespace DataBoss.Data
 
 		public void Insert(string destinationTable, IDataReader toInsert) {
 			using (var bulkCopy = NewBulkCopy(destinationTable)) {
-				for (var i = 0; i != toInsert.FieldCount; ++i) {
-					var n = toInsert.GetName(i);
-					bulkCopy.ColumnMappings.Add(n, n);
-				}
+				for (int i = 0, fieldCount = toInsert.FieldCount; i != fieldCount; ++i)
+					bulkCopy.ColumnMappings.Add(i, toInsert.GetName(i));
 				bulkCopy.WriteToServer(toInsert);
 			}
 		}
