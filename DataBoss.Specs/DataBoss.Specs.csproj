@@ -16,7 +16,8 @@
     <ProjectReference Include="..\DataBoss.Data\DataBoss.Data.csproj" />
     <ProjectReference Include="..\DataBoss\DataBoss.csproj" />
     <PackageReference Include="System.ComponentModel.Annotations" Version="4.4.0" />
-    <PackageReference Include="Cone" Version="2017.9.23.1"/> 
+    <PackageReference Include="Cone" Version="2017.11.21"/> 
+    <DotNetCliToolReference Include="dotnet-conesole" Version="2017.11.21" />
   </ItemGroup>
 
 </Project>
