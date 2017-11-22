@@ -1,11 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.27004.2005
+VisualStudioVersion = 15.0.27004.2009
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataBoss", "DataBoss.csproj", "{C698683C-1C33-46FE-BDA9-54B54144A7CE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss", "DataBoss.csproj", "{C698683C-1C33-46FE-BDA9-54B54144A7CE}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataBoss.Specs", "..\DataBoss.Specs\DataBoss.Specs.csproj", "{E925A6BF-9C36-4CAB-A368-4EA26AA9E57C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss.Specs", "..\DataBoss.Specs\DataBoss.Specs.csproj", "{E925A6BF-9C36-4CAB-A368-4EA26AA9E57C}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{6C61E09D-69AC-474F-8A80-18863A9662E8}"
 	ProjectSection(SolutionItems) = preProject

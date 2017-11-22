@@ -11,7 +11,7 @@ namespace DataBoss.Specs.Data
 	{
 		SqlConnection Db;
 
-		RetryStrategy retryAlways => (n, e) => TimeSpan.Zero;
+		RetryStrategy retryAlways => (n, e) => true;
 		int rowsRead;
 		int ReadInt0(SqlDataReader r) {
 			++rowsRead;
@@ -110,7 +110,7 @@ namespace DataBoss.Specs.Data
 				if (select count(*) from #Temp) = 2 
 					raiserror('All Is Bad', 16, 1)
 				select * from #Temp
-			", new { }).ReadWithRetry<Row>((n, e) => TimeSpan.Zero);
+			", new { }).ReadWithRetry<Row>((n, e) => true);
 
 			Check.That(
 				() => rows.Count == 3,
@@ -127,7 +127,7 @@ namespace DataBoss.Specs.Data
 				if (select count(*) from #Temp) = 2 
 					raiserror('All Is Bad', 16, 1)
 				select * from #Temp
-			", new { }).ReadWithRetry<Row>((n, e) => null));
+			", new { }).ReadWithRetry<Row>((n, e) => false));
 
 			Check.That(() => (int)Db.ExecuteScalar("select count(*) from #Temp") == 2);
 		}

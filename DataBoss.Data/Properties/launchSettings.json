@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "DataBoss.Data": {
+      "commandName": "Executable",
+      "executablePath": "dotnet",
+      "commandLineArgs": "D:\\Junk\\ConsoleApp3\\bin\\Debug\\netcoreapp2.0\\ConsoleApp3.dll"
+    }
+  }
+}

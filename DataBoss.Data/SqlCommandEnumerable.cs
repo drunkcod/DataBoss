@@ -7,8 +7,6 @@ using System.Threading;
 
 namespace DataBoss.Data
 {
-	public delegate TimeSpan? RetryStrategy(int retryAttempt, Exception problem);
-
 	public class SqlCommandEnumerable<T> : IEnumerable<T>
 	{
 		readonly Func<SqlCommand> getCommand;
@@ -19,18 +17,8 @@ namespace DataBoss.Data
 			this.converterFactory = converterFactory;
 		}
 
-		public List<T> ToList(RetryStrategy retry) {
-			for(var n = 1;; ++n) { 
-				try {
-					return new List<T>(this);
-				} catch(Exception e) {
-					var again = retry(n, e);
-					if(!again.HasValue)
-						throw;
-					Thread.Sleep(again.Value);
-				}
-			}
-		}
+		public List<T> ToList(RetryStrategy retry) =>
+			retry.Execute(() => new List<T>(this));
 
 		public T Single(RetryStrategy retry) => SingleCore(retry, () => throw new InvalidOperationException("No rows returned."));
 		public T SingleOrDefault(RetryStrategy retry) => SingleCore(retry, () => default(T));
@@ -46,10 +34,8 @@ namespace DataBoss.Data
 						goto TooManyRows;
 					return r;
 				} catch(Exception e) {
-					var again = retry(n, e);
-					if(!again.HasValue)
+					if(!retry(n, e))
 						throw;
-					Thread.Sleep(again.Value);
 				} finally {
 					it.Dispose();
 				}

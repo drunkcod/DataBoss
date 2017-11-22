@@ -8,6 +8,8 @@ namespace DataBoss.Data
 	public static class DataReaderSchemaColumns
 	{
 		public const string AllowDBNull = "AllowDBNull";
+		public const string ColumnName = "ColumnName";
+		public const string ColumnOrdinal = "ColumnOrdinal";
 		public const string ColumnSize = "ColumnSize";
 	}
 
@@ -84,13 +86,17 @@ namespace DataBoss.Data
 
 		DataTable IDataReader.GetSchemaTable() {
 			var schema = new DataTable();
-			var isNullable = schema.Columns.Add(DataReaderSchemaColumns.AllowDBNull, typeof(bool));
+			var columnName = schema.Columns.Add(DataReaderSchemaColumns.ColumnName, typeof(string));
+			var columnOrdinal = schema.Columns.Add(DataReaderSchemaColumns.ColumnOrdinal, typeof(int));
 			var columnSize = schema.Columns.Add(DataReaderSchemaColumns.ColumnSize, typeof(int));
+			var isNullable = schema.Columns.Add(DataReaderSchemaColumns.AllowDBNull, typeof(bool));
 			for(var i = 0; i != FieldCount; ++i) {
 				var r = schema.NewRow();
 				var dbType = dbTypes[i];
-				r[isNullable] = dbType.IsNullable;
+				r[columnName] = fieldNames[i];
+				r[columnOrdinal] = i;
 				r[columnSize] = dbType.ColumnSize.HasValue ? (object)dbType.ColumnSize.Value : DBNull.Value;
+				r[isNullable] = dbType.IsNullable;
 				schema.Rows.Add(r);
 			}
 			return schema;
@@ -117,6 +123,7 @@ namespace DataBoss.Data
 		public string GetString(int i) => (string)GetValue(i);
 		public decimal GetDecimal(int i) => (decimal)GetValue(i);
 		public DateTime GetDateTime(int i) => (DateTime)GetValue(i);
+		
 		public IDataReader GetData(int i) { throw new NotImplementedException(); }
 	}
 }
