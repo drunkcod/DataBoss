@@ -125,7 +125,7 @@ namespace DataBoss.Specs
 		}
 
 		#pragma warning disable CS0649
-		class MyRequiredArgs
+		class RequiredPropAndField
 		{
 			[Required]
 			public string ImportantField;
@@ -135,7 +135,7 @@ namespace DataBoss.Specs
 		#pragma warning restore CS0649
 
 		public void can_check_for_required_fields() {
-			var e = Check.Exception<PowerArgsValidationException>(() => PowerArgs.Validate(new MyRequiredArgs()));
+			var e = Check.Exception<PowerArgsValidationException>(() => PowerArgs.Validate(new RequiredPropAndField()));
 			Check.That(() => e.Errors.Count == 2);
 		}
 
@@ -184,5 +184,12 @@ namespace DataBoss.Specs
 				args => args.Into<MyArgsWithEnum>().C == MyEnum.Something,
 				args => args.Into<MyArgsWithEnum>().FromInt == MyEnum.Something
 			);
+
+		public void describe_contains_props_and_fields() {
+			var args = PowerArgs.Describe(typeof(RequiredPropAndField));
+			Check.That(
+				() => args.Any(x => x.Name == nameof(RequiredPropAndField.ImportantField)),
+				() => args.Any(x => x.Name == nameof(RequiredPropAndField.ImportantProp)));
+		}
 	}
 }

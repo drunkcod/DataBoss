@@ -19,5 +19,4 @@
     <PackageReference Include="Cone" Version="2017.11.21"/> 
     <DotNetCliToolReference Include="dotnet-conesole" Version="2017.11.21" />
   </ItemGroup>
-
 </Project>

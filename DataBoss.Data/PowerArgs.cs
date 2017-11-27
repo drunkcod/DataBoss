@@ -39,6 +39,13 @@ namespace DataBoss
 		public IReadOnlyCollection<PowerArgsValidationResult> Errors => errors;
 	}
 
+	[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false)]
+	public class PowerArgAttribute : Attribute
+	{
+		public int Order { get; set; }
+		public string Hint { get; set; }
+	}
+
 	public class PowerArgs : IEnumerable<KeyValuePair<string, string>>
 	{
 		static readonly ConcurrentDictionary<Type, Action<object, string>> AddItemCache = new ConcurrentDictionary<Type, Action<object, string>>();
@@ -93,6 +100,13 @@ namespace DataBoss
 			if(errors.Count > 0)
 				throw new PowerArgsValidationException(errors);
 		}
+
+		public static List<PowerArg> Describe(Type argsType) =>
+			argsType.GetFields()
+			.Cast<MemberInfo>()
+			.Concat(argsType.GetProperties())
+			.Select(x => new PowerArg(x))
+			.ToList();
 
 		static bool MatchArg(string item, out string result) {
 			if(Regex.IsMatch(item , "^-[^0-9]")) {
