@@ -15,7 +15,8 @@ namespace DataBoss
 		public bool IsRequired => memberInfo.GetCustomAttribute(typeof(RequiredAttribute)) != null;
 
 		public override string ToString() {
-			var r = $"-{Name} <{Name.ToLowerInvariant()}>";
+			var hint = (memberInfo.GetCustomAttribute(typeof(PowerArgAttribute)) as PowerArgAttribute)?.Hint ?? Name.ToLowerInvariant();
+			var r = $"-{Name} <{hint}>";
 			return IsRequired ? r : $"[{r}]";
 		}
 	}

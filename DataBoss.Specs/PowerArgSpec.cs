@@ -14,6 +14,9 @@ namespace DataBoss.Specs
 			public string Required;
 
 			public int Optional;
+
+			[Required, PowerArg(Hint = "foo goes here")]
+			public string Foo;
 		}
 		#pragma warning restore CS0649
 
@@ -27,6 +30,7 @@ namespace DataBoss.Specs
 
 		[Row(typeof(MyArgs), nameof(MyArgs.Required), "-Required <required>")]
 		[Row(typeof(MyArgs), nameof(MyArgs.Optional), "[-Optional <optional>]")]
+		[Row(typeof(MyArgs), nameof(MyArgs.Foo), "-Foo <foo goes here>")]
 		public void formatting(Type argType, string member, string expected) =>
 			Check.That(() => new PowerArg(argType.GetMember(member)[0]).ToString() == expected);
 	}
