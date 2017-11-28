@@ -1,24 +1,37 @@
+using System;
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
+using System.Linq;
 using System.Reflection;
+using DataBoss.Linq;
 
 namespace DataBoss
 {
 	public class PowerArg
 	{
 		readonly MemberInfo memberInfo;
+		readonly PowerArgAttribute info;
 
 		public PowerArg(MemberInfo memberInfo) {
 			this.memberInfo = memberInfo;
+			this.info = memberInfo.SingleOrDefault<PowerArgAttribute>();
 		}
 
+		static PowerArg FromMember(Type type, string memberName) =>
+			 new PowerArg(type.GetMember(memberName).Single());
+
 		public string Name => memberInfo.Name;
-		public bool IsRequired => memberInfo.GetCustomAttribute(typeof(RequiredAttribute)) != null;
+		public int? Order => info?.GetSortOrder();
+		public string Hint => info?.Hint
+			?? memberInfo.SingleOrDefault<RegularExpressionAttribute>()?.Pattern
+			?? Name.ToLowerInvariant();
+		public string Description => memberInfo.SingleOrDefault<DescriptionAttribute>()?.Description 
+			?? string.Empty;
+
+		public bool IsRequired => memberInfo.Any<RequiredAttribute>();
 
 		public override string ToString() {
-			var hint = (memberInfo.GetCustomAttribute(typeof(PowerArgAttribute)) as PowerArgAttribute)?.Hint 
-				?? (memberInfo.GetCustomAttribute(typeof(RegularExpressionAttribute)) as RegularExpressionAttribute)?.Pattern
-				?? Name.ToLowerInvariant();
-			var r = $"-{Name} <{hint}>";
+			var r = $"-{Name} <{Hint}>";
 			return IsRequired ? r : $"[{r}]";
 		}
 	}

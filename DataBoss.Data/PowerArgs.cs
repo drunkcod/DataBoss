@@ -42,8 +42,11 @@ namespace DataBoss
 	[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false)]
 	public class PowerArgAttribute : Attribute
 	{
-		public int Order { get; set; }
+		int? sortOrder;
+		public int Order { get { return sortOrder.GetValueOrDefault(); } set { sortOrder = value; } }
 		public string Hint { get; set; }
+
+		public int? GetSortOrder() => sortOrder;
 	}
 
 	public class PowerArgs : IEnumerable<KeyValuePair<string, string>>
@@ -101,12 +104,21 @@ namespace DataBoss
 				throw new PowerArgsValidationException(errors);
 		}
 
-		public static List<PowerArg> Describe(Type argsType) =>
-			argsType.GetFields()
+		public static List<PowerArg> Describe(Type argsType) { 
+			var args = argsType.GetFields()
 			.Cast<MemberInfo>()
 			.Concat(argsType.GetProperties())
 			.Select(x => new PowerArg(x))
 			.ToList();
+
+			args.Sort((a, b) => {
+				if(a.Order.HasValue)
+					return b.Order.HasValue ? a.Order.Value - b.Order.Value : -1;
+				return b.Order.HasValue ? 1 : 0;
+			});
+			
+			return args;
+		}
 
 		static bool MatchArg(string item, out string result) {
 			if(Regex.IsMatch(item , "^-[^0-9]")) {

@@ -191,5 +191,29 @@ namespace DataBoss.Specs
 				() => args.Any(x => x.Name == nameof(RequiredPropAndField.ImportantField)),
 				() => args.Any(x => x.Name == nameof(RequiredPropAndField.ImportantProp)));
 		}
+
+		#pragma warning disable CS0649
+		class MyOrderedArgs
+		{
+			[PowerArg(Order = 3)]
+			public int Third;
+			[PowerArg(Order = 1)]
+			public int First;
+			[PowerArg(Order = 2)]
+			public int Second;
+
+			public int NotOrdered;
+		}
+		#pragma warning restore CS0649
+
+		public void describe_obeys_order() {
+			var args = PowerArgs.Describe(typeof(MyOrderedArgs));
+
+			Check.That(
+				() => args[0].Name == "First",
+				() => args[1].Name == "Second",
+				() => args[2].Name == "Third",
+				() => args[3].Name == "NotOrdered");
+		}
 	}
 }
