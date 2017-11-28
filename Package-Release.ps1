@@ -22,5 +22,5 @@ Remove-Item -Path Build -Recurse -Force
 MSBuild Build.proj /t:Restore /t:Build /p:Configuration=Release /p:Build=$Build
 
 Write-Host Packgaging version $Build
-NuPack DataBoss.Data/DataBoss.Data.csproj 
+NuPack DataBoss.Data/DataBoss.Data.csproj /t:Restore
 NuPack DataBoss\DataBoss.csproj /t:Restore

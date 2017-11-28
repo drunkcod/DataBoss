@@ -112,4 +112,9 @@ namespace DataBoss.Linq
 		public static T SingleOrDefault<T>(this ICustomAttributeProvider attributes) where T : Attribute =>
 			attributes.GetCustomAttributes(typeof(T), true).Cast<T>().SingleOrDefault();
 	}
+
+	public static class ArrayExtensions
+	{
+		public static T Single<T>(T[] ts) => ts.Length == 1 ? ts[0] : throw new InvalidOperationException("Array contains more than one element.");
+	}
 }

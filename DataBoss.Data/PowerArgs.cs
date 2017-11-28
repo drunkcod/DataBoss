@@ -101,12 +101,21 @@ namespace DataBoss
 				throw new PowerArgsValidationException(errors);
 		}
 
-		public static List<PowerArg> Describe(Type argsType) =>
-			argsType.GetFields()
+		public static List<PowerArg> Describe(Type argsType) { 
+			var args = argsType.GetFields()
 			.Cast<MemberInfo>()
 			.Concat(argsType.GetProperties())
 			.Select(x => new PowerArg(x))
 			.ToList();
+
+			args.Sort((a, b) => {
+				if(a.Order.HasValue)
+					return b.Order.HasValue ? a.Order.Value - b.Order.Value : -1;
+				return b.Order.HasValue ? 1 : 0;
+			});
+			
+			return args;
+		}
 
 		static bool MatchArg(string item, out string result) {
 			if(Regex.IsMatch(item , "^-[^0-9]")) {
