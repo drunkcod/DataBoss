@@ -11,44 +11,6 @@ using System.Text.RegularExpressions;
 
 namespace DataBoss
 {
-	public class PowerArgsValidationResult
-	{
-		public PowerArgsValidationResult(string name, Type type, object value, ValidationAttribute validation)
-		{
-			this.Name = name;
-			this.ArgType = type;
-			this.Value = value;
-			this.Validation = validation;
-		}
-
-		public readonly string Name;
-		public readonly Type ArgType;
-		public string Message => Validation.FormatErrorMessage(Name);
-		public readonly object Value;
-		public ValidationAttribute Validation;
-	}
-
-	public class PowerArgsValidationException : Exception
-	{
-		readonly IReadOnlyCollection<PowerArgsValidationResult> errors;
-
-		public PowerArgsValidationException(ICollection<PowerArgsValidationResult> errors) {
-			this.errors = errors.ToList().AsReadOnly();
-		}
-
-		public IReadOnlyCollection<PowerArgsValidationResult> Errors => errors;
-	}
-
-	[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property, AllowMultiple = false)]
-	public class PowerArgAttribute : Attribute
-	{
-		int? sortOrder;
-		public int Order { get { return sortOrder.GetValueOrDefault(); } set { sortOrder = value; } }
-		public string Hint { get; set; }
-
-		public int? GetSortOrder() => sortOrder;
-	}
-
 	public class PowerArgs : IEnumerable<KeyValuePair<string, string>>
 	{
 		static readonly ConcurrentDictionary<Type, Action<object, string>> AddItemCache = new ConcurrentDictionary<Type, Action<object, string>>();

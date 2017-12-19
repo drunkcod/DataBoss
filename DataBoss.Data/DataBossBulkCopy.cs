@@ -17,6 +17,7 @@ namespace DataBoss.Data
 		public readonly SqlConnection Connection;
 		public readonly SqlTransaction Transaction;
 		public int? CommandTimeout;
+		public int BatchSize;
 
 		public DataBossBulkCopy(SqlConnection connection) : this(connection, null) { }
 
@@ -77,6 +78,7 @@ namespace DataBoss.Data
 			var bulkCopy = new SqlBulkCopy(Connection, SqlBulkCopyOptions.TableLock, Transaction) { 
 				DestinationTableName = destinationTable,
 				EnableStreaming = true,
+				BatchSize = BatchSize,
 			};
 			if(CommandTimeout.HasValue)
 				bulkCopy.BulkCopyTimeout = CommandTimeout.Value;
