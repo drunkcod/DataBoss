@@ -1,72 +1,10 @@
 using Cone;
 using DataBoss.Data;
-using System;
 using System.Data.SqlClient;
 using System.Linq;
 
 namespace DataBoss.Specs.Data
 {
-	[Describe(typeof(SqlCommandEnumerable<>), Category = "Database")]
-	public class SqlCommandEnumerableSpec
-	{
-		SqlConnection Db;
-
-		RetryStrategy retryAlways => (n, e) => true;
-		int rowsRead;
-		int ReadInt0(SqlDataReader r) {
-			++rowsRead;
-			return r.GetInt32(0);
-		}
-
-		[BeforeEach]
-		public void given_a_object_reader() {
-			Db = new SqlConnection("Server=.;Integrated Security=SSPI");
-			Db.Open();
-			rowsRead = 0;
-		}
-
-		public void Single_raises_appropriate_exception_when_more_than_one_element() {
-			var rows = IntRows("select * from (values(1),(2))Foo(Id)");
-
-			Check.Exception<InvalidOperationException>(() => rows.Single(retryAlways));
-		}
-		
-		public void Single_raises_appropriate_exception_when_no_element() {
-			var rows = IntRows("select top 0 * from (values(1),(2))Foo(Id)");
-
-			Check.Exception<InvalidOperationException>(() => rows.Single(retryAlways));
-		}
-
-		public void Single_consumes_at_most_two_elements() {
-			var rows = IntRows("select * from (values(1),(2),(3))Foo(Id)");
-			try { rows.Single(retryAlways); } catch { }
-
-			Check.That(() => rowsRead <= 2);
-		}
-
-		public void SingleOrDefault_raises_appropriate_exception_when_more_than_one_element() {
-			var rows = IntRows("select * from (values(1),(2))Foo(Id)");
-
-			Check.Exception<InvalidOperationException>(() => rows.SingleOrDefault(retryAlways));
-		}
-		
-		public void SingleOrDefault_returns_default_when_no_element() {
-			var rows = IntRows("select top 0 * from (values(1),(2))Foo(Id)");
-
-			Check.That(() => rows.SingleOrDefault(retryAlways) == default(int));
-		}
-
-		public void SingleOrDefault_consumes_at_most_two_elements() {
-			var rows = IntRows("select * from (values(1),(2),(3))Foo(Id)");
-			try { rows.SingleOrDefault(retryAlways); } catch { }
-
-			Check.That(() => rowsRead <= 2);
-		}
-
-		SqlCommandEnumerable<int> IntRows(string query) =>
-			new SqlCommandEnumerable<int>(() => Db.CreateCommand(query), r => ReadInt0);
-	}
-
 	[Describe(typeof(DbObjectReader), Category = "Database")]
 	public class DbObjectReaderSpec
 	{
@@ -132,5 +70,23 @@ namespace DataBoss.Specs.Data
 			Check.That(() => (int)Db.ExecuteScalar("select count(*) from #Temp") == 2);
 		}
 
+		public void read_with_custom_converters() {
+			var conversions = new ConverterCollection();
+			conversions.Add((short x) => x + x);
+
+			Check.With(() => DbReader.Read<Row>("select Value = cast(21 as smallint)", conversions).Single())
+				.That(row => row.Value == 42);
+		}
+
+		public void read_with_retry_custom_converters() {
+			var conversions = new ConverterCollection();
+			conversions.Add((short x) => x * 3);
+
+			Check.With(() => DbReader
+				.Query("select Value = cast(@value as smallint)", new { value = 7 })
+				.ReadWithRetry<Row>((_, x) => true, conversions)
+				.Single()
+			).That(row => row.Value == 21);
+		}
 	}
 }

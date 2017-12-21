@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Linq;
@@ -16,6 +16,7 @@ namespace DataBoss.Data
 		public TimeSpan? CommandTimeout = TimeSpan.FromSeconds(30);
 
 		public IEnumerable<T> Read<T>(string command) => Query(command, new {}).Read<T>();
+		public IEnumerable<T> Read<T>(string command, ConverterCollection converters) => Query(command, new { }).Read<T>(converters);
 
 		public T Single<T>(string command) => Read<T>(command).Single();
 
