@@ -10,6 +10,10 @@ using DataBoss.Linq;
 
 namespace DataBoss.Data.Scripting
 {
+	[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
+	public class AnsiStringAttribute : Attribute
+	{ }
+
 	public class DataBossScripter
 	{
 		class DataBossTableColumn : ICustomAttributeProvider

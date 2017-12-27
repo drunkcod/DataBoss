@@ -1,3 +1,4 @@
+using DataBoss.Data.Scripting;
 using DataBoss.Linq;
 using System;
 using System.ComponentModel.DataAnnotations;
@@ -44,7 +45,7 @@ namespace DataBoss.Data
 				case "System.Boolean": return new DataBossDbType("bit", 1, canBeNull);
 				case "System.String":
 					var maxLength = attributes.SingleOrDefault<MaxLengthAttribute>();
-					return new DataBossDbType("varchar", maxLength?.Length ?? int.MaxValue, canBeNull);
+					return new DataBossDbType(attributes.Any<AnsiStringAttribute>() ? "varchar" : "nvarchar", maxLength?.Length ?? int.MaxValue, canBeNull);
 				case "System.DateTime": return new DataBossDbType("datetime", 8, canBeNull);
 				case "System.Data.SqlTypes.SqlMoney": return new DataBossDbType("money", null, canBeNull);
 				default:

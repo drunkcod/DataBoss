@@ -10,20 +10,39 @@ namespace DataBoss.Data
 	struct IdRow { public int Id; }
 	#pragma warning restore CS0649
 
+	public class DataBossBulkCopySettings
+	{
+		public int BatchSize;
+		public int? CommandTimeout;
+	}
+
 	public class DataBossBulkCopy
 	{
 		const string TempTableName = "#$";
 
+		readonly DataBossBulkCopySettings settings;
+
 		public readonly SqlConnection Connection;
 		public readonly SqlTransaction Transaction;
-		public int? CommandTimeout;
-		public int BatchSize;
+		
+		public int? CommandTimeout { 
+			get { return settings.CommandTimeout; }
+			set {  settings.CommandTimeout = value; }
+		}
 
-		public DataBossBulkCopy(SqlConnection connection) : this(connection, null) { }
+		public int BatchSize {
+			get { return settings.BatchSize; }
+			set { settings.BatchSize = value; }
+		}
 
-		public DataBossBulkCopy(SqlConnection connection, SqlTransaction transaction) {
+		public DataBossBulkCopy(SqlConnection connection) : this(connection, null, new DataBossBulkCopySettings()) { }
+		public DataBossBulkCopy(SqlConnection connection, DataBossBulkCopySettings settings) : this(connection, null, settings) { }
+		public DataBossBulkCopy(SqlConnection connection, SqlTransaction transaction) : this(connection, transaction, new DataBossBulkCopySettings()) { }
+
+		public DataBossBulkCopy(SqlConnection connection, SqlTransaction transaction, DataBossBulkCopySettings settings) {
 			this.Connection = connection;
 			this.Transaction = transaction;
+			this.settings = settings;
 		}
 
 		public void Insert(string destinationTable, IDataReader toInsert) {

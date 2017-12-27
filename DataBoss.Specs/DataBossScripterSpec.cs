@@ -21,7 +21,7 @@ namespace DataBoss.Specs
 			Check.That(() => scripter.ScriptTable("#Hello", data) ==
 @"create table [#Hello](
 	[Id] int not null,
-	[Value] varchar(max)
+	[Value] nvarchar(max)
 )");
 		}
 

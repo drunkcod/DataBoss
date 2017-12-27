@@ -38,7 +38,7 @@ namespace DataBoss.Specs
 		,Row(typeof(float), "real", false)
 		,Row(typeof(double?), "float", true)
 		,Row(typeof(double), "float", false)
-		,Row(typeof(string), "varchar(max)", true)
+		,Row(typeof(string), "nvarchar(max)", true)
 		,Row(typeof(bool), "bit", false)
 		,Row(typeof(bool?), "bit", true)
 		,Row(typeof(SqlMoney), "money", false)
@@ -60,11 +60,11 @@ namespace DataBoss.Specs
 		}
 
 		public void RequiredAttribute_string_is_not_null() {
-			Check.That(() => DataBossDbType.ToDbType(typeof(string), new StubAttributeProvider().Add(new RequiredAttribute())) == new DataBossDbType("varchar", int.MaxValue, false));
+			Check.That(() => DataBossDbType.ToDbType(typeof(string), new StubAttributeProvider().Add(new RequiredAttribute())) == new DataBossDbType("nvarchar", int.MaxValue, false));
 		}
 
 		public void MaxLengthAttribute_controls_string_column_widht() {
-			Check.That(() => DataBossDbType.ToDbType(typeof(string), new StubAttributeProvider().Add(new MaxLengthAttribute(31))) == new DataBossDbType("varchar", 31, true));
+			Check.That(() => DataBossDbType.ToDbType(typeof(string), new StubAttributeProvider().Add(new MaxLengthAttribute(31))) == new DataBossDbType("nvarchar", 31, true));
 		}
 	}
 }
