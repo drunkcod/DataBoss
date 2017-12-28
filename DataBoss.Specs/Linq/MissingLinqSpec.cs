@@ -17,8 +17,18 @@ namespace DataBoss.Specs.Linq
 				xs => xs[0].Count() == batchSize,
 				xs => xs[0].SequenceEqual(items.Take(batchSize)),
 				xs => xs[1].Count() == items.Length - batchSize,
-				xs => xs[1].SequenceEqual(items.Skip(batchSize))
-			);
+				xs => xs[1].SequenceEqual(items.Skip(batchSize)));
+		}
+
+		public void Batch_with_own_bucket() {
+			var items = new[] { "A", "B", "C", "D" };
+			var myBucket = new string[2];
+
+			Check.With(() => items.Batch(() => myBucket))
+			.That(
+				xs => xs.First().Count() == myBucket.Length,
+				xs => xs.First().SequenceEqual(items.Take(myBucket.Length)),
+				xs => myBucket.SequenceEqual(items.Take(myBucket.Length)));
 		}
 
 		public void ChunkBy() {

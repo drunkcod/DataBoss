@@ -14,19 +14,26 @@ namespace DataBoss.Linq
 				action(item);
 		}
 
-		public static IEnumerable<IEnumerable<T>> Batch<T>(this IEnumerable<T> items, int batchSize) {
-			var bucket = new T[batchSize];
+		public static IEnumerable<IEnumerable<T>> Batch<T>(this IEnumerable<T> items, int batchSize) =>
+			Batch(items, () => new T[batchSize]);
+
+		public static IEnumerable<IEnumerable<T>> Batch<T>(this IEnumerable<T> items, Func<T[]> newBucket) {
+			T[] bucket = null;
 			var n = 0;
-			using(var it = items.GetEnumerator())
-				while(it.MoveNext()) {
+			using (var it = items.GetEnumerator()) {
+				if(!it.MoveNext())
+					yield break;
+				bucket = newBucket();
+				do {
 					bucket[n++] = it.Current;
-					if(n == bucket.Length) { 
+					if (n == bucket.Length) {
 						yield return bucket;
-						bucket = new T[batchSize];
+						bucket = newBucket();
 						n = 0;
 					}
-				}
-			if(n != 0)
+				} while (it.MoveNext());
+			}
+			if (n != 0)
 				yield return new ArraySegment<T>(bucket, 0, n);
 		}
 
