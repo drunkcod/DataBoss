@@ -1,5 +1,6 @@
 using Cone;
 using DataBoss.Linq;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -50,5 +51,11 @@ namespace DataBoss.Specs.Linq
 			items.Inspect(seen.Add).Consume();
 			Check.That(() => seen.SequenceEqual(items));
 		}
+
+		public void SingleOrDefault_with_selector_no_element() =>
+			Check.Exception<InvalidOperationException>(() => new[] { 1, 2, 3}.SingleOrDefault(x => x > 1, x => x.ToString()));
+
+		public void SingleOrDefault_with_selector() =>
+			Check.That(() => new[] { "A", "BB", "CCC"}.SingleOrDefault(x => x.StartsWith("C"), x => x.Length) == 3);
 	}
 }

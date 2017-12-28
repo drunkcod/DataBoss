@@ -9,9 +9,6 @@ namespace DataBoss.Linq
 {
 	public static class MissingLinq
 	{
-		public static TOutput[] ConvertAll<T,TOutput>(this T[] self, Converter<T,TOutput> converter) =>
-			Array.ConvertAll(self, converter);
-
 		public static void ForEach<T>(this IEnumerable<T> self, Action<T> action) {
 			foreach(var item in self)
 				action(item);
@@ -84,6 +81,19 @@ namespace DataBoss.Linq
 				yield return item;
 			}
 		}
+
+		public static TValue SingleOrDefault<T, TValue>(this IEnumerable<T> items, Func<T, bool> predicate, Func<T, TValue> selector) {
+			using (var it = items.GetEnumerator())
+				while (it.MoveNext())
+					if (predicate(it.Current)) {
+						var found = it.Current;
+						while (it.MoveNext())
+							if (predicate(it.Current))
+								Enumerable.Range(0, 2).SingleOrDefault(x => true);
+						return selector(found);
+					}
+			return default(TValue);
+		}
 	}
 
 	public static class TextReaderExtensions
@@ -115,6 +125,9 @@ namespace DataBoss.Linq
 
 	public static class ArrayExtensions
 	{
+		public static TOutput[] ConvertAll<T, TOutput>(this T[] self, Converter<T, TOutput> converter) =>
+			Array.ConvertAll(self, converter);
+
 		public static T Single<T>(T[] ts) => ts.Length == 1 ? ts[0] : throw new InvalidOperationException("Array contains more than one element.");
 	}
 }
