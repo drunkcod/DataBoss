@@ -9,6 +9,18 @@ namespace DataBoss.Specs.Linq
 	[Describe(typeof(MissingLinq))]
 	public class MissingLinqSpec
 	{
+		public void Batch() {
+			var batchSize = 3;
+			var items = new[] { 1, 2, 3, 4, 5 };
+			Check.With(() => items.Batch(batchSize).ToList())
+			.That(
+				xs => xs[0].Count() == batchSize,
+				xs => xs[0].SequenceEqual(items.Take(batchSize)),
+				xs => xs[1].Count() == items.Length - batchSize,
+				xs => xs[1].SequenceEqual(items.Skip(batchSize))
+			);
+		}
+
 		public void ChunkBy() {
 			var items = new [] { 
 				new { id = 1, value = "A" },

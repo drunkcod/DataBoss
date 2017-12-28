@@ -14,6 +14,22 @@ namespace DataBoss.Linq
 				action(item);
 		}
 
+		public static IEnumerable<IEnumerable<T>> Batch<T>(this IEnumerable<T> items, int batchSize) {
+			var bucket = new T[batchSize];
+			var n = 0;
+			using(var it = items.GetEnumerator())
+				while(it.MoveNext()) {
+					bucket[n++] = it.Current;
+					if(n == bucket.Length) { 
+						yield return bucket;
+						bucket = new T[batchSize];
+						n = 0;
+					}
+				}
+			if(n != 0)
+				yield return new ArraySegment<T>(bucket, 0, n);
+		}
+
 		class ArrayGrouping<TKey, TElement> : IGrouping<TKey, TElement>, 
 			ICollection<TElement>//To enable System.Linq.Enumerable fast-paths.
 		{
