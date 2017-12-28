@@ -25,15 +25,8 @@ namespace DataBoss.Data
 		public readonly SqlConnection Connection;
 		public readonly SqlTransaction Transaction;
 		
-		public int? CommandTimeout { 
-			get { return settings.CommandTimeout; }
-			set {  settings.CommandTimeout = value; }
-		}
-
-		public int BatchSize {
-			get { return settings.BatchSize; }
-			set { settings.BatchSize = value; }
-		}
+		int? CommandTimeout => settings.CommandTimeout;
+		int BatchSize => settings.BatchSize; 
 
 		public DataBossBulkCopy(SqlConnection connection) : this(connection, null, new DataBossBulkCopySettings()) { }
 		public DataBossBulkCopy(SqlConnection connection, DataBossBulkCopySettings settings) : this(connection, null, settings) { }
