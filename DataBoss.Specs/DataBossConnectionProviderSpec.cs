@@ -61,5 +61,15 @@ namespace DataBoss.Data.Specs
 					.That(stats => stats["SelectCount"] == 0);
 			}
 		}
+
+		public void cleanup() {
+			var disposed = false;
+			var db = connections.NewConnection();
+			db.Disposed += (_, __) => disposed = true;
+			connections.Cleanup();
+			Check.That(
+				() => disposed, 
+				() => connections.LiveConnections == 0);
+		}
 	}
 }

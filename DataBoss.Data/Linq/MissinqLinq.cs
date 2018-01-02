@@ -153,4 +153,9 @@ namespace DataBoss.Linq
 
 		public static T Single<T>(T[] ts) => ts.Length == 1 ? ts[0] : throw new InvalidOperationException("Array contains more than one element.");
 	}
+
+	public static class KeyValuePair
+	{
+		public static KeyValuePair<TKey, TValue> Create<TKey, TValue>(TKey key, TValue value) => new KeyValuePair<TKey, TValue>(key, value);
+	}
 }

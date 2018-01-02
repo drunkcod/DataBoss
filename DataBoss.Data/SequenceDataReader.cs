@@ -11,6 +11,7 @@ namespace DataBoss.Data
 		public const string ColumnName = "ColumnName";
 		public const string ColumnOrdinal = "ColumnOrdinal";
 		public const string ColumnSize = "ColumnSize";
+		public const string DataType = "DataType";
 	}
 
 	public static class SequenceDataReader
@@ -90,6 +91,7 @@ namespace DataBoss.Data
 			var columnOrdinal = schema.Columns.Add(DataReaderSchemaColumns.ColumnOrdinal, typeof(int));
 			var columnSize = schema.Columns.Add(DataReaderSchemaColumns.ColumnSize, typeof(int));
 			var isNullable = schema.Columns.Add(DataReaderSchemaColumns.AllowDBNull, typeof(bool));
+			var dataType = schema.Columns.Add(DataReaderSchemaColumns.DataType, typeof(Type));
 			for(var i = 0; i != FieldCount; ++i) {
 				var r = schema.NewRow();
 				var dbType = dbTypes[i];
@@ -97,6 +99,7 @@ namespace DataBoss.Data
 				r[columnOrdinal] = i;
 				r[columnSize] = dbType.ColumnSize.HasValue ? (object)dbType.ColumnSize.Value : DBNull.Value;
 				r[isNullable] = dbType.IsNullable;
+				r[dataType] = GetFieldType(i);
 				schema.Rows.Add(r);
 			}
 			return schema;

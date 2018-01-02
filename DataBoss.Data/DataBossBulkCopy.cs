@@ -12,7 +12,7 @@ namespace DataBoss.Data
 
 	public class DataBossBulkCopySettings
 	{
-		public int BatchSize;
+		public int? BatchSize;
 		public int? CommandTimeout;
 	}
 
@@ -25,9 +25,6 @@ namespace DataBoss.Data
 		public readonly SqlConnection Connection;
 		public readonly SqlTransaction Transaction;
 		
-		int? CommandTimeout => settings.CommandTimeout;
-		int BatchSize => settings.BatchSize; 
-
 		public DataBossBulkCopy(SqlConnection connection) : this(connection, null, new DataBossBulkCopySettings()) { }
 		public DataBossBulkCopy(SqlConnection connection, DataBossBulkCopySettings settings) : this(connection, null, settings) { }
 		public DataBossBulkCopy(SqlConnection connection, SqlTransaction transaction) : this(connection, transaction, new DataBossBulkCopySettings()) { }
@@ -46,7 +43,8 @@ namespace DataBoss.Data
 			}
 		}
 
-		public void Insert<T>(string destinationTable, IEnumerable<T> rows) => Insert(destinationTable, SequenceDataReader.Create(rows, x => x.MapAll()));
+		public void Insert<T>(string destinationTable, IEnumerable<T> rows) => 
+			Insert(destinationTable, SequenceDataReader.Create(rows, x => x.MapAll()));
 
 		public ICollection<int> InsertAndGetIdentities<T>(string destinationTable, IEnumerable<T> rows) {
 			var n = 0;
@@ -75,8 +73,8 @@ namespace DataBoss.Data
 				drop table {TempTableName}
 			"))
 			{
-				if(CommandTimeout.HasValue)
-					cmd.CommandTimeout = CommandTimeout.Value;
+				if(settings.CommandTimeout.HasValue)
+					cmd.CommandTimeout = settings.CommandTimeout.Value;
 				cmd.Transaction = Transaction;
 				using (var reader = ObjectReader.For(cmd.ExecuteReader(CommandBehavior.SingleResult | CommandBehavior.SequentialAccess))) { 
 					var ids = reader.Read<IdRow>().Select(x => x.Id).ToList();
@@ -90,10 +88,11 @@ namespace DataBoss.Data
 			var bulkCopy = new SqlBulkCopy(Connection, SqlBulkCopyOptions.TableLock, Transaction) { 
 				DestinationTableName = destinationTable,
 				EnableStreaming = true,
-				BatchSize = BatchSize,
 			};
-			if(CommandTimeout.HasValue)
-				bulkCopy.BulkCopyTimeout = CommandTimeout.Value;
+			if(settings.BatchSize.HasValue)
+				bulkCopy.BatchSize = settings.BatchSize.Value;
+			if(settings.CommandTimeout.HasValue)
+				bulkCopy.BulkCopyTimeout = settings.CommandTimeout.Value;
 			return bulkCopy;
 		}
 	}

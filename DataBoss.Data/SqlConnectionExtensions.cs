@@ -56,7 +56,7 @@ namespace DataBoss.Data
 		public static void Into(this SqlConnection connection, string destinationTable, IDataReader toInsert, DataBossBulkCopySettings settings) {
 			var scripter = new DataBossScripter();
 			connection.ExecuteNonQuery(scripter.ScriptTable(destinationTable, toInsert));
-			connection.Insert(null, destinationTable, toInsert, settings);
+			connection.Insert(destinationTable, toInsert, settings);
 		}
 
 		public static void Insert<T>(this SqlConnection connection, string destinationTable, IEnumerable<T> rows) =>
@@ -64,6 +64,9 @@ namespace DataBoss.Data
 
 		public static void Insert<T>(this SqlConnection connection, SqlTransaction transaction, string destinationTable, IEnumerable<T> rows) =>
 			Insert(connection, transaction, destinationTable, rows, new DataBossBulkCopySettings());
+
+		public static void Insert<T>(this SqlConnection connection, string destinationTable, IEnumerable<T> rows, DataBossBulkCopySettings settings) =>
+			connection.Insert(null, destinationTable, rows, settings);
 
 		public static void Insert<T>(this SqlConnection connection, SqlTransaction transaction, string destinationTable, IEnumerable<T> rows, DataBossBulkCopySettings settings) =>
 			new DataBossBulkCopy(connection, transaction, settings).Insert(destinationTable, rows);
@@ -73,6 +76,9 @@ namespace DataBoss.Data
 
 		public static void Insert(this SqlConnection connection, SqlTransaction transaction, string destinationTable, IDataReader toInsert) =>
 			Insert(connection, transaction, destinationTable, toInsert, new DataBossBulkCopySettings());
+
+		public static void Insert(this SqlConnection connection, string destinationTable, IDataReader toInsert, DataBossBulkCopySettings settings) =>
+			Insert(connection, null, destinationTable, toInsert, settings);
 
 		public static void Insert(this SqlConnection connection, SqlTransaction transaction, string destinationTable, IDataReader toInsert, DataBossBulkCopySettings settings) =>
 			new DataBossBulkCopy(connection, transaction, settings).Insert(destinationTable, toInsert);

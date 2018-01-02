@@ -5,10 +5,11 @@ using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Threading;
+using DataBoss.Linq;
 
 namespace DataBoss.Data
 {
-	public class DataBossConnectionProvider
+	public class DataBossConnectionProvider : IDisposable
 	{
 		public struct ProviderStatistics : IEnumerable<KeyValuePair<string, long>>
 		{
@@ -19,6 +20,7 @@ namespace DataBoss.Data
 			}
 
 			public ByteSize BytesReceived => new ByteSize(GetOrDefault(nameof(BytesReceived)));
+			public ByteSize BytesSent => new ByteSize(GetOrDefault(nameof(BytesSent)));
 			public long ConnectionsCreated => GetOrDefault(nameof(ConnectionsCreated));
 			public long LiveConnections => GetOrDefault(nameof(LiveConnections));
 			public long SelectCount => GetOrDefault(nameof(SelectCount));
@@ -96,5 +98,10 @@ namespace DataBoss.Data
 			foreach(var item in connections.Values)
 				item.ResetStatistics();
 		}
+
+		void IDisposable.Dispose() => Cleanup();
+
+		public void Cleanup() =>
+			connections.Values.ForEach(x => x.Dispose());
 	}
 }
