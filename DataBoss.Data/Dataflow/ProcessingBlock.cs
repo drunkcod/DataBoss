@@ -16,19 +16,28 @@ namespace DataBoss.Data.Dataflow
 		void Post(T item);
 	}
 
+	public class ActionSink<T> : IMessageSink<T>
+	{
+		readonly Action<T> action;
+
+		public ActionSink(Action<T> action) { this.action = action; }
+
+		public void Post(T value) => action(value);
+	}
+
 	public class MessageChannel<T> : IMessageSink<T>
 	{
 		readonly List<Action<T>> targets = new List<Action<T>>();
 
 		public void Post(T item) => targets.ForEach(x => x(item));
 
-		public MessageChannel<T> ConnectTo<TTarget>(IMessageSink<TTarget> target, Func<T, TTarget> transform) =>
+		public void ConnectTo(IMessageSink<T> target) =>
+			ConnectTo(target.Post);
+
+		public void ConnectTo<TTarget>(IMessageSink<TTarget> target, Func<T, TTarget> transform) =>
 			ConnectTo(x => target.Post(transform(x)));
 
-		public MessageChannel<T> ConnectTo(Action<T> action) {
-			targets.Add(action);
-			return this;
-		}
+		public void ConnectTo(Action<T> action) => targets.Add(action);
 	}
 
 	public interface IProcessingBlock<T> : IActionBlock, IMessageSink<T>
