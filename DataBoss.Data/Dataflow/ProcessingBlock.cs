@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using DataBoss.Linq;
 
 namespace DataBoss.Data.Dataflow
 {
@@ -67,13 +68,25 @@ namespace DataBoss.Data.Dataflow
 			internal SequenceProcessingBlock(TaskFactory tasks, Action<IEnumerable<T>> process, int? maxQueue) {
 				this.inputs = maxQueue.HasValue ? new BlockingCollection<T>(maxQueue.Value) : new BlockingCollection<T>();
 				this.process = process;
-				this.worker = tasks.StartNew(() => process(inputs.GetConsumingEnumerable()), TaskCreationOptions.LongRunning);
+				this.worker = tasks.StartNew(() => {
+					try { 
+						process(inputs.GetConsumingEnumerable());
+					} finally { Complete(); }
+				}, TaskCreationOptions.LongRunning);
 			}
 
 			public Task Completion => worker;
 			public void Complete() => inputs.CompleteAdding();
 
-			public void Post(T item) => inputs.Add(item);
+			public void Post(T item) {
+				try { 
+					inputs.Add(item); 
+				} catch(InvalidOperationException) {
+					if(Completion.IsFaulted)
+						throw new InvalidOperationException("Consumer is faulted.", Completion.Exception.InnerException);
+					throw;
+				}
+			}
 		}
 
 		public static IActionBlock Action(Action action) => 
@@ -95,6 +108,9 @@ namespace DataBoss.Data.Dataflow
 			}, TaskCreationOptions.LongRunning);
 			return block;
 		}
+
+		public static IProcessingBlock<T> Item<T>(Action<T> process, int? maxQueue = null) =>
+			new SequenceProcessingBlock<T>(Task.Factory, items => items.ForEach(process), maxQueue);
 
 		public static IProcessingBlock<T> Sequence<T>(Action<IEnumerable<T>> process, int? maxQueue = null) => 
 			new SequenceProcessingBlock<T>(Task.Factory, process, maxQueue);
