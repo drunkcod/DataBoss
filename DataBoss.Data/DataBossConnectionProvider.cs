@@ -17,6 +17,8 @@ namespace DataBoss.Data
 
 	public class DataBossConnectionProvider : IDisposable
 	{
+		static readonly EventHandler DisposeConnection = (sender, _) => ((SqlCommand)sender).Connection.Dispose();
+
 		public struct ProviderStatistics : IEnumerable<KeyValuePair<string, long>>
 		{
 			readonly Dictionary<string, long> stats;
@@ -78,8 +80,6 @@ namespace DataBoss.Data
 			cmd.Disposed += DisposeConnection;
 			return cmd;
 		}
-
-		static readonly EventHandler DisposeConnection = (sender, _) => ((SqlCommand)sender).Connection.Dispose();
 
 		public int ConnectionsCreated => nextConnectionId;
 		public int LiveConnections => connections.Count;
