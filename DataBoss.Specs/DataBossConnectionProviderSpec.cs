@@ -71,5 +71,13 @@ namespace DataBoss.Data.Specs
 				() => disposed, 
 				() => connections.LiveConnections == 0);
 		}
+
+		public void command_owning_connection() {
+			var c = connections.NewCommand(CommandOptions.DisposeConnection);
+			Assume.That(() => connections.LiveConnections == 1);
+
+			c.Dispose();
+			Check.That(() => connections.LiveConnections == 0);
+		}
 	}
 }

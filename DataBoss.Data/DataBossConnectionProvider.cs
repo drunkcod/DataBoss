@@ -9,6 +9,12 @@ using DataBoss.Linq;
 
 namespace DataBoss.Data
 {
+	[Flags]
+	public enum CommandOptions
+	{
+		DisposeConnection = 1,
+	}
+
 	public class DataBossConnectionProvider : IDisposable
 	{
 		public struct ProviderStatistics : IEnumerable<KeyValuePair<string, long>>
@@ -64,6 +70,16 @@ namespace DataBoss.Data
 			};
 			return db;
 		}
+
+		public SqlCommand NewCommand(CommandOptions options) {
+			var cmd = new SqlCommand {
+				Connection = NewConnection(),
+			};
+			cmd.Disposed += DisposeConnection;
+			return cmd;
+		}
+
+		static readonly EventHandler DisposeConnection = (sender, _) => ((SqlCommand)sender).Connection.Dispose();
 
 		public int ConnectionsCreated => nextConnectionId;
 		public int LiveConnections => connections.Count;
