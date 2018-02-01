@@ -146,6 +146,19 @@ namespace DataBoss.Specs
 				() => e.Errors[0].ArgumentType == typeof(MyEnum));
 		}
 
+		public void reports_list_item_parse_errors() {
+			var e = Check.Exception<PowerArgsParseException>(() => PowerArgs
+				.Parse("-Value", "1,Foo,2,Bar")
+				.Into<MyArg<List<int>>>());
+			Check.That(
+				() => e.Errors.Count == 2,
+				() => e.Errors[0].ArgumentName == "Value",
+				() => e.Errors[0].Input == "Foo",
+				() => e.Errors[1].ArgumentName == "Value",
+				() => e.Errors[1].Input == "Bar");
+
+		}
+
 		public void parses_nullables() {
 			Check.That(
 				() => PowerArgs.Parse("-MaybeDateTime", "2016-02-29").Into<MyArgsWithNonStrings>().MaybeDateTime == new DateTime(2016, 02, 29));

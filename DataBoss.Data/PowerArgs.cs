@@ -211,7 +211,16 @@ namespace DataBoss
 			if(TryGetAddItem(targetType, out addItem)) {
 				result = targetType.GetConstructor(Type.EmptyTypes).Invoke(new object[0]);
 				foreach(var item in input.Split(','))
-					addItem(result, item);
+					try {
+						addItem(result, item);
+					} catch(Exception ex) {
+						onFailure(new PowerArgsParseException.ParseFailure {
+							ArgumentName = name,
+							ArgumentType = targetType,
+							Input = item,
+							Error = ex,
+						});
+					}
 				return true;
 			}
 			result = null;
