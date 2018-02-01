@@ -167,18 +167,22 @@ namespace DataBoss
 				result = input;
 				return true;
 			}
-			if(targetType.IsEnum) {
+
+			void ReportFailure(string s, Exception ex) =>
+				onFailure(new PowerArgsParseException.ParseFailure {
+					ArgumentName = name,
+					ArgumentType = targetType,
+					Input = s,
+					Error = ex,
+				});
+			
+			if (targetType.IsEnum) {
 				try {
 					result = Enum.Parse(targetType, input);
 					return true;
 				} catch(Exception ex) {
 					result = null;
-					onFailure(new PowerArgsParseException.ParseFailure {
-						ArgumentName = name,
-						ArgumentType = targetType,
-						Input = input,
-						Error = ex,
-					});
+					ReportFailure(input, ex);
 					return false;
 				}
 			}
@@ -190,12 +194,7 @@ namespace DataBoss
 				}
 				catch(Exception ex) {
 					result = null;
-					onFailure(new PowerArgsParseException.ParseFailure { 
-						ArgumentName = name,
-						ArgumentType = targetType,
-						Input = input,
-						Error = ex,
-					});
+					ReportFailure(input, ex);
 					return false;
 				}
 			}
@@ -214,12 +213,7 @@ namespace DataBoss
 					try {
 						addItem(result, item);
 					} catch(Exception ex) {
-						onFailure(new PowerArgsParseException.ParseFailure {
-							ArgumentName = name,
-							ArgumentType = targetType,
-							Input = item,
-							Error = ex,
-						});
+						ReportFailure(item, ex);
 					}
 				return true;
 			}
