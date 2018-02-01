@@ -11,6 +11,23 @@ using System.Text.RegularExpressions;
 
 namespace DataBoss
 {
+	public class PowerArgsParseException : Exception
+	{
+		public class ParseFailure
+		{
+			public string ArgumentName;
+			public Type ArgumentType;
+			public string Input;
+			public Exception Error;
+		}
+
+		public readonly IReadOnlyList<ParseFailure> Errors;
+
+		internal PowerArgsParseException(IReadOnlyList<ParseFailure> errors) {
+			this.Errors = errors;
+		}
+	}
+
 	public class PowerArgs : IEnumerable<KeyValuePair<string, string>>
 	{
 		static readonly ConcurrentDictionary<Type, Action<object, string>> AddItemCache = new ConcurrentDictionary<Type, Action<object, string>>();
@@ -104,35 +121,36 @@ namespace DataBoss
 			return args.TryGetValue(name, out value);
 		}
 
-		public T Into<T>() where T : new() {
-			return Into(new T());
-		}
+		public T Into<T>() where T : new() => Into(new T());
 
 		public T Into<T>(T target) {
-			FillFields(target);
-			FillProps(target);
+			var parseFailures = new List<PowerArgsParseException.ParseFailure>();
+			FillFields(target, parseFailures.Add);
+			FillProps(target, parseFailures.Add);
+			if(parseFailures.Count != 0)
+				throw new PowerArgsParseException(parseFailures);
 			return target;
 		}
 
-		private void FillFields(object target) {
+		private void FillFields(object target, Action<PowerArgsParseException.ParseFailure> onFailure) {
 			foreach (var field in target.GetType().GetFields()) {
 				object value;
-				if (TryGetArgWithDefault(field.Name, field, field.FieldType, out value))
+				if (TryGetArgWithDefault(field, field.FieldType, onFailure, out value))
 					field.SetValue(target, value);
 			}
 		}
 
-		private void FillProps(object target) {
+		private void FillProps(object target, Action<PowerArgsParseException.ParseFailure> onFailure) {
 			foreach (var prop in target.GetType().GetProperties()) {
 				object value;
-				if (TryGetArgWithDefault(prop.Name, prop, prop.PropertyType, out value))
+				if (TryGetArgWithDefault(prop, prop.PropertyType, onFailure, out value))
 					prop.SetValue(target, value);
 			}
 		}
 
-		private bool TryGetArgWithDefault(string name, MemberInfo member, Type targetType, out object value) {
+		private bool TryGetArgWithDefault(MemberInfo member, Type targetType, Action<PowerArgsParseException.ParseFailure> onFailure, out object value) {
 			string argValue;
-			if(TryGetArg(name, out argValue) && TryParse(argValue, targetType, out value))
+			if(TryGetArg(member.Name, out argValue) && TryParse(member.Name, argValue, targetType, onFailure, out value))
 				return true;
 
 			var defalt = member.GetCustomAttribute<DefaultValueAttribute>();
@@ -144,7 +162,7 @@ namespace DataBoss
 			return false;
 		}
 
-		bool TryParse(string input, Type targetType, out object result) {
+		bool TryParse(string name, string input, Type targetType, Action<PowerArgsParseException.ParseFailure> onFailure, out object result) {
 			if(targetType == typeof(string)) {
 				result = input;
 				return true;
@@ -153,8 +171,14 @@ namespace DataBoss
 				try {
 					result = Enum.Parse(targetType, input);
 					return true;
-				} catch {
+				} catch(Exception ex) {
 					result = null;
+					onFailure(new PowerArgsParseException.ParseFailure {
+						ArgumentName = name,
+						ArgumentType = targetType,
+						Input = input,
+						Error = ex,
+					});
 					return false;
 				}
 			}
@@ -164,14 +188,20 @@ namespace DataBoss
 					result = hasParse.Invoke(null, new object[] { input });
 					return true;
 				}
-				catch {
+				catch(Exception ex) {
 					result = null;
+					onFailure(new PowerArgsParseException.ParseFailure { 
+						ArgumentName = name,
+						ArgumentType = targetType,
+						Input = input,
+						Error = ex,
+					});
 					return false;
 				}
 			}
 			if(targetType.TryGetNullableTargetType(out var t)) {
 				object inner;
-				if(TryParse(input, t, out inner)) {
+				if(TryParse(name, input, t, onFailure, out inner)) {
 					result = targetType.GetConstructor(new[] { t }).Invoke(new[] { inner });
 					return true;
 				}

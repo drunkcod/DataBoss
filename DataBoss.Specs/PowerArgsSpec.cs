@@ -119,6 +119,33 @@ namespace DataBoss.Specs
 				() => PowerArgs.Parse("-MyDateTime", "2016-02-29").Into<MyArgsWithNonStrings>().MyDateTime == new DateTime(2016, 02, 29));
 		}
 
+		class MySimpleArgs
+		{
+			public int Int;
+			public bool Bool;
+			public float Float;
+		}
+
+		public void reports_Parse_errors() {
+			var e = Check.Exception<PowerArgsParseException>(() => PowerArgs
+				.Parse("-Int", "Hello", "-Bool", "World", "-Float", "3,14")
+				.Into<MySimpleArgs>());
+			Check.That(() => e.Errors.Count == 2);
+		}
+
+		public class MyArg<T> { public T Value; }
+
+		public void reports_Enum_Parse_error() {
+			var e = Check.Exception<PowerArgsParseException>(() => PowerArgs
+				.Parse("-Value", "NoSuchValue")
+				.Into<MyArg<MyEnum>>());
+			Check.That(
+				() => e.Errors.Count == 1,
+				() => e.Errors[0].ArgumentName == "Value",
+				() => e.Errors[0].Input == "NoSuchValue",
+				() => e.Errors[0].ArgumentType == typeof(MyEnum));
+		}
+
 		public void parses_nullables() {
 			Check.That(
 				() => PowerArgs.Parse("-MaybeDateTime", "2016-02-29").Into<MyArgsWithNonStrings>().MaybeDateTime == new DateTime(2016, 02, 29));

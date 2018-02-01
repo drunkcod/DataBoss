@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Threading;
@@ -13,6 +14,7 @@ namespace DataBoss.Data
 	public enum CommandOptions
 	{
 		DisposeConnection = 1,
+		OpenConnection = 2,
 	}
 
 	public class DataBossConnectionProvider : IDisposable
@@ -73,12 +75,35 @@ namespace DataBoss.Data
 			return db;
 		}
 
-		public SqlCommand NewCommand(CommandOptions options) {
+		public SqlCommand NewCommand(CommandOptions options) => NewCommand(options, CommandType.Text);
+
+		public SqlCommand NewCommand(CommandOptions options, CommandType commandType) {
 			var cmd = new SqlCommand {
 				Connection = NewConnection(),
+				CommandType = commandType,
 			};
-			cmd.Disposed += DisposeConnection;
+			if((options & CommandOptions.DisposeConnection) != 0)
+				cmd.Disposed += DisposeConnection;
+			if((options & CommandOptions.OpenConnection) != 0)
+				cmd.Connection.Open();
 			return cmd;
+		}
+
+		public SqlCommand NewCommand(string commandText, CommandOptions options, CommandType commandType) {
+			var cmd = NewCommand(options, commandType);
+			cmd.CommandText = commandText;
+			return cmd;
+		}
+
+		public SqlCommand NewCommand<T>(string commandText, T args, CommandOptions options, CommandType commandType) {
+			var cmd = NewCommand(commandText, options, commandType);
+			ToParams.AddTo(cmd, args);
+			return cmd;
+		}
+
+		public void ExecuteNonQuery(string commandText, CommandType commandType = CommandType.Text) {
+			using (var c = NewCommand(commandText, CommandOptions.DisposeConnection | CommandOptions.OpenConnection, commandType))
+				c.ExecuteNonQuery();
 		}
 
 		public int ConnectionsCreated => nextConnectionId;
