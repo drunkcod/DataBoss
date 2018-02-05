@@ -77,6 +77,8 @@ namespace DataBoss.Data
 
 		public SqlCommand NewCommand(CommandOptions options) => NewCommand(options, CommandType.Text);
 
+		public SqlCommand NewCommand(string commandText, CommandOptions options) => NewCommand(commandText, options, CommandType.Text);
+
 		public SqlCommand NewCommand(CommandOptions options, CommandType commandType) {
 			var cmd = new SqlCommand {
 				Connection = NewConnection(),
@@ -95,15 +97,24 @@ namespace DataBoss.Data
 			return cmd;
 		}
 
+		public SqlCommand NewCommand<T>(string commandText, T args, CommandOptions options) =>
+			NewCommand(commandText, args, options, CommandType.Text);
+
 		public SqlCommand NewCommand<T>(string commandText, T args, CommandOptions options, CommandType commandType) {
 			var cmd = NewCommand(commandText, options, commandType);
 			ToParams.AddTo(cmd, args);
 			return cmd;
 		}
 
-		public void ExecuteNonQuery(string commandText, CommandType commandType = CommandType.Text) {
+		public int ExecuteNonQuery(string commandText, CommandType commandType = CommandType.Text) =>
+			Execute(commandText, commandType, x => x.ExecuteNonQuery());
+
+		public object ExecuteScalar(string commandText, CommandType commandType = CommandType.Text) => 
+			Execute(commandText, commandType, x => x.ExecuteScalar());
+
+		T Execute<T>(string commandText, CommandType commandType, Func<SqlCommand, T> @do) {
 			using (var c = NewCommand(commandText, CommandOptions.DisposeConnection | CommandOptions.OpenConnection, commandType))
-				c.ExecuteNonQuery();
+				return @do(c);
 		}
 
 		public int ConnectionsCreated => nextConnectionId;

@@ -11,23 +11,6 @@ using System.Text.RegularExpressions;
 
 namespace DataBoss
 {
-	public class PowerArgsParseException : Exception
-	{
-		public class ParseFailure
-		{
-			public string ArgumentName;
-			public Type ArgumentType;
-			public string Input;
-			public Exception Error;
-		}
-
-		public readonly IReadOnlyList<ParseFailure> Errors;
-
-		internal PowerArgsParseException(IReadOnlyList<ParseFailure> errors) {
-			this.Errors = errors;
-		}
-	}
-
 	public class PowerArgs : IEnumerable<KeyValuePair<string, string>>
 	{
 		static readonly ConcurrentDictionary<Type, Action<object, string>> AddItemCache = new ConcurrentDictionary<Type, Action<object, string>>();
@@ -41,9 +24,8 @@ namespace DataBoss
 
 		public IReadOnlyList<string> Commands => commands.AsReadOnly();
 
-		public static PowerArgs Parse(params string[] args) {
-			return Parse((IEnumerable<string>)args);
-		}
+		public static PowerArgs Parse(params string[] args) => 
+			Parse((IEnumerable<string>)args);
 
 		public static PowerArgs Parse(IEnumerable<string> args) {
 			var result = new PowerArgs();
@@ -113,13 +95,11 @@ namespace DataBoss
 			return MatchArg(input, out ignored);
 		}
 
-		void Add(string arg, string value) {
+		void Add(string arg, string value) =>
 			args.Add(arg, value);
-		}
 
-		public bool TryGetArg(string name, out string value) {
-			return args.TryGetValue(name, out value);
-		}
+		public bool TryGetArg(string name, out string value) => 
+			args.TryGetValue(name, out value);
 
 		public T Into<T>() where T : new() => Into(new T());
 
@@ -167,32 +147,12 @@ namespace DataBoss
 				result = input;
 				return true;
 			}
-
-			void ReportFailure(string s, Exception ex) =>
-				onFailure(new PowerArgsParseException.ParseFailure {
-					ArgumentName = name,
-					ArgumentType = targetType,
-					Input = s,
-					Error = ex,
-				});
 			
-			if (targetType.IsEnum) {
+			if(TryGetParse(targetType, out var parse)) {
 				try {
-					result = Enum.Parse(targetType, input);
+					result = parse.Invoke(null, new[]{ input });
 					return true;
 				} catch(Exception ex) {
-					result = null;
-					ReportFailure(input, ex);
-					return false;
-				}
-			}
-			var hasParse = targetType.GetMethod("Parse", new []{ typeof(string) } );
-			if(hasParse != null) {
-				try {
-					result = hasParse.Invoke(null, new object[] { input });
-					return true;
-				}
-				catch(Exception ex) {
 					result = null;
 					ReportFailure(input, ex);
 					return false;
@@ -219,7 +179,29 @@ namespace DataBoss
 			}
 			result = null;
 			return false;
+
+			void ReportFailure(string s, Exception ex) =>
+				onFailure(new PowerArgsParseException.ParseFailure {
+					ArgumentName = name,
+					ArgumentType = targetType,
+					Input = s,
+					Error = ex,
+				});
+
 		}
+
+		static bool TryGetParse(Type type, out MethodInfo parse) {
+			if(type.IsEnum) { 
+				parse = typeof(PowerArgs).GetMethod(nameof(ParseEnum), BindingFlags.Static | BindingFlags.NonPublic).MakeGenericMethod(type);
+				return true;
+			}
+			parse = type.GetMethod("Parse", new[] { typeof(string) });
+			if(parse != null && !parse.IsStatic)
+				parse = null;
+			return parse != null;
+		}
+
+		static T ParseEnum<T>(string input) => (T)Enum.Parse(typeof(T), input); 
 
 		static bool TryGetAddItem(Type targetType, out Action<object, string> output)
 		{
@@ -230,8 +212,7 @@ namespace DataBoss
 					.Select(x => new { Add = x, Parameters = x.GetParameters() })
 					.FirstOrDefault(x => x.Parameters.Length == 1);
 
-				var parse = adder?.Parameters[0].ParameterType.GetMethod("Parse", new [] { typeof(string) });
-				if(parse == null)
+				if(adder == null || !TryGetParse(adder.Parameters[0].ParameterType, out var parse))
 					return null;
 				
 				var target = Expression.Parameter(typeof(object));
@@ -239,7 +220,7 @@ namespace DataBoss
 				return Expression.Lambda<Action<object,string>>(
 						Expression.Call(
 							Expression.Convert(target, targetType), adder.Add, 
-							Expression.Call(null,parse, value)), 
+							Expression.Call(parse, value)), 
 						target, value)
 					.Compile();
 			});

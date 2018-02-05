@@ -10,6 +10,52 @@ namespace DataBoss.Specs
 	[Describe(typeof(PowerArgs))]
 	public class PowerArgsSpec
 	{
+		[Context("into parsing")]
+		public class PowerArgsIntoSpec
+		{
+			class MySimpleArgs
+			{
+				public int Int;
+				public bool Bool;
+				public float Float;
+			}
+
+			public void reports_Parse_errors() {
+				var e = Check.Exception<PowerArgsParseException>(() => PowerArgs
+					.Parse("-Int", "Hello", "-Bool", "World", "-Float", "3,14")
+					.Into<MySimpleArgs>());
+				Check.That(() => e.Errors.Count == 2);
+			}
+
+			public class MyArg<T> { public T Value; }
+
+			public void DateTime_parsing() => Check.That(
+				() => PowerArgs.Parse("-Value", "2016-02-29").Into<MyArg<DateTime>>().Value == new DateTime(2016, 02, 29));
+
+			public void reports_Enum_Parse_error() {
+				var e = Check.Exception<PowerArgsParseException>(() => PowerArgs
+					.Parse("-Value", "NoSuchValue")
+					.Into<MyArg<MyEnum>>());
+				Check.That(
+					() => e.Errors.Count == 1,
+					() => e.Errors[0].ArgumentName == "Value",
+					() => e.Errors[0].Input == "NoSuchValue",
+					() => e.Errors[0].ArgumentType == typeof(MyEnum));
+			}
+
+			public void reports_list_item_parse_errors() {
+				var e = Check.Exception<PowerArgsParseException>(() => PowerArgs
+					.Parse("-Value", "1,Foo,2,Bar")
+					.Into<MyArg<List<int>>>());
+				Check.That(
+					() => e.Errors.Count == 2,
+					() => e.Errors[0].ArgumentName == "Value",
+					() => e.Errors[0].Input == "Foo",
+					() => e.Errors[1].ArgumentName == "Value",
+					() => e.Errors[1].Input == "Bar");
+			}
+		}
+
 		public void uses_key_value_pairs() {
 			var args = PowerArgs.Parse("-Foo", "Bar");
 			Check.That(
@@ -104,60 +150,12 @@ namespace DataBoss.Specs
 		}
 		#pragma warning restore CS0649
 
-		public void ignores_non_stringable_members() {
-			Check.That(
+		public void ignores_non_stringable_members() => Check.That(
 				() => PowerArgs.Parse("-NonStringable", "42").Into<MyArgsWithNonStrings>().MyList == null);
-		}
 
-		public void fills_list_like_with_members() {
+		public void fills_list_like_with_members() => 
 			Check.That(
 				() => PowerArgs.Parse("-MyList", "1,2,3").Into<MyArgsWithNonStrings>().MyList.SequenceEqual(new [] { 1, 2, 3 }));
-		}
-
-		public void attempts_to_parse_DateTime() {
-			Check.That(
-				() => PowerArgs.Parse("-MyDateTime", "2016-02-29").Into<MyArgsWithNonStrings>().MyDateTime == new DateTime(2016, 02, 29));
-		}
-
-		class MySimpleArgs
-		{
-			public int Int;
-			public bool Bool;
-			public float Float;
-		}
-
-		public void reports_Parse_errors() {
-			var e = Check.Exception<PowerArgsParseException>(() => PowerArgs
-				.Parse("-Int", "Hello", "-Bool", "World", "-Float", "3,14")
-				.Into<MySimpleArgs>());
-			Check.That(() => e.Errors.Count == 2);
-		}
-
-		public class MyArg<T> { public T Value; }
-
-		public void reports_Enum_Parse_error() {
-			var e = Check.Exception<PowerArgsParseException>(() => PowerArgs
-				.Parse("-Value", "NoSuchValue")
-				.Into<MyArg<MyEnum>>());
-			Check.That(
-				() => e.Errors.Count == 1,
-				() => e.Errors[0].ArgumentName == "Value",
-				() => e.Errors[0].Input == "NoSuchValue",
-				() => e.Errors[0].ArgumentType == typeof(MyEnum));
-		}
-
-		public void reports_list_item_parse_errors() {
-			var e = Check.Exception<PowerArgsParseException>(() => PowerArgs
-				.Parse("-Value", "1,Foo,2,Bar")
-				.Into<MyArg<List<int>>>());
-			Check.That(
-				() => e.Errors.Count == 2,
-				() => e.Errors[0].ArgumentName == "Value",
-				() => e.Errors[0].Input == "Foo",
-				() => e.Errors[1].ArgumentName == "Value",
-				() => e.Errors[1].Input == "Bar");
-
-		}
 
 		public void parses_nullables() {
 			Check.That(
