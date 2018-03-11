@@ -13,12 +13,14 @@ namespace DataBoss.Specs
 		[Context("into parsing")]
 		public class PowerArgsIntoSpec
 		{
+			#pragma warning disable 0649
 			class MySimpleArgs
 			{
 				public int Int;
 				public bool Bool;
 				public float Float;
 			}
+			#pragma warning restore 0649
 
 			public void reports_Parse_errors() {
 				var e = Check.Exception<PowerArgsParseException>(() => PowerArgs

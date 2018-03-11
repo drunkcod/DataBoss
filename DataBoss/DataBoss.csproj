@@ -1,15 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net45</TargetFramework>
+    <TargetFrameworks>netstandard2.0;net45</TargetFrameworks>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AssemblyVersion>$(PackageVersion)</AssemblyVersion>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="System" />
-    <Reference Include="System.ComponentModel.DataAnnotations" />
-    <Reference Include="System.Core" />
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Xml" />
+    <PackageReference Include="System.ComponentModel.Annotations" Version="4.4.*" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Usage.txt">
@@ -18,6 +14,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Condition="'$(DataBossPackageVersion)'==''" Include="..\DataBoss.Data\DataBoss.Data.csproj" />
-    <PackageReference Condition="'$(DataBossPackageVersion)'!=''" Include="DataBoss.Data" Version="$(DataBossPackageVersion)"/> 
+    <PackageReference Condition="'$(DataBossPackageVersion)'!=''" Include="DataBoss.Data" Version="$(DataBossPackageVersion)" /> 
   </ItemGroup>
 </Project>
