@@ -24,7 +24,10 @@ namespace DataBoss.Data
 		readonly List<FieldMappingItem> mappings = new List<FieldMappingItem>();
 
 		public void MapAll() {
-			foreach(var item in typeof(T).GetFields().Cast<MemberInfo>().Concat(typeof(T).GetProperties()))
+			var type = typeof(T);
+			var fields = type.GetFields().Where(x => !x.IsStatic);
+			var props = type.GetProperties().Where(x => !x.GetMethod.IsStatic);
+			foreach (var item in fields.Cast<MemberInfo>().Concat(props))
 				Map(item);
 		}
 
@@ -97,9 +100,9 @@ namespace DataBoss.Data
 			return ordinal;
 		}
 
-		public string[] GetFieldNames() => mappings.Select(x => x.Name).ToArray();
-		public Type[] GetFieldTypes() => mappings.Select(x => x.FieldType).ToArray();
-		public DataBossDbType[] GetDbTypes() => mappings.Select(x => x.DbType).ToArray();
+		public string[] GetFieldNames() => MissingLinq.ConvertAll(mappings, x => x.Name);
+		public Type[] GetFieldTypes() => MissingLinq.ConvertAll(mappings, x => x.FieldType);
+		public DataBossDbType[] GetDbTypes() => MissingLinq.ConvertAll(mappings, x => x.DbType);
 
 		public Action<T,object[]> GetAccessor() =>
 			GetAccessorExpression().Compile();

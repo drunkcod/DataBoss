@@ -41,6 +41,21 @@ namespace DataBoss.Data
 			Check.That(() => fieldMapping.GetAccessorExpression().Body.ToString() == "(target[0] = Convert(String.Empty))");
 		}
 
+		class MyThingWithStaticMember
+		{
+			public string TheAnswer;
+			public static string TheQuestion;
+			public static float YourBoat => 42;
+		}
+
+		public static void MapAll_ignores_static_fields() {
+			var mapping = new FieldMapping<MyThingWithStaticMember>();
+
+			mapping.MapAll();
+
+			Check.That(() => mapping.GetFieldNames().Length == 1);
+		}
+
 		LambdaExpression MakeLambda<TArg, TResult>(Expression<Func<TArg, TResult>> expr) => expr;
 	}
 }

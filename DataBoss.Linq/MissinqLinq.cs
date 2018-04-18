@@ -9,6 +9,13 @@ namespace DataBoss.Linq
 {
 	public static class MissingLinq
 	{
+		public static TOutput[] ConvertAll<T, TOutput>(this IReadOnlyCollection<T> self, Converter<T, TOutput> converter) {
+			var r = new TOutput[self.Count];
+			var n = 0;
+			foreach(var item in self)
+				r[n++] = converter(item);
+			return r;
+		}
 		public static void ForEach<T>(this IEnumerable<T> self, Action<T> action) {
 			foreach(var item in self)
 				action(item);

@@ -18,4 +18,8 @@
   <ItemGroup>
     <PackageReference Include="System.ComponentModel.Annotations" Version="4.4.*" />
   </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DataBoss.Linq\DataBoss.Linq.csproj" />
+  </ItemGroup>
 </Project>

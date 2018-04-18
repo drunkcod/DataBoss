@@ -19,16 +19,14 @@ namespace DataBoss.Data
 		public static SequenceDataReader<T> Create<T>(IEnumerable<T> data, Action<FieldMapping<T>> mapFields) {
 			var fieldMapping = new FieldMapping<T>();
 			mapFields(fieldMapping);
-			return new SequenceDataReader<T>(data.GetEnumerator(), fieldMapping);
+			return new SequenceDataReader<T>(data?.GetEnumerator(), fieldMapping);
 		}
 
-		public static SequenceDataReader<T> Create<T>(IEnumerable<T> data, params string[] members) {
-			return Create(data, fields => Array.ForEach(members, x => fields.Map(x)));
-		}
+		public static SequenceDataReader<T> Create<T>(IEnumerable<T> data, params string[] members) =>
+			Create(data, fields => Array.ForEach(members, x => fields.Map(x)));
 
-		public static SequenceDataReader<T> Create<T>(IEnumerable<T> data, params MemberInfo[] members) {
-			return Create(data, fields => Array.ForEach(members, x => fields.Map(x)));
-		}
+		public static SequenceDataReader<T> Create<T>(IEnumerable<T> data, params MemberInfo[] members) =>
+			Create(data, fields => Array.ForEach(members, x => fields.Map(x)));
 	}
 
 	public class SequenceDataReader<T> : IDataReader
@@ -40,8 +38,8 @@ namespace DataBoss.Data
 		readonly Type[] fieldTypes;
 		readonly DataBossDbType[] dbTypes;
 	
-		public SequenceDataReader(IEnumerator<T> data, FieldMapping<T> fields) {
-			this.data = data;
+		internal SequenceDataReader(IEnumerator<T> data, FieldMapping<T> fields) {
+			this.data = data ?? throw new ArgumentNullException(nameof(data));
 			this.fieldNames = fields.GetFieldNames();
 			this.fieldTypes = fields.GetFieldTypes();
 			this.accessor = fields.GetAccessor();
@@ -108,15 +106,15 @@ namespace DataBoss.Data
 		//SqlBulkCopy.EnableStreaming requires this
 		public bool IsDBNull(int i) => GetValue(i) is DBNull;
 
-		int IDataReader.Depth { get { throw new NotSupportedException(); } }
-		bool IDataReader.IsClosed { get { throw new NotSupportedException(); } }
-		int IDataReader.RecordsAffected { get { throw new NotSupportedException(); } }
+		int IDataReader.Depth => throw new NotSupportedException();
+		bool IDataReader.IsClosed => throw new NotSupportedException();
+		int IDataReader.RecordsAffected => throw new NotSupportedException();
 
 		public bool GetBoolean(int i) => (bool)GetValue(i);
 		public byte GetByte(int i) => (byte)GetValue(i);
-		public long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) { throw new NotImplementedException(); }
+		public long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
 		public char GetChar(int i) => (char)GetValue(i);
-		public long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) { throw new NotImplementedException(); }
+		public long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
 		public Guid GetGuid(int i) => (Guid)GetValue(i);
 		public short GetInt16(int i) => (short)GetValue(i);
 		public int GetInt32(int i) => (int)GetValue(i);
@@ -127,6 +125,6 @@ namespace DataBoss.Data
 		public decimal GetDecimal(int i) => (decimal)GetValue(i);
 		public DateTime GetDateTime(int i) => (DateTime)GetValue(i);
 		
-		public IDataReader GetData(int i) { throw new NotImplementedException(); }
+		public IDataReader GetData(int i) => throw new NotImplementedException();
 	}
 }

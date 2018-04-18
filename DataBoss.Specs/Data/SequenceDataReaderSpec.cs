@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Cone;
 using DataBoss.Data;
@@ -99,6 +100,9 @@ namespace DataBoss.Specs.Data
 				Check.That(
 					() => reader.GetOrdinal("TheProp") != reader.GetOrdinal("TheField"));
 			}
+
+			public void cant_create_reader_from_null_sequence() =>
+				Check.Exception<ArgumentNullException>(() => SequenceDataReader.Create((IEnumerable<MyRow<int>>)null, x => x.MapAll()));
 		}
 
 		class MyRow<T>

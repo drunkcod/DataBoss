@@ -6,7 +6,6 @@ using System.Reflection;
 
 namespace DataBoss
 {
-
 	delegate int DataBossAction(DataBoss program);
 
 	class Program
@@ -63,6 +62,5 @@ namespace DataBoss
 			using(var reader = new StreamReader(typeof(DataBoss).Assembly.GetManifestResourceStream(path)))
 				return reader.ReadToEnd();
 		}
-
 	}
 }

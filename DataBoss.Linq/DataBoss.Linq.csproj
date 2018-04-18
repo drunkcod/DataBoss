@@ -1,0 +1,11 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net45</TargetFrameworks>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AssemblyVersion>$(PackageVersion)</AssemblyVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\DataBoss\Properties\Version.cs" Link="Version.cs" />
+  </ItemGroup>
+</Project>

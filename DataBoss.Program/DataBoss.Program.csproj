@@ -45,6 +45,10 @@
       <Project>{4762c02c-a4cd-4c1c-8eca-bc58034c6042}</Project>
       <Name>DataBoss.Data</Name>
     </ProjectReference>
+    <ProjectReference Include="..\DataBoss.Linq\DataBoss.Linq.csproj">
+      <Project>{43a469d3-fd7f-4bf7-9fa8-c9a9afd495fa}</Project>
+      <Name>DataBoss.Linq</Name>
+    </ProjectReference>
     <ProjectReference Include="..\DataBoss\DataBoss.csproj">
       <Project>{c698683c-1c33-46fe-bda9-54b54144a7ce}</Project>
       <Name>DataBoss</Name>
