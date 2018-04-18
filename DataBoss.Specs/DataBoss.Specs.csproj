@@ -5,7 +5,6 @@
   </PropertyGroup>
    <ItemGroup>
     <Reference Include="System" />
-    <Reference Include="System.ComponentModel.DataAnnotations" />
     <Reference Include="System.Core" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
@@ -15,8 +14,8 @@
   <ItemGroup>
     <ProjectReference Include="..\DataBoss.Data\DataBoss.Data.csproj" />
     <ProjectReference Include="..\DataBoss\DataBoss.csproj" />
-    <PackageReference Include="System.ComponentModel.Annotations" Version="4.4.0" />
-    <PackageReference Include="Cone" Version="2017.11.21" /> 
+    <PackageReference Include="System.ComponentModel.Annotations" Version="4.4.*" />
+    <PackageReference Include="Cone" Version="2018.3.20" /> 
     <DotNetCliToolReference Include="dotnet-conesole" Version="2017.11.21" />
   </ItemGroup>
 </Project>

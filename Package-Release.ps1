@@ -18,9 +18,9 @@ function NuPack {
     & dotnet msbuild ($args + $PackArgs) 
 }
 
-Remove-Item -Path Build -Recurse -Force
-MSBuild DataBoss\DataBoss.sln /t:Restore /t:Build /p:Configuration=Release /p:Build=$Build
+MSBuild DataBoss\DataBoss.sln /t:Restore /t:Clean /t:Build /p:Configuration=Release /p:Build=$Build
 
 Write-Host Packgaging version $Build
+NuPack DataBoss.Linq/DataBoss.Linq.csproj /t:Restore
 NuPack DataBoss.Data/DataBoss.Data.csproj /t:Restore
 NuPack DataBoss\DataBoss.csproj /t:Restore
