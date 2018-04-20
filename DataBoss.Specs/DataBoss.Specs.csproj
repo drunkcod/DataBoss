@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net45</TargetFramework>
+    <TargetFramework>net452</TargetFramework>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
    <ItemGroup>
@@ -16,6 +16,7 @@
     <ProjectReference Include="..\DataBoss\DataBoss.csproj" />
     <PackageReference Include="System.ComponentModel.Annotations" Version="4.4.*" />
     <PackageReference Include="Cone" Version="2018.3.20" /> 
+    <PackageReference Include="Cone.TestAdapter" Version="2018.3.20" /> 
     <DotNetCliToolReference Include="dotnet-conesole" Version="2017.11.21" />
   </ItemGroup>
 </Project>

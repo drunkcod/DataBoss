@@ -9,6 +9,20 @@ namespace DataBoss.Specs.Linq
 	[Describe(typeof(MissingLinq))]
 	public class MissingLinqSpec
 	{
+		public void AsReadonly_transform() => Check
+			.With(() => new[] { 1, 2, 3, }.AsReadOnly(x => x + x))
+			.That(
+				xs => xs is IReadOnlyCollection<int>,
+				xs => xs is ICollection<int>,
+				xs => xs.SequenceEqual(new[] { 2, 4, 6}));
+
+		public void AsReadonly_CopyTo_bounds_check() {
+			var xs = new[] { 1, 2, 3, }.AsReadOnly();
+			var ys = new int[1];
+
+			Check.Exception<ArgumentException>(() => ((ICollection<int>)xs).CopyTo(ys, 0));
+		}
+
 		public void Batch() {
 			var batchSize = 3;
 			var items = new[] { 1, 2, 3, 4, 5 };
@@ -73,6 +87,19 @@ namespace DataBoss.Specs.Linq
 			items.Inspect(seen.Add).Consume();
 			Check.That(() => seen.SequenceEqual(items));
 		}
+
+		public void IsSorted() => Check.That(
+			() => new[] { 1, 2, 3}.IsSorted(),
+			() => new[] { 3, 2 }.IsSorted() == false,	
+			() => new[] { 1, 1, 3 }.IsSorted());
+
+		public void IsSortedBy() => Check
+			.With(() => new[] { 
+				new { Id = 1, Value = "Cat" }, 
+				new { Id = 3, Value = "Bat"} })
+			.That(
+				xs => xs.IsSortedBy(x => x.Id),
+				xs => !xs.IsSortedBy(x => x.Value));
 
 		public void SingleOrDefault_with_selector_no_element() =>
 			Check.Exception<InvalidOperationException>(() => new[] { 1, 2, 3}.SingleOrDefault(x => x > 1, x => x.ToString()));
