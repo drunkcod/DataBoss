@@ -148,28 +148,20 @@ namespace DataBoss.Data
 			if(to.TryGetNullableTargetType(out var baseType)) {
 				if((baseType == from))
 					return Expression.Convert(rawField, to);
-				else {
-					var customNullabeConversion = GetConverterOrDefault(rawField, baseType);
-					if(customNullabeConversion != null)
-						return Expression.Convert(customNullabeConversion, to);
-				}
+				else if(TryGetConverter(rawField, baseType, out var customNullabeConversion))
+					return Expression.Convert(customNullabeConversion, to);
 			}
 
 			if(from == typeof(object) && to == typeof(byte[]))
 				return Expression.Convert(rawField, to);
 
-			var customConversion = GetConverterOrDefault(rawField, to);
-			if(customConversion != null) 
+			if(TryGetConverter(rawField, to, out var customConversion))
 				return customConversion;
-				
+
 			return defalt;
 		}
 
-		Expression GetConverterOrDefault(Expression rawField, Type to) {
-			if(customConversions.TryGetConverter(rawField, to, out var converter))
-				return converter;
-			return null;
-		}
+		bool TryGetConverter(Expression rawField, Type to, out Expression converter) => customConversions.TryGetConverter(rawField, to, out converter);
 
 		static string MapFieldType(Type fieldType) {
 			switch(fieldType.FullName) {
