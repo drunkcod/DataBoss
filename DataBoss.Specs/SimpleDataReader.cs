@@ -63,7 +63,7 @@ namespace DataBoss.Specs
 
 		public void Close() { }
 
-		public DataTable GetSchemaTable() { throw new NotImplementedException(); }
+		public DataTable GetSchemaTable() => new DataTable();
 
 		public bool NextResult() => false;
 

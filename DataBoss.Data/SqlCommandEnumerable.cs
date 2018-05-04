@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Linq;
-using System.Threading;
 
 namespace DataBoss.Data
 {
@@ -49,7 +48,13 @@ namespace DataBoss.Data
 			if (string.IsNullOrEmpty(q.CommandText))
 				return Enumerable.Empty<T>().GetEnumerator();
 			var r = q.ExecuteReader();
-			return new SqlReaderEnumerator(q, r, converterFactory(r));
+			try { 
+				return new SqlReaderEnumerator(q, r, converterFactory(r));
+			}
+			catch {
+				r.Dispose();
+				throw;
+			}
 		}
 
 		class SqlReaderEnumerator : IEnumerator<T>

@@ -48,7 +48,7 @@ namespace DataBoss.Specs.Data
 				if (select count(*) from #Temp) = 2 
 					raiserror('All Is Bad', 16, 1)
 				select * from #Temp
-			", new { }).ReadWithRetry<Row>((n, e) => true);
+			", new { }).ReadWithRetry<Row>((n, e) => n < 2);
 
 			Check.That(
 				() => rows.Count == 3,

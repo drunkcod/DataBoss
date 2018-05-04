@@ -42,9 +42,14 @@ namespace DataBoss.Specs
 		}
 
 		public void converter_fills_public_fields() {
-			var source = new SimpleDataReader(Col<long>("Id"), Col<string>("Context"), Col<string>("Name"));
+			var source = SequenceDataReader.Create(new[] { new DataBossMigrationInfo() }, x => { 
+				x.Map("Id");
+				x.Map("Context");
+				x.Map("Name");
+			});
 			var formatter = new ExpressionFormatter(GetType());
-			Check.That(() => formatter.Format(ObjectReader.MakeConverter<SimpleDataReader, DataBossMigrationInfo>(source)) == "x => new DataBossMigrationInfo { Id = x.GetInt64(0), Context = x.IsDBNull(1) ? default(string) : x.GetString(1), Name = x.IsDBNull(2) ? default(string) : x.GetString(2) }");
+			Check.That(() => formatter.Format(ObjectReader.MakeConverter<SequenceDataReader<DataBossMigrationInfo>, DataBossMigrationInfo>(source)) == 
+			"x => new DataBossMigrationInfo { Id = x.GetInt64(0), Context = x.IsDBNull(1) ? default(string) : x.GetString(1), Name = x.IsDBNull(2) ? default(string) : x.GetString(2) }");
 		}
 
 		class ValueRow<T> { public T Value; }
@@ -104,6 +109,12 @@ namespace DataBoss.Specs
 			};
 			Check.With(() => ObjectReader.For(source).Read<ValueRow<StructRow<float>>>())
 			.That(rows => rows.First().Value.Value == 3.14f);
+		}
+
+		public void null_source_becomes_default_value() {
+			var rows = ObjectReader.For(SequenceDataReader.Create(new[] { new StructRow<int?> { Value = null }, new StructRow<int?> { Value = 1 } }, x => x.MapAll()));
+			Check.With(() => rows.Read<StructRow<int>>().ToArray())
+				.That(xs => xs[0].Value == default(int), xs => xs[1].Value == 1);		
 		}
 
 		struct StructRow<T> { public T Value; }
@@ -190,6 +201,18 @@ namespace DataBoss.Specs
 			Check
 				.With(() => reader.Read<ValueProp<long?>>().ToArray())
 				.That(x => x[0].Value == 12345);
+		}
+
+		public void custom_converter_null_item_handling() {
+			var expected = new ValueProp<int?> { Value = 12345 };
+			var source = new SimpleDataReader(Col<int>("Value")) { expected.Value };
+			var reader = ObjectReader
+				.For(source)
+				.WithConverter((int x) => (long)x);
+			Check
+				.With(() => reader.Read<ValueProp<long?>>().ToArray())
+				.That(x => x[0].Value == 12345);
+
 		}
 	}
 }

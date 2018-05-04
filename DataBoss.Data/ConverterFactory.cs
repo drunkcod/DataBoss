@@ -37,8 +37,8 @@ namespace DataBoss.Data
 				throw new NotSupportedException($"Can't read field of type: {fieldType} given {Arg0.Type}");
 			}
 
-			public Expression DbNullToDefault(Expression o, Type itemType, Expression readIt) {
-				if(itemType == typeof(string) || itemType.TryGetNullableTargetType(out var _))
+			public Expression DbNullToDefault(FieldMapItem field, Expression o, Type itemType, Expression readIt) {
+				if(field.AllowDBNull || itemType == typeof(string) || itemType.TryGetNullableTargetType(out var _))
 					return Expression.Condition(
 						Expression.Call(Arg0, IsDBNull, o),
 						Expression.Default(itemType),
@@ -121,7 +121,7 @@ namespace DataBoss.Data
 				if(!TryConvertField(context.ReadField(field.FieldType, o), itemType, out convertedField))
 					throw new InvalidOperationException($"Can't read '{itemName}' of type {itemType.Name} given {field.FieldType.Name}");
 
-				found = new KeyValuePair<int, Expression>(field.Ordinal, context.DbNullToDefault(o, itemType, convertedField));
+				found = new KeyValuePair<int, Expression>(field.Ordinal, context.DbNullToDefault(field, o, itemType, convertedField));
 				return true;
 			}
 
