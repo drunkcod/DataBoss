@@ -38,12 +38,12 @@ namespace DataBoss.Data
 			}
 
 			public Expression DbNullToDefault(FieldMapItem field, Expression o, Type itemType, Expression readIt) {
-				if(field.AllowDBNull || itemType == typeof(string) || itemType.TryGetNullableTargetType(out var _))
-					return Expression.Condition(
-						Expression.Call(Arg0, IsDBNull, o),
-						Expression.Default(itemType),
-						readIt);
-				return readIt;
+				if(!field.AllowDBNull)
+					return readIt;
+				return Expression.Condition(
+					Expression.Call(Arg0, IsDBNull, o),
+					Expression.Default(itemType),
+					readIt);
 			}
 		}
 		readonly ConverterCollection customConversions;
