@@ -2,15 +2,12 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
+using DataBoss.Data.Common;
 using DataBoss.Data.Scripting;
 
 namespace DataBoss.Data
 {
-	#pragma warning disable CS0649
-	struct IdRow { public int Id; }
-	#pragma warning restore CS0649
-
-	public class DataBossBulkCopySettings
+	public struct DataBossBulkCopySettings
 	{
 		public int? BatchSize;
 		public int? CommandTimeout;
@@ -65,7 +62,7 @@ namespace DataBoss.Data
 			var columns = string.Join(",", Enumerable.Range(1, toInsert.FieldCount - 1).Select(toInsert.GetName));
 			using (var cmd = Connection.CreateCommand($@"
 				insert {destinationTable} with(tablock)({columns})
-				output inserted.$identity as {nameof(IdRow.Id)}
+				output inserted.$identity as {nameof(IdRow<int>.Id)}
 				select {columns}
 				from {TempTableName}
 				order by [$]
@@ -77,7 +74,7 @@ namespace DataBoss.Data
 					cmd.CommandTimeout = settings.CommandTimeout.Value;
 				cmd.Transaction = Transaction;
 				using (var reader = ObjectReader.For(cmd.ExecuteReader(CommandBehavior.SingleResult | CommandBehavior.SequentialAccess))) { 
-					var ids = reader.Read<IdRow>().Select(x => x.Id).ToList();
+					var ids = reader.Read<IdRow<int>>().Select(x => x.Id).ToList();
 					ids.Sort();
 					return ids;
 				}
