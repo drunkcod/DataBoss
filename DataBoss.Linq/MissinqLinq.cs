@@ -47,7 +47,7 @@ namespace DataBoss.Linq
 		public static IEnumerable<IEnumerable<T>> Batch<T>(this IEnumerable<T> items, int batchSize) =>
 			Batch(items, () => new T[batchSize]);
 
-		public static IEnumerable<IEnumerable<T>> Batch<T>(this IEnumerable<T> items, Func<T[]> newBucket) {
+		public static IEnumerable<IReadOnlyList<T>> Batch<T>(this IEnumerable<T> items, Func<T[]> newBucket) {
 			T[] bucket = null;
 			var n = 0;
 			using (var it = items.GetEnumerator()) {
