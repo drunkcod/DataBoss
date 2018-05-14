@@ -73,8 +73,9 @@ namespace DataBoss.Data
 				if(settings.CommandTimeout.HasValue)
 					cmd.CommandTimeout = settings.CommandTimeout.Value;
 				cmd.Transaction = Transaction;
+				var ids = new List<int>(n);
 				using (var reader = ObjectReader.For(cmd.ExecuteReader(CommandBehavior.SingleResult | CommandBehavior.SequentialAccess))) { 
-					var ids = reader.Read<IdRow<int>>().Select(x => x.Id).ToList();
+					reader.Read<IdRow<int>>(x => ids.Add(x.Id));
 					ids.Sort();
 					return ids;
 				}
