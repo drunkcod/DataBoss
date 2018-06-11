@@ -6,6 +6,7 @@ using System.Data.SqlTypes;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using DataBoss.Data.SqlServer;
 
 namespace DataBoss.Data
 {
@@ -20,6 +21,7 @@ namespace DataBoss.Data
 			typeof(SqlDecimal),
 			typeof(SqlMoney),
 			typeof(byte[]),
+			typeof(SqlBinary),
 		};
 
 		static class Extractor<T>
@@ -47,12 +49,22 @@ namespace DataBoss.Data
 			) {
 				var name = prefix + value.Name;
 				var readMember = Expression.MakeMemberAccess(input, value);
-				if(HasSqlTypeMapping(readMember.Type))
+				if (HasSqlTypeMapping(readMember.Type))
 					yield return MakeSqlParameter(name, readMember);
-				else if(readMember.Type.IsNullable()) 
+				else if (readMember.Type.IsNullable())
 					yield return MakeParameterFromNullable(name, readMember);
+				else if(readMember.Type == typeof(RowVersion)) {
+					yield return Expression.MemberInit(
+						Expression.New(
+							typeof(SqlParameter).GetConstructor(new[] { typeof(string), typeof(SqlDbType)}),
+							Expression.Constant(name),
+							Expression.Constant(SqlDbType.Binary)),
+						Expression.Bind(
+							typeof(SqlParameter).GetProperty(nameof(SqlParameter.SqlValue)), 
+							Expression.Convert(Expression.Field(readMember, nameof(RowVersion.Value)), typeof(object))));
+				}
 				else
-					foreach(var item in ExtractValues(readMember.Type, name + "_", readMember))
+					foreach (var item in ExtractValues(readMember.Type, name + "_", readMember))
 						yield return item;
 			}
 		}

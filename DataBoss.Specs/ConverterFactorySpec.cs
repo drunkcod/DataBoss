@@ -12,8 +12,8 @@ namespace DataBoss.Specs
 			var factory = new ConverterFactory(new ConverterCollection());
 
 			var map = new FieldMap();
-			map.Add("key", 0, typeof(int), true);
-			map.Add("value", 1, typeof(string), true);
+			map.Add("key", 0, typeof(int), null, true);
+			map.Add("value", 1, typeof(string), null, true);
 
 			var reader0 = SequenceDataReader.Create(new[]{ new { key = 0, value = "0"}}, x => x.MapAll());
 			var reader1 = SequenceDataReader.Create(new[] { 1 }, x => {

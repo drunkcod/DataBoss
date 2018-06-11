@@ -10,11 +10,13 @@ namespace DataBoss.Data
 	{
 		public readonly int Ordinal;
 		public readonly Type FieldType;
+		public readonly Type ProviderSpecificFieldType;
 		public readonly bool AllowDBNull;
 
-		public FieldMapItem(int ordinal, Type fieldType, bool allowDBNull) {
+		public FieldMapItem(int ordinal, Type fieldType, Type providerSpecificFieldType, bool allowDBNull) {
 			this.Ordinal = ordinal;
 			this.FieldType = fieldType;
+			this.ProviderSpecificFieldType = providerSpecificFieldType;
 			this.AllowDBNull = allowDBNull;
 		}
 
@@ -31,27 +33,35 @@ namespace DataBoss.Data
 			var schema = reader.GetSchemaTable();
 			var ordinalColumn = schema.Columns[DataReaderSchemaColumns.ColumnOrdinal];
 			var allowDBNullColumn = schema.Columns[DataReaderSchemaColumns.AllowDBNull];
+			var getProviderSpecificFieldType = GetGetProviderSpecificFieldType(reader);
 			for(var i = 0; i != reader.FieldCount; ++i) { 
 				var isNullable = 
 					ordinalColumn != null 
 					&& allowDBNullColumn != null 
 					&& (bool)schema.Rows.Cast<DataRow>().Single(x => (int)x[ordinalColumn] == i)[allowDBNullColumn];
-				fieldMap.Add(reader.GetName(i), i, reader.GetFieldType(i), isNullable);
+				fieldMap.Add(reader.GetName(i), i, reader.GetFieldType(i), getProviderSpecificFieldType(i), isNullable);
 			}
 			return fieldMap;
 		}
 
+		static Func<int, Type> GetGetProviderSpecificFieldType(IDataReader reader) {
+			var getter = reader.GetType().GetMethod("GetProviderSpecificFieldType", new[] { typeof(int)});
+			if(getter == null)
+				return _ => null;
+			return (Func<int, Type>)Delegate.CreateDelegate(typeof(Func<int, Type>), reader, getter);
+		}
+
 		public int MinOrdinal => fields.Count == 0 ? -1 : fields.Min(x => x.Value.Ordinal);
 
-		public void Add(string name, int ordinal, Type fieldType, bool allowDBNull) {
+		public void Add(string name, int ordinal, Type fieldType, Type providerSpecificFieldType, bool allowDBNull) {
 			if(name.Contains('.')) {
 				var parts = name.Split('.');
 				var x = this;
 				for(var n = 0; n != parts.Length - 1; ++n)
 					x = x[parts[n]];
-				x.Add(parts[parts.Length - 1], ordinal, fieldType, allowDBNull);
+				x.Add(parts[parts.Length - 1], ordinal, fieldType, providerSpecificFieldType, allowDBNull);
 			}
-			fields.Add(name, new FieldMapItem(ordinal, fieldType, allowDBNull));
+			fields.Add(name, new FieldMapItem(ordinal, fieldType, providerSpecificFieldType, allowDBNull));
 		}
 
 		public bool TryGetOrdinal(string key, out FieldMapItem item) =>

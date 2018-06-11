@@ -118,7 +118,7 @@ namespace DataBoss.Data
 			if (map.TryGetOrdinal(itemName, out field)) {
 				var o = Expression.Constant(field.Ordinal);
 				Expression convertedField;
-				if(!TryConvertField(context.ReadField(field.FieldType, o), itemType, out convertedField))
+				if(!TryConvertField(context.ReadField(field.FieldType, o), itemType, out convertedField) && !(field.ProviderSpecificFieldType != null && TryConvertField(context.ReadField(field.ProviderSpecificFieldType, o), itemType, out convertedField)))
 					throw new InvalidOperationException($"Can't read '{itemName}' of type {itemType.Name} given {field.FieldType.Name}");
 
 				found = new KeyValuePair<int, Expression>(field.Ordinal, context.DbNullToDefault(field, o, itemType, convertedField));

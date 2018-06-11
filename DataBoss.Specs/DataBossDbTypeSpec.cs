@@ -4,6 +4,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Data.SqlTypes;
 using Cone;
 using DataBoss.Data;
+using DataBoss.Data.SqlServer;
 
 namespace DataBoss.Specs
 {
@@ -42,7 +43,8 @@ namespace DataBoss.Specs
 		,Row(typeof(bool), "bit", false)
 		,Row(typeof(bool?), "bit", true)
 		,Row(typeof(SqlMoney), "money", false)
-		,Row(typeof(SqlMoney?), "money", true)]
+		,Row(typeof(SqlMoney?), "money", true)
+		,Row(typeof(RowVersion), "binary(8)", false)]
 		public void to_db_type(Type type, string dbType, bool nullable) =>
 			Check.That(() => DataBossDbType.ToDbType(type, new StubAttributeProvider()).ToString() == new DataBossDbType(dbType, null, nullable).ToString());
 

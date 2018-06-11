@@ -48,6 +48,7 @@ namespace DataBoss.Data
 					return new DataBossDbType(attributes.Any<AnsiStringAttribute>() ? "varchar" : "nvarchar", maxLength?.Length ?? int.MaxValue, canBeNull);
 				case "System.DateTime": return new DataBossDbType("datetime", 8, canBeNull);
 				case "System.Data.SqlTypes.SqlMoney": return new DataBossDbType("money", null, canBeNull);
+				case "DataBoss.Data.SqlServer.RowVersion": return new DataBossDbType("binary", 8, canBeNull);
 				default:
 					throw new NotSupportedException("Don't know how to map " + type.FullName + " to a db type.\nTry providing a TypeName using System.ComponentModel.DataAnnotations.Schema.ColumnAttribute.");
 			}

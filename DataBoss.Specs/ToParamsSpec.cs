@@ -1,6 +1,7 @@
 using Cone;
 using Cone.Core;
 using DataBoss.Data;
+using DataBoss.Data.SqlServer;
 using System;
 using System.Data;
 using System.Data.SqlTypes;
@@ -45,5 +46,12 @@ namespace DataBoss.Specs
 				paras => paras[0].SqlDbType == SqlDbType.Int,
 				paras => paras[1].Value == DBNull.Value,
 				paras => paras[1].SqlDbType == SqlDbType.Int);
+
+		public void RowVersion_as_SqlBinary_value() => Check
+			.With(() => ToParams.Invoke(new { RowVersion = new RowVersion(new byte[8])}))
+			.That(
+				paras => paras.Length == 1,
+				paras => paras[0].ParameterName == "@RowVersion",
+				paras => paras[0].SqlDbType == SqlDbType.Binary);
 	}
 }

@@ -58,6 +58,14 @@ namespace DataBoss.Data
 			this.connectionString = connectionString;
 		}
 
+		public SqlConnection OpenConnection() => OpenConnection(connectionString);
+
+		public SqlConnection OpenConnection(string connectionString) {
+			var c = NewConnection(connectionString);
+			c.Open();
+			return c;
+		}
+
 		public SqlConnection NewConnection() => NewConnection(connectionString);
 
 		public SqlConnection NewConnection(string connectionString) {
