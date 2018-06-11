@@ -1,23 +1,30 @@
 using DataBoss.Data.Scripting;
+using DataBoss.Data.SqlServer;
 using DataBoss.Linq;
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Data;
+using System.Linq.Expressions;
 using System.Reflection;
 
 namespace DataBoss.Data
 {
 	public struct DataBossDbType
 	{
+		static Func<Expression,Expression> Nop = x => x;
+
 		public readonly string TypeName;
 		public readonly int? ColumnSize;
+		public readonly Func<Expression, Expression> Coerce;
 		public readonly bool IsNullable;
 
-		public DataBossDbType(string name, int? columnSize, bool isNullable) {
+		public DataBossDbType(string name, int? columnSize, bool isNullable) : this(name, columnSize, isNullable, Nop) { }
+		public DataBossDbType(string name, int? columnSize, bool isNullable, Func<Expression,Expression> coerce) {
 			this.TypeName = name;
 			this.ColumnSize = columnSize;
 			this.IsNullable = isNullable;
+			this.Coerce = coerce;
 		}
 
 		public static DataBossDbType ToDbType(Type type) => ToDbType(type, type);
@@ -48,7 +55,7 @@ namespace DataBoss.Data
 					return new DataBossDbType(attributes.Any<AnsiStringAttribute>() ? "varchar" : "nvarchar", maxLength?.Length ?? int.MaxValue, canBeNull);
 				case "System.DateTime": return new DataBossDbType("datetime", 8, canBeNull);
 				case "System.Data.SqlTypes.SqlMoney": return new DataBossDbType("money", null, canBeNull);
-				case "DataBoss.Data.SqlServer.RowVersion": return new DataBossDbType("binary", 8, canBeNull);
+				case "DataBoss.Data.SqlServer.RowVersion": return new DataBossDbType("binary", 8, canBeNull, x => Expression.PropertyOrField(x, nameof(RowVersion.Value)));
 				default:
 					throw new NotSupportedException("Don't know how to map " + type.FullName + " to a db type.\nTry providing a TypeName using System.ComponentModel.DataAnnotations.Schema.ColumnAttribute.");
 			}

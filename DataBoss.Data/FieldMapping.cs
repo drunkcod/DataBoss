@@ -58,7 +58,7 @@ namespace DataBoss.Data
 
 		public int Map(string name, LambdaExpression selector) {
 			if(selector.Parameters.Single().Type != typeof(T))
-				throw new InvalidOperationException($"Wrong paramter type, expecte {typeof(T)}");
+				throw new InvalidOperationException($"Wrong paramter type, expected {typeof(T)}");
 			var replacer = new NodeReplacementVisitor();
 			replacer.AddReplacement(selector.Parameters[0], source);
 			return Map(name, 
@@ -94,7 +94,7 @@ namespace DataBoss.Data
 				FieldType = type,
 				Selector = Expression.Assign(
 					Expression.ArrayAccess(target, Expression.Constant(ordinal)),
-					selector.Box()),
+					dbType.Coerce(selector).Box()),
 				DbType = dbType,
 			});
 			return ordinal;
