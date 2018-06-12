@@ -88,6 +88,23 @@ namespace DataBoss.Specs
 			Check.Exception<InvalidOperationException>(() => differences.Symmetric(b, id => id, a, id => id));
 		}
 
+		public void reports_duplicates_only_once() {
+			var a = new[] { 1, 2, 2 };
+			var b = new[] { 1, 3, 3 };
+			var extra = new List<int>();
+			var missing = new List<int>();
+			new SetDifference<int, int>() {
+				OnExtra = extra.Add,
+				OnMissing = missing.Add
+			}.Symmetric(a, id => id, b, id => id);
+
+			Check.That(
+				() => extra.Count == 1,
+				() => extra[0] == 3,
+				() => missing.Count == 1,
+				() => missing[0] == 2);
+		}
+
 		KeyValuePair<TKey, TValue> Item<TKey, TValue>(TKey key, TValue value) => new KeyValuePair<TKey, TValue>(key, value);
 	}
 }

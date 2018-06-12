@@ -43,14 +43,15 @@ namespace DataBoss
 		}
 
 		static bool MoveNextKey<T, TKey>(IEnumerator<T> xs, Func<T, TKey> keySelector, ref TKey currentKey) where TKey : IComparable<TKey> {
-			if(xs.MoveNext()) { 
+			while(xs.MoveNext()) { 
 				var nextKey = keySelector(xs.Current);
-				var c = nextKey.CompareTo(currentKey);
-				if(c >= 0) { 
-					currentKey = nextKey;
-					return true;
+				switch(nextKey.CompareTo(currentKey)) {
+					case 0: continue;
+					case var c when( c < 0): throw new InvalidOperationException("Input must be sorted");
+					default:
+						currentKey = nextKey;
+						return true;
 				}
-				throw new InvalidOperationException("Input must be sorted");
 			}
 			return false;
 		}

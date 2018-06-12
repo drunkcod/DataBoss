@@ -44,7 +44,7 @@ namespace DataBoss.Linq
 		public static IReadOnlyCollection<TItem> AsReadOnly<T, TItem>(this IReadOnlyCollection<T> self, Func<T, TItem> selector) =>
 			new CollectionAdapter<T, TItem>(self, selector);
 
-		public static IEnumerable<IEnumerable<T>> Batch<T>(this IEnumerable<T> items, int batchSize) =>
+		public static IEnumerable<IReadOnlyList<T>> Batch<T>(this IEnumerable<T> items, int batchSize) =>
 			Batch(items, () => new T[batchSize]);
 
 		public static IEnumerable<IReadOnlyList<T>> Batch<T>(this IEnumerable<T> items, Func<T[]> newBucket) {
