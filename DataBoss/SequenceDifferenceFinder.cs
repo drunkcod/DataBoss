@@ -47,7 +47,7 @@ namespace DataBoss
 				var nextKey = keySelector(xs.Current);
 				switch(nextKey.CompareTo(currentKey)) {
 					case 0: continue;
-					case var c when( c < 0): throw new InvalidOperationException("Input must be sorted");
+					case var c when(c < 0): throw new InvalidOperationException("Input must be sorted");
 					default:
 						currentKey = nextKey;
 						return true;
