@@ -20,7 +20,10 @@ namespace DataBoss.Migrations
 		public event EventHandler<ErrorEventArgs> OnError;
 
 		public void Begin(DataBossMigrationInfo info) {
-			cmd = new SqlCommand("insert __DataBossHistory(Id, Context, Name, StartedAt, [User]) values(@id, @context, @name, getdate(), @user)", db, db.BeginTransaction("LikeABoss"));
+			cmd = new SqlCommand(
+				"insert __DataBossHistory(Id, Context, Name, StartedAt, [User]) values(@id, @context, @name, getdate(), @user)",
+				db, 
+				db.BeginTransaction("LikeABoss"));
 
 			cmd.Parameters.AddWithValue("@id", info.Id);
 			cmd.Parameters.AddWithValue("@context", info.Context ?? string.Empty);
@@ -29,8 +32,7 @@ namespace DataBoss.Migrations
 			cmd.ExecuteNonQuery();
 		}
 
-		public bool Execute(DataBossQueryBatch query)
-		{
+		public bool Execute(DataBossQueryBatch query) {
 			if(isFaulted)
 				return false;
 			try {
@@ -46,20 +48,17 @@ namespace DataBoss.Migrations
 			}
 		}
 
-		private bool ExecuteQuery(DataBossQueryBatch query)
-		{
+		private bool ExecuteQuery(DataBossQueryBatch query) {
 			using (var q = new SqlCommand(query.ToString(), db, cmd.Transaction)) {
 					q.ExecuteNonQuery();
 					return true;
 			}
 		}
 
-		private bool ExecuteCommand(DataBossQueryBatch command)
-		{
-			return shellExecute.Execute(command.ToString(), new []{
+		private bool ExecuteCommand(DataBossQueryBatch command) =>
+			shellExecute.Execute(command.ToString(), new []{
 				new KeyValuePair<string, string>("DATABOSS_CONNECTION", db.ConnectionString), 
 			});
-		}
 
 		public void Done() {
 			if(cmd == null)
