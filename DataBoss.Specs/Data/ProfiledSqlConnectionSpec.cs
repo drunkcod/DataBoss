@@ -16,6 +16,9 @@ namespace DataBoss.Specs.Data
 	{
 		class ProfiledSqlCommand : DbCommand
 		{
+			static readonly Func<ProfiledSqlCommand, int> DoExecuteNonQuery = x => x.inner.ExecuteNonQuery();
+			static readonly Func<ProfiledSqlCommand, object> DoExecuteScalar = x => x.inner.ExecuteScalar();
+
 			readonly ProfiledSqlConnection parent;
 			readonly SqlCommand inner;
 
@@ -43,14 +46,8 @@ namespace DataBoss.Specs.Data
 				throw new NotImplementedException();
 			}
 
-			public override int ExecuteNonQuery() {
-				throw new NotImplementedException();
-			}
-
-			public override object ExecuteScalar() {
-				parent.OnExecuting(this);
-				return inner.ExecuteScalar();
-			}
+			public override int ExecuteNonQuery() => parent.Execute(this, DoExecuteNonQuery);
+			public override object ExecuteScalar() => parent.Execute(this, DoExecuteScalar);
 
 			public override void Prepare() {
 				throw new NotImplementedException();
@@ -71,8 +68,6 @@ namespace DataBoss.Specs.Data
 			this.inner = inner;
 		}
 
-		void OnExecuting(ProfiledSqlCommand command) => CommandExecuting?.Invoke(this, new ProfiledCommandExecutingEventArgs(command));
-
 		public override string ConnectionString { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
 		public override string Database => throw new NotImplementedException();
@@ -84,6 +79,7 @@ namespace DataBoss.Specs.Data
 		public override ConnectionState State => throw new NotImplementedException();
 
 		public event EventHandler<ProfiledCommandExecutingEventArgs> CommandExecuting;
+		public event EventHandler<ProfiledCommandExecutedEventArgs> CommandExecuted;
 
 		protected override DbCommand CreateDbCommand() => new ProfiledSqlCommand(this, inner.CreateCommand());
 
@@ -101,6 +97,17 @@ namespace DataBoss.Specs.Data
 
 		public override void Open() => inner.Open();
 		public override Task OpenAsync(CancellationToken cancellationToken) => inner.OpenAsync(cancellationToken);
+
+		T Execute<T>(ProfiledSqlCommand command, Func<ProfiledSqlCommand, T> @do) {
+			OnExecuting(command);
+			var r = @do(command);
+			OnExecuted(command);
+			return r;
+		}
+
+		void OnExecuting(ProfiledSqlCommand command) => CommandExecuting?.Invoke(this, new ProfiledCommandExecutingEventArgs(command));
+		void OnExecuted(ProfiledSqlCommand command) => CommandExecuted?.Invoke(this, new ProfiledCommandExecutedEventArgs(command));
+
 	}
 
 	public class ProfiledCommandExecutingEventArgs : EventArgs 
@@ -112,14 +119,25 @@ namespace DataBoss.Specs.Data
 		}
 	}
 
+	public class ProfiledCommandExecutedEventArgs : EventArgs
+	{
+		public readonly DbCommand Command;
+
+		public ProfiledCommandExecutedEventArgs(DbCommand command) {
+			this.Command = command;
+		}
+	}
+
 	[Describe(typeof(ProfiledSqlConnection))]
     public class ProfiledSqlConnectionSpec
     {
 		ProfiledSqlConnection con;
 
 		[BeforeEach]
-		public void given_a_profiled_connection() =>
+		public void given_a_profiled_connection() { 
 			con = new ProfiledSqlConnection(new SqlConnection("Server=.;Integrated Security=SSPI"));
+			con.Open();
+		}
 
 		[AfterEach]
 		public void cleanup() => con.Dispose();
@@ -133,10 +151,38 @@ namespace DataBoss.Specs.Data
 			var q = con.CreateCommand();
 			q.CommandText = expectedCommand;
 
-			con.Open();
 			Check.That(
 				() => (int)q.ExecuteScalar() == 42,
 				() => commandExecuting.HasBeenCalled);
 		}
-    }
+
+		public void listens_to_ExecuteNonQuery() {
+			var expectedCommand = "select Id = 2 into #Foo union all select 3";
+			var commandExecuting = new EventSpy<ProfiledCommandExecutingEventArgs>(
+				(s, e) => Check.That(() => e.Command.CommandText == expectedCommand));
+			con.CommandExecuting += commandExecuting;
+
+			var q = con.CreateCommand();
+			q.CommandText = expectedCommand;
+
+			Check.That(
+				() => q.ExecuteNonQuery() == 2,
+				() => commandExecuting.HasBeenCalled);
+		}
+
+		public void CommandExecuted_after_CommandExecuting() {
+			var commandExecuting = new EventSpy<ProfiledCommandExecutingEventArgs>();
+			con.CommandExecuting += commandExecuting;
+
+			var commandExecuted = new EventSpy<ProfiledCommandExecutedEventArgs>();
+			con.CommandExecuted += commandExecuted;
+
+			var q = con.CreateCommand();
+			q.CommandText = "select 1";
+			q.ExecuteScalar();
+
+			Check.That(() => commandExecuting.CalledBefore(commandExecuted));
+
+		}
+	}
 }
