@@ -1,4 +1,4 @@
 @echo off
 pushd DataBoss.Specs
-dotnet conesole -- --multicore
+dotnet conesole -- --multicore %*
 popd
