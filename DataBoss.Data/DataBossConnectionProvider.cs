@@ -19,6 +19,12 @@ namespace DataBoss.Data
 
 	public class DataBossConnectionProvider : IDisposable
 	{
+		static Func<T, TResult> CreateDelegate<T, TResult>(string methodName, params Type[] types) =>
+			(Func<T, TResult>)Delegate.CreateDelegate(typeof(Func<T, TResult>), typeof(T).GetMethod(methodName, types));
+
+		static Func<SqlCommand, int> DoExecuteNonQuery = CreateDelegate<SqlCommand, int>(nameof(SqlCommand.ExecuteNonQuery));
+		static Func<SqlCommand, object> DoExecuteScalar = CreateDelegate<SqlCommand, object>(nameof(SqlCommand.ExecuteScalar));
+
 		static readonly EventHandler DisposeConnection = (sender, _) => ((SqlCommand)sender).Connection.Dispose();
 
 		public struct ProviderStatistics : IEnumerable<KeyValuePair<string, long>>
@@ -115,10 +121,10 @@ namespace DataBoss.Data
 		}
 
 		public int ExecuteNonQuery(string commandText, CommandType commandType = CommandType.Text) =>
-			Execute(commandText, commandType, x => x.ExecuteNonQuery());
+			Execute(commandText, commandType, DoExecuteNonQuery);
 
 		public object ExecuteScalar(string commandText, CommandType commandType = CommandType.Text) => 
-			Execute(commandText, commandType, x => x.ExecuteScalar());
+			Execute(commandText, commandType, DoExecuteScalar);
 
 		T Execute<T>(string commandText, CommandType commandType, Func<SqlCommand, T> @do) {
 			using (var c = NewCommand(commandText, CommandOptions.DisposeConnection | CommandOptions.OpenConnection, commandType))
