@@ -17,14 +17,17 @@ namespace DataBoss.Data
 		OpenConnection = 2,
 	}
 
+	public delegate int ExecuteT<T>(SqlCommand command, out T result);
+
+	static class CommonOps
+	{
+		public static readonly Func<SqlCommand, int> ExecuteNonQuery = DelegateUtil.CreateDelegate<SqlCommand, int>(nameof(SqlCommand.ExecuteNonQuery));
+		public static readonly Func<SqlCommand, object> ExecuteScalar = DelegateUtil.CreateDelegate<SqlCommand, object>(nameof(SqlCommand.ExecuteScalar));
+		public static readonly Action<SqlConnection> Dispose = DelegateUtil.CreateDelegate<SqlConnection>(nameof(SqlConnection.Dispose));
+	}
+
 	public class DataBossConnectionProvider : IDisposable
 	{
-		static Func<T, TResult> CreateDelegate<T, TResult>(string methodName, params Type[] types) =>
-			(Func<T, TResult>)Delegate.CreateDelegate(typeof(Func<T, TResult>), typeof(T).GetMethod(methodName, types));
-
-		static Func<SqlCommand, int> DoExecuteNonQuery = CreateDelegate<SqlCommand, int>(nameof(SqlCommand.ExecuteNonQuery));
-		static Func<SqlCommand, object> DoExecuteScalar = CreateDelegate<SqlCommand, object>(nameof(SqlCommand.ExecuteScalar));
-
 		static readonly EventHandler DisposeConnection = (sender, _) => ((SqlCommand)sender).Connection.Dispose();
 
 		public struct ProviderStatistics : IEnumerable<KeyValuePair<string, long>>
@@ -121,10 +124,10 @@ namespace DataBoss.Data
 		}
 
 		public int ExecuteNonQuery(string commandText, CommandType commandType = CommandType.Text) =>
-			Execute(commandText, commandType, DoExecuteNonQuery);
+			Execute(commandText, commandType, CommonOps.ExecuteNonQuery);
 
 		public object ExecuteScalar(string commandText, CommandType commandType = CommandType.Text) => 
-			Execute(commandText, commandType, DoExecuteScalar);
+			Execute(commandText, commandType, CommonOps.ExecuteScalar);
 
 		T Execute<T>(string commandText, CommandType commandType, Func<SqlCommand, T> @do) {
 			using (var c = NewCommand(commandText, CommandOptions.DisposeConnection | CommandOptions.OpenConnection, commandType))
@@ -146,8 +149,8 @@ namespace DataBoss.Data
 				{ nameof(LiveConnections), LiveConnections },
 			};
 			var connectionStats = Array.ConvertAll(
-					connections.Values.ToArray(),
-					x => x.RetrieveStatistics());
+				connections.Values.ToArray(),
+				x => x.RetrieveStatistics());
 			foreach(var item in connectionStats) {
 				var itemStats = item.GetEnumerator();
 				while(itemStats.MoveNext()) {
@@ -168,6 +171,6 @@ namespace DataBoss.Data
 		void IDisposable.Dispose() => Cleanup();
 
 		public void Cleanup() =>
-			connections.Values.ForEach(x => x.Dispose());
+			connections.Values.ForEach(CommonOps.Dispose);
 	}
 }

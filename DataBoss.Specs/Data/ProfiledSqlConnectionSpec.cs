@@ -64,6 +64,18 @@ namespace DataBoss.Specs.Data
 				.That(r => r.Count == 2, _ => commandExecuting.HasBeenCalled);
 		}
 
+		public void counts_rows_read() {
+			var q = con.CreateCommand();
+			q.CommandText = "select Id = 2 union all select 3 union all select 1";
+			var commandExecuted = new EventSpy<ProfiledSqlCommandExecutedEventArgs>(
+				(s, e) => Check.That(() => e.RowCount == 3));
+			con.CommandExecuted += commandExecuted;
+			using(var r = ObjectReader.For(q.ExecuteReader()))
+				r.Read<IdRow<int>>().ToList();
+			Check.That(() => commandExecuted.HasBeenCalled);
+
+		}
+
 		public void CommandExecuted_after_CommandExecuting() {
 			var commandExecuting = new EventSpy<ProfiledSqlCommandExecutingEventArgs>();
 			con.CommandExecuting += commandExecuting;
