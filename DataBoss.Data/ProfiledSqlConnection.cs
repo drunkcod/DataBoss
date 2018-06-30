@@ -65,8 +65,11 @@ namespace DataBoss.Data
 			CommandExecuted?.Invoke(this, new ProfiledSqlCommandExecutedEventArgs(command, elapsed, rowCount));
 	}
 
+	delegate int ExecuteT<T>(SqlCommand command, out T result);
+
 	public class ProfiledSqlCommand : DbCommand
 	{
+
 		static readonly ExecuteT<int> DoExecuteNonQuery = (SqlCommand c, out int result) => result = c.ExecuteNonQuery();
 		static readonly ExecuteT<object> DoExecuteScalar = (SqlCommand c, out object result) => {
 			result = c.ExecuteScalar();
