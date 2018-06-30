@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
@@ -30,12 +31,18 @@ namespace DataBoss.Data
 		public event EventHandler<ProfiledSqlCommandExecutingEventArgs> CommandExecuting;
 		public event EventHandler<ProfiledSqlCommandExecutedEventArgs> CommandExecuted;
 
+		public event EventHandler<ProfiledSqlCommandExecutingEventArgs> ReaderCreated;
+		public event EventHandler<ProfiledSqlCommandExecutedEventArgs> ReaderClosed;
+
 		protected override DbCommand CreateDbCommand() => new ProfiledSqlCommand(this, inner.CreateCommand());
 		protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel) => inner.BeginTransaction(isolationLevel);
 		public override void Close() => inner.Close();
 		public override void ChangeDatabase(string databaseName) => inner.ChangeDatabase(databaseName);
 		public override void Open() => inner.Open();
 		public override Task OpenAsync(CancellationToken cancellationToken) => inner.OpenAsync(cancellationToken);
+
+		internal void Into<T>(string destinationTable, IEnumerable<T> rows) =>
+			inner.Into(destinationTable, rows);
 
 		internal T Execute<T>(ProfiledSqlCommand command, ExecuteT<T> executeT) {
 			var scope = OnExecuting(command);
@@ -53,7 +60,10 @@ namespace DataBoss.Data
 			}
 
 			public void OnExecuted(int rowCount) =>
-				((ProfiledSqlConnection)parent.Connection).OnExecuted(parent, stopwatch.Elapsed, rowCount);
+				((ProfiledSqlConnection)parent.Connection).CommandExecuted?.Invoke(this, new ProfiledSqlCommandExecutedEventArgs(parent, stopwatch.Elapsed, rowCount));
+
+			public void OnReaderClosed(int rowCount) =>
+				((ProfiledSqlConnection)parent.Connection).ReaderClosed?.Invoke(this, new ProfiledSqlCommandExecutedEventArgs(parent, stopwatch.Elapsed, rowCount));
 		}
 
 		internal ExecutionScope OnExecuting(ProfiledSqlCommand command) {
@@ -61,8 +71,10 @@ namespace DataBoss.Data
 			return new ExecutionScope(command);
 		}
 
-		internal void OnExecuted(ProfiledSqlCommand command, TimeSpan elapsed, int rowCount) => 
-			CommandExecuted?.Invoke(this, new ProfiledSqlCommandExecutedEventArgs(command, elapsed, rowCount));
+		internal ExecutionScope OnReaderCreated(ProfiledSqlCommand command) {
+			ReaderCreated?.Invoke(this, new ProfiledSqlCommandExecutingEventArgs(command));
+			return new ExecutionScope(command);
+		}
 	}
 
 	delegate int ExecuteT<T>(SqlCommand command, out T result);
@@ -131,7 +143,11 @@ namespace DataBoss.Data
 
 		protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior) {
 			var s = parent.OnExecuting(this);
-			return new ProfiledSqlDataReader(ExecuteReader(behavior), s.OnExecuted);
+			var reader = ExecuteReader(behavior);
+			var t = parent.OnReaderCreated(this);
+			var r = new ProfiledSqlDataReader(reader, t.OnReaderClosed);
+			s.OnExecuted(0);
+			return r;
 		}
 
 		public override void Prepare() => inner.Prepare();

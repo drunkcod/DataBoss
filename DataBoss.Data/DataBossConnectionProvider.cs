@@ -74,6 +74,7 @@ namespace DataBoss.Data
 		}
 
 		public SqlConnection NewConnection() => NewConnection(connectionString);
+		public ProfiledSqlConnection NewProfiledConnection() => new ProfiledSqlConnection(NewConnection());
 
 		public SqlConnection NewConnection(string connectionString) {
 			var db = new SqlConnection(connectionString) {

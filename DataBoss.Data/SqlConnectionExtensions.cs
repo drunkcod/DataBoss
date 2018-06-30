@@ -24,6 +24,18 @@ namespace DataBoss.Data
 				return c.ExecuteNonQuery();
 		}
 
+		public static void Into<T>(this IDbConnection connection, string destinationTable, IEnumerable<T> rows) {
+			switch(connection) {
+				case SqlConnection x: 
+					x.Into(destinationTable, rows);
+					break;
+				case ProfiledSqlConnection x: 
+					x.Into(destinationTable, rows);
+					break;
+				default: throw new NotSupportedException();
+			}
+		}
+
 	}
 
 	public static class SqlConnectionExtensions
