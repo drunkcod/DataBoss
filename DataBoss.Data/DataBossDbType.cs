@@ -12,19 +12,76 @@ namespace DataBoss.Data
 {
 	public struct DataBossDbType
 	{
+		enum BossTypeTag : byte
+		{
+			Custom = 0,
+			TinyInt = 1,
+			SmallInt = 2,
+			Int = 3,
+			BigInt = 4,
+			Bit = 5,
+			Char = 6,
+			VarChar = 7,
+			NChar = 8,
+			NVarChar = 9,
+			Binary = 10,
+			VarBinary = 11,
+			Real = 12,
+			Float = 13,
+			TagMask = 15,
+
+			HasCoercion = 1 << 6,
+			IsNullable = 1 << 7,
+		}
+
+		static readonly string[] BossTypes = new[]
+		{
+			null,
+			"tinyint",
+			"smallint",
+			"int",
+			"bigint",
+			"bit",
+			"char",
+			"varchar",
+			"nchar",
+			"nvarchar",
+			"binary",
+			"varbinary",
+			"real",
+			"float"
+		};
+
 		static Func<Expression,Expression> Nop = x => x;
+		static Func<Expression, Expression> CoerceRowVersion = x => Expression.PropertyOrField(x, nameof(RowVersion.Value));
 
-		public readonly string TypeName;
+		public string TypeName => BossTypes[(byte)(tag & BossTypeTag.TagMask)] ?? (string)extra;
 		public readonly int? ColumnSize;
-		public readonly Func<Expression, Expression> Coerce;
-		public readonly bool IsNullable;
+		public Func<Expression, Expression> Coerce => tag.HasFlag(BossTypeTag.HasCoercion) 
+			? (Func<Expression,Expression>)extra 
+			: Nop;
+		public bool IsNullable => tag.HasFlag(BossTypeTag.IsNullable);
+		readonly BossTypeTag tag;
+		readonly object extra;
 
-		public DataBossDbType(string name, int? columnSize, bool isNullable) : this(name, columnSize, isNullable, Nop) { }
-		public DataBossDbType(string name, int? columnSize, bool isNullable, Func<Expression,Expression> coerce) {
-			this.TypeName = name;
+		public DataBossDbType(string typeName, int? columnSize, bool isNullable) : this(TypeTagLookup(ref typeName), columnSize, isNullable, typeName) 
+		{ }
+
+		static BossTypeTag TypeTagLookup(ref string typeName) {
+			var n = Array.IndexOf(BossTypes, typeName);
+			if(n == -1)
+				return BossTypeTag.Custom;
+			typeName = null;
+			return (BossTypeTag)n;
+		}
+
+		DataBossDbType(BossTypeTag tag, int? columnSize, bool isNullable) : this(tag, columnSize, isNullable, null)
+		{ }
+
+		DataBossDbType(BossTypeTag tag, int? columnSize, bool isNullable, object extra) {
 			this.ColumnSize = columnSize;
-			this.IsNullable = isNullable;
-			this.Coerce = coerce;
+			this.tag = tag | (isNullable ? BossTypeTag.IsNullable : 0);
+			this.extra = extra;
 		}
 
 		public static DataBossDbType ToDbType(Type type) => ToDbType(type, type);
@@ -37,25 +94,41 @@ namespace DataBoss.Data
 			return MapType(type, attributes, canBeNull);
 		}
 
+		public static DataBossDbType ToDbType(IDbDataParameter parameter) =>
+			new DataBossDbType(MapType(parameter.DbType), parameter.Size, true);
+
+		static BossTypeTag MapType(DbType dbType) {
+			switch(dbType) {
+				default: throw new NotSupportedException($"No mapping for {dbType}.");
+				case DbType.Byte: return BossTypeTag.TinyInt;
+				case DbType.Int16: return BossTypeTag.SmallInt;
+				case DbType.Int32: return BossTypeTag.Int;
+				case DbType.Int64: return BossTypeTag.BigInt;
+				case DbType.Boolean: return BossTypeTag.Bit;
+				case DbType.String: return BossTypeTag.NVarChar;
+				case DbType.Binary: return BossTypeTag.Binary;
+			}
+		}
+
 		static DataBossDbType MapType(Type type, ICustomAttributeProvider attributes, bool canBeNull) {
 			var column = attributes.SingleOrDefault<ColumnAttribute>();
 			if (column != null && !string.IsNullOrEmpty(column.TypeName))
 				return new DataBossDbType(column.TypeName, null, canBeNull);
 
 			switch (type.FullName) {
-				case "System.Byte": return new DataBossDbType("tinyint", 1, canBeNull);
-				case "System.Int16": return new DataBossDbType("smallint", 2, canBeNull);
-				case "System.Int32": return new DataBossDbType("int", 4, canBeNull);
-				case "System.Int64": return new DataBossDbType("bigint", 8, canBeNull);
-				case "System.Single": return new DataBossDbType("real", 4, canBeNull);
-				case "System.Double": return new DataBossDbType("float", 8, canBeNull);
-				case "System.Boolean": return new DataBossDbType("bit", 1, canBeNull);
+				case "System.Byte": return new DataBossDbType(BossTypeTag.TinyInt, 1, canBeNull);
+				case "System.Int16": return new DataBossDbType(BossTypeTag.SmallInt, 2, canBeNull);
+				case "System.Int32": return new DataBossDbType(BossTypeTag.Int, 4, canBeNull);
+				case "System.Int64": return new DataBossDbType(BossTypeTag.BigInt, 8, canBeNull);
+				case "System.Single": return new DataBossDbType(BossTypeTag.Real, 4, canBeNull);
+				case "System.Double": return new DataBossDbType(BossTypeTag.Float, 8, canBeNull);
+				case "System.Boolean": return new DataBossDbType(BossTypeTag.Bit, 1, canBeNull);
 				case "System.String":
 					var maxLength = attributes.SingleOrDefault<MaxLengthAttribute>();
-					return new DataBossDbType(attributes.Any<AnsiStringAttribute>() ? "varchar" : "nvarchar", maxLength?.Length ?? int.MaxValue, canBeNull);
+					return new DataBossDbType(attributes.Any<AnsiStringAttribute>() ? BossTypeTag.VarChar: BossTypeTag.NVarChar, maxLength?.Length ?? int.MaxValue, canBeNull);
 				case "System.DateTime": return new DataBossDbType("datetime", 8, canBeNull);
 				case "System.Data.SqlTypes.SqlMoney": return new DataBossDbType("money", null, canBeNull);
-				case "DataBoss.Data.SqlServer.RowVersion": return new DataBossDbType("binary", 8, canBeNull, x => Expression.PropertyOrField(x, nameof(RowVersion.Value)));
+				case "DataBoss.Data.SqlServer.RowVersion": return new DataBossDbType(BossTypeTag.Binary | BossTypeTag.HasCoercion, 8, canBeNull, CoerceRowVersion);
 				default:
 					throw new NotSupportedException("Don't know how to map " + type.FullName + " to a db type.\nTry providing a TypeName using System.ComponentModel.DataAnnotations.Schema.ColumnAttribute.");
 			}
@@ -87,22 +160,22 @@ namespace DataBoss.Data
 		public override bool Equals(object obj) => (obj is DataBossDbType && this == (DataBossDbType)obj) || obj.Equals(this);
 
 		string FormatType() => 
-			IsWideType(TypeName) ? FormatWideType() : TypeName;
+			IsWideType(tag) ? FormatWideType() : TypeName;
 
 		string FormatWideType() =>
 			(!ColumnSize.HasValue || ColumnSize.Value == 1) ? TypeName : $"{TypeName}({FormatWidth(ColumnSize.Value)})";
 
 		static string FormatWidth(int width) => width == int.MaxValue ? "max" : width.ToString();
 
-		static bool IsWideType(string typeName) {
-			switch(typeName) {
+		static bool IsWideType(BossTypeTag tag) {
+			switch(tag & BossTypeTag.TagMask) {
 				default: return false;
-				case "binary": return true;
-				case "varbinary": return true;
-				case "char": return true;
-				case "varchar": return true;
-				case "nchar": return true;
-				case "nvarchar": return true;
+				case BossTypeTag.Binary: return true;
+				case BossTypeTag.VarBinary: return true;
+				case BossTypeTag.Char: return true;
+				case BossTypeTag.VarChar: return true;
+				case BossTypeTag.NChar: return true;
+				case BossTypeTag.NVarChar: return true;
 			}
 		}
 	}

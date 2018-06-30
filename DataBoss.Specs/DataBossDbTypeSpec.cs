@@ -1,7 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Data;
+using System.Data.Common;
+using System.Data.SqlClient;
 using System.Data.SqlTypes;
+using System.Linq;
 using Cone;
 using DataBoss.Data;
 using DataBoss.Data.SqlServer;
@@ -61,12 +66,35 @@ namespace DataBoss.Specs
 			Check.That(() => DataBossDbType.ToDbType(column.FieldType, column) == new DataBossDbType("decimal(18, 5)", null, false));
 		}
 
-		public void RequiredAttribute_string_is_not_null() {
+		public void RequiredAttribute_string_is_not_null() =>
 			Check.That(() => DataBossDbType.ToDbType(typeof(string), new StubAttributeProvider().Add(new RequiredAttribute())) == new DataBossDbType("nvarchar", int.MaxValue, false));
-		}
 
-		public void MaxLengthAttribute_controls_string_column_widht() {
+		public void MaxLengthAttribute_controls_string_column_widht()=>
 			Check.That(() => DataBossDbType.ToDbType(typeof(string), new StubAttributeProvider().Add(new MaxLengthAttribute(31))) == new DataBossDbType("nvarchar", 31, true));
-		}
+
+		public void from_DbParameter(DbParameter parameter, string expected) =>
+			Check.That(() => DataBossDbType.ToDbType(parameter).ToString() == expected);
+
+		public IEnumerable<IRowTestData> DbParameterRows() => 
+			new[] {
+				(Parameter(SqlDbType.Int, isNullable: false), "int"),
+				(Parameter(SqlDbType.Int, isNullable: true), "int"),
+				(Parameter(SqlDbType.SmallInt, isNullable: true), "smallint"),
+				(Parameter(SqlDbType.BigInt, isNullable: true), "bigint"),
+				(Parameter(SqlDbType.TinyInt, isNullable: true), "tinyint"),
+				(Parameter(false), "bit"),
+				(Parameter("Hello"), "nvarchar(5)"),
+				(Parameter(new byte[]{ 1, 2, 3, 4 }), "binary(4)")
+			}.Select(x =>
+				new RowTestData(new Cone.Core.Invokable(GetType().GetMethod(nameof(from_DbParameter))), 
+				new object[]{ x.Item1, x.Item2 }));
+
+		static SqlParameter Parameter(SqlDbType dbType, bool isNullable) =>
+			new SqlParameter {
+				IsNullable = isNullable,
+				SqlDbType = dbType
+			};
+
+		static SqlParameter Parameter(object value) => new SqlParameter { Value = value };
 	}
 }

@@ -24,13 +24,16 @@ namespace DataBoss.Data
 				return c.ExecuteNonQuery();
 		}
 
-		public static void Into<T>(this IDbConnection connection, string destinationTable, IEnumerable<T> rows) {
+		public static void Into<T>(this IDbConnection connection, string destinationTable, IEnumerable<T> rows) =>
+			Into(connection, destinationTable, rows, new DataBossBulkCopySettings());
+		
+		public static void Into<T>(this IDbConnection connection, string destinationTable, IEnumerable<T> rows, DataBossBulkCopySettings settings) {
 			switch(connection) {
 				case SqlConnection x: 
-					x.Into(destinationTable, rows);
+					x.Into(destinationTable, rows, settings);
 					break;
 				case ProfiledSqlConnection x: 
-					x.Into(destinationTable, rows);
+					x.Into(destinationTable, rows, settings);
 					break;
 				default: throw new NotSupportedException();
 			}
