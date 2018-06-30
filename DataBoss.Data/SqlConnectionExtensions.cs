@@ -6,6 +6,26 @@ using DataBoss.Data.Scripting;
 
 namespace DataBoss.Data
 {	
+	public static class DbConnectionExtensions
+	{
+		public static IDbCommand CreateCommand(this IDbConnection connection, string commandText) {
+			var c = connection.CreateCommand();
+			c.CommandText = commandText;
+			return c;
+		}
+
+		public static object ExecuteScalar(this IDbConnection connection, string commandText) {
+			using(var c = connection.CreateCommand(commandText))
+				return c.ExecuteScalar();
+		}
+
+		public static int ExecuteNonQuery(this IDbConnection connection, string commandText) {
+			using(var c = connection.CreateCommand(commandText))
+				return c.ExecuteNonQuery();
+		}
+
+	}
+
 	public static class SqlConnectionExtensions
 	{
 		public static SqlCommand CreateCommand(this SqlConnection connection, string cmdText) => 

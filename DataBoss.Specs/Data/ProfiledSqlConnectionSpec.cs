@@ -1,5 +1,4 @@
 using System;
-using System.Data.Common;
 using System.Data.SqlClient;
 using System.Linq;
 using Cone;
@@ -24,56 +23,43 @@ namespace DataBoss.Specs.Data
 		public void cleanup() => con.Dispose();
 
 		public void listens_to_ExecuteScalar() {
-			var expectedCommand = "select 42";
-			var commandExecuting = new EventSpy<ProfiledSqlCommandExecutingEventArgs>(
-				(s, e) => Check.That(() => e.Command.CommandText == expectedCommand));
+			var commandExecuting = new EventSpy<ProfiledSqlCommandExecutingEventArgs>();
 			con.CommandExecuting += commandExecuting;
-			
-			var q = con.CreateCommand();
-			q.CommandText = expectedCommand;
 
-			Check.That(
-				() => (int)q.ExecuteScalar() == 42,
-				() => commandExecuting.HasBeenCalled);
+			var expectedCommand = "select 42";
+			Check.That(() => (int)con.ExecuteScalar(expectedCommand) == 42);
+			commandExecuting.Check((_, e) => e.Command.CommandText == expectedCommand);;
 		}
 
 		public void listens_to_ExecuteNonQuery() {
-			var expectedCommand = "select Id = 2 into #Foo union all select 3";
-			var commandExecuting = new EventSpy<ProfiledSqlCommandExecutingEventArgs>(
-				(s, e) => Check.That(() => e.Command.CommandText == expectedCommand));
+			var commandExecuting = new EventSpy<ProfiledSqlCommandExecutingEventArgs>(				);
 			con.CommandExecuting += commandExecuting;
 
-			var q = con.CreateCommand();
-			q.CommandText = expectedCommand;
-
-			Check.That(
-				() => q.ExecuteNonQuery() == 2,
-				() => commandExecuting.HasBeenCalled);
+			var expectedCommand = "select Id = 2 into #Foo union all select 3";
+			Check.That(() => con.ExecuteNonQuery(expectedCommand) == 2);
+			commandExecuting.Check((_, e) => e.Command.CommandText == expectedCommand);
 		}
 
 		public void listens_to_ExecuteReader() {
-			var expectedCommand = "select Id = 2 union all select 3";
-			var commandExecuting = new EventSpy<ProfiledSqlCommandExecutingEventArgs>(
-				(s, e) => Check.That(() => e.Command.CommandText == expectedCommand));
+			var commandExecuting = new EventSpy<ProfiledSqlCommandExecutingEventArgs>();
 			con.CommandExecuting += commandExecuting;
 
-			var q = con.CreateCommand();
-			q.CommandText = expectedCommand;
+			var expectedCommand = "select Id = 2 union all select 3";
+			var q = con.CreateCommand(expectedCommand);
 
 			Check.With(() => ObjectReader.For(q.ExecuteReader()).Read<IdRow<int>>().ToList())
 				.That(r => r.Count == 2, _ => commandExecuting.HasBeenCalled);
+			commandExecuting.Check((_, e) => e.Command.CommandText == expectedCommand);
 		}
 
 		public void counts_rows_read() {
-			var q = con.CreateCommand();
-			q.CommandText = "select Id = 2 union all select 3 union all select 1";
-			var commandExecuted = new EventSpy<ProfiledSqlCommandExecutedEventArgs>(
-				(s, e) => Check.That(() => e.RowCount == 3));
+			var commandExecuted = new EventSpy<ProfiledSqlCommandExecutedEventArgs>();
 			con.CommandExecuted += commandExecuted;
-			using(var r = ObjectReader.For(q.ExecuteReader()))
-				r.Read<IdRow<int>>().ToList();
-			Check.That(() => commandExecuted.HasBeenCalled);
 
+			var q = con.CreateCommand("select Id = 2 union all select 3 union all select 1");
+			using (var r = ObjectReader.For(q.ExecuteReader()))
+				r.Read<IdRow<int>>().ToList();
+			commandExecuted.Check((s, e) => e.RowCount == 3);
 		}
 
 		public void CommandExecuted_after_CommandExecuting() {
@@ -84,8 +70,7 @@ namespace DataBoss.Specs.Data
 				Check.That(() => e.Elapsed > TimeSpan.Zero));
 			con.CommandExecuted += commandExecuted;
 
-			var q = con.CreateCommand();
-			q.CommandText = "select 1";
+			var q = con.CreateCommand("select 1");
 			q.ExecuteScalar();
 
 			Check.That(() => commandExecuting.CalledBefore(commandExecuted));
