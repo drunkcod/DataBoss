@@ -127,14 +127,16 @@ namespace DataBoss.Data
 		public string FormatValue(object value) {
 			switch(tag & BossTypeTag.TagMask) { 
 				default: throw new NotSupportedException($"Can't format {value} of type {value.GetType()} as {ToString()}");
-				case BossTypeTag.TinyInt: return Convert.ChangeType(value, typeof(byte)).ToString();
-				case BossTypeTag.SmallInt: return Convert.ChangeType(value, typeof(short)).ToString();
-				case BossTypeTag.Int: return Convert.ChangeType(value, typeof(int)).ToString();
-				case BossTypeTag.BigInt: return Convert.ChangeType(value, typeof(long)).ToString();
-				case BossTypeTag.Real: return ((float)Convert.ChangeType(value, typeof(float))).ToString(CultureInfo.InvariantCulture);
-				case BossTypeTag.Float: return ((double)Convert.ChangeType(value, typeof(double))).ToString(CultureInfo.InvariantCulture);
+				case BossTypeTag.TinyInt: return ChangeType<byte>(value).ToString();
+				case BossTypeTag.SmallInt: return ChangeType<short>(value).ToString();
+				case BossTypeTag.Int: return ChangeType<int>(value).ToString();
+				case BossTypeTag.BigInt: return ChangeType<long>(value).ToString();
+				case BossTypeTag.Real: return ChangeType<float>(value).ToString(CultureInfo.InvariantCulture);
+				case BossTypeTag.Float: return ChangeType<double>(value).ToString(CultureInfo.InvariantCulture);
 			}
 		}
+
+		static T ChangeType<T>(object value) => (T)Convert.ChangeType(value, typeof(T));
 
 		static BossTypeTag MapType(DbType dbType) {
 			switch(dbType) {
