@@ -7,6 +7,7 @@ using System.Data.SqlClient;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
+using DataBoss.Data.Scripting;
 
 namespace DataBoss.Data
 {
@@ -34,6 +35,9 @@ namespace DataBoss.Data
 		public event EventHandler<ProfiledSqlCommandExecutingEventArgs> ReaderCreated;
 		public event EventHandler<ProfiledSqlCommandExecutedEventArgs> ReaderClosed;
 
+		public event EventHandler<ProfiledBulkCopyStartingEventArgs> BulkCopyStarting;
+		public event EventHandler<ProfiledBulkCopyFinishedEventArgs> BulkCopyFinished;
+
 		protected override DbCommand CreateDbCommand() => new ProfiledSqlCommand(this, inner.CreateCommand());
 		protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel) => inner.BeginTransaction(isolationLevel);
 		public override void Close() => inner.Close();
@@ -41,9 +45,19 @@ namespace DataBoss.Data
 		public override void Open() => inner.Open();
 		public override Task OpenAsync(CancellationToken cancellationToken) => inner.OpenAsync(cancellationToken);
 
+		public static void Into(ProfiledSqlConnection connection, string destinationTable, IDataReader toInsert, DataBossBulkCopySettings settings) {
+			var scripter = new DataBossScripter();
+			connection.ExecuteNonQuery(scripter.ScriptTable(destinationTable, toInsert));
+			connection.Insert(destinationTable, toInsert, settings);
+		}
 
-		internal void Into<T>(string destinationTable, IEnumerable<T> rows, DataBossBulkCopySettings settings) =>
-			inner.Into(destinationTable, rows, settings);
+		void Insert(string destinationTable, IDataReader toInsert, DataBossBulkCopySettings settings) {
+			var s = Stopwatch.StartNew();
+			using(var rows = new ProfiledDataReader(toInsert, (r, n) => BulkCopyFinished?.Invoke(this, new ProfiledBulkCopyFinishedEventArgs(destinationTable, r, n, s.Elapsed)))) { 
+				BulkCopyStarting?.Invoke(this, new ProfiledBulkCopyStartingEventArgs(destinationTable, rows));
+				inner.Insert(destinationTable, rows, settings);
+			}
+		}
 
 		internal T Execute<T>(ProfiledSqlCommand command, ExecuteT<T> executeT) {
 			var scope = OnExecuting(command);
@@ -63,7 +77,7 @@ namespace DataBoss.Data
 			public void OnExecuted(int rowCount) =>
 				((ProfiledSqlConnection)parent.Connection).CommandExecuted?.Invoke(this, new ProfiledSqlCommandExecutedEventArgs(parent, stopwatch.Elapsed, rowCount));
 
-			public void OnReaderClosed(int rowCount) =>
+			public void OnReaderClosed(ProfiledDataReader _, int rowCount) =>
 				((ProfiledSqlConnection)parent.Connection).ReaderClosed?.Invoke(this, new ProfiledSqlCommandExecutedEventArgs(parent, stopwatch.Elapsed, rowCount));
 		}
 
@@ -79,155 +93,6 @@ namespace DataBoss.Data
 	}
 
 	delegate int ExecuteT<T>(SqlCommand command, out T result);
-
-	public class ProfiledSqlCommand : DbCommand
-	{
-
-		static readonly ExecuteT<int> DoExecuteNonQuery = (SqlCommand c, out int result) => result = c.ExecuteNonQuery();
-		static readonly ExecuteT<object> DoExecuteScalar = (SqlCommand c, out object result) => {
-			result = c.ExecuteScalar();
-			return 1;
-		};
-
-		readonly ProfiledSqlConnection parent;
-		readonly internal SqlCommand inner;
-
-		internal ProfiledSqlCommand(ProfiledSqlConnection parent, SqlCommand inner) {
-			this.parent = parent;
-			this.inner = inner;
-		}
-
-		public override string CommandText {
-			get => inner.CommandText;
-			set => inner.CommandText = value;
-		}
-
-		public override int CommandTimeout {
-			get => inner.CommandTimeout;
-			set => inner.CommandTimeout = value;
-		}
-
-		public override CommandType CommandType {
-			get => inner.CommandType;
-			set => inner.CommandType = value;
-		}
-
-		public override bool DesignTimeVisible {
-			get => inner.DesignTimeVisible;
-			set => inner.DesignTimeVisible = value;
-		}
-
-		public override UpdateRowSource UpdatedRowSource {
-			get => inner.UpdatedRowSource;
-			set => inner.UpdatedRowSource = value;
-		}
-
-		public new SqlParameterCollection Parameters => inner.Parameters;
-
-		protected override DbConnection DbConnection {
-			get => parent;
-			set => throw new NotSupportedException("Can't switch connection for profiled command");
-		}
-
-		protected override DbParameterCollection DbParameterCollection => inner.Parameters;
-
-		protected override DbTransaction DbTransaction {
-			get => inner.Transaction;
-			set => inner.Transaction = (SqlTransaction)value;
-		}
-
-		public override void Cancel() => inner.Cancel();
-
-		public override int ExecuteNonQuery() => parent.Execute(this, DoExecuteNonQuery);
-		public override object ExecuteScalar() => parent.Execute(this, DoExecuteScalar);
-		public new SqlDataReader ExecuteReader(CommandBehavior behavior) => inner.ExecuteReader(behavior);
-
-		protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior) {
-			var s = parent.OnExecuting(this);
-			var reader = ExecuteReader(behavior);
-			var t = parent.OnReaderCreated(this);
-			var r = new ProfiledSqlDataReader(reader, t.OnReaderClosed);
-			s.OnExecuted(0);
-			return r;
-		}
-
-		public override void Prepare() => inner.Prepare();
-
-		protected override DbParameter CreateDbParameter() => inner.CreateParameter();
-	}
-
-	class ProfiledSqlDataReader : DbDataReader
-	{
-		readonly SqlDataReader inner;
-		int rowCount = 0;
-		Action<int> onClose;
-
-		internal ProfiledSqlDataReader(SqlDataReader inner, Action<int> onClose) {
-			this.inner = inner;
-			this.onClose = onClose;
-		}
-		
-		public override void Close() {
-			if(onClose == null)
-				return;
-			onClose(rowCount);
-			onClose = null;
-			inner.Close();
-		}
-
-		protected override void Dispose(bool disposing) {
-			base.Dispose(disposing);
-			if (disposing)
-				inner.Dispose();
-		}
-
-		public override object this[int ordinal] => inner[ordinal];
-		public override object this[string name] => inner[name];
-		public override int Depth => inner.Depth;
-		public override int FieldCount => inner.FieldCount;
-		public override bool HasRows => inner.HasRows;
-		public override bool IsClosed => inner.IsClosed;
-		public override int RecordsAffected => inner.RecordsAffected;
-
-		public override bool GetBoolean(int ordinal) => inner.GetBoolean(ordinal);
-		public override byte GetByte(int ordinal) => inner.GetByte(ordinal);
-
-		public override long GetBytes(int ordinal, long dataOffset, byte[] buffer, int bufferOffset, int length) =>
-			inner.GetBytes(ordinal, dataOffset, buffer, bufferOffset, length);
-
-		public override char GetChar(int ordinal) => inner.GetChar(ordinal);
-
-		public override long GetChars(int ordinal, long dataOffset, char[] buffer, int bufferOffset, int length) =>
-			inner.GetChars(ordinal, dataOffset, buffer, bufferOffset, length);
-
-		public override string GetDataTypeName(int ordinal) => inner.GetDataTypeName(ordinal);
-		public override DateTime GetDateTime(int ordinal) => inner.GetDateTime(ordinal);
-		public override decimal GetDecimal(int ordinal) => inner.GetDecimal(ordinal);
-		public override double GetDouble(int ordinal) => inner.GetDouble(ordinal);
-		public override IEnumerator GetEnumerator() => inner.GetEnumerator();
-		public override Type GetFieldType(int ordinal) => inner.GetFieldType(ordinal);
-		public override float GetFloat(int ordinal) => inner.GetFloat(ordinal);
-		public override Guid GetGuid(int ordinal) => inner.GetGuid(ordinal);
-		public override short GetInt16(int ordinal) => inner.GetInt16(ordinal);
-		public override int GetInt32(int ordinal) => inner.GetInt32(ordinal);
-		public override long GetInt64(int ordinal) => inner.GetInt64(ordinal);
-		public override string GetName(int ordinal) => inner.GetName(ordinal);
-		public override int GetOrdinal(string name) => inner.GetOrdinal(name);
-		public override string GetString(int ordinal) => inner.GetString(ordinal);
-		public override object GetValue(int ordinal) => inner.GetValue(ordinal);
-		public override int GetValues(object[] values) => inner.GetValues(values);
-		public override bool IsDBNull(int ordinal) => inner.IsDBNull(ordinal);
-		public override bool NextResult() => inner.NextResult();
-		public override bool Read() {
-			if(inner.Read()) {
-				++rowCount;
-				return true;
-			}
-			return false;
-		}
-
-		public override DataTable GetSchemaTable() => inner.GetSchemaTable();
-	}
 
 	public class ProfiledSqlCommandExecutingEventArgs : EventArgs
 	{
@@ -248,6 +113,32 @@ namespace DataBoss.Data
 			this.Command = command;
 			this.Elapsed = elapsed;
 			this.RowCount = rowCount;
+		}
+	}
+
+	public class ProfiledBulkCopyStartingEventArgs : EventArgs 
+	{
+		public readonly string DestinationTable;
+		public readonly ProfiledDataReader Rows;
+
+		public ProfiledBulkCopyStartingEventArgs(string destinationTable, ProfiledDataReader rows) {
+			this.DestinationTable = destinationTable;
+			this.Rows = rows;
+		}
+	}
+	
+	public class ProfiledBulkCopyFinishedEventArgs : EventArgs 
+	{
+		public readonly string DestinationTable;
+		public readonly TimeSpan Elapsed;
+		public readonly ProfiledDataReader Rows;
+		public readonly int RowCount;
+
+		public ProfiledBulkCopyFinishedEventArgs(string destinationTable, ProfiledDataReader rows, int rowCount, TimeSpan elapsed) {
+			this.DestinationTable = destinationTable;
+			this.Rows = rows;
+			this.RowCount = rowCount;
+			this.Elapsed = elapsed;
 		}
 	}
 }

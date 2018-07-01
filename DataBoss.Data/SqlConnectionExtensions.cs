@@ -29,11 +29,11 @@ namespace DataBoss.Data
 		
 		public static void Into<T>(this IDbConnection connection, string destinationTable, IEnumerable<T> rows, DataBossBulkCopySettings settings) {
 			switch(connection) {
-				case SqlConnection x: 
-					SqlConnectionExtensions.Into(x, destinationTable, rows, settings);
+				case SqlConnection con: 
+					SqlConnectionExtensions.Into(con, destinationTable, rows, settings);
 					break;
-				case ProfiledSqlConnection x: 
-					x.Into(destinationTable, rows, settings);
+				case ProfiledSqlConnection con:
+					ProfiledSqlConnection.Into(con, destinationTable, SequenceDataReader.Create(rows, x => x.MapAll()), settings);
 					break;
 				default: throw new NotSupportedException();
 			}
