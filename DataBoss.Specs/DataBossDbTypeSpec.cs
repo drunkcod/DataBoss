@@ -106,8 +106,10 @@ namespace DataBoss.Specs
 				(DataBossDbType.ToDbType(typeof(float)), Math.PI, ((float)Math.PI).ToString(CultureInfo.InvariantCulture)),
 				(DataBossDbType.ToDbType(typeof(double)), Math.E, Math.E.ToString(CultureInfo.InvariantCulture)),
 				(DataBossDbType.ToDbType(typeof(DateTime)), new DateTime(2018, 07, 01, 13, 17, 31), "2018-07-01T13:17:31"),
-
-
+				(DataBossDbType.ToDbType(typeof(string)), "Hello World", "N'Hello World'"),
+				(DataBossDbType.ToDbType(typeof(string)), "'", "N''''"),
+				(DataBossDbType.ToDbType(typeof(byte[])), new byte[]{ 1, 2, 3 }, "0x010203"),
+				(DataBossDbType.ToDbType(typeof(RowVersion)), new RowVersion(new SqlBinary(new byte[]{ 1, 2, 3, 4, 5, 6, 7, 8 })), "0x0102030405060708"),
 			}.Select(x =>
 				new RowTestData(new Cone.Core.Invokable(GetType().GetMethod(nameof(format_value))),
 				new object[] { x.Item1, x.Item2, x.Item3 }));

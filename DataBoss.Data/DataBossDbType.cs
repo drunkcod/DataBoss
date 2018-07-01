@@ -2,12 +2,14 @@ using DataBoss.Data.Scripting;
 using DataBoss.Data.SqlServer;
 using DataBoss.Linq;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Data;
 using System.Globalization;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Text;
 
 namespace DataBoss.Data
 {
@@ -150,8 +152,24 @@ namespace DataBoss.Data
 				case BossTypeTag.Real: return ChangeType<float>(value).ToString(CultureInfo.InvariantCulture);
 				case BossTypeTag.Float: return ChangeType<double>(value).ToString(CultureInfo.InvariantCulture);
 				case BossTypeTag.DateTime: return ChangeType<DateTime>(value).ToString("s");
+				case BossTypeTag.VarChar: return $"'{Escape(value.ToString())}'";
+				case BossTypeTag.NVarChar: return $"N'{Escape(value.ToString())}'";
+				case BossTypeTag.Rowversion:
+					value = ((RowVersion)value).Value.Value;
+					goto case BossTypeTag.VarBinary;
+				case BossTypeTag.Binary:
+				case BossTypeTag.VarBinary:
+					var bytes = value as IEnumerable<byte>;
+					if(bytes == null)
+						goto default;
+					var r = new StringBuilder("0x");
+					foreach(var b in bytes)
+						r.AppendFormat("{0:x2}", b);
+					return r.ToString();
 			}
 		}
+
+		static string Escape(string input) => input.Replace("'", "''");
 
 		static T ChangeType<T>(object value) => (T)Convert.ChangeType(value, typeof(T));
 
@@ -182,8 +200,9 @@ namespace DataBoss.Data
 				case "System.Double": return new DataBossDbType(BossTypeTag.Float, canBeNull);
 				case "System.Boolean": return new DataBossDbType(BossTypeTag.Bit, canBeNull);
 				case "System.String":
-					var maxLength = attributes.SingleOrDefault<MaxLengthAttribute>();
-					return new DataBossDbType(attributes.Any<AnsiStringAttribute>() ? BossTypeTag.VarChar: BossTypeTag.NVarChar, canBeNull, maxLength?.Length ?? int.MaxValue);
+					return new DataBossDbType(attributes.Any<AnsiStringAttribute>() ? BossTypeTag.VarChar: BossTypeTag.NVarChar, canBeNull, MaxLength(attributes)?.Length ?? int.MaxValue);
+				case "System.Byte[]": 
+					return new DataBossDbType(BossTypeTag.VarBinary, canBeNull, MaxLength(attributes)?.Length ?? int.MaxValue);
 				case "System.DateTime": return Create("datetime", 8, canBeNull);
 				case "System.Data.SqlTypes.SqlMoney": return Create("money", null, canBeNull);
 				case "DataBoss.Data.SqlServer.RowVersion": return new DataBossDbType(BossTypeTag.Rowversion, canBeNull, (int?)8);
@@ -191,6 +210,9 @@ namespace DataBoss.Data
 					throw new NotSupportedException("Don't know how to map " + type.FullName + " to a db type.\nTry providing a TypeName using System.ComponentModel.DataAnnotations.Schema.ColumnAttribute.");
 			}
 		}
+
+		static MaxLengthAttribute MaxLength(ICustomAttributeProvider attributes) =>
+			attributes.SingleOrDefault<MaxLengthAttribute>();
 
 		public static SqlDbType ToSqlDbType(Type type) {
 			switch(type.FullName) {
