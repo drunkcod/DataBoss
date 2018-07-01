@@ -30,7 +30,7 @@ namespace DataBoss.Data
 		public static void Into<T>(this IDbConnection connection, string destinationTable, IEnumerable<T> rows, DataBossBulkCopySettings settings) {
 			switch(connection) {
 				case SqlConnection x: 
-					x.Into(destinationTable, rows, settings);
+					SqlConnectionExtensions.Into(x, destinationTable, rows, settings);
 					break;
 				case ProfiledSqlConnection x: 
 					x.Into(destinationTable, rows, settings);

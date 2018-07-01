@@ -41,8 +41,9 @@ namespace DataBoss.Data
 		public override void Open() => inner.Open();
 		public override Task OpenAsync(CancellationToken cancellationToken) => inner.OpenAsync(cancellationToken);
 
-		internal void Into<T>(string destinationTable, IEnumerable<T> rows) =>
-			inner.Into(destinationTable, rows);
+
+		internal void Into<T>(string destinationTable, IEnumerable<T> rows, DataBossBulkCopySettings settings) =>
+			inner.Into(destinationTable, rows, settings);
 
 		internal T Execute<T>(ProfiledSqlCommand command, ExecuteT<T> executeT) {
 			var scope = OnExecuting(command);

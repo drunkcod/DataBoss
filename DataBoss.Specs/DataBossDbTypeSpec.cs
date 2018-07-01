@@ -105,6 +105,8 @@ namespace DataBoss.Specs
 				(DataBossDbType.ToDbType(typeof(long)), long.MaxValue, long.MaxValue.ToString()),
 				(DataBossDbType.ToDbType(typeof(float)), Math.PI, ((float)Math.PI).ToString(CultureInfo.InvariantCulture)),
 				(DataBossDbType.ToDbType(typeof(double)), Math.E, Math.E.ToString(CultureInfo.InvariantCulture)),
+				(DataBossDbType.ToDbType(typeof(DateTime)), new DateTime(2018, 07, 01, 13, 17, 31), "2018-07-01T13:17:31"),
+
 
 			}.Select(x =>
 				new RowTestData(new Cone.Core.Invokable(GetType().GetMethod(nameof(format_value))),

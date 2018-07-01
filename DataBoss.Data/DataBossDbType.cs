@@ -23,20 +23,23 @@ namespace DataBoss.Data
 			Real = 5,
 			Float = 6,
 			Bit = 7,
-			Char = 8,
-			VarChar = 9,
-			NChar = 10,
-			NVarChar = 11,
-			Binary = 12,
-			VarBinary = 13,
-			Rowversion = 14,
-			TagMask = 15,
+			DateTime = 8,
 
-			IsVariableSize = 1 << 3,
+			Char = 16,
+			VarChar = 17,
+			NChar = 18,
+			NVarChar = 19,
+			Binary = 20,
+			VarBinary = 21,
+			Rowversion = 22,
+			
+			TagMask = 31,
+
+			IsVariableSize = Char,
 			IsNullable = 1 << 7,
 		}
 
-		static readonly (string TypeName, byte Width)[] BossTypes = new(string, byte)[]
+		static readonly (string TypeName, byte Width)[] FixedTypes = new(string, byte)[]
 		{
 			(null, 0),
 			("tinyint", 1),
@@ -46,6 +49,10 @@ namespace DataBoss.Data
 			("real", 4),
 			("float", 8),
 			("bit", 0),
+			("datetime", 8),
+		};
+
+		static readonly (string TypeName, byte Width)[] VariableSizeTypes = new(string, byte)[] {
 			("char", 0),
 			("varchar", 0),
 			("nchar", 0),
@@ -56,6 +63,10 @@ namespace DataBoss.Data
 			("binary", 0),
 		};
 
+		(string TypeName, byte Width) GetBossType(BossTypeTag tag) => tag.HasFlag(BossTypeTag.IsVariableSize)
+			? VariableSizeTypes[(byte)(tag & BossTypeTag.TagMask) - (byte)BossTypeTag.Char]
+			: FixedTypes[(byte)(tag & BossTypeTag.TagMask)];
+
 		static Expression ReadRowversionValue(Expression x) => Expression.PropertyOrField(x, nameof(RowVersion.Value));
 		static Func<Expression, Expression> CoerceRowVersion = ReadRowversionValue;
 
@@ -64,10 +75,10 @@ namespace DataBoss.Data
 
 		public int? ColumnSize => tag.HasFlag(BossTypeTag.IsVariableSize)
 			? (int?)extra
-			: IsKnownType(out var knownType) ? BossTypes[(byte)knownType].Width : -1; 
+			: IsKnownType(out var knownType) ? GetBossType(knownType).Width : -1; 
 
 		public string TypeName => IsKnownType(out var knownType) 
-			? BossTypes[(byte)knownType].TypeName
+			? GetBossType(knownType).TypeName
 			: CustomInfo.TypeName;
 
 		bool IsKnownType(out BossTypeTag typeTag) {
@@ -92,8 +103,13 @@ namespace DataBoss.Data
 
 		static BossTypeTag TypeTagLookup(ref string typeName) {
 			var nameToFind = typeName;
-			var n = Array.FindIndex(BossTypes, x => x.TypeName == nameToFind);
-			if(n == -1)
+			var n = Array.FindIndex(FixedTypes, x => x.TypeName == nameToFind);
+			if(n == -1) { 
+				n = Array.FindIndex(VariableSizeTypes, x => x.TypeName == nameToFind);
+				if(n != -1)
+					n += (int)BossTypeTag.IsVariableSize;
+			}
+			if (n == -1)
 				return BossTypeTag.Custom;
 			typeName = null;
 			return (BossTypeTag)n;
@@ -133,6 +149,7 @@ namespace DataBoss.Data
 				case BossTypeTag.BigInt: return ChangeType<long>(value).ToString();
 				case BossTypeTag.Real: return ChangeType<float>(value).ToString(CultureInfo.InvariantCulture);
 				case BossTypeTag.Float: return ChangeType<double>(value).ToString(CultureInfo.InvariantCulture);
+				case BossTypeTag.DateTime: return ChangeType<DateTime>(value).ToString("s");
 			}
 		}
 
