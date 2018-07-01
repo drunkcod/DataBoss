@@ -89,6 +89,32 @@ namespace DataBoss.Specs
 				new RowTestData(new Cone.Core.Invokable(GetType().GetMethod(nameof(from_DbParameter))), 
 				new object[]{ x.Item1, x.Item2 }));
 
+		public void format_value(DataBossDbType dbType, object value, string expected) =>
+			Check.That(() => dbType.FormatValue(value) == expected);
+
+		public IEnumerable<IRowTestData> FormatValueRows() =>
+			new[] {
+				(DataBossDbType.ToDbType(typeof(byte)), byte.MinValue, byte.MinValue.ToString()),
+				(DataBossDbType.ToDbType(typeof(byte)), byte.MaxValue, byte.MaxValue.ToString()),
+				(DataBossDbType.ToDbType(typeof(short)), short.MinValue, short.MinValue.ToString()),
+				(DataBossDbType.ToDbType(typeof(short)), short.MaxValue, short.MaxValue.ToString()),
+				(DataBossDbType.ToDbType(typeof(int)), int.MinValue, int.MinValue.ToString()),
+				(DataBossDbType.ToDbType(typeof(int)), int.MaxValue, int.MaxValue.ToString()),
+
+			}.Select(x =>
+				new RowTestData(new Cone.Core.Invokable(GetType().GetMethod(nameof(format_value))),
+				new object[] { x.Item1, x.Item2, x.Item3 }));
+
+		public void format_value_fail(DataBossDbType dbType, object value) =>
+			Check.Exception<OverflowException>(() => dbType.FormatValue(value));
+
+		public IEnumerable<IRowTestData> FormatValueFailRows() =>
+			new[] {
+				(DataBossDbType.ToDbType(typeof(byte)), 1024),
+			}.Select(x =>
+				new RowTestData(new Cone.Core.Invokable(GetType().GetMethod(nameof(format_value_fail))),
+				new object[] { x.Item1, x.Item2 }));
+
 		static SqlParameter Parameter(SqlDbType dbType, bool isNullable) =>
 			new SqlParameter {
 				IsNullable = isNullable,

@@ -123,6 +123,15 @@ namespace DataBoss.Data
 			: new DataBossDbType(t, true);
 		}
 
+		public string FormatValue(object value) {
+			switch(tag & BossTypeTag.TagMask) { 
+				default: throw new NotSupportedException($"Can't format {value} of type {value.GetType()} as {ToString()}");
+				case BossTypeTag.TinyInt: return Convert.ChangeType(value, typeof(byte)).ToString();
+				case BossTypeTag.SmallInt: return Convert.ChangeType(value, typeof(short)).ToString();
+				case BossTypeTag.Int: return Convert.ChangeType(value, typeof(int)).ToString();
+			}
+		}
+
 		static BossTypeTag MapType(DbType dbType) {
 			switch(dbType) {
 				default: throw new NotSupportedException($"No mapping for {dbType}.");
