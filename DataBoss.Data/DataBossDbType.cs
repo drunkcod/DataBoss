@@ -5,6 +5,7 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Data;
+using System.Globalization;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -129,6 +130,9 @@ namespace DataBoss.Data
 				case BossTypeTag.TinyInt: return Convert.ChangeType(value, typeof(byte)).ToString();
 				case BossTypeTag.SmallInt: return Convert.ChangeType(value, typeof(short)).ToString();
 				case BossTypeTag.Int: return Convert.ChangeType(value, typeof(int)).ToString();
+				case BossTypeTag.BigInt: return Convert.ChangeType(value, typeof(long)).ToString();
+				case BossTypeTag.Real: return ((float)Convert.ChangeType(value, typeof(float))).ToString(CultureInfo.InvariantCulture);
+				case BossTypeTag.Float: return ((double)Convert.ChangeType(value, typeof(double))).ToString(CultureInfo.InvariantCulture);
 			}
 		}
 

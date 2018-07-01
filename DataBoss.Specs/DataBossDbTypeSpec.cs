@@ -6,6 +6,7 @@ using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
 using System.Data.SqlTypes;
+using System.Globalization;
 using System.Linq;
 using Cone;
 using DataBoss.Data;
@@ -93,13 +94,17 @@ namespace DataBoss.Specs
 			Check.That(() => dbType.FormatValue(value) == expected);
 
 		public IEnumerable<IRowTestData> FormatValueRows() =>
-			new[] {
+			new (DataBossDbType, object, string)[] {
 				(DataBossDbType.ToDbType(typeof(byte)), byte.MinValue, byte.MinValue.ToString()),
 				(DataBossDbType.ToDbType(typeof(byte)), byte.MaxValue, byte.MaxValue.ToString()),
 				(DataBossDbType.ToDbType(typeof(short)), short.MinValue, short.MinValue.ToString()),
 				(DataBossDbType.ToDbType(typeof(short)), short.MaxValue, short.MaxValue.ToString()),
 				(DataBossDbType.ToDbType(typeof(int)), int.MinValue, int.MinValue.ToString()),
 				(DataBossDbType.ToDbType(typeof(int)), int.MaxValue, int.MaxValue.ToString()),
+				(DataBossDbType.ToDbType(typeof(long)), long.MinValue, long.MinValue.ToString()),
+				(DataBossDbType.ToDbType(typeof(long)), long.MaxValue, long.MaxValue.ToString()),
+				(DataBossDbType.ToDbType(typeof(float)), Math.PI, ((float)Math.PI).ToString(CultureInfo.InvariantCulture)),
+				(DataBossDbType.ToDbType(typeof(double)), Math.E, Math.E.ToString(CultureInfo.InvariantCulture)),
 
 			}.Select(x =>
 				new RowTestData(new Cone.Core.Invokable(GetType().GetMethod(nameof(format_value))),
