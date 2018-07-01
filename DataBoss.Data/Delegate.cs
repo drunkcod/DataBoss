@@ -2,7 +2,7 @@ using System;
 
 namespace DataBoss.Data
 {
-	static class DelegateUtil
+	static class Lambdas
 	{
 		public static Action<T> CreateDelegate<T>(string methodName) =>
 			Create<Action<T>>(typeof(T), methodName);
@@ -15,5 +15,7 @@ namespace DataBoss.Data
 
 		static T Create<T>(Type type, string methodName, params Type[] types) =>
 			(T)(object)System.Delegate.CreateDelegate(typeof(T), type.GetMethod(methodName, types));
+
+		public static T Id<T>(T id) => id;
 	}
 }

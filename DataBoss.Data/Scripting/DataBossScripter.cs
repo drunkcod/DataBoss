@@ -98,7 +98,7 @@ namespace DataBoss.Data.Scripting
 			var columnSize = schema.Columns[DataReaderSchemaColumns.ColumnSize];
 			for(var i = 0; i != reader.FieldCount; ++i) {
 				var r = schema.Rows[i];
-				columns.Add(new DataBossTableColumn(new DataBossDbType(
+				columns.Add(new DataBossTableColumn(DataBossDbType.Create(
 					reader.GetDataTypeName(i),
 					(columnSize == null  || r[columnSize] is DBNull) ? new int?(): (int)r[columnSize],
 					(bool)r[isNullable]), 

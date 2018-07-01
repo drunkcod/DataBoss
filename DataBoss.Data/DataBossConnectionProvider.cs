@@ -21,9 +21,9 @@ namespace DataBoss.Data
 	{
 		static class CommonOps
 		{
-			public static readonly Func<SqlCommand, int> ExecuteNonQuery = DelegateUtil.CreateDelegate<SqlCommand, int>(nameof(SqlCommand.ExecuteNonQuery));
-			public static readonly Func<SqlCommand, object> ExecuteScalar = DelegateUtil.CreateDelegate<SqlCommand, object>(nameof(SqlCommand.ExecuteScalar));
-			public static readonly Action<SqlConnection> Dispose = DelegateUtil.CreateDelegate<SqlConnection>(nameof(SqlConnection.Dispose));
+			public static readonly Func<SqlCommand, int> ExecuteNonQuery = Lambdas.CreateDelegate<SqlCommand, int>(nameof(SqlCommand.ExecuteNonQuery));
+			public static readonly Func<SqlCommand, object> ExecuteScalar = Lambdas.CreateDelegate<SqlCommand, object>(nameof(SqlCommand.ExecuteScalar));
+			public static readonly Action<SqlConnection> Dispose = Lambdas.CreateDelegate<SqlConnection>(nameof(SqlConnection.Dispose));
 		}
 
 		static readonly EventHandler DisposeConnection = (sender, _) => ((SqlCommand)sender).Connection.Dispose();

@@ -27,7 +27,7 @@ namespace DataBoss.Specs
 		,Row("binary", 1, "binary")
 		,Row("binary", 12, "binary(12)")]
 		public void columnsize(string dataType, int columnSize, string expected) =>
-			Check.That(() => new DataBossDbType(dataType, columnSize, true).ToString() == expected);
+			Check.That(() => DataBossDbType.Create(dataType, columnSize, true).ToString() == expected);
 
 		[DisplayAs("{0} maps to db type {1}")
 		,Row(typeof(DateTime?), "datetime", true)
@@ -51,7 +51,7 @@ namespace DataBoss.Specs
 		,Row(typeof(SqlMoney?), "money", true)
 		,Row(typeof(RowVersion), "binary(8)", false)]
 		public void to_db_type(Type type, string dbType, bool nullable) =>
-			Check.That(() => DataBossDbType.ToDbType(type, new StubAttributeProvider()).ToString() == new DataBossDbType(dbType, null, nullable).ToString());
+			Check.That(() => DataBossDbType.ToDbType(type, new StubAttributeProvider()).ToString() == DataBossDbType.Create(dbType, null, nullable).ToString());
 
 		#pragma warning disable CS0649
 		class MyRowType
@@ -63,14 +63,14 @@ namespace DataBoss.Specs
 
 		public void to_db_type_with_column_type_override() {
 			var column = typeof(MyRowType).GetField(nameof(MyRowType.Value));
-			Check.That(() => DataBossDbType.ToDbType(column.FieldType, column) == new DataBossDbType("decimal(18, 5)", null, false));
+			Check.That(() => DataBossDbType.ToDbType(column.FieldType, column) == DataBossDbType.Create("decimal(18, 5)", null, false));
 		}
 
 		public void RequiredAttribute_string_is_not_null() =>
-			Check.That(() => DataBossDbType.ToDbType(typeof(string), new StubAttributeProvider().Add(new RequiredAttribute())) == new DataBossDbType("nvarchar", int.MaxValue, false));
+			Check.That(() => DataBossDbType.ToDbType(typeof(string), new StubAttributeProvider().Add(new RequiredAttribute())) == DataBossDbType.Create("nvarchar", int.MaxValue, false));
 
 		public void MaxLengthAttribute_controls_string_column_widht()=>
-			Check.That(() => DataBossDbType.ToDbType(typeof(string), new StubAttributeProvider().Add(new MaxLengthAttribute(31))) == new DataBossDbType("nvarchar", 31, true));
+			Check.That(() => DataBossDbType.ToDbType(typeof(string), new StubAttributeProvider().Add(new MaxLengthAttribute(31))) == DataBossDbType.Create("nvarchar", 31, true));
 
 		public void from_DbParameter(DbParameter parameter, string expected) =>
 			Check.That(() => DataBossDbType.ToDbType(parameter).ToString() == expected);
