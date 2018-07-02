@@ -14,31 +14,31 @@ namespace DataBoss.Data.Scripting
 	public class AnsiStringAttribute : Attribute
 	{ }
 
-	public class DataBossScripter
+	public class DataBossTableColumn : ICustomAttributeProvider
 	{
-		class DataBossTableColumn : ICustomAttributeProvider
-		{
-			readonly ICustomAttributeProvider attributes;
+		readonly ICustomAttributeProvider attributes;
 
-			public readonly string Name;
-			public readonly DataBossDbType ColumnType;
+		public readonly string Name;
+		public readonly DataBossDbType ColumnType;
 
-			public DataBossTableColumn(DataBossDbType columnType, ICustomAttributeProvider attributes, string name) {
-				this.ColumnType = columnType;
-				this.attributes = attributes;
-				this.Name = name;
-			}
-
-			public object[] GetCustomAttributes(Type attributeType, bool inherit) =>
-				attributes.GetCustomAttributes(attributeType, inherit);
-
-			public object[] GetCustomAttributes(bool inherit) =>
-				attributes.GetCustomAttributes(inherit);
-
-			public bool IsDefined(Type attributeType, bool inherit) =>
-				attributes.IsDefined(attributeType, inherit);
+		public DataBossTableColumn(DataBossDbType columnType, ICustomAttributeProvider attributes, string name) {
+			this.ColumnType = columnType;
+			this.attributes = attributes;
+			this.Name = name;
 		}
 
+		public object[] GetCustomAttributes(Type attributeType, bool inherit) =>
+			attributes.GetCustomAttributes(attributeType, inherit);
+
+		public object[] GetCustomAttributes(bool inherit) =>
+			attributes.GetCustomAttributes(inherit);
+
+		public bool IsDefined(Type attributeType, bool inherit) =>
+			attributes.IsDefined(attributeType, inherit);
+	}
+
+	public class DataBossScripter
+	{
 		class DataBossTable
 		{
 			readonly List<DataBossTableColumn> columns;
@@ -92,22 +92,47 @@ namespace DataBoss.Data.Scripting
 			ScriptTable(DataBossTable.From(tableType), new StringBuilder()).ToString();
 
 		public string ScriptTable(string name, IDataReader reader) {
-			var columns = new List<DataBossTableColumn>();
+			var table = new DataBossTable(name, string.Empty, GetColumns(reader));
+			return ScriptTable(table, new StringBuilder()).ToString();
+		}
+
+		public string ScriptValuesTable(string name, IDataReader reader) {
+			var result = new StringBuilder("(values");
+			var columns = new DataBossScripter().GetColumns(reader);
+			var row = new object[reader.FieldCount];
+			while (reader.Read()) {
+				result.Append("\r\n  (");
+				reader.GetValues(row);
+				for (var i = 0; i != columns.Length; ++i)
+					result.Append(columns[i].ColumnType.FormatValue(row[i])).Append(", ");
+				result.Length -= 2;
+				result.Append("),");
+			}
+			result.Length -= 1;
+			result.Append(") ").Append(name).Append('(');
+			foreach(var item in columns)
+				result.Append('[').Append(item.Name).Append("], ");
+			result.Length -= 2;
+			result.Append(')');
+			return result.ToString();
+
+		}
+
+		public DataBossTableColumn[] GetColumns(IDataReader reader) {
 			var schema = reader.GetSchemaTable();
 			var isNullable = schema.Columns[DataReaderSchemaColumns.AllowDBNull];
 			var columnSize = schema.Columns[DataReaderSchemaColumns.ColumnSize];
-			for(var i = 0; i != reader.FieldCount; ++i) {
+			var columns = new DataBossTableColumn[reader.FieldCount];
+			for (var i = 0; i != reader.FieldCount; ++i) {
 				var r = schema.Rows[i];
-				columns.Add(new DataBossTableColumn(DataBossDbType.Create(
+				columns[i] = new DataBossTableColumn(DataBossDbType.Create(
 					reader.GetDataTypeName(i),
-					(columnSize == null  || r[columnSize] is DBNull) ? new int?(): (int)r[columnSize],
-					(bool)r[isNullable]), 
-					NullAttributeProvider.Instance, 
-					reader.GetName(i)));
+					(columnSize == null || r[columnSize] is DBNull) ? new int?() : (int)r[columnSize],
+					(bool)r[isNullable]),
+					NullAttributeProvider.Instance,
+					reader.GetName(i));
 			}
-
-			var table = new DataBossTable(name, string.Empty, columns);
-			return ScriptTable(table, new StringBuilder()).ToString();
+			return columns;
 		}
 
 		StringBuilder ScriptTable(DataBossTable table, StringBuilder result) {

@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Data;
 using System.Data.Common;
+using DataBoss.Data.Scripting;
 
 namespace DataBoss.Data
 {
@@ -15,6 +16,12 @@ namespace DataBoss.Data
 			this.inner = inner;
 			this.onClose = onClose;
 		}
+
+		public event EventHandler RowRead;
+
+		public object State;
+
+		public DataBossTableColumn[] GetColumns() => new DataBossScripter().GetColumns(this);
 		
 		public override void Close() {
 			if(onClose == null)
@@ -78,6 +85,7 @@ namespace DataBoss.Data
 		public override bool Read() {
 			if(inner.Read()) {
 				++rowCount;
+				RowRead?.Invoke(this, EventArgs.Empty);
 				return true;
 			}
 			return false;

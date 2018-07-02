@@ -25,6 +25,14 @@ namespace DataBoss.Specs
 )");
 		}
 
+		public void script_reader_as_values_table() {
+			var scripter = new DataBossScripter();
+			var data = SequenceDataReader.Create(new[] { new { Id = 1, Value = "Hello" } }, x => x.MapAll());
+			Check.That(() => scripter.ScriptValuesTable("Hello", data) ==
+@"(values
+  (1, N'Hello')) Hello([Id], [Value])");
+		}
+
 		public void can_script_history_table() {
 			var scripter = new DataBossScripter();
 
