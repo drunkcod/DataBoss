@@ -53,8 +53,10 @@ namespace DataBoss.Data
 
 		void Insert(string destinationTable, IDataReader toInsert, DataBossBulkCopySettings settings) {
 			var s = Stopwatch.StartNew();
-			using(var rows = new ProfiledDataReader(toInsert, (r, n) => BulkCopyFinished?.Invoke(this, new ProfiledBulkCopyFinishedEventArgs(destinationTable, r, n, s.Elapsed)))) { 
-				BulkCopyStarting?.Invoke(this, new ProfiledBulkCopyStartingEventArgs(destinationTable, rows));
+			ProfiledBulkCopyContext context = null;
+			using(var rows = new ProfiledDataReader(toInsert, (r, n) => BulkCopyFinished?.Invoke(this, new ProfiledBulkCopyFinishedEventArgs(context, n, s.Elapsed)))) { 
+				context = new ProfiledBulkCopyContext(destinationTable, rows);
+				BulkCopyStarting?.Invoke(this, new ProfiledBulkCopyStartingEventArgs(context));
 				inner.Insert(destinationTable, rows, settings);
 			}
 		}
@@ -116,27 +118,45 @@ namespace DataBoss.Data
 		}
 	}
 
-	public class ProfiledBulkCopyStartingEventArgs : EventArgs 
+	public class ProfiledBulkCopyContext
 	{
 		public readonly string DestinationTable;
 		public readonly ProfiledDataReader Rows;
+		public object State;
 
-		public ProfiledBulkCopyStartingEventArgs(string destinationTable, ProfiledDataReader rows) {
+		public ProfiledBulkCopyContext(string destinationTable, ProfiledDataReader rows) {
 			this.DestinationTable = destinationTable;
 			this.Rows = rows;
+		}
+	}
+
+	public class ProfiledBulkCopyStartingEventArgs : EventArgs 
+	{
+		readonly ProfiledBulkCopyContext context;
+
+		public string DestinationTable => context.DestinationTable;
+		public ProfiledDataReader Rows => context.Rows;
+		public object State {
+			get => context.State;
+			set => context.State = value;
+		}
+
+		public ProfiledBulkCopyStartingEventArgs(ProfiledBulkCopyContext context) {
+			this.context = context;
 		}
 	}
 	
 	public class ProfiledBulkCopyFinishedEventArgs : EventArgs 
 	{
-		public readonly string DestinationTable;
+		readonly ProfiledBulkCopyContext context;
+		public string DestinationTable => context.DestinationTable;
+		public ProfiledDataReader Rows => context.Rows;
+		public object State => context.State;
 		public readonly TimeSpan Elapsed;
-		public readonly ProfiledDataReader Rows;
 		public readonly int RowCount;
 
-		public ProfiledBulkCopyFinishedEventArgs(string destinationTable, ProfiledDataReader rows, int rowCount, TimeSpan elapsed) {
-			this.DestinationTable = destinationTable;
-			this.Rows = rows;
+		public ProfiledBulkCopyFinishedEventArgs(ProfiledBulkCopyContext context, int rowCount, TimeSpan elapsed) {
+			this.context = context;
 			this.RowCount = rowCount;
 			this.Elapsed = elapsed;
 		}

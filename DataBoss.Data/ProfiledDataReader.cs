@@ -19,8 +19,6 @@ namespace DataBoss.Data
 
 		public event EventHandler RowRead;
 
-		public object State;
-
 		public DataBossTableColumn[] GetColumns() => new DataBossScripter().GetColumns(this);
 		
 		public override void Close() {
