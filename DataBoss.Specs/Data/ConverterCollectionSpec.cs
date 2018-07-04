@@ -32,9 +32,9 @@ namespace DataBoss.Data
 		public void standard_conversions(Type from, object input, Type to) {
 			var value = Expression.Parameter(from);
 			var output = Convert.ChangeType(input, to);
-			var found = ConverterCollection.StandardConversions.TryGetConverter(value, to, out var converter);
+			Expression converter = null;
+			Assume.That(() => ConverterCollection.StandardConversions.TryGetConverter(value, to, out converter));
 
-			Check.That(() => found);
 			Check.That(() => Expression.Lambda(converter, value).Compile().DynamicInvoke(input).Equals(output));
 		}
 
@@ -42,11 +42,10 @@ namespace DataBoss.Data
 			var converters = new ConverterCollection(ConverterCollection.StandardConversions);
 			converters.Add(new Func<int, string>(x => x.ToString()));
 			var input = Expression.Parameter(typeof(byte));
-			var found = converters.TryGetConverter(input, typeof(string), out var c);
+			Expression converter = null;
+			Assume.That(() => converters.TryGetConverter(input, typeof(string), out converter));
 
-			Check.That(() => found);
-			Check.That(() => Expression.Lambda(c, input).Compile().DynamicInvoke((byte)7).Equals("7"));
-
+			Check.That(() => Expression.Lambda(converter, input).Compile().DynamicInvoke((byte)7).Equals("7"));
 		}
 	}
 }
