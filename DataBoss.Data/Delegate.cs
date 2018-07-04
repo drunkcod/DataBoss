@@ -17,5 +17,6 @@ namespace DataBoss.Data
 			(T)(object)System.Delegate.CreateDelegate(typeof(T), type.GetMethod(methodName, types));
 
 		public static T Id<T>(T id) => id;
+		public static T Default<T>() => default(T);
 	}
 }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Linq.Expressions;
 
 namespace DataBoss.Data
@@ -78,7 +79,12 @@ namespace DataBoss.Data
 				converter = converters[found].MakeConverter(from, to);
 				return true;
 			}
-			if(inner != null)
+
+			foreach (var item in converters.Where(x => x.To == to))
+				if (TryGetConverter(from, item.From, out var outer))
+					return TryGetConverter(outer, to, out converter);
+
+			if (inner != null)
 				return inner.TryGetConverter(from, to, out converter);
 			converter = null;
 			return false;

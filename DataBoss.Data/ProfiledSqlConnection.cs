@@ -5,6 +5,7 @@ using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
 using System.Diagnostics;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using DataBoss.Data.Scripting;
@@ -18,6 +19,8 @@ namespace DataBoss.Data
 		public ProfiledSqlConnection(SqlConnection inner) {
 			this.inner = inner;
 		}
+
+		public ProfiledSqlConnectionTraceWriter StartTrace(TextWriter target) => new ProfiledSqlConnectionTraceWriter(this, target);
 
 		public override string ConnectionString { 
 			get => inner.ConnectionString; 
@@ -36,7 +39,6 @@ namespace DataBoss.Data
 		public event EventHandler<ProfiledSqlCommandExecutedEventArgs> ReaderClosed;
 
 		public event EventHandler<ProfiledBulkCopyStartingEventArgs> BulkCopyStarting;
-		public event EventHandler<ProfiledBulkCopyFinishedEventArgs> BulkCopyFinished;
 
 		protected override DbCommand CreateDbCommand() => new ProfiledSqlCommand(this, inner.CreateCommand());
 		protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel) => inner.BeginTransaction(isolationLevel);
@@ -52,11 +54,8 @@ namespace DataBoss.Data
 		}
 
 		void Insert(string destinationTable, IDataReader toInsert, DataBossBulkCopySettings settings) {
-			var s = Stopwatch.StartNew();
-			ProfiledBulkCopyContext context = null;
-			using(var rows = new ProfiledDataReader(toInsert, (r, n) => BulkCopyFinished?.Invoke(this, new ProfiledBulkCopyFinishedEventArgs(context, n, s.Elapsed)))) { 
-				context = new ProfiledBulkCopyContext(destinationTable, rows);
-				BulkCopyStarting?.Invoke(this, new ProfiledBulkCopyStartingEventArgs(context));
+			using(var rows = new ProfiledDataReader(toInsert)) {
+				BulkCopyStarting?.Invoke(this, new ProfiledBulkCopyStartingEventArgs(destinationTable, rows));
 				inner.Insert(destinationTable, rows, settings);
 			}
 		}
@@ -79,8 +78,8 @@ namespace DataBoss.Data
 			public void OnExecuted(int rowCount) =>
 				((ProfiledSqlConnection)parent.Connection).CommandExecuted?.Invoke(this, new ProfiledSqlCommandExecutedEventArgs(parent, stopwatch.Elapsed, rowCount));
 
-			public void OnReaderClosed(ProfiledDataReader _, int rowCount) =>
-				((ProfiledSqlConnection)parent.Connection).ReaderClosed?.Invoke(this, new ProfiledSqlCommandExecutedEventArgs(parent, stopwatch.Elapsed, rowCount));
+			public void OnReaderClosed(object sender, ProfiledDataReaderClosedEventArgs e) =>
+				((ProfiledSqlConnection)parent.Connection).ReaderClosed?.Invoke(this, new ProfiledSqlCommandExecutedEventArgs(parent, stopwatch.Elapsed, e.RowCount));
 		}
 
 		internal ExecutionScope OnExecuting(ProfiledSqlCommand command) {
@@ -118,47 +117,14 @@ namespace DataBoss.Data
 		}
 	}
 
-	public class ProfiledBulkCopyContext
+	public class ProfiledBulkCopyStartingEventArgs : EventArgs 
 	{
 		public readonly string DestinationTable;
 		public readonly ProfiledDataReader Rows;
-		public object State;
 
-		public ProfiledBulkCopyContext(string destinationTable, ProfiledDataReader rows) {
+		public ProfiledBulkCopyStartingEventArgs(string destinationTable, ProfiledDataReader rows) {
 			this.DestinationTable = destinationTable;
 			this.Rows = rows;
-		}
-	}
-
-	public class ProfiledBulkCopyStartingEventArgs : EventArgs 
-	{
-		readonly ProfiledBulkCopyContext context;
-
-		public string DestinationTable => context.DestinationTable;
-		public ProfiledDataReader Rows => context.Rows;
-		public object State {
-			get => context.State;
-			set => context.State = value;
-		}
-
-		public ProfiledBulkCopyStartingEventArgs(ProfiledBulkCopyContext context) {
-			this.context = context;
-		}
-	}
-	
-	public class ProfiledBulkCopyFinishedEventArgs : EventArgs 
-	{
-		readonly ProfiledBulkCopyContext context;
-		public string DestinationTable => context.DestinationTable;
-		public ProfiledDataReader Rows => context.Rows;
-		public object State => context.State;
-		public readonly TimeSpan Elapsed;
-		public readonly int RowCount;
-
-		public ProfiledBulkCopyFinishedEventArgs(ProfiledBulkCopyContext context, int rowCount, TimeSpan elapsed) {
-			this.context = context;
-			this.RowCount = rowCount;
-			this.Elapsed = elapsed;
 		}
 	}
 }

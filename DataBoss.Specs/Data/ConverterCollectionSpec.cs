@@ -36,6 +36,16 @@ namespace DataBoss.Data
 
 			Check.That(() => found);
 			Check.That(() => Expression.Lambda(converter, value).Compile().DynamicInvoke(input).Equals(output));
+		}
+
+		public void supports_multi_level_conversion() {
+			var converters = new ConverterCollection(ConverterCollection.StandardConversions);
+			converters.Add(new Func<int, string>(x => x.ToString()));
+			var input = Expression.Parameter(typeof(byte));
+			var found = converters.TryGetConverter(input, typeof(string), out var c);
+
+			Check.That(() => found);
+			Check.That(() => Expression.Lambda(c, input).Compile().DynamicInvoke((byte)7).Equals("7"));
 
 		}
 	}

@@ -8,6 +8,7 @@ namespace DataBoss.Data
 {
 	public class SqlCommandEnumerable<T> : IEnumerable<T>
 	{
+		static T NoRowsReturned() => throw new InvalidOperationException("No rows returned.");
 		readonly Func<SqlCommand> getCommand;
 		readonly Func<SqlDataReader, Func<SqlDataReader, T>> converterFactory;
 
@@ -19,8 +20,8 @@ namespace DataBoss.Data
 		public List<T> ToList(RetryStrategy retry) =>
 			retry.Execute(() => new List<T>(this));
 
-		public T Single(RetryStrategy retry) => SingleCore(retry, () => throw new InvalidOperationException("No rows returned."));
-		public T SingleOrDefault(RetryStrategy retry) => SingleCore(retry, () => default(T));
+		public T Single(RetryStrategy retry) => SingleCore(retry, NoRowsReturned);
+		public T SingleOrDefault(RetryStrategy retry) => SingleCore(retry, Lambdas.Default<T>);
 
 		T SingleCore(RetryStrategy retry, Func<T> handleDefault) {
 			for(var n = 1;; ++n) { 

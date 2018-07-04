@@ -1,7 +1,12 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
+using System.Data.SqlClient;
+using System.Diagnostics;
+using System.IO;
+using System.Text;
 using DataBoss.Data.Scripting;
 
 namespace DataBoss.Data
@@ -9,23 +14,24 @@ namespace DataBoss.Data
 	public class ProfiledDataReader : DbDataReader
 	{
 		readonly IDataReader inner;
+		readonly Stopwatch stopwatch = Stopwatch.StartNew();
 		int rowCount = 0;
-		Action<ProfiledDataReader, int> onClose;
 
-		internal ProfiledDataReader(IDataReader inner, Action<ProfiledDataReader, int> onClose) {
+		internal ProfiledDataReader(IDataReader inner) {
 			this.inner = inner;
-			this.onClose = onClose;
 		}
 
 		public event EventHandler RowRead;
+		public event EventHandler<ProfiledDataReaderClosedEventArgs> Closed;
 
 		public DataBossTableColumn[] GetColumns() => new DataBossScripter().GetColumns(this);
 		
 		public override void Close() {
-			if(onClose == null)
+			if(!stopwatch.IsRunning)
 				return;
-			onClose(this, rowCount);
-			onClose = null;
+
+			stopwatch.Stop();
+			Closed?.Invoke(this, new ProfiledDataReaderClosedEventArgs(rowCount, stopwatch.Elapsed));
 			inner.Close();
 		}
 
@@ -90,5 +96,16 @@ namespace DataBoss.Data
 		}
 
 		public override DataTable GetSchemaTable() => inner.GetSchemaTable();
+	}
+
+	public class ProfiledDataReaderClosedEventArgs : EventArgs
+	{
+		public readonly TimeSpan Elapsed;
+		public readonly int RowCount;
+
+		public ProfiledDataReaderClosedEventArgs(int rowCount, TimeSpan elapsed) {
+			this.RowCount = rowCount;
+			this.Elapsed = elapsed;
+		}
 	}
 }

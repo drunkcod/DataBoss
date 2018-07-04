@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
@@ -71,7 +71,8 @@ namespace DataBoss.Data
 			var s = parent.OnExecuting(this);
 			var reader = ExecuteReader(behavior);
 			var t = parent.OnReaderCreated(this);
-			var r = new ProfiledDataReader(reader, t.OnReaderClosed);
+			var r = new ProfiledDataReader(reader);
+			r.Closed += t.OnReaderClosed;
 			s.OnExecuted(0);
 			return r;
 		}
