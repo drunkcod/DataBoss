@@ -38,8 +38,8 @@ namespace DataBoss.Data
 			Check.That(() => Expression.Lambda(converter, value).Compile().DynamicInvoke(input).Equals(output));
 		}
 
-		public void supports_multi_level_conversion() {
-			var converters = new ConverterCollection(ConverterCollection.StandardConversions);
+		public void shims_in_standard_conversions_when_possible() {
+			var converters = new ConverterCollection();
 			converters.Add(new Func<int, string>(x => x.ToString()));
 			var input = Expression.Parameter(typeof(byte));
 			Expression converter = null;
@@ -47,5 +47,8 @@ namespace DataBoss.Data
 
 			Check.That(() => Expression.Lambda(converter, input).Compile().DynamicInvoke((byte)7).Equals("7"));
 		}
+
+		public void cant_modify_standard_converter_collections() => Check.Exception<NotSupportedException>(
+			() => ConverterCollection.StandardConversions.Add((int x) => x.ToString()));
 	}
 }
