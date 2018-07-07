@@ -36,14 +36,65 @@ namespace DataBoss.Data
 			var command = Expression.Parameter(commandType);
 			var args = Expression.Parameter(argType);
 
-			return Expression.Lambda(
-				Expression.Block(
-					ExtractValues(command, "@", args).Concat(new[]{ Expression.Empty() })), 
-					command, args);
+			var extractor = ExtractorContext.For(command);
+			ExtractValues(extractor, "@", args);
+			return Expression.Lambda(extractor.GetResult(), command, args);
 		}
 
-		static IEnumerable<Expression> ExtractValues(Expression target, string prefix, Expression input) {
-			var createParameter = target.Type.GetMethod(nameof(IDbCommand.CreateParameter), Type.EmptyTypes);
+		class ExtractorContext
+		{
+			readonly PropertyInfo parameterName = typeof(IDataParameter).GetProperty(nameof(IDataParameter.ParameterName));
+			readonly PropertyInfo parameterValue = typeof(IDataParameter).GetProperty(nameof(IDbDataParameter.Value));
+
+			readonly MethodInfo createParameter;
+			readonly PropertyInfo getParameters;
+			readonly MethodInfo addParameter;
+			readonly List<Expression> extractedValues = new List<Expression>();
+
+			public readonly Expression Target;
+
+			public Type TypeOfParameters => createParameter.ReturnType;
+
+			ExtractorContext(Expression target, MethodInfo createParameter, PropertyInfo getParameters, MethodInfo addParameter) {
+				this.Target = target;
+				this.createParameter = createParameter;
+				this.getParameters = getParameters;
+				this.addParameter = addParameter;
+			}
+
+			public Expression GetResult() => Expression.Block(extractedValues.Concat(new[] { Expression.Empty() }));
+
+			public static ExtractorContext For(Expression target) {
+				var createParameter = target.Type.GetMethod(nameof(IDbCommand.CreateParameter), Type.EmptyTypes);
+				var getParameters = target.Type.GetProperty(nameof(IDbCommand.Parameters), BindingFlags.DeclaredOnly | BindingFlags.Instance | BindingFlags.Public)
+					?? typeof(IDbCommand).GetProperty(nameof(IDbCommand.Parameters));
+				var addParameter = getParameters.PropertyType.GetMethod("Add", new[] { createParameter.ReturnType })
+					?? typeof(IList).GetMethod(nameof(IList.Add));
+				return new ExtractorContext(target, createParameter, getParameters, addParameter);
+			}
+
+			public ParameterExpression CreatParameter(string name) => 
+				Expression.Variable(TypeOfParameters, name);
+
+			public void AddParameter(ParameterExpression p, Expression initP) {
+				var setP = Expression.Assign(p, CreateParameter());
+				var nameP = Expression.Assign(
+					Expression.MakeMemberAccess(p, parameterName),
+					Expression.Constant(p.Name));
+
+				initP = Expression.Assign(
+					Expression.MakeMemberAccess(p, parameterValue),
+					initP);
+
+				extractedValues.Add(Expression.Block(new[] { p }, setP, nameP, initP, AddParameter(p)));
+			}
+
+			MethodCallExpression CreateParameter() => Expression.Call(Target, createParameter);
+			Expression GetParameterCollection() => Expression.MakeMemberAccess(Target, getParameters);
+			Expression AddParameter(Expression p) => Expression.Call(GetParameterCollection(), addParameter, p);
+		}
+
+		static void ExtractValues(ExtractorContext extractor, string prefix, Expression input) {
 
 			foreach (var value in input.Type.GetProperties()
 				.Where(x => x.CanRead)
@@ -52,7 +103,7 @@ namespace DataBoss.Data
 				var name = prefix + value.Name;
 				var readMember = Expression.MakeMemberAccess(input, value);
 
-				var p = Expression.Variable(createParameter.ReturnType);
+				var p = extractor.CreatParameter(name);
 				Expression initP = null;
 				if (HasSqlTypeMapping(readMember.Type))
 					initP = MakeParameter(p, readMember);
@@ -61,47 +112,29 @@ namespace DataBoss.Data
 				else if(readMember.Type == typeof(RowVersion))
 					initP = MakeRowVersionParameter(p, readMember);
 				
-				if(initP != null) {
-					var setP = Expression.Assign(p, Expression.Call(target, createParameter));
-					var targetPs = Expression.MakeMemberAccess(target, typeof(IDbCommand).GetProperty(nameof(IDbCommand.Parameters)));
-					var addP = Expression.Call(targetPs, typeof(IList).GetMethod(nameof(IList.Add)), p);
-					var nameP = Expression.Assign(
-						Expression.MakeMemberAccess(p, typeof(IDataParameter).GetProperty(nameof(IDataParameter.ParameterName))),
-						Expression.Constant(name));
-
-					yield return Expression.Block(new[] { p }, setP, nameP, initP, addP);
-				}
+				if(initP != null)
+					extractor.AddParameter(p, initP);
 				else
-					foreach (var item in ExtractValues(target, name + "_", readMember))
-						yield return item;
+					ExtractValues(extractor, name + "_", readMember);
 			}
 		}
 
 		public static bool HasSqlTypeMapping(Type t) => t.IsPrimitive || mappedTypes.Contains(t);
 
-		static Expression MakeParameter(Expression p, Expression value) { 	
-			return Expression.Assign(
-				Expression.MakeMemberAccess(p, typeof(IDataParameter).GetProperty(nameof(IDbDataParameter.Value))),
-				Expression.Convert(value, typeof(object)));
-		}
+		static Expression MakeParameter(Expression p, Expression value) => 
+			Expression.Convert(value, typeof(object));
 
-		static Expression MakeParameterFromNullable(Expression p, Expression value) {
-			return Expression.Assign(
-				Expression.MakeMemberAccess(p, typeof(IDataParameter).GetProperty(nameof(IDbDataParameter.Value))),
-					Expression.Condition(
-							Expression.MakeMemberAccess(value, value.Type.GetProperty(nameof(Nullable<int>.HasValue))),
-								Expression.Convert(Expression.MakeMemberAccess(value, value.Type.GetProperty(nameof(Nullable<int>.Value))), typeof(object)),
-								Expression.Block(
-									Expression.Assign(
-										Expression.MakeMemberAccess(p, typeof(IDataParameter).GetProperty(nameof(IDataParameter.DbType))), Expression.Constant(DataBossDbType.ToDbType(value.Type.GetGenericArguments()[0]))),
-									Expression.Constant(DBNull.Value, typeof(object)))));
-		}
+		static Expression MakeParameterFromNullable(Expression p, Expression value) =>
+			Expression.Condition(
+				Expression.MakeMemberAccess(value, value.Type.GetProperty(nameof(Nullable<int>.HasValue))),
+					Expression.Convert(Expression.MakeMemberAccess(value, value.Type.GetProperty(nameof(Nullable<int>.Value))), typeof(object)),
+					Expression.Block(
+						Expression.Assign(
+							Expression.MakeMemberAccess(p, typeof(IDataParameter).GetProperty(nameof(IDataParameter.DbType))), 
+								Expression.Constant(DataBossDbType.ToDbType(value.Type.GetGenericArguments()[0]))),
+						Expression.Constant(DBNull.Value, typeof(object))));
 
 		static Expression MakeRowVersionParameter(Expression p, Expression value) {
-			var setValue = Expression.Assign(
-				Expression.MakeMemberAccess(p, typeof(IDataParameter).GetProperty(nameof(IDbDataParameter.Value))),
-				Expression.Convert(Expression.Field(value, nameof(RowVersion.Value)), typeof(object)));
-
 			var setType = p.Type == typeof(SqlParameter)
 				? Expression.Assign(
 					Expression.MakeMemberAccess(p, typeof(SqlParameter).GetProperty(nameof(SqlParameter.SqlDbType))),
@@ -110,15 +143,14 @@ namespace DataBoss.Data
 					Expression.MakeMemberAccess(p, typeof(IDataParameter).GetProperty(nameof(IDataParameter.DbType))),
 					Expression.Constant(DbType.Binary));
 
-			return Expression.Block(setValue, setType);
+			var setValue = Expression.Convert(Expression.Field(value, nameof(RowVersion.Value)), typeof(object));
+
+			return Expression.Block(setType, setValue);
 		}
 
-		public static void AddTo<T>(IDbCommand command, T args) => 
-			Extractor<IDbCommand,T>.CreateParameters(command, args);
-		
-		public static void AddTo<T>(SqlCommand command, T args) => 
-			Extractor<SqlCommand, T>.CreateParameters(command, args);
-
+		public static void AddTo<TCommand, T>(TCommand command, T args) where TCommand : IDbCommand => 
+			Extractor<TCommand,T>.CreateParameters(command, args);
+	
 		public static SqlParameter[] Invoke<T>(T args) {
 			var cmd = new SqlCommand();
 			AddTo(cmd, args);
