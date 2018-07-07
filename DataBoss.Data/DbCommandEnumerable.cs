@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
 using System.Linq;
 
 namespace DataBoss.Data
@@ -84,14 +83,15 @@ namespace DataBoss.Data
 			public bool MoveNext() {
 				if(reader == null)
 					return false;
-				read: if(!reader.Read()) {
-					if(reader.NextResult())
-						goto read;
-					reader.Dispose();
-					reader = default(TReader);
-					return false;
+				read: if(reader.Read()) 
+					return true;
+				if(reader.NextResult()) {
+					materialize = parent.converterFactory(reader);
+					goto read;
 				}
-				return true;
+				reader.Dispose();
+				reader = default(TReader);
+				return false;
 			}
 
 			public void Reset() { 

@@ -4,6 +4,7 @@ using DataBoss.Data;
 using DataBoss.Data.SqlServer;
 using System;
 using System.Data;
+using System.Data.SqlClient;
 using System.Data.SqlTypes;
 using System.Linq;
 
@@ -12,8 +13,14 @@ namespace DataBoss.Specs
 	[Describe(typeof(ToParams))]
 	public class ToParamsSpec
 	{
+		SqlParameter[] GetParams<T>(T args) {
+			var cmd = new SqlCommand();
+			ToParams.AddTo(cmd, args);
+			return cmd.Parameters.Cast<SqlParameter>().ToArray();
+		}
+
 		public void complext_type() =>
-			Check.With(() => ToParams.Invoke(new { Args = new { Foo = 1, Bar = "Hello" } }))
+			Check.With(() => GetParams(new { Args = new { Foo = 1, Bar = "Hello" } }))
 				.That(
 					x => x.Length == 2,
 					x => x.Any(p => p.ParameterName == "@Args_Foo"),
@@ -31,12 +38,12 @@ namespace DataBoss.Specs
 
 		public void object_is_not_considered_complext() {
 			var nullableInt = new int?();
-			Check.With(() => ToParams.Invoke(new { Value = nullableInt.HasValue ? (object)nullableInt.Value : DBNull.Value }))
+			Check.With(() => GetParams(new { Value = nullableInt.HasValue ? (object)nullableInt.Value : DBNull.Value }))
 				.That(x => x.Length == 1, x => x.Any(p => p.ParameterName == "@Value"));
 		}
 
 		public void nullable_values() => Check.With(() => 
-			ToParams.Invoke(new {
+			GetParams(new {
 				HasValue = new int?(1),
 				NoInt32 = new int?(),
 			}))
@@ -48,7 +55,7 @@ namespace DataBoss.Specs
 				paras => paras[1].SqlDbType == SqlDbType.Int);
 
 		public void RowVersion_as_SqlBinary_value() => Check
-			.With(() => ToParams.Invoke(new { RowVersion = new RowVersion(new byte[8])}))
+			.With(() => GetParams(new { RowVersion = new RowVersion(new byte[8])}))
 			.That(
 				paras => paras.Length == 1,
 				paras => paras[0].ParameterName == "@RowVersion",

@@ -150,11 +150,5 @@ namespace DataBoss.Data
 
 		public static void AddTo<TCommand, T>(TCommand command, T args) where TCommand : IDbCommand => 
 			Extractor<TCommand,T>.CreateParameters(command, args);
-	
-		public static SqlParameter[] Invoke<T>(T args) {
-			var cmd = new SqlCommand();
-			AddTo(cmd, args);
-			return cmd.Parameters.Cast<SqlParameter>().ToArray();
-		}
 	}
 }
