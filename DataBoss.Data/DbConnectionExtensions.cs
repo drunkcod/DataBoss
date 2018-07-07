@@ -15,11 +15,8 @@ namespace DataBoss.Data
 
 		public static IDbCommand CreateCommand<T>(this IDbConnection connection, string cmdText, T args) {
 			var cmd = CreateCommand(connection, cmdText);
-			if(cmd.Parameters is SqlParameterCollection ps) { 
-				ToParams.AddTo(ps, args);
-				return cmd;
-			}
-			throw new NotSupportedException("Don't know how to add args to " + connection);
+			ToParams.AddTo(cmd, args);
+			return cmd;
 		}
 
 		public static object ExecuteScalar(this IDbConnection connection, string commandText) =>

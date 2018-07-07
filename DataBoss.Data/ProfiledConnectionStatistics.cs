@@ -64,7 +64,7 @@ namespace DataBoss.Data
 			var p = new ProfiledCommandParameter[command.Parameters.Count];
 			for (var i = 0; i != p.Length; ++i) {
 				var x = command.Parameters[i];
-				p[i] = new ProfiledCommandParameter(x.ParameterName, DataBossDbType.ToDbType(x), x.Value);
+				p[i] = new ProfiledCommandParameter(x.ParameterName, DataBossDbType.ToDataBossDbType(x), x.Value);
 			}
 			return p;
 		}

@@ -52,7 +52,7 @@ namespace DataBoss.Data
 		static SqlCommand WithQuery<T>(this SqlCommand cmd, string cmdText, T args) {
 			cmd.CommandText = cmdText;
 			cmd.Parameters.Clear();
-			cmd.Parameters.AddRange(ToParams.Invoke(args));
+			ToParams.AddTo(cmd, args);
 			return cmd;
 		}
 	}

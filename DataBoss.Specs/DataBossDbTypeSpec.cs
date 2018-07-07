@@ -52,7 +52,7 @@ namespace DataBoss.Specs
 		,Row(typeof(SqlMoney?), "money", true)
 		,Row(typeof(RowVersion), "binary(8)", false)]
 		public void to_db_type(Type type, string dbType, bool nullable) =>
-			Check.That(() => DataBossDbType.ToDbType(type, new StubAttributeProvider()).ToString() == DataBossDbType.Create(dbType, null, nullable).ToString());
+			Check.That(() => DataBossDbType.ToDataBossDbType(type, new StubAttributeProvider()).ToString() == DataBossDbType.Create(dbType, null, nullable).ToString());
 
 		#pragma warning disable CS0649
 		class MyRowType
@@ -64,17 +64,17 @@ namespace DataBoss.Specs
 
 		public void to_db_type_with_column_type_override() {
 			var column = typeof(MyRowType).GetField(nameof(MyRowType.Value));
-			Check.That(() => DataBossDbType.ToDbType(column.FieldType, column) == DataBossDbType.Create("decimal(18, 5)", null, false));
+			Check.That(() => DataBossDbType.ToDataBossDbType(column.FieldType, column) == DataBossDbType.Create("decimal(18, 5)", null, false));
 		}
 
 		public void RequiredAttribute_string_is_not_null() =>
-			Check.That(() => DataBossDbType.ToDbType(typeof(string), new StubAttributeProvider().Add(new RequiredAttribute())) == DataBossDbType.Create("nvarchar", int.MaxValue, false));
+			Check.That(() => DataBossDbType.ToDataBossDbType(typeof(string), new StubAttributeProvider().Add(new RequiredAttribute())) == DataBossDbType.Create("nvarchar", int.MaxValue, false));
 
 		public void MaxLengthAttribute_controls_string_column_widht()=>
-			Check.That(() => DataBossDbType.ToDbType(typeof(string), new StubAttributeProvider().Add(new MaxLengthAttribute(31))) == DataBossDbType.Create("nvarchar", 31, true));
+			Check.That(() => DataBossDbType.ToDataBossDbType(typeof(string), new StubAttributeProvider().Add(new MaxLengthAttribute(31))) == DataBossDbType.Create("nvarchar", 31, true));
 
 		public void from_DbParameter(DbParameter parameter, string expected) =>
-			Check.That(() => DataBossDbType.ToDbType(parameter).ToString() == expected);
+			Check.That(() => DataBossDbType.ToDataBossDbType(parameter).ToString() == expected);
 
 		public IEnumerable<IRowTestData> DbParameterRows() => 
 			new[] {
@@ -95,21 +95,21 @@ namespace DataBoss.Specs
 
 		public IEnumerable<IRowTestData> FormatValueRows() =>
 			new (DataBossDbType, object, string)[] {
-				(DataBossDbType.ToDbType(typeof(byte)), byte.MinValue, byte.MinValue.ToString()),
-				(DataBossDbType.ToDbType(typeof(byte)), byte.MaxValue, byte.MaxValue.ToString()),
-				(DataBossDbType.ToDbType(typeof(short)), short.MinValue, short.MinValue.ToString()),
-				(DataBossDbType.ToDbType(typeof(short)), short.MaxValue, short.MaxValue.ToString()),
-				(DataBossDbType.ToDbType(typeof(int)), int.MinValue, int.MinValue.ToString()),
-				(DataBossDbType.ToDbType(typeof(int)), int.MaxValue, int.MaxValue.ToString()),
-				(DataBossDbType.ToDbType(typeof(long)), long.MinValue, long.MinValue.ToString()),
-				(DataBossDbType.ToDbType(typeof(long)), long.MaxValue, long.MaxValue.ToString()),
-				(DataBossDbType.ToDbType(typeof(float)), Math.PI, ((float)Math.PI).ToString(CultureInfo.InvariantCulture)),
-				(DataBossDbType.ToDbType(typeof(double)), Math.E, Math.E.ToString(CultureInfo.InvariantCulture)),
-				(DataBossDbType.ToDbType(typeof(DateTime)), new DateTime(2018, 07, 01, 13, 17, 31), "2018-07-01T13:17:31"),
-				(DataBossDbType.ToDbType(typeof(string)), "Hello World", "N'Hello World'"),
-				(DataBossDbType.ToDbType(typeof(string)), "'", "N''''"),
-				(DataBossDbType.ToDbType(typeof(byte[])), new byte[]{ 1, 2, 3 }, "0x010203"),
-				(DataBossDbType.ToDbType(typeof(RowVersion)), new RowVersion(new SqlBinary(new byte[]{ 1, 2, 3, 4, 5, 6, 7, 8 })), "0x0102030405060708"),
+				(DataBossDbType.ToDataBossDbType(typeof(byte)), byte.MinValue, byte.MinValue.ToString()),
+				(DataBossDbType.ToDataBossDbType(typeof(byte)), byte.MaxValue, byte.MaxValue.ToString()),
+				(DataBossDbType.ToDataBossDbType(typeof(short)), short.MinValue, short.MinValue.ToString()),
+				(DataBossDbType.ToDataBossDbType(typeof(short)), short.MaxValue, short.MaxValue.ToString()),
+				(DataBossDbType.ToDataBossDbType(typeof(int)), int.MinValue, int.MinValue.ToString()),
+				(DataBossDbType.ToDataBossDbType(typeof(int)), int.MaxValue, int.MaxValue.ToString()),
+				(DataBossDbType.ToDataBossDbType(typeof(long)), long.MinValue, long.MinValue.ToString()),
+				(DataBossDbType.ToDataBossDbType(typeof(long)), long.MaxValue, long.MaxValue.ToString()),
+				(DataBossDbType.ToDataBossDbType(typeof(float)), Math.PI, ((float)Math.PI).ToString(CultureInfo.InvariantCulture)),
+				(DataBossDbType.ToDataBossDbType(typeof(double)), Math.E, Math.E.ToString(CultureInfo.InvariantCulture)),
+				(DataBossDbType.ToDataBossDbType(typeof(DateTime)), new DateTime(2018, 07, 01, 13, 17, 31), "2018-07-01T13:17:31"),
+				(DataBossDbType.ToDataBossDbType(typeof(string)), "Hello World", "N'Hello World'"),
+				(DataBossDbType.ToDataBossDbType(typeof(string)), "'", "N''''"),
+				(DataBossDbType.ToDataBossDbType(typeof(byte[])), new byte[]{ 1, 2, 3 }, "0x010203"),
+				(DataBossDbType.ToDataBossDbType(typeof(RowVersion)), new RowVersion(new SqlBinary(new byte[]{ 1, 2, 3, 4, 5, 6, 7, 8 })), "0x0102030405060708"),
 			}.Select(x =>
 				new RowTestData(new Cone.Core.Invokable(GetType().GetMethod(nameof(format_value))),
 				new object[] { x.Item1, x.Item2, x.Item3 }));
@@ -119,7 +119,7 @@ namespace DataBoss.Specs
 
 		public IEnumerable<IRowTestData> FormatValueFailRows() =>
 			new[] {
-				(DataBossDbType.ToDbType(typeof(byte)), 1024),
+				(DataBossDbType.ToDataBossDbType(typeof(byte)), 1024),
 			}.Select(x =>
 				new RowTestData(new Cone.Core.Invokable(GetType().GetMethod(nameof(format_value_fail))),
 				new object[] { x.Item1, x.Item2 }));

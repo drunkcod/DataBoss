@@ -42,12 +42,12 @@ namespace DataBoss.Data
 				var format = FormatEx.Replace(command, "$1$${0}");
 				using(var item = args.GetEnumerator())
 					for(var n = 0; item.MoveNext(); ++n) {
-						var p = ToParams.Invoke(toArg(item.Current));
-						for(var i = 0; i != p.Length; ++i)
-							p[i].ParameterName += "$" + n;
+						var first = cmd.Parameters.Count;
+						ToParams.AddTo(cmd, toArg(item.Current));
+						for(var i = first; i != cmd.Parameters.Count; ++i)
+							((IDbDataParameter)cmd.Parameters[i]).ParameterName += "$" + n;
 						q.AppendFormat(format, n);
 						q.AppendLine();
-						(cmd.Parameters as SqlParameterCollection).AddRange(p);
 					}
 				cmd.CommandText = q.ToString();
 				return cmd;

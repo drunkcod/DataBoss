@@ -32,7 +32,7 @@ namespace DataBoss.Data
 			var p = new StringBuilder();
 			var pSep = ",\r\n\t";
 			foreach(SqlParameter item in e.Command.Parameters) {
-				var dbType = DataBossDbType.ToDbType(item);
+				var dbType = DataBossDbType.ToDataBossDbType(item);
 				p.AppendFormat("{0} {1} = {2}{3}", item.ParameterName, dbType, dbType.FormatValue(item.Value), pSep);
 			}
 			if (p.Length != 0) {
@@ -91,7 +91,7 @@ namespace DataBoss.Data
 
 		static string[] FormatParameters(DbCommand command) =>
 			command.Parameters.Cast<SqlParameter>()
-			.Select(p => $"{p.ParameterName} = {DataBossDbType.ToDbType(p).FormatValue(p.Value)}")
+			.Select(p => $"{p.ParameterName} = {DataBossDbType.ToDataBossDbType(p).FormatValue(p.Value)}")
 			.ToArray();
 	}
 }

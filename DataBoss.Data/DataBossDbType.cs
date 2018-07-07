@@ -125,8 +125,8 @@ namespace DataBoss.Data
 			this.extra = extra;
 		}
 
-		public static DataBossDbType ToDbType(Type type) => ToDbType(type, type);
-		public static DataBossDbType ToDbType(Type type, ICustomAttributeProvider attributes) {
+		public static DataBossDbType ToDataBossDbType(Type type) => ToDataBossDbType(type, type);
+		public static DataBossDbType ToDataBossDbType(Type type, ICustomAttributeProvider attributes) {
 			var canBeNull = !type.IsValueType && !attributes.Any<RequiredAttribute>();
 			if (type.TryGetNullableTargetType(out var newTargetType)) {
 				canBeNull = true;
@@ -135,7 +135,7 @@ namespace DataBoss.Data
 			return MapType(type, attributes, canBeNull);
 		}
 
-		public static DataBossDbType ToDbType(IDbDataParameter parameter) { 
+		public static DataBossDbType ToDataBossDbType(IDbDataParameter parameter) { 
 			var t = MapType(parameter.DbType);
 			return t.HasFlag(BossTypeTag.IsVariableSize)
 			? new DataBossDbType(t, true, parameter.Size)
@@ -226,6 +226,20 @@ namespace DataBoss.Data
 				case "System.DateTime": return SqlDbType.DateTime;
 			}
 			return SqlDbType.NVarChar;
+		}
+
+		public static DbType ToDbType(Type type) {
+			switch (type.FullName) {
+				case "System.Byte": return DbType.Byte;
+				case "System.Int16": return DbType.Int16;
+				case "System.Int32": return DbType.Int32;
+				case "System.Int64": return DbType.Int64;
+				case "System.Single": return DbType.Single; ;
+				case "System.Double": return DbType.Double;
+				case "System.Boolean": return DbType.Boolean;
+				case "System.DateTime": return DbType.DateTime;
+			}
+			return DbType.String;
 		}
 
 		public static bool operator==(DataBossDbType a, DataBossDbType b) =>

@@ -48,12 +48,12 @@ namespace DataBoss.Data
 		public int Map(MemberInfo memberInfo) {
 			var m = Expression.MakeMemberAccess(source, memberInfo);
 			var column = memberInfo.SingleOrDefault<ColumnAttribute>()?.Name;
-			return Map(column ?? memberInfo.Name, m.Type, DataBossDbType.ToDbType(m.Type, memberInfo), m);
+			return Map(column ?? memberInfo.Name, m.Type, DataBossDbType.ToDataBossDbType(m.Type, memberInfo), m);
 		}
 
 		public int Map<TField>(string name, Func<T, TField> selector) => 
 			Map(name, typeof(TField),
-				DataBossDbType.ToDbType(typeof(TField), NullAttributeProvider.Instance), 
+				DataBossDbType.ToDataBossDbType(typeof(TField), NullAttributeProvider.Instance), 
 				Expression.Invoke(Expression.Constant(selector), source));
 
 		public int Map(string name, LambdaExpression selector) {
@@ -63,7 +63,7 @@ namespace DataBoss.Data
 			replacer.AddReplacement(selector.Parameters[0], source);
 			return Map(name, 
 				selector.ReturnType, 
-				DataBossDbType.ToDbType(selector.ReturnType, NullAttributeProvider.Instance), 
+				DataBossDbType.ToDataBossDbType(selector.ReturnType, NullAttributeProvider.Instance), 
 				replacer.Visit(selector.Body));
 		}
 

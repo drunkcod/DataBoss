@@ -48,7 +48,7 @@ namespace DataBoss.Data
 
 		public static SqlQueryColumn<T> Null { 
 			get {
-				var dbType = DataBossDbType.ToDbType(typeof(T));
+				var dbType = DataBossDbType.ToDataBossDbType(typeof(T));
 				if(!dbType.IsNullable)
 					throw new InvalidOperationException("Column is not nullable");
 				return new SqlQueryColumn<T>($"cast(null as {dbType})");

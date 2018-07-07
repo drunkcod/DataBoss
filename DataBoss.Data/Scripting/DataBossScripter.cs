@@ -58,7 +58,7 @@ namespace DataBoss.Data.Scripting
 						Name = x.column.Name ?? x.field.Name,
 					})
 					.OrderBy(x => x.Order)
-					.Select(x => new DataBossTableColumn(DataBossDbType.ToDbType(x.FieldType, x.Field), x.Field, x.Name)));
+					.Select(x => new DataBossTableColumn(DataBossDbType.ToDataBossDbType(x.FieldType, x.Field), x.Field, x.Name)));
 			}
 
 			public DataBossTable(string name, string schema, IEnumerable<DataBossTableColumn> columns) {
