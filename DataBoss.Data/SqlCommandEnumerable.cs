@@ -1,19 +1,24 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
 
 namespace DataBoss.Data
 {
-	public class SqlCommandEnumerable<T> : IEnumerable<T>
+	public class DbCommandEnumerable<TCommand, TReader, T> : IEnumerable<T>
+		where TCommand : IDbCommand
+		where TReader : IDataReader
 	{
 		static T NoRowsReturned() => throw new InvalidOperationException("No rows returned.");
-		readonly Func<SqlCommand> getCommand;
-		readonly Func<SqlDataReader, Func<SqlDataReader, T>> converterFactory;
+		readonly Func<TCommand> getCommand;
+		readonly Func<TCommand, TReader> executeReader;
+		readonly Func<TReader, Func<TReader, T>> converterFactory;
 
-		public SqlCommandEnumerable(Func<SqlCommand> getCommand, Func<SqlDataReader, Func<SqlDataReader, T>> converterFactory) {
+		public DbCommandEnumerable(Func<TCommand> getCommand, Func<TCommand, TReader> executeReader, Func<TReader, Func<TReader, T>> converterFactory) {
 			this.getCommand = getCommand;
+			this.executeReader = executeReader;
 			this.converterFactory = converterFactory;
 		}
 
@@ -48,26 +53,21 @@ namespace DataBoss.Data
 			var q = getCommand();
 			if (string.IsNullOrEmpty(q.CommandText))
 				return Enumerable.Empty<T>().GetEnumerator();
-			var r = q.ExecuteReader();
-			try { 
-				return new SqlReaderEnumerator(q, r, converterFactory(r));
-			}
-			catch {
-				r.Dispose();
-				throw;
-			}
+			var e = new DbReaderEnumerator(q, this);
+			e.Reset();
+			return e;
 		}
 
-		class SqlReaderEnumerator : IEnumerator<T>
+		class DbReaderEnumerator : IEnumerator<T>
 		{
-			readonly SqlCommand command;
-			readonly Func<SqlDataReader, T> materialize;
-			SqlDataReader reader;
+			readonly DbCommandEnumerable<TCommand, TReader, T> parent;
+			readonly TCommand command;
+			Func<TReader, T> materialize;
+			TReader reader;
 
-			public SqlReaderEnumerator(SqlCommand command, SqlDataReader reader, Func<SqlDataReader, T> materialize) {
+			public DbReaderEnumerator(TCommand command, DbCommandEnumerable<TCommand, TReader, T> parent) {
+				this.parent = parent;
 				this.command = command;
-				this.reader = reader;
-				this.materialize = materialize;
 			}
 
 			public T Current => materialize(reader);
@@ -88,13 +88,21 @@ namespace DataBoss.Data
 					if(reader.NextResult())
 						goto read;
 					reader.Dispose();
-					reader = null;
+					reader = default(TReader);
 					return false;
 				}
 				return true;
 			}
 
-			public void Reset() => reader = command.ExecuteReader();
+			public void Reset() { 
+				reader = parent.executeReader(command);
+				try { 
+					materialize = parent.converterFactory(reader);
+				} catch {
+					reader.Dispose();
+					throw;
+				}
+			}
 		}
 
 		IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();

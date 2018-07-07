@@ -1,25 +1,35 @@
 using System;
 using System.Collections.Generic;
-using System.Data.SqlClient;
+using System.Data;
 using System.Linq;
 
 namespace DataBoss.Data
 {
-	public struct DbObjectQuery
+	public static class DbObjectQuery
 	{
-		readonly Func<SqlCommand> getCommand;
+		public static DbObjectQuery<IDbCommand, IDataReader> Create(Func<IDbCommand> getCommand) =>
+			new DbObjectQuery<IDbCommand, IDataReader>(getCommand, DbOps<IDbCommand, IDataReader>.ExecuteReader);
+	}
 
-		public DbObjectQuery(Func<SqlCommand> getCommand) {
+	public struct DbObjectQuery<TCommand, TReader> 
+		where TCommand : IDbCommand 
+		where TReader: IDataReader
+	{
+		readonly Func<TCommand> getCommand;
+		readonly Func<TCommand, TReader> executeReader;
+
+		public DbObjectQuery(Func<TCommand> getCommand, Func<TCommand, TReader> executeReader) {
 			this.getCommand = getCommand;
+			this.executeReader = executeReader;
 		}
 
-		public SqlCommandEnumerable<TOutput> Read<TOutput>() => Read(x => ObjectReader.GetConverter<SqlDataReader, TOutput>(x, null));
+		public DbCommandEnumerable<TCommand, TReader, TOutput> Read<TOutput>() => Read(x => ObjectReader.GetConverter<TReader, TOutput>(x, null));
 
-		public SqlCommandEnumerable<TOutput> Read<TOutput>(ConverterCollection converters) => 
-			Read(x => ObjectReader.GetConverter<SqlDataReader, TOutput>(x, converters));
+		public DbCommandEnumerable<TCommand, TReader, TOutput> Read<TOutput>(ConverterCollection converters) => 
+			Read(x => ObjectReader.GetConverter<TReader, TOutput>(x, converters));
 
-		public SqlCommandEnumerable<TOutput> Read<TOutput>(Func<SqlDataReader, Func<SqlDataReader, TOutput>> converterFactory) =>
-			new SqlCommandEnumerable<TOutput>(getCommand, converterFactory);
+		public DbCommandEnumerable<TCommand, TReader, TOutput> Read<TOutput>(Func<TReader, Func<TReader, TOutput>> converterFactory) =>
+			new DbCommandEnumerable<TCommand, TReader, TOutput>(getCommand, executeReader, converterFactory);
 
 		public List<TOutput> ReadWithRetry<TOutput>(RetryStrategy retry) => Read<TOutput>().ToList(retry);
 		public List<TOutput> ReadWithRetry<TOutput>(RetryStrategy retry, ConverterCollection converters) => Read<TOutput>(converters).ToList(retry);

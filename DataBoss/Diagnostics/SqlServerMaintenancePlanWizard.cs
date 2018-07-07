@@ -61,7 +61,7 @@ namespace DataBoss.Diagnostics
 
 		public IEnumerable<SqlServerMaintenancePlan> MakePlans(SqlConnection server, string[] dbs) {
 			var serverName = new SqlConnectionStringBuilder(server.ConnectionString).DataSource;
-			var reader = new DbObjectReader(server) { CommandTimeout = null };
+			var reader = new DbObjectReader<SqlCommand, SqlDataReader>(server.CreateCommand) { CommandTimeout = null };
 
 			foreach (var database in dbs) {
 				if(server.State != ConnectionState.Open)
@@ -75,7 +75,7 @@ namespace DataBoss.Diagnostics
 			}
 		}
 
-		bool TryCreateMaintenancePlan(string serverName, string database, DbObjectReader reader, out KeyValuePair<SqlServerMaintenancePlan, Exception> result) {
+		bool TryCreateMaintenancePlan(string serverName, string database, DbObjectReader<SqlCommand, SqlDataReader> reader, out KeyValuePair<SqlServerMaintenancePlan, Exception> result) {
 			try {
 				result = KeyValuePair.Create(new SqlServerMaintenancePlan(serverName, database, GetMaintenanceCommands(reader).ToArray()), (Exception)null);
 				return true;
@@ -87,7 +87,7 @@ namespace DataBoss.Diagnostics
 
 		}
 
-		IEnumerable<string> GetMaintenanceCommands(DbObjectReader reader) {
+		IEnumerable<string> GetMaintenanceCommands(DbObjectReader<SqlCommand, SqlDataReader> reader) {
 			if(UpdateStatistics)
 				yield return "exec sp_updatestats";
 

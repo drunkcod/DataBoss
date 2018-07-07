@@ -40,7 +40,7 @@ namespace DataBoss.Linq
 			static void ThrowInsufficientSpaceException() => new int[1].CopyTo(new int[0], 0);
 		}
 
-		public static IReadOnlyCollection<T> AsReadOnly<T>(this IReadOnlyCollection<T> self) => AsReadOnly(self, id => id);
+		public static IReadOnlyCollection<T> AsReadOnly<T>(this IReadOnlyCollection<T> self) => AsReadOnly(self, Lambdas.Id<T>);
 		public static IReadOnlyCollection<TItem> AsReadOnly<T, TItem>(this IReadOnlyCollection<T> self, Func<T, TItem> selector) =>
 			new CollectionAdapter<T, TItem>(self, selector);
 
@@ -68,7 +68,7 @@ namespace DataBoss.Linq
 		}
 
 		public static IEnumerable<IGrouping<TKey, TElement>> ChunkBy<TElement, TKey>(this IEnumerable<TElement> items, Func<TElement, TKey> selector) =>
-			ChunkBy(items, selector, id => id);
+			ChunkBy(items, selector, Lambdas.Id<TElement>);
 
 		public static IEnumerable<IGrouping<TKey, TElement>> ChunkBy<T, TKey, TElement>(this IEnumerable<T> items, Func<T, TKey> keySelector, Func<T, TElement> elementSelector) {
 			using (var x = items.GetEnumerator()) {

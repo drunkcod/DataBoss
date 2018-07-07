@@ -1,4 +1,4 @@
-﻿using Cone;
+using Cone;
 using DataBoss.Data;
 using System;
 using System.Data.SqlClient;
@@ -6,7 +6,7 @@ using System.Linq;
 
 namespace DataBoss.Specs.Data
 {
-	[Describe(typeof(SqlCommandEnumerable<>), Category = "Database")]
+	[Describe(typeof(DbCommandEnumerable<,,>), Category = "Database")]
 	public class SqlCommandEnumerableSpec
 	{
 		SqlConnection Db;
@@ -63,7 +63,7 @@ namespace DataBoss.Specs.Data
 			Check.That(() => rowsRead <= 2);
 		}
 
-		SqlCommandEnumerable<int> IntRows(string query) =>
-			new SqlCommandEnumerable<int>(() => Db.CreateCommand(query), r => ReadInt0);
+		DbCommandEnumerable<SqlCommand, SqlDataReader, int> IntRows(string query) =>
+			new DbCommandEnumerable<SqlCommand, SqlDataReader, int>(() => Db.CreateCommand(query), x => x.ExecuteReader(), r => ReadInt0);
 	}
 }

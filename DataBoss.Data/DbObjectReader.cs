@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Text;
@@ -7,11 +8,17 @@ using System.Text.RegularExpressions;
 
 namespace DataBoss.Data
 {
-	public class DbObjectReader
+	public class DbObjectReader<TCommand, TReader>
+		where TCommand : IDbCommand
+		where TReader : IDataReader
 	{
 		static Regex FormatEx = new Regex(@"(@[A-Za-z_]+)");
 
-		readonly SqlConnection db;
+		readonly Func<TCommand> newCommand;
+
+		public DbObjectReader(Func<TCommand> newCommand) {
+			this.newCommand = newCommand;
+		}
 
 		public TimeSpan? CommandTimeout = TimeSpan.FromSeconds(30);
 
@@ -20,16 +27,16 @@ namespace DataBoss.Data
 
 		public T Single<T>(string command) => Read<T>(command).Single();
 
-		public DbObjectQuery Query<T>(string command, T args) =>
-			new DbObjectQuery(() => {
+		public DbObjectQuery<TCommand, TReader> Query<T>(string command, T args) =>
+			new DbObjectQuery<TCommand, TReader>(() => {
 				var cmd = CreateCommand();
 				cmd.CommandText = command;
-				cmd.Parameters.AddRange(ToParams.Invoke(args));
+				ToParams.AddTo(cmd, args);
 				return cmd;
-			});
+			}, DbOps<TCommand, TReader>.ExecuteReader);
 
-		public DbObjectQuery Query<T,T2>(string command, IEnumerable<T> args, Func<T,T2> toArg) =>
-			new DbObjectQuery(() => {
+		public DbObjectQuery<TCommand, TReader> Query<T,T2>(string command, IEnumerable<T> args, Func<T,T2> toArg) =>
+			new DbObjectQuery<TCommand, TReader>(() => {
 				var q = new StringBuilder();
 				var cmd = CreateCommand();
 				var format = FormatEx.Replace(command, "$1$${0}");
@@ -40,20 +47,16 @@ namespace DataBoss.Data
 							p[i].ParameterName += "$" + n;
 						q.AppendFormat(format, n);
 						q.AppendLine();
-						cmd.Parameters.AddRange(p);
+						(cmd.Parameters as SqlParameterCollection).AddRange(p);
 					}
 				cmd.CommandText = q.ToString();
 				return cmd;
-			});
+			}, DbOps<TCommand, TReader>.ExecuteReader);
 
-		SqlCommand CreateCommand()  =>
-			new SqlCommand {
-				Connection = db,
-				CommandTimeout = CommandTimeout.HasValue ? (int)CommandTimeout.Value.TotalSeconds : 0
-			};
-
-		public DbObjectReader(SqlConnection db) {
-			this.db = db;
-		}	
+		TCommand CreateCommand() {
+			var cmd = newCommand();
+			cmd.CommandTimeout = CommandTimeout.HasValue ? (int)CommandTimeout.Value.TotalSeconds : 0;
+			return cmd;
+		}
 	}
 }

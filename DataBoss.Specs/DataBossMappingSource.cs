@@ -69,7 +69,10 @@ namespace DataBoss.Specs
 					if(linqColumn != null) {
 						members.Add(new DataBossDataMember(this, item, item.FieldType, linqColumn.Name));
 					}
-					var column = item.GetCustomAttributes(typeof(System.ComponentModel.DataAnnotations.Schema.ColumnAttribute)).Cast<System.ComponentModel.DataAnnotations.Schema.ColumnAttribute>().SingleOrDefault();
+					var column = item
+						.GetCustomAttributes(typeof(System.ComponentModel.DataAnnotations.Schema.ColumnAttribute))
+						.Cast<System.ComponentModel.DataAnnotations.Schema.ColumnAttribute>()
+						.SingleOrDefault();
 					if(column != null) {
 						members.Add(new DataBossDataMember(this, item, item.FieldType, item.Name));
 					}

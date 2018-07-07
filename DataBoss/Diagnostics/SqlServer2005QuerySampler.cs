@@ -1,13 +1,14 @@
 using System.Collections.Generic;
+using System.Data.SqlClient;
 using DataBoss.Data;
 
 namespace DataBoss.Diagnostics
 {
 	public class SqlServer2005QuerySampler : ISqlServerQuerySampler
 	{
-		readonly DbObjectReader reader;
+		readonly DbObjectReader<SqlCommand, SqlDataReader> reader;
 
-		public SqlServer2005QuerySampler(DbObjectReader reader) {
+		public SqlServer2005QuerySampler(DbObjectReader<SqlCommand, SqlDataReader> reader) {
 			this.reader = reader;
 		}
 

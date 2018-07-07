@@ -84,6 +84,8 @@ namespace DataBoss.Data
 
 		public static SqlParameter[] Invoke<T>(T input) => Extractor<T>.GetParameters(input);
 
-		public static void AddTo<T>(SqlCommand command, T args) => command.Parameters.AddRange(Invoke(args));
+		public static void AddTo<T>(IDbCommand command, T args) => AddTo((SqlParameterCollection)command.Parameters, args);
+		public static void AddTo<T>(SqlCommand command, T args) => AddTo(command.Parameters, args);
+		public static void AddTo<T>(SqlParameterCollection parameters, T args) => parameters.AddRange(Invoke(args));
 	}
 }

@@ -5,11 +5,11 @@ using System.Linq;
 
 namespace DataBoss.Specs.Data
 {
-	[Describe(typeof(DbObjectReader), Category = "Database")]
+	[Describe(typeof(DbObjectReader<,>), Category = "Database")]
 	public class DbObjectReaderSpec
 	{
 		SqlConnection Db;
-		DbObjectReader DbReader;
+		DbObjectReader<SqlCommand, SqlDataReader> DbReader;
 
 		#pragma warning disable CS0649
 		struct Row { public int Value; }
@@ -19,7 +19,7 @@ namespace DataBoss.Specs.Data
 		public void given_a_object_reader() {
 			Db = new SqlConnection("Server=.;Integrated Security=SSPI");
 			Db.Open();
-			DbReader = new DbObjectReader(Db);
+			DbReader = new DbObjectReader<SqlCommand, SqlDataReader>(Db.CreateCommand);
 		}
 
 		public void multi_resultset_query() {

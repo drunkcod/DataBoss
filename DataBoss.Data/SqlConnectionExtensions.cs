@@ -5,42 +5,7 @@ using System.Data.SqlClient;
 using DataBoss.Data.Scripting;
 
 namespace DataBoss.Data
-{	
-	public static class DbConnectionExtensions
-	{
-		public static IDbCommand CreateCommand(this IDbConnection connection, string commandText) {
-			var c = connection.CreateCommand();
-			c.CommandText = commandText;
-			return c;
-		}
-
-		public static object ExecuteScalar(this IDbConnection connection, string commandText) {
-			using(var c = connection.CreateCommand(commandText))
-				return c.ExecuteScalar();
-		}
-
-		public static int ExecuteNonQuery(this IDbConnection connection, string commandText) {
-			using(var c = connection.CreateCommand(commandText))
-				return c.ExecuteNonQuery();
-		}
-
-		public static void Into<T>(this IDbConnection connection, string destinationTable, IEnumerable<T> rows) =>
-			Into(connection, destinationTable, rows, new DataBossBulkCopySettings());
-		
-		public static void Into<T>(this IDbConnection connection, string destinationTable, IEnumerable<T> rows, DataBossBulkCopySettings settings) {
-			switch(connection) {
-				case SqlConnection con: 
-					SqlConnectionExtensions.Into(con, destinationTable, rows, settings);
-					break;
-				case ProfiledSqlConnection con:
-					ProfiledSqlConnection.Into(con, destinationTable, SequenceDataReader.Create(rows, x => x.MapAll()), settings);
-					break;
-				default: throw new NotSupportedException();
-			}
-		}
-
-	}
-
+{
 	public static class SqlConnectionExtensions
 	{
 		public static SqlCommand CreateCommand(this SqlConnection connection, string cmdText) => 

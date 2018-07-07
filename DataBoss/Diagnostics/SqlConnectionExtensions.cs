@@ -7,7 +7,7 @@ namespace DataBoss.Diagnostics
 	{
 		public static DatabaseInfo GetDatabaseInfo(this SqlConnection connection)
 		{
-			var reader = new DbObjectReader(connection);
+			var reader = new DbObjectReader<SqlCommand, SqlDataReader>(connection.CreateCommand);
 			return reader.Single<DatabaseInfo>(@"
 				select 
 					ServerName = cast(serverproperty('ServerName') as nvarchar(max)),

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Data.SqlClient;
 using System.Linq;
 using DataBoss.Data;
 
@@ -16,9 +17,9 @@ namespace DataBoss.Diagnostics
 		struct QueryText { public byte[] text; }
 		#pragma warning restore CS0649
 
-		readonly DbObjectReader reader;
+		readonly DbObjectReader<SqlCommand,SqlDataReader> reader;
 	
-		public SqlServer2000QuerySampler(DbObjectReader reader) {
+		public SqlServer2000QuerySampler(DbObjectReader<SqlCommand, SqlDataReader> reader) {
 			this.reader = reader;
 		}
 

@@ -42,7 +42,7 @@ namespace DataBoss.Specs
 				new { Value = "Third" },
 			};
 			var newIds = Connection.InsertAndGetIdentities(destinationTableName, newItems);
-			var myStuff = new DbObjectReader(Connection).Read<MyStuffRow>($"select * from {destinationTableName}");
+			var myStuff = new DbObjectReader<SqlCommand, SqlDataReader>(Connection.CreateCommand).Read<MyStuffRow>($"select * from {destinationTableName}");
 
 			Check.With(() => newIds.Zip(myStuff, (x, item) => new { SequenceId = x, item.Id, item.Value }).ToList())
 				.That(

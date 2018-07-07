@@ -1,6 +1,4 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
@@ -12,6 +10,17 @@ using DataBoss.Data.Scripting;
 
 namespace DataBoss.Data
 {
+	public static class ProfiledSqlConnectionExtensions
+	{
+		public static ProfiledSqlConnectionTraceWriter StartTrace(this ProfiledSqlConnection self, TextWriter target) => new ProfiledSqlConnectionTraceWriter(self, target);
+		public static ProfiledSqlConnectionStatistics StartGatheringStatistics(this ProfiledSqlConnection self) {
+			var stats = new ProfiledSqlConnectionStatistics(self) {
+				StatisticsEnabled = true
+			};
+			return stats;
+		}
+	}
+
 	public class ProfiledSqlConnection : DbConnection
 	{
 		readonly SqlConnection inner;
@@ -19,8 +28,6 @@ namespace DataBoss.Data
 		public ProfiledSqlConnection(SqlConnection inner) {
 			this.inner = inner;
 		}
-
-		public ProfiledSqlConnectionTraceWriter StartTrace(TextWriter target) => new ProfiledSqlConnectionTraceWriter(this, target);
 
 		public override string ConnectionString { 
 			get => inner.ConnectionString; 
@@ -34,10 +41,6 @@ namespace DataBoss.Data
 
 		public event EventHandler<ProfiledSqlCommandExecutingEventArgs> CommandExecuting;
 		public event EventHandler<ProfiledSqlCommandExecutedEventArgs> CommandExecuted;
-
-		public event EventHandler<ProfiledSqlCommandExecutingEventArgs> ReaderCreated;
-		public event EventHandler<ProfiledSqlCommandExecutedEventArgs> ReaderClosed;
-
 		public event EventHandler<ProfiledBulkCopyStartingEventArgs> BulkCopyStarting;
 
 		protected override DbCommand CreateDbCommand() => new ProfiledSqlCommand(this, inner.CreateCommand());
@@ -62,7 +65,7 @@ namespace DataBoss.Data
 
 		internal T Execute<T>(ProfiledSqlCommand command, ExecuteT<T> executeT) {
 			var scope = OnExecuting(command);
-			scope.OnExecuted(executeT(command.inner, out var r));
+			scope.OnExecuted(executeT(command.inner, out var r), null);
 			return r;
 		}
 
@@ -75,20 +78,13 @@ namespace DataBoss.Data
 				this.parent = parent;
 			}
 
-			public void OnExecuted(int rowCount) =>
-				((ProfiledSqlConnection)parent.Connection).CommandExecuted?.Invoke(this, new ProfiledSqlCommandExecutedEventArgs(parent, stopwatch.Elapsed, rowCount));
+			public void OnExecuted(int rowCount, ProfiledDataReader reader) =>
+				((ProfiledSqlConnection)parent.Connection).CommandExecuted?.Invoke(this, new ProfiledSqlCommandExecutedEventArgs(parent, stopwatch.Elapsed, rowCount, reader));
 
-			public void OnReaderClosed(object sender, ProfiledDataReaderClosedEventArgs e) =>
-				((ProfiledSqlConnection)parent.Connection).ReaderClosed?.Invoke(this, new ProfiledSqlCommandExecutedEventArgs(parent, stopwatch.Elapsed, e.RowCount));
 		}
 
 		internal ExecutionScope OnExecuting(ProfiledSqlCommand command) {
 			CommandExecuting?.Invoke(this, new ProfiledSqlCommandExecutingEventArgs(command));
-			return new ExecutionScope(command);
-		}
-
-		internal ExecutionScope OnReaderCreated(ProfiledSqlCommand command) {
-			ReaderCreated?.Invoke(this, new ProfiledSqlCommandExecutingEventArgs(command));
 			return new ExecutionScope(command);
 		}
 	}
@@ -107,11 +103,13 @@ namespace DataBoss.Data
 	public class ProfiledSqlCommandExecutedEventArgs : EventArgs
 	{
 		public readonly ProfiledSqlCommand Command;
+		public readonly ProfiledDataReader DataReader;
 		public readonly TimeSpan Elapsed;
 		public readonly int RowCount;
 
-		public ProfiledSqlCommandExecutedEventArgs(ProfiledSqlCommand command, TimeSpan elapsed, int rowCount) {
+		public ProfiledSqlCommandExecutedEventArgs(ProfiledSqlCommand command, TimeSpan elapsed, int rowCount, ProfiledDataReader reader) {
 			this.Command = command;
+			this.DataReader = reader;
 			this.Elapsed = elapsed;
 			this.RowCount = rowCount;
 		}

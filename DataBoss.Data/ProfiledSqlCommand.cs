@@ -65,16 +65,13 @@ namespace DataBoss.Data
 
 		public override int ExecuteNonQuery() => parent.Execute(this, DoExecuteNonQuery);
 		public override object ExecuteScalar() => parent.Execute(this, DoExecuteScalar);
-		public new SqlDataReader ExecuteReader(CommandBehavior behavior) => inner.ExecuteReader(behavior);
+		public new ProfiledDataReader ExecuteReader(CommandBehavior behavior) => new ProfiledDataReader(inner.ExecuteReader(behavior));
 
 		protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior) {
 			var s = parent.OnExecuting(this);
 			var reader = ExecuteReader(behavior);
-			var t = parent.OnReaderCreated(this);
-			var r = new ProfiledDataReader(reader);
-			r.Closed += t.OnReaderClosed;
-			s.OnExecuted(0);
-			return r;
+			s.OnExecuted(0, reader);
+			return reader;
 		}
 
 		public override void Prepare() => inner.Prepare();

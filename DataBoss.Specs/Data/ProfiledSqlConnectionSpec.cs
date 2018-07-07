@@ -53,11 +53,12 @@ namespace DataBoss.Specs.Data
 		}
 
 		public void counts_rows_read() {
-			var commandExecuted = new EventSpy<ProfiledSqlCommandExecutedEventArgs>();
+			var readerClosed = new EventSpy<ProfiledDataReaderClosedEventArgs>();
+			var commandExecuted = new EventSpy<ProfiledSqlCommandExecutedEventArgs>((_, e) => 
+			{
+				e.DataReader.Closed += readerClosed;
+			});
 			con.CommandExecuted += commandExecuted;
-
-			var readerClosed = new EventSpy<ProfiledSqlCommandExecutedEventArgs>();
-			con.ReaderClosed+= readerClosed;
 
 			var q = con.CreateCommand("select Id = 2 union all select 3 union all select 1");
 			using (var r = ObjectReader.For(q.ExecuteReader()))
