@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
@@ -13,7 +14,7 @@ namespace DataBoss.Data
 	public static class ProfiledSqlConnectionExtensions
 	{
 		public static ProfiledSqlConnectionTraceWriter StartTrace(this ProfiledSqlConnection self, TextWriter target) => new ProfiledSqlConnectionTraceWriter(self, target);
-		public static ProfiledSqlConnectionStatistics StartGatheringStatistics(this ProfiledSqlConnection self) {
+		public static ProfiledSqlConnectionStatistics StartGatheringQueryStatistics(this ProfiledSqlConnection self) {
 			var stats = new ProfiledSqlConnectionStatistics(self) {
 				StatisticsEnabled = true
 			};
@@ -38,6 +39,14 @@ namespace DataBoss.Data
 		public override string DataSource => inner.DataSource;
 		public override string ServerVersion => inner.ServerVersion;
 		public override ConnectionState State => inner.State;
+
+		public bool StatisticsEnabled {
+			get => inner.StatisticsEnabled;
+			set => inner.StatisticsEnabled = value;
+		}
+
+		public IDictionary RetrieveStatistics() => inner.RetrieveStatistics();
+		public void ResetStatistics() => inner.ResetStatistics();
 
 		public event EventHandler<ProfiledSqlCommandExecutingEventArgs> CommandExecuting;
 		public event EventHandler<ProfiledSqlCommandExecutedEventArgs> CommandExecuted;

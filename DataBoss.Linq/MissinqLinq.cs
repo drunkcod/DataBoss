@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using DataBoss.Collections;
 
 namespace DataBoss.Linq
 {
@@ -147,6 +148,13 @@ namespace DataBoss.Linq
 						return selector(found);
 					}
 			return default(TValue);
+		}
+
+		public static ICollection<T> ToCollection<T>(this IEnumerable<T> items) {
+			var c = new BlockCollection<T>();
+			foreach(var item in items)
+				c.Add(item);
+			return c;
 		}
 
 		static void ThrowTooManyElementsException() => Enumerable.Range(0, 2).SingleOrDefault(x => true);

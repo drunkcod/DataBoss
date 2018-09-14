@@ -57,7 +57,9 @@ namespace DataBoss.Data
 				Expression.Invoke(Expression.Constant(selector), source));
 
 		public int Map(string name, LambdaExpression selector) {
-			if(selector.Parameters.Single().Type != typeof(T))
+			if(selector.Parameters.Count != 1)
+				throw new InvalidOperationException($"{nameof(LambdaExpression)} must have exactly one parameter for field '{name}'");
+			if(selector.Parameters[0].Type != typeof(T))
 				throw new InvalidOperationException($"Wrong paramter type, expected {typeof(T)}");
 			var replacer = new NodeReplacementVisitor();
 			replacer.AddReplacement(selector.Parameters[0], source);

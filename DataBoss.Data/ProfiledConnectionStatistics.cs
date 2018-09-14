@@ -16,6 +16,9 @@ namespace DataBoss.Data
 			this.StatisticsEnabled = true;
 		}
 
+		public ProviderStatistics? ProviderStatistics =>
+			!connection.StatisticsEnabled ? (ProviderStatistics?)null : Data.ProviderStatistics.From(connection.RetrieveStatistics());
+
 		public bool StatisticsEnabled {
 			get => enabled;
 			set {
