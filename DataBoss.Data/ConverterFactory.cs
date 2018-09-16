@@ -139,7 +139,7 @@ namespace DataBoss.Data
 		}
 
 		ArraySegment<MemberAssignment> GetMembers(ConverterContext context, FieldMap map, Type targetType, ref ChildBinding item) {
-			var fields = targetType.GetFields().Select(x => new { x.Name, x.FieldType, Member = (MemberInfo)x });
+			var fields = targetType.GetFields().Where(x => !x.IsInitOnly).Select(x => new { x.Name, x.FieldType, Member = (MemberInfo)x });
 			var props = targetType.GetProperties().Where(x => x.CanWrite).Select(x => new { x.Name, FieldType = x.PropertyType, Member = (MemberInfo)x });
 			var members = fields.Concat(props).ToArray();
 			var ordinals = new int[members.Length];
@@ -198,7 +198,7 @@ namespace DataBoss.Data
 
 			return false;
 		}
-
+	
 		static Expression OrElse(Expression left, Expression right) {
 			if(left == null)
 				return right;

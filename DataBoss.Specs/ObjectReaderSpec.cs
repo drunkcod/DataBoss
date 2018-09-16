@@ -120,8 +120,9 @@ namespace DataBoss.Specs
 
 		struct StructRow<T> 
 		{
-			public StructRow(T ctorValue) {  this.Value = ctorValue; }
+			public StructRow(T ctorValue) {  this.Value = ctorValue; this.ReadonlyValue = ctorValue; }
 			public T Value; 
+			public readonly T ReadonlyValue;
 		}
 
 		public void can_read_structs() {
@@ -256,7 +257,14 @@ namespace DataBoss.Specs
 			Check
 				.With(() => reader.Read<ValueProp<long?>>().ToArray())
 				.That(x => x[0].Value == 12345);
+		}
 
+		public void doesnt_attempt_to_set_readonly_fields() {
+			var source = new SimpleDataReader(Col<int>("ReadonlyValue"));
+			source.Add(1);
+			Check
+				.With(() => ObjectReader.For(source).Read<StructRow<int>>().ToArray())
+				.That(x => x[0].Value == 0);
 		}
 	}
 }
