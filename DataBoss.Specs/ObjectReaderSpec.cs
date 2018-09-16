@@ -5,6 +5,7 @@ using DataBoss.Migrations;
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -141,6 +142,28 @@ namespace DataBoss.Specs
 				rows => rows[0].Value.Value.Value == expected);
 		}
 
+		public void null_nullable_struct() {
+			var source = new SimpleDataReader(Col<float>("Value.ctorValue")) { new object[]{ null } };
+			var r = ObjectReader.For(source).Read<StructRow<StructRow<float>?>>().ToArray();
+			Check.With(() => r)
+			.That(
+				rows => rows.Length == 1,
+				rows => rows[0].Value.HasValue == false);
+		}
+
+		struct WithNullable
+		{
+			public int? CanBeNull;
+			public int NotNull; 
+		}
+		public void nullable_nullable() {
+			var source = new SimpleDataReader(Col<int>("Value.CanBeNull"), Col<int>("Value.NotNull")) { new object[] { null, 1 } };
+			var r = ObjectReader.For(source).Read<StructRow<WithNullable?>>().ToArray();
+			Check.With(() => r)
+			.That(
+				rows => rows.Length == 1,
+				rows => rows[0].Value.Equals(new WithNullable { NotNull = 1 }));
+		}
 
 		class MyThing<T>
 		{

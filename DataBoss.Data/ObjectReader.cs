@@ -39,7 +39,7 @@ namespace DataBoss.Data
 		public IEnumerable<T> Read<T>() => Read<T>((ConverterCollection)null);
 		
 		public IEnumerable<T> Read<T>(ConverterCollection converters) {
-			var converter = GetConverter<T>(converters);
+			 var converter = GetConverter<T>(converters);
 			while(reader.Read())
 				yield return converter(reader);
 		}
