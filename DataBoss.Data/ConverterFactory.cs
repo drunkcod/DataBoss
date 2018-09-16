@@ -118,7 +118,8 @@ namespace DataBoss.Data
 			if (map.TryGetOrdinal(itemName, out field)) {
 				var o = Expression.Constant(field.Ordinal);
 				Expression convertedField;
-				if(!TryConvertField(context.ReadField(field.FieldType, o), itemType, out convertedField) && !(field.ProviderSpecificFieldType != null && TryConvertField(context.ReadField(field.ProviderSpecificFieldType, o), itemType, out convertedField)))
+				if(!TryConvertField(context.ReadField(field.FieldType, o), itemType, out convertedField) 
+				&& !(field.ProviderSpecificFieldType != null && TryConvertField(context.ReadField(field.ProviderSpecificFieldType, o), itemType, out convertedField)))
 					throw new InvalidOperationException($"Can't read '{itemName}' of type {itemType.Name} given {field.FieldType.Name}");
 
 				found = new KeyValuePair<int, Expression>(field.Ordinal, context.DbNullToDefault(field, o, itemType, convertedField));
@@ -136,32 +137,45 @@ namespace DataBoss.Data
 		}
 
 		bool TryConvertField(Expression rawField, Type to, out Expression convertedField) {
-			convertedField = GetConversionOrDefault(rawField, to, null);
+			var from = rawField.Type;
+			if (from == to) {
+				convertedField = rawField;
+				return true;
+			}
+
+			
+			convertedField = GetConversionOrDefault(rawField, to);
+			if(convertedField == null 
+			&& TryGetConverter(rawField, to, out convertedField))
+				return true;
+
 			return convertedField != null;
 		}
 
-		Expression GetConversionOrDefault(Expression rawField, Type to, Expression defalt) {
+		Expression GetConversionOrDefault(Expression rawField, Type to) {
 			var from = rawField.Type;
-			if(from == to) 
-				return rawField;
 
-			if(to.TryGetNullableTargetType(out var baseType)) {
+			if (to.TryGetNullableTargetType(out var baseType)) {
 				if((baseType == from))
 					return Expression.Convert(rawField, to);
 				else if(TryGetConverter(rawField, baseType, out var customNullabeConversion))
 					return Expression.Convert(customNullabeConversion, to);
 			}
 
-			if(from == typeof(object) && to == typeof(byte[]))
-				return Expression.Convert(rawField, to);
-
-			if(TryGetConverter(rawField, to, out var customConversion))
-				return customConversion;
-
-			return defalt;
+			return null;
 		}
 
-		bool TryGetConverter(Expression rawField, Type to, out Expression converter) => customConversions.TryGetConverter(rawField, to, out converter);
+		bool TryGetConverter(Expression rawField, Type to, out Expression converter) {
+			if(customConversions.TryGetConverter(rawField, to, out converter))
+				return true;
+
+			if (rawField.Type == typeof(object) && to == typeof(byte[])) {
+				converter = Expression.Convert(rawField, to);
+				return true;
+			}
+
+			return false;
+		}
 
 		static string MapFieldType(Type fieldType) {
 			switch(fieldType.FullName) {

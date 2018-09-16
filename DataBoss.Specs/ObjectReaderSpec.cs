@@ -117,7 +117,11 @@ namespace DataBoss.Specs
 				.That(xs => xs[0].Value == default(int), xs => xs[1].Value == 1);		
 		}
 
-		struct StructRow<T> { public T Value; }
+		struct StructRow<T> 
+		{
+			public StructRow(T ctorValue) {  this.Value = ctorValue; }
+			public T Value; 
+		}
 
 		public void can_read_structs() {
 			var expected = new StructRow<float> { Value = 3.14f };
@@ -125,8 +129,18 @@ namespace DataBoss.Specs
 			Check.With(() => ObjectReader.For(source).Read<StructRow<float>>().ToArray())
 			.That(
 				rows => rows.Length == 1,
-				rows => rows[0].Value == expected.Value);
+				rows => rows[0].Value == expected.Value);	
 		}
+
+		public void can_read_nullable_structs() {
+			var expected = new StructRow<float> { Value = 3.14f };
+			var source = new SimpleDataReader(Col<float>("ctorValue")) { expected.Value };
+			Check.With(() => ObjectReader.For(source).Read<StructRow<float>?>().ToArray())
+			.That(
+				rows => rows.Length == 1,
+				rows => rows[0].Value.Value == expected.Value);
+		}
+
 
 		class MyThing<T>
 		{
