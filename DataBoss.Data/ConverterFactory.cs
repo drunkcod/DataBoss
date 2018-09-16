@@ -37,6 +37,8 @@ namespace DataBoss.Data
 				throw new NotSupportedException($"Can't read field of type: {fieldType} given {Arg0.Type}");
 			}
 
+			public Expression IsNull(Expression o) => Expression.Call(Arg0, IsDBNull, o);
+
 			public Expression DbNullToDefault(FieldMapItem field, Expression o, Type itemType, Expression readIt) {
 				if(!field.AllowDBNull)
 					return readIt;
@@ -91,12 +93,12 @@ namespace DataBoss.Data
 			var ordinals = new int[members.Length];
 			var bindings = new MemberAssignment[members.Length];
 			var found = 0;
-			KeyValuePair<int, Expression> binding;
+			MemberReader binding;
 			foreach(var x in members) {
 				if(!TryReadOrInit(context, map, x.FieldType, x.Name, out binding))
 					continue;
-				ordinals[found] = binding.Key;
-				bindings[found] = Expression.Bind(x.Member, binding.Value);
+				ordinals[found] = binding.Ordinal;
+				bindings[found] = Expression.Bind(x.Member, binding.GetReader());
 				++found;
 			}
 			Array.Sort(ordinals, bindings, 0, found);
@@ -104,16 +106,46 @@ namespace DataBoss.Data
 		}
 
 		bool TryMapParameters(ConverterContext context, FieldMap map, ParameterInfo[] parameters, Expression[] exprs) {
-			KeyValuePair<int, Expression> binding;
+			MemberReader binding;
 			for(var i = 0; i != parameters.Length; ++i) {
 				if(!TryReadOrInit(context, map, parameters[i].ParameterType, parameters[i].Name, out binding))
 					return false;
-				exprs[i] = binding.Value;
+				exprs[i] = binding.GetReader();
 			}
 			return true;
 		}
+		
+		struct MemberReader
+		{
+			public MemberReader(int ordinal, Expression reader, Expression isNull) {
+				this.Ordinal = ordinal;
+				this.Reader = reader;
+				this.IsNull = isNull;
+			}
 
-		bool TryReadOrInit(ConverterContext context, FieldMap map, Type itemType, string itemName, out KeyValuePair<int, Expression> found) {
+			public readonly int Ordinal;
+			readonly Expression Reader;
+			public readonly Expression IsNull;
+
+			public Expression GetReader() {
+				if(IsNull == null)
+					return Reader;
+				return Expression.Condition(
+					IsNull,
+					Expression.Default(Reader.Type),
+					Reader);
+			}
+		}
+
+		bool TryReadOrInit(ConverterContext context, FieldMap map, Type itemType, string itemName, out MemberReader found) {
+			if(itemType.TryGetNullableTargetType(out var baseType)) {
+				if(TryReadOrInit(context, map, baseType, itemName, out found)) {
+					found = new MemberReader(found.Ordinal, Expression.Convert(found.GetReader(), itemType), found.IsNull);
+					return true;
+				}
+				return false;
+			}
+
 			FieldMapItem field;
 			if (map.TryGetOrdinal(itemName, out field)) {
 				var o = Expression.Constant(field.Ordinal);
@@ -122,17 +154,17 @@ namespace DataBoss.Data
 				&& !(field.ProviderSpecificFieldType != null && TryConvertField(context.ReadField(field.ProviderSpecificFieldType, o), itemType, out convertedField)))
 					throw new InvalidOperationException($"Can't read '{itemName}' of type {itemType.Name} given {field.FieldType.Name}");
 
-				found = new KeyValuePair<int, Expression>(field.Ordinal, context.DbNullToDefault(field, o, itemType, convertedField));
+				found = new MemberReader(field.Ordinal, convertedField, field.AllowDBNull ? context.IsNull(o) : null);
 				return true;
 			}
 
 			FieldMap subMap;
 			if(map.TryGetSubMap(itemName, out subMap)) {
-				found = new KeyValuePair<int, Expression>(subMap.MinOrdinal, MemberInit(context, itemType, subMap));
+				found = new MemberReader(subMap.MinOrdinal, MemberInit(context, itemType, subMap), null);
 				return true;
 			}
 
-			found = default(KeyValuePair<int, Expression>);
+			found = default(MemberReader);
 			return false;
 		}
 
@@ -143,27 +175,12 @@ namespace DataBoss.Data
 				return true;
 			}
 
-			
-			convertedField = GetConversionOrDefault(rawField, to);
-			if(convertedField == null 
-			&& TryGetConverter(rawField, to, out convertedField))
+			if (TryGetConverter(rawField, to, out convertedField))
 				return true;
 
-			return convertedField != null;
+			return false;
 		}
 
-		Expression GetConversionOrDefault(Expression rawField, Type to) {
-			var from = rawField.Type;
-
-			if (to.TryGetNullableTargetType(out var baseType)) {
-				if((baseType == from))
-					return Expression.Convert(rawField, to);
-				else if(TryGetConverter(rawField, baseType, out var customNullabeConversion))
-					return Expression.Convert(customNullabeConversion, to);
-			}
-
-			return null;
-		}
 
 		bool TryGetConverter(Expression rawField, Type to, out Expression converter) {
 			if(customConversions.TryGetConverter(rawField, to, out converter))

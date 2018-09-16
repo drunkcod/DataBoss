@@ -133,12 +133,12 @@ namespace DataBoss.Specs
 		}
 
 		public void can_read_nullable_structs() {
-			var expected = new StructRow<float> { Value = 3.14f };
-			var source = new SimpleDataReader(Col<float>("ctorValue")) { expected.Value };
-			Check.With(() => ObjectReader.For(source).Read<StructRow<float>?>().ToArray())
+			var expected = 3.14f;
+			var source = new SimpleDataReader(Col<float>("Value.ctorValue")) { expected };
+			Check.With(() => ObjectReader.For(source).Read<StructRow<StructRow<float>?>>().ToArray())
 			.That(
 				rows => rows.Length == 1,
-				rows => rows[0].Value.Value == expected.Value);
+				rows => rows[0].Value.Value.Value == expected);
 		}
 
 
