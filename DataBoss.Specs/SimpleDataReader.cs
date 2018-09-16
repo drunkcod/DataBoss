@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data;
+using DataBoss.Data;
 
 namespace DataBoss.Specs
 {
@@ -9,16 +10,30 @@ namespace DataBoss.Specs
 	{
 		readonly KeyValuePair<string, Type>[] fields;			
 		readonly List<object[]> records = new List<object[]>();
+		readonly DataTable schema = new DataTable();
 		int currentRecord;
 
 		public SimpleDataReader(params KeyValuePair<string, Type>[] fields) {
 			this.fields = fields;
+			var ordinal = schema.Columns.Add(DataReaderSchemaColumns.ColumnOrdinal, typeof(int));
+			var isNullable = schema.Columns.Add(DataReaderSchemaColumns.AllowDBNull, typeof(bool));
+			for(var i = 0; i != fields.Length; ++i) { 
+				var row = schema.NewRow();
+				row[ordinal] = i;
+				row[isNullable] = false;
+				schema.Rows.Add(row);
+			}
 		}
 
 		public void Add(params object[] record) {
 			if(record.Length != fields.Length)
 				throw new InvalidOperationException("Invalid record length");
 			records.Add(record);
+		}
+
+		public void SetNullable(int ordinal, bool isNullable) 
+		{
+			schema.Rows[ordinal][DataReaderSchemaColumns.AllowDBNull] = isNullable;
 		}
 
 		public int Count => records.Count;
@@ -63,7 +78,7 @@ namespace DataBoss.Specs
 
 		public void Close() { }
 
-		public DataTable GetSchemaTable() => new DataTable();
+		public DataTable GetSchemaTable() => schema;
 
 		public bool NextResult() => false;
 

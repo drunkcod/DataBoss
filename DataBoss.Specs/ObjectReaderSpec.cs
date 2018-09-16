@@ -145,6 +145,7 @@ namespace DataBoss.Specs
 
 		public void null_nullable_struct() {
 			var source = new SimpleDataReader(Col<float>("Value.ctorValue")) { new object[]{ null } };
+			source.SetNullable(0, true);
 			var r = ObjectReader.For(source).Read<StructRow<StructRow<float>?>>().ToArray();
 			Check.With(() => r)
 			.That(
@@ -159,11 +160,39 @@ namespace DataBoss.Specs
 		}
 		public void nullable_nullable() {
 			var source = new SimpleDataReader(Col<int>("Value.CanBeNull"), Col<int>("Value.NotNull")) { new object[] { null, 1 } };
+			source.SetNullable(0, true);
 			var r = ObjectReader.For(source).Read<StructRow<WithNullable?>>().ToArray();
 			Check.With(() => r)
 			.That(
 				rows => rows.Length == 1,
 				rows => rows[0].Value.Equals(new WithNullable { NotNull = 1 }));
+		}
+
+		struct RowOf<T>
+		{
+			public T Item;
+		}
+
+		public void row_with_nullable_missing_field() {
+			var source = new SimpleDataReader(Col<int>("Item.ctorValue")) { new object[] { null } };
+			source.SetNullable(0, true);
+			var r = ObjectReader.For(source).Read<RowOf<StructRow<int>?>>().ToArray();
+			Check.With(() => r)
+			.That(
+				rows => rows.Length == 1,
+				rows => rows[0].Item.HasValue == false);
+
+		}
+
+		public void row_with_nullab_missing_field2() {
+			var source = new SimpleDataReader(Col<int>("Item.key"), Col<int>("Item.value")) { new object[] { null, null} };
+			source.SetNullable(0, true);
+			source.SetNullable(1, true);
+			var r = ObjectReader.For(source).Read<RowOf<KeyValuePair<int,int?>?>>().ToArray();
+			Check.With(() => r)
+			.That(
+				rows => rows.Length == 1,
+				rows => rows[0].Item.HasValue == false);
 		}
 
 		class MyThing<T>

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 
@@ -11,13 +12,13 @@ namespace DataBoss.Data
 		public readonly int Ordinal;
 		public readonly Type FieldType;
 		public readonly Type ProviderSpecificFieldType;
-		public readonly bool AllowDBNull;
+		public readonly bool CanBeNull;
 
 		public FieldMapItem(int ordinal, Type fieldType, Type providerSpecificFieldType, bool allowDBNull) {
 			this.Ordinal = ordinal;
 			this.FieldType = fieldType;
 			this.ProviderSpecificFieldType = providerSpecificFieldType;
-			this.AllowDBNull = allowDBNull;
+			this.CanBeNull = allowDBNull;
 		}
 
 		public override string ToString() => $"({Ordinal}, {FieldType.FullName})";
@@ -34,7 +35,7 @@ namespace DataBoss.Data
 			var ordinalColumn = schema.Columns[DataReaderSchemaColumns.ColumnOrdinal];
 			var allowDBNullColumn = schema.Columns[DataReaderSchemaColumns.AllowDBNull];
 			var getProviderSpecificFieldType = GetGetProviderSpecificFieldType(reader);
-			for(var i = 0; i != reader.FieldCount; ++i) { 
+			for(var i = 0; i != reader.FieldCount; ++i) {
 				var isNullable = 
 					ordinalColumn != null 
 					&& allowDBNullColumn != null 

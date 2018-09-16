@@ -54,7 +54,7 @@ namespace DataBoss.Data
 			public Expression IsNull(Expression o) => Expression.Call(Arg0, IsDBNull, o);
 
 			public Expression DbNullToDefault(FieldMapItem field, Expression o, Type itemType, Expression readIt) {
-				if(!field.AllowDBNull)
+				if(!field.CanBeNull)
 					return readIt;
 				return Expression.Condition(
 					Expression.Call(Arg0, IsDBNull, o),
@@ -89,6 +89,7 @@ namespace DataBoss.Data
 		{
 			public Expression AnyRequiredNull;
 			public MemberReader Reader;
+			public bool IsRequired;
 
 			public Expression IsNull => OrElse(AnyRequiredNull, Reader.IsNull);
 
@@ -167,7 +168,7 @@ namespace DataBoss.Data
 		
 		bool TryReadOrInit(ConverterContext context, FieldMap map, Type itemType, string itemName, ref ChildBinding item) {
 			if(itemType.TryGetNullableTargetType(out var baseType)) {
-				var childItem = new ChildBinding();
+				var childItem = new ChildBinding { IsRequired = true };
 				if(TryReadOrInit(context, map, baseType, itemName, ref childItem)) {
 					item.Reader = childItem.GetMemberReader(itemType);
 					return true;
@@ -175,18 +176,18 @@ namespace DataBoss.Data
 				return false;
 			}
 
-			FieldMapItem field;
-			if (map.TryGetOrdinal(itemName, out field)) {
-				var o = Expression.Constant(field.Ordinal);
+			FieldMapItem column;
+			if (map.TryGetOrdinal(itemName, out column)) {
+				var o = Expression.Constant(column.Ordinal);
 				Expression convertedField;
-				if(!TryConvertField(context.ReadField(field.FieldType, o), itemType, out convertedField) 
-				&& !(field.ProviderSpecificFieldType != null && TryConvertField(context.ReadField(field.ProviderSpecificFieldType, o), itemType, out convertedField)))
-					throw new InvalidConversionException($"Can't read '{itemName}' of type {itemType.Name} given {field.FieldType.Name}", context.ResultType);
+				if(!TryConvertField(context.ReadField(column.FieldType, o), itemType, out convertedField) 
+				&& !(column.ProviderSpecificFieldType != null && TryConvertField(context.ReadField(column.ProviderSpecificFieldType, o), itemType, out convertedField)))
+					throw new InvalidConversionException($"Can't read '{itemName}' of type {itemType.Name} given {column.FieldType.Name}", context.ResultType);
 
 				var thisNull = context.IsNull(o);
-				if (field.AllowDBNull == false)
+				if (item.IsRequired && column.CanBeNull)
 					item.AnyRequiredNull = OrElse(item.AnyRequiredNull, thisNull);
-				item.Reader = new MemberReader(field.Ordinal, convertedField, field.AllowDBNull ? thisNull : null);
+				item.Reader = new MemberReader(column.Ordinal, convertedField, column.CanBeNull ? thisNull : null);
 				return true;
 			}
 
