@@ -82,24 +82,26 @@ namespace DataBoss.Data
 			this.converterCache = converterCache;
 		}
 
-		public DataRecordConverter<TReader, T> GetConverter<TReader, T>(TReader reader) where TReader : IDataReader =>
-			new DataRecordConverter<TReader, T>(converterCache.GetOrAdd(reader, typeof(T), (map, result) => BuildConverter(ConverterContext.Create<TReader>(), map, (c, o, x) => { }, result)));
+		public DataRecordConverter<TReader, T> GetConverter<TReader, T>(TReader reader) where TReader : IDataReader { 
+			Expression dummy = null;
+			return new DataRecordConverter<TReader, T>(converterCache.GetOrAdd(reader, typeof(T), (map, result) => BuildConverter(ConverterContext.Create<TReader>(), map, ref dummy, result)));
+		}
 
-		LambdaExpression BuildConverter(ConverterContext context, FieldMap map, Action<ConverterContext, Expression, FieldMapItem> forceNullable, Type result) => 
-			Expression.Lambda(MemberInit(context, result, map, forceNullable), context.Arg0);
+		LambdaExpression BuildConverter(ConverterContext context, FieldMap map, ref Expression anyRequiredNull, Type result) => 
+			Expression.Lambda(MemberInit(context, result, map, ref anyRequiredNull), context.Arg0);
 
-		Expression MemberInit(ConverterContext context, Type fieldType, FieldMap map, Action<ConverterContext, Expression, FieldMapItem> forceNullable) =>
+		Expression MemberInit(ConverterContext context, Type fieldType, FieldMap map, ref Expression anyRequiredNull) =>
 			Expression.MemberInit(
-				GetCtor(context, map, forceNullable, fieldType),
-				GetMembers(context, map, forceNullable, fieldType));
+				GetCtor(context, map, ref anyRequiredNull, fieldType),
+				GetMembers(context, map, ref anyRequiredNull, fieldType));
 
-		NewExpression GetCtor(ConverterContext context, FieldMap map, Action<ConverterContext, Expression, FieldMapItem> forceNullable, Type fieldType) {
+		NewExpression GetCtor(ConverterContext context, FieldMap map, ref Expression anyRequiredNull, Type fieldType) {
 			var ctors = fieldType.GetConstructors()
 				.Select(ctor => new { ctor, p = ctor.GetParameters() })
 				.OrderByDescending(x => x.p.Length);
 			foreach(var item in ctors) {
 				var pn = new Expression[item.p.Length];
-				if(TryMapParameters(context, map, forceNullable, item.p, pn))
+				if(TryMapParameters(context, map, ref anyRequiredNull, item.p, pn))
 					return Expression.New(item.ctor, pn);
 			}
 
@@ -109,7 +111,7 @@ namespace DataBoss.Data
 			throw new InvalidOperationException("No suitable constructor found for " + fieldType);
 		}
 
-		ArraySegment<MemberAssignment> GetMembers(ConverterContext context, FieldMap map, Action<ConverterContext, Expression, FieldMapItem> forceNullable, Type targetType) {
+		ArraySegment<MemberAssignment> GetMembers(ConverterContext context, FieldMap map, ref Expression anyRequiredNull, Type targetType) {
 			var fields = targetType.GetFields().Select(x => new { x.Name, x.FieldType, Member = (MemberInfo)x });
 			var props = targetType.GetProperties().Where(x => x.CanWrite).Select(x => new { x.Name, FieldType = x.PropertyType, Member = (MemberInfo)x });
 			var members = fields.Concat(props).ToArray();
@@ -118,7 +120,7 @@ namespace DataBoss.Data
 			var found = 0;
 			MemberReader binding;
 			foreach(var x in members) {
-				if(!TryReadOrInit(context, map, forceNullable, x.FieldType, x.Name, out binding))
+				if(!TryReadOrInit(context, map, ref anyRequiredNull, x.FieldType, x.Name, out binding))
 					continue;
 				ordinals[found] = binding.Ordinal;
 				bindings[found] = Expression.Bind(x.Member, binding.GetReader());
@@ -128,25 +130,21 @@ namespace DataBoss.Data
 			return new ArraySegment<MemberAssignment>(bindings, 0, found);
 		}
 
-		bool TryMapParameters(ConverterContext context, FieldMap map, Action<ConverterContext, Expression, FieldMapItem> forceNullable, ParameterInfo[] parameters, Expression[] exprs) {
+		bool TryMapParameters(ConverterContext context, FieldMap map, ref Expression anyRequiredNull, ParameterInfo[] parameters, Expression[] exprs) {
 			MemberReader binding;
 			for(var i = 0; i != parameters.Length; ++i) {
-				if(!TryReadOrInit(context, map, forceNullable, parameters[i].ParameterType, parameters[i].Name, out binding))
+				if(!TryReadOrInit(context, map, ref anyRequiredNull, parameters[i].ParameterType, parameters[i].Name, out binding))
 					return false;
 				exprs[i] = binding.GetReader();
 			}
 			return true;
 		}
 		
-		bool TryReadOrInit(ConverterContext context, FieldMap map, Action<ConverterContext, Expression, FieldMapItem> forceNullable, Type itemType, string itemName, out MemberReader found) {
+		bool TryReadOrInit(ConverterContext context, FieldMap map, ref Expression anyRequiredNull, Type itemType, string itemName, out MemberReader found) {
 			if(itemType.TryGetNullableTargetType(out var baseType)) {
-				Expression anyRequiredNull = null;
-				if(TryReadOrInit(context, map, (c, o, x) => {
-					var thisNull = c.IsNull(o);
-					if(x.AllowDBNull == false)
-						anyRequiredNull = OrElse(anyRequiredNull, thisNull);
-				}, baseType, itemName, out found)) {
-					found = new MemberReader(found.Ordinal, Expression.Convert(found.Read, itemType), OrElse(found.IsNull, anyRequiredNull));
+				Expression anyChildNull = null;
+				if(TryReadOrInit(context, map, ref anyChildNull, baseType, itemName, out found)) {
+					found = new MemberReader(found.Ordinal, Expression.Convert(found.Read, itemType), OrElse(found.IsNull, anyChildNull));
 					return true;
 				}
 				return false;
@@ -160,14 +158,16 @@ namespace DataBoss.Data
 				&& !(field.ProviderSpecificFieldType != null && TryConvertField(context.ReadField(field.ProviderSpecificFieldType, o), itemType, out convertedField)))
 					throw new InvalidOperationException($"Can't read '{itemName}' of type {itemType.Name} given {field.FieldType.Name}");
 
-				forceNullable(context, o, field);
-				found = new MemberReader(field.Ordinal, convertedField, field.AllowDBNull ? context.IsNull(o) : null);
+				var thisNull = context.IsNull(o);
+				if (field.AllowDBNull == false)
+					anyRequiredNull = OrElse(anyRequiredNull, thisNull);
+				found = new MemberReader(field.Ordinal, convertedField, field.AllowDBNull ? thisNull : null);
 				return true;
 			}
 
 			FieldMap subMap;
 			if(map.TryGetSubMap(itemName, out subMap)) {
-				found = new MemberReader(subMap.MinOrdinal, MemberInit(context, itemType, subMap, forceNullable), null);
+				found = new MemberReader(subMap.MinOrdinal, MemberInit(context, itemType, subMap, ref anyRequiredNull), null);
 				return true;
 			}
 
