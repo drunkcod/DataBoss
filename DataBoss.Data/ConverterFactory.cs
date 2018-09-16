@@ -48,6 +48,29 @@ namespace DataBoss.Data
 					readIt);
 			}
 		}
+
+		struct MemberReader
+		{
+			public MemberReader(int ordinal, Expression reader, Expression isNull) {
+				this.Ordinal = ordinal;
+				this.Read = reader;
+				this.IsNull = isNull;
+			}
+
+			public readonly int Ordinal;
+			public readonly Expression Read;
+			public readonly Expression IsNull;
+
+			public Expression GetReader() {
+				if (IsNull == null)
+					return Read;
+				return Expression.Condition(
+					IsNull,
+					Expression.Default(Read.Type),
+					Read);
+			}
+		}
+
 		readonly ConverterCollection customConversions;
 		readonly IConverterCache converterCache;
 
@@ -115,38 +138,16 @@ namespace DataBoss.Data
 			return true;
 		}
 		
-		struct MemberReader
-		{
-			public MemberReader(int ordinal, Expression reader, Expression isNull) {
-				this.Ordinal = ordinal;
-				this.Reader = reader;
-				this.IsNull = isNull;
-			}
-
-			public readonly int Ordinal;
-			public readonly Expression Reader;
-			public readonly Expression IsNull;
-
-			public Expression GetReader() {
-				if(IsNull == null)
-					return Reader;
-				return Expression.Condition(
-					IsNull,
-					Expression.Default(Reader.Type),
-					Reader);
-			}
-		}
-
 		bool TryReadOrInit(ConverterContext context, FieldMap map, Func<ConverterContext, Expression, FieldMapItem, Expression> forceNullable, Type itemType, string itemName, out MemberReader found) {
 			if(itemType.TryGetNullableTargetType(out var baseType)) {
 				Expression anyRequiredNull = null;
 				if(TryReadOrInit(context, map, (c, o, x) => {
 					var thisNull = c.IsNull(o);
 					if(x.AllowDBNull == false)
-						anyRequiredNull = anyRequiredNull == null ? thisNull : Expression.OrElse(thisNull, anyRequiredNull);
+						anyRequiredNull = OrElse(anyRequiredNull, thisNull);
 					return x.AllowDBNull ? thisNull: null;
 				}, baseType, itemName, out found)) {
-					found = new MemberReader(found.Ordinal, Expression.Convert(found.Reader, itemType), Expression.OrElse(found.IsNull ?? Expression.Constant(false), anyRequiredNull ?? Expression.Constant(false)));
+					found = new MemberReader(found.Ordinal, Expression.Convert(found.Read, itemType), OrElse(found.IsNull, anyRequiredNull));
 					return true;
 				}
 				return false;
@@ -172,6 +173,14 @@ namespace DataBoss.Data
 
 			found = default(MemberReader);
 			return false;
+		}
+
+		static Expression OrElse(Expression left, Expression right) {
+			if(left == null)
+				return right;
+			if(right == null)
+				return left;
+			return Expression.OrElse(left, right);
 		}
 
 		bool TryConvertField(Expression rawField, Type to, out Expression convertedField) {
