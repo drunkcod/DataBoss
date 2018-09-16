@@ -212,6 +212,13 @@ namespace DataBoss.Specs
 				rows => rows[0].Value == expected.Value);
 		}
 
+		public void provides_type_context_on_type_missmatch() {
+			var expected = new ValueProp<float> { Value = 2.78f };
+			var source = new SimpleDataReader(Col<int>("Value")) { expected.Value };
+			var ex = Check.Exception<InvalidConversionException>(() => ObjectReader.For(source).Read<ValueProp<float>>().ToArray());
+			Check.That(() => ex.Type == typeof(ValueProp<float>));
+		}
+
 		public void detect_type_mismatch() {
 			var expected = new ValueProp<float> { Value = 2.78f };
 			var source = new SimpleDataReader(Col<float>("Value")) { expected.Value };

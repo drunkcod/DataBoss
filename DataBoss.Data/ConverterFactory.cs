@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Linq.Expressions;
@@ -7,19 +6,34 @@ using System.Reflection;
 
 namespace DataBoss.Data
 {
+	public class InvalidConversionException : InvalidOperationException
+	{
+		public InvalidConversionException(string message, Type type) :base(message) { 
+			this.Type = type;
+		}
+
+		public readonly Type Type;
+
+		public override string Message => $"Error reading {Type}: " + base.Message;
+	}
+
 	public class ConverterFactory
 	{
 		class ConverterContext
 		{
-			ConverterContext(ParameterExpression arg0, MethodInfo isDBNull) {
+			ConverterContext(ParameterExpression arg0, MethodInfo isDBNull, Type resultType) {
 				this.Arg0 = arg0;
 				this.IsDBNull = isDBNull;
+				this.ResultType = resultType;
 			}
 
-			public static ConverterContext Create<TRecord>() where TRecord : IDataRecord {
+			public readonly Type ResultType;
+
+			public static ConverterContext Create<TRecord>(Type resultType) where TRecord : IDataRecord {
 				var record = typeof(TRecord);
 				return new ConverterContext(Expression.Parameter(record, "x"), 
-					record.GetMethod(nameof(IDataRecord.IsDBNull)) ?? typeof(IDataRecord).GetMethod(nameof(IDataRecord.IsDBNull)));
+					record.GetMethod(nameof(IDataRecord.IsDBNull)) ?? typeof(IDataRecord).GetMethod(nameof(IDataRecord.IsDBNull)),
+					resultType);
 			}
 
 			public readonly ParameterExpression Arg0;
@@ -34,7 +48,7 @@ namespace DataBoss.Data
 				if(getter != null)
 					return getter;
 
-				throw new NotSupportedException($"Can't read field of type: {fieldType} given {Arg0.Type}");
+				throw new InvalidConversionException($"Can't read field of type: {fieldType} given {Arg0.Type}", ResultType);
 			}
 
 			public Expression IsNull(Expression o) => Expression.Call(Arg0, IsDBNull, o);
@@ -97,7 +111,7 @@ namespace DataBoss.Data
 
 		public DataRecordConverter<TReader, T> GetConverter<TReader, T>(TReader reader) where TReader : IDataReader { 
 			var root = new ChildBinding();
-			return new DataRecordConverter<TReader, T>(converterCache.GetOrAdd(reader, typeof(T), (map, result) => BuildConverter(ConverterContext.Create<TReader>(), map, result, ref root)));
+			return new DataRecordConverter<TReader, T>(converterCache.GetOrAdd(reader, typeof(T), (map, result) => BuildConverter(ConverterContext.Create<TReader>(result), map, result, ref root)));
 		}
 
 		LambdaExpression BuildConverter(ConverterContext context, FieldMap map, Type result, ref ChildBinding item) => 
@@ -121,7 +135,7 @@ namespace DataBoss.Data
 			if(fieldType.IsValueType)
 				return Expression.New(fieldType);
 
-			throw new InvalidOperationException("No suitable constructor found for " + fieldType);
+			throw new InvalidConversionException("No suitable constructor found for " + fieldType, context.ResultType);
 		}
 
 		ArraySegment<MemberAssignment> GetMembers(ConverterContext context, FieldMap map, Type targetType, ref ChildBinding item) {
@@ -167,7 +181,7 @@ namespace DataBoss.Data
 				Expression convertedField;
 				if(!TryConvertField(context.ReadField(field.FieldType, o), itemType, out convertedField) 
 				&& !(field.ProviderSpecificFieldType != null && TryConvertField(context.ReadField(field.ProviderSpecificFieldType, o), itemType, out convertedField)))
-					throw new InvalidOperationException($"Can't read '{itemName}' of type {itemType.Name} given {field.FieldType.Name}");
+					throw new InvalidConversionException($"Can't read '{itemName}' of type {itemType.Name} given {field.FieldType.Name}", context.ResultType);
 
 				var thisNull = context.IsNull(o);
 				if (field.AllowDBNull == false)
