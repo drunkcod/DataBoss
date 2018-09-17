@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 
-namespace DataBoss.Specs.Data
+namespace DataBoss.Data
 {
-	public struct IdOf<T> : IEquatable<IdOf<T>>
+	public struct IdOf<T> : IEquatable<IdOf<T>>, IComparable<IdOf<T>>
 	{
 		readonly int id;
 
@@ -13,6 +13,7 @@ namespace DataBoss.Specs.Data
 
 		public override bool Equals(object obj) => obj is IdOf<T> other && this == other;
 		public bool Equals(IdOf<T> other) => other.id == this.id;
+		public int CompareTo(IdOf<T> other) => this.id.CompareTo(other.id);
 
 		public static bool operator==(IdOf<T> x, IdOf<T> y) => x.id == y.id;
 		public static bool operator!=(IdOf<T> x, IdOf<T> y) => x.id != y.id;

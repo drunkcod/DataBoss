@@ -1,6 +1,7 @@
+using System.Linq;
 using Cone;
 
-namespace DataBoss.Specs.Data
+namespace DataBoss.Data.Specs
 {
 
 	[Describe(typeof(IdOf<>))]
@@ -15,7 +16,10 @@ namespace DataBoss.Specs.Data
 				id => id.ToString() == value.ToString(),
 				id => id.GetHashCode() == value.GetHashCode(),
 				id => id == (IdOf<MyClass>)value);
-
 		}
+
+		public void is_sortable() =>
+			Check.With(() => new[] { (IdOf<MyClass>)3, (IdOf<MyClass>)1, (IdOf<MyClass>)2, }.OrderBy(x => x).ToArray())
+			.That(xs => (int)xs[0] == 1);
 	}
 }
