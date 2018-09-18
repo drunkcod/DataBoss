@@ -32,8 +32,8 @@ namespace DataBoss.Data
 		public static FieldMap Create(IDataReader reader) {
 			var fieldMap = new FieldMap();
 			var schema = reader.GetSchemaTable();
-			var ordinalColumn = schema.Columns[DataReaderSchemaColumns.ColumnOrdinal];
-			var allowDBNullColumn = schema.Columns[DataReaderSchemaColumns.AllowDBNull];
+			var ordinalColumn = schema.Columns[DataReaderSchemaColumns.ColumnOrdinal.Name];
+			var allowDBNullColumn = schema.Columns[DataReaderSchemaColumns.AllowDBNull.Name];
 			var getProviderSpecificFieldType = GetGetProviderSpecificFieldType(reader);
 			for(var i = 0; i != reader.FieldCount; ++i) {
 				var isNullable = 

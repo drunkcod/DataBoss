@@ -7,11 +7,24 @@ namespace DataBoss.Data
 {
 	public static class DataReaderSchemaColumns
 	{
-		public const string AllowDBNull = "AllowDBNull";
-		public const string ColumnName = "ColumnName";
-		public const string ColumnOrdinal = "ColumnOrdinal";
-		public const string ColumnSize = "ColumnSize";
-		public const string DataType = "DataType";
+		public struct SchemaColumn
+		{
+			public readonly string Name;
+			public readonly Type ColumnType;
+
+			public SchemaColumn(string name, Type columnType) {
+				this.Name = name;
+				this.ColumnType = columnType;
+			}
+		}
+
+		public static readonly SchemaColumn AllowDBNull = new SchemaColumn("AllowDBNull", typeof(bool));
+		public static readonly SchemaColumn ColumnName = new SchemaColumn("ColumnName", typeof(string));
+		public static readonly SchemaColumn ColumnOrdinal = new SchemaColumn("ColumnOrdinal", typeof(int));
+		public static readonly SchemaColumn ColumnSize = new SchemaColumn("ColumnSize", typeof(int));
+		public static readonly SchemaColumn DataType = new SchemaColumn("DataType", typeof(Type));
+
+		public static DataColumn Add(this DataColumnCollection cs, SchemaColumn column) => cs.Add(column.Name, column.ColumnType);
 	}
 
 	public static class SequenceDataReader
@@ -86,11 +99,11 @@ namespace DataBoss.Data
 
 		DataTable IDataReader.GetSchemaTable() {
 			var schema = new DataTable();
-			var columnName = schema.Columns.Add(DataReaderSchemaColumns.ColumnName, typeof(string));
-			var columnOrdinal = schema.Columns.Add(DataReaderSchemaColumns.ColumnOrdinal, typeof(int));
-			var columnSize = schema.Columns.Add(DataReaderSchemaColumns.ColumnSize, typeof(int));
-			var isNullable = schema.Columns.Add(DataReaderSchemaColumns.AllowDBNull, typeof(bool));
-			var dataType = schema.Columns.Add(DataReaderSchemaColumns.DataType, typeof(Type));
+			var columnName = schema.Columns.Add(DataReaderSchemaColumns.ColumnName);
+			var columnOrdinal = schema.Columns.Add(DataReaderSchemaColumns.ColumnOrdinal);
+			var columnSize = schema.Columns.Add(DataReaderSchemaColumns.ColumnSize);
+			var isNullable = schema.Columns.Add(DataReaderSchemaColumns.AllowDBNull);
+			var dataType = schema.Columns.Add(DataReaderSchemaColumns.DataType);
 			for(var i = 0; i != FieldCount; ++i) {
 				var r = schema.NewRow();
 				var dbType = dbTypes[i];

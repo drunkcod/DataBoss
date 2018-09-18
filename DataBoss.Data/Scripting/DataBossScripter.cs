@@ -120,8 +120,8 @@ namespace DataBoss.Data.Scripting
 
 		public DataBossTableColumn[] GetColumns(IDataReader reader) {
 			var schema = reader.GetSchemaTable();
-			var isNullable = schema.Columns[DataReaderSchemaColumns.AllowDBNull];
-			var columnSize = schema.Columns[DataReaderSchemaColumns.ColumnSize];
+			var isNullable = schema.Columns[DataReaderSchemaColumns.AllowDBNull.Name];
+			var columnSize = schema.Columns[DataReaderSchemaColumns.ColumnSize.Name];
 			var columns = new DataBossTableColumn[reader.FieldCount];
 			for (var i = 0; i != reader.FieldCount; ++i) {
 				var r = schema.Rows[i];

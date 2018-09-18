@@ -15,9 +15,9 @@ namespace DataBoss.Specs
 
 		public SimpleDataReader(params KeyValuePair<string, Type>[] fields) {
 			this.fields = fields;
-			var ordinal = schema.Columns.Add(DataReaderSchemaColumns.ColumnOrdinal, typeof(int));
-			var isNullable = schema.Columns.Add(DataReaderSchemaColumns.AllowDBNull, typeof(bool));
-			for(var i = 0; i != fields.Length; ++i) { 
+			var ordinal = schema.Columns.Add(DataReaderSchemaColumns.ColumnOrdinal);
+			var isNullable = schema.Columns.Add(DataReaderSchemaColumns.AllowDBNull);
+			for(var i = 0; i != fields.Length; ++i) {
 				var row = schema.NewRow();
 				row[ordinal] = i;
 				row[isNullable] = false;
@@ -33,7 +33,7 @@ namespace DataBoss.Specs
 
 		public void SetNullable(int ordinal, bool isNullable) 
 		{
-			schema.Rows[ordinal][DataReaderSchemaColumns.AllowDBNull] = isNullable;
+			schema.Rows[ordinal][DataReaderSchemaColumns.AllowDBNull.Name] = isNullable;
 		}
 
 		public int Count => records.Count;
