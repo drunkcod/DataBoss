@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace DataBoss.Collections
 {
-	public class BlockCollection<T> : ICollection<T>
+	public class BlockCollection<T> : ICollection<T>, IReadOnlyCollection<T>
 	{
 		class BlockNode
 		{
