@@ -61,7 +61,8 @@ namespace DataBoss.Diagnostics
 
 		public IEnumerable<SqlServerMaintenancePlan> MakePlans(SqlConnection server, string[] dbs) {
 			var serverName = new SqlConnectionStringBuilder(server.ConnectionString).DataSource;
-			var reader = new DbObjectReader<SqlCommand, SqlDataReader>(server.CreateCommand) { CommandTimeout = null };
+			var reader = DbObjectReader.Create(server);
+			reader.CommandTimeout = null;
 
 			foreach (var database in dbs) {
 				if(server.State != ConnectionState.Open)

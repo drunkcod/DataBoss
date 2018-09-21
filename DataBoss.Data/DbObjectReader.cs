@@ -1,12 +1,18 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.SqlClient;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
 namespace DataBoss.Data
 {
+	public static class DbObjectReader
+	{
+		public static DbObjectReader<SqlCommand, SqlDataReader> Create(SqlConnection connection) => new DbObjectReader<SqlCommand, SqlDataReader>(connection.CreateCommand);
+	}
+
 	public class DbObjectReader<TCommand, TReader>
 		where TCommand : IDbCommand
 		where TReader : IDataReader
