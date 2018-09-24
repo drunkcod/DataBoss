@@ -12,6 +12,7 @@ namespace DataBoss.Data
 	{
 		public int? BatchSize;
 		public int? CommandTimeout;
+		public SqlBulkCopyOptions? Options;
 	}
 
 	public class DataBossBulkCopy
@@ -39,7 +40,7 @@ namespace DataBoss.Data
 			}
 
 			public void WriteToServer(IDataReader rows, string destinationTable, Action<SqlBulkCopyColumnMappingCollection> map) {
-				using(var bulkCopy = new SqlBulkCopy(connection, SqlBulkCopyOptions.TableLock, transaction) {
+				using(var bulkCopy = new SqlBulkCopy(connection, settings.Options ?? SqlBulkCopyOptions.TableLock, transaction) {
 					DestinationTableName = destinationTable,
 					EnableStreaming = true,
 				}) { 
