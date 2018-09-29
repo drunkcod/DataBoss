@@ -87,17 +87,57 @@ namespace DataBoss.Data
 				var rows = DbObjectQuery.Create(GetCommand).Read<T>();
 				return Options.Buffered ? rows.ToList() as IEnumerable<T> : rows;
 			}
+
+			static Action<IDbCommand, object> AddParameters(Type t) =>
+				CommandFactory.GetOrAdd(t, type => {
+					var db = Expression.Parameter(typeof(IDbCommand));
+					var p = Expression.Parameter(typeof(object));
+					return Expression.Lambda<Action<IDbCommand, object>>(
+						Expression.Call(AddTo.MakeGenericMethod(typeof(IDbCommand), type),
+							db, Expression.Convert(p, type)), db, p)
+					.Compile();
+				});
 		}
 
+		public static IDbConnection WithCommandTimeout(this IDbConnection db, int commandTimeout) =>
+			new DbConnectionDecorator(db) { CommandTimeout = commandTimeout };
+		
+		class DbConnectionDecorator : IDbConnection
+		{
+			readonly IDbConnection inner;
 
-		static Action<IDbCommand, object> AddParameters(Type t) =>
-			CommandFactory.GetOrAdd(t, type => {
-				var db = Expression.Parameter(typeof(IDbCommand));
-				var p = Expression.Parameter(typeof(object));
-				return Expression.Lambda<Action<IDbCommand, object>>(
-					Expression.Call(AddTo.MakeGenericMethod(typeof(IDbCommand), type),
-						db, Expression.Convert(p, type)), db, p)
-				.Compile();
-			});
+			public DbConnectionDecorator(IDbConnection inner) { this.inner = inner; }
+
+			public int? CommandTimeout;
+
+			public string ConnectionString { 
+				get => inner.ConnectionString; 
+				set => inner.ConnectionString = value; 
+			}
+
+			public int ConnectionTimeout => inner.ConnectionTimeout;
+
+			public string Database => inner.Database;
+
+			public ConnectionState State => inner.State;
+
+			public IDbTransaction BeginTransaction() => inner.BeginTransaction();
+			public IDbTransaction BeginTransaction(IsolationLevel il) => inner.BeginTransaction(il);
+
+			public void ChangeDatabase(string databaseName) => inner.ChangeDatabase(databaseName);
+
+			public void Close() => inner.Close();
+
+			public IDbCommand CreateCommand() {
+				var c = inner.CreateCommand();
+				if(CommandTimeout.HasValue)
+					c.CommandTimeout = CommandTimeout.Value;
+				return c;
+			}
+
+			public void Dispose() => inner.Dispose();
+
+			public void Open() => inner.Open();
+		}
 	}
 }
