@@ -54,16 +54,41 @@ namespace DataBoss.Data
 			}
 		}
 
-		public static IEnumerable<T> Query<T>(this IDbConnection db, string sql, object args = null, bool buffered = true) {
-			var q = DbObjectQuery.Create(() => {
-				var cmd = db.CreateCommand(sql);
-				if (args != null)
-					AddParameters(args.GetType())(cmd, args);
-				return cmd;
+		public static IEnumerable<T> Query<T>(this IDbConnection db, string sql, object args = null, bool buffered = true) => 
+			Query<T>(db, sql, new DataBossQueryOptions {
+				Parameters = args,
+				Buffered = buffered,
 			});
-			var rows = q.Read<T>();
-			return buffered ? rows.ToList().AsEnumerable() : rows;
+
+		public static IEnumerable<T> Query<T>(this IDbConnection db, string commandText, DataBossQueryOptions options) =>
+			new DbQuery {
+				Connection = db,
+				CommandText = commandText,
+				Options = options,
+			}.Read<T>();
+
+		class DbQuery
+		{
+			public IDbConnection Connection;
+			public string CommandText;
+			public DataBossQueryOptions Options;
+
+			IDbCommand GetCommand() {
+				var cmd = Connection.CreateCommand(CommandText);
+				cmd.CommandType = Options.CommandType;
+				if (Options.CommandTimeout.HasValue)
+					cmd.CommandTimeout = Options.CommandTimeout.Value;
+				if (Options.Parameters != null)
+					AddParameters(Options.Parameters.GetType())(cmd, Options.Parameters);
+				return cmd;
+			}
+	
+			public IEnumerable<T> Read<T>() {
+				var rows = DbObjectQuery.Create(GetCommand).Read<T>();
+				return Options.Buffered ? rows.ToList() as IEnumerable<T> : rows;
+			}
 		}
+
 
 		static Action<IDbCommand, object> AddParameters(Type t) =>
 			CommandFactory.GetOrAdd(t, type => {
