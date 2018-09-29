@@ -59,13 +59,13 @@ namespace DataBoss.Data
 		public override void Open() => inner.Open();
 		public override Task OpenAsync(CancellationToken cancellationToken) => inner.OpenAsync(cancellationToken);
 
-		public static void Into(ProfiledSqlConnection connection, string destinationTable, IDataReader toInsert, DataBossBulkCopySettings settings) {
+		public void Into(string destinationTable, IDataReader toInsert, DataBossBulkCopySettings settings) {
 			var scripter = new DataBossScripter();
-			connection.ExecuteNonQuery(scripter.ScriptTable(destinationTable, toInsert));
-			connection.Insert(destinationTable, toInsert, settings);
+			this.ExecuteNonQuery(scripter.ScriptTable(destinationTable, toInsert));
+			Insert(destinationTable, toInsert, settings);
 		}
 
-		void Insert(string destinationTable, IDataReader toInsert, DataBossBulkCopySettings settings) {
+		public void Insert(string destinationTable, IDataReader toInsert, DataBossBulkCopySettings settings) {
 			using(var rows = new ProfiledDataReader(toInsert)) {
 				BulkCopyStarting?.Invoke(this, new ProfiledBulkCopyStartingEventArgs(destinationTable, rows));
 				inner.Insert(destinationTable, rows, settings);

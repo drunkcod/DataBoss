@@ -48,7 +48,32 @@ namespace DataBoss.Data
 					SqlConnectionExtensions.Into(con, destinationTable, rows, settings);
 					break;
 				case ProfiledSqlConnection con:
-					ProfiledSqlConnection.Into(con, destinationTable, SequenceDataReader.Create(rows, x => x.MapAll()), settings);
+					con.Into(destinationTable, SequenceDataReader.Create(rows, x => x.MapAll()), settings);
+					break;
+				case DbConnectionDecorator con:
+					var s = settings;
+					s.CommandTimeout = s.CommandTimeout ?? con.CommandTimeout;
+					Into(con.InnerConnection, destinationTable, rows, s);
+					break;
+				default: throw new NotSupportedException();
+			}
+		}
+
+		public static void Insert<T>(this IDbConnection connection, string destinationTable, IEnumerable<T> rows) =>
+			Insert(connection, destinationTable, rows, new DataBossBulkCopySettings());
+
+		public static void Insert<T>(this IDbConnection connection, string destinationTable, IEnumerable<T> rows, DataBossBulkCopySettings settings) {
+			switch (connection) {
+				case SqlConnection con:
+					SqlConnectionExtensions.Insert(con, destinationTable, rows, settings);
+					break;
+				case ProfiledSqlConnection con:
+					con.Insert(destinationTable, SequenceDataReader.Create(rows, x => x.MapAll()), settings);
+					break;
+				case DbConnectionDecorator con:
+					var s = settings;
+					s.CommandTimeout = s.CommandTimeout ?? con.CommandTimeout;
+					Insert(con.InnerConnection, destinationTable, rows, s);
 					break;
 				default: throw new NotSupportedException();
 			}
@@ -104,40 +129,40 @@ namespace DataBoss.Data
 		
 		class DbConnectionDecorator : IDbConnection
 		{
-			readonly IDbConnection inner;
+			public readonly IDbConnection InnerConnection;
 
-			public DbConnectionDecorator(IDbConnection inner) { this.inner = inner; }
+			public DbConnectionDecorator(IDbConnection inner) { this.InnerConnection = inner; }
 
 			public int? CommandTimeout;
 
 			public string ConnectionString { 
-				get => inner.ConnectionString; 
-				set => inner.ConnectionString = value; 
+				get => InnerConnection.ConnectionString; 
+				set => InnerConnection.ConnectionString = value; 
 			}
 
-			public int ConnectionTimeout => inner.ConnectionTimeout;
+			public int ConnectionTimeout => InnerConnection.ConnectionTimeout;
 
-			public string Database => inner.Database;
+			public string Database => InnerConnection.Database;
 
-			public ConnectionState State => inner.State;
+			public ConnectionState State => InnerConnection.State;
 
-			public IDbTransaction BeginTransaction() => inner.BeginTransaction();
-			public IDbTransaction BeginTransaction(IsolationLevel il) => inner.BeginTransaction(il);
+			public IDbTransaction BeginTransaction() => InnerConnection.BeginTransaction();
+			public IDbTransaction BeginTransaction(IsolationLevel il) => InnerConnection.BeginTransaction(il);
 
-			public void ChangeDatabase(string databaseName) => inner.ChangeDatabase(databaseName);
+			public void ChangeDatabase(string databaseName) => InnerConnection.ChangeDatabase(databaseName);
 
-			public void Close() => inner.Close();
+			public void Close() => InnerConnection.Close();
 
 			public IDbCommand CreateCommand() {
-				var c = inner.CreateCommand();
+				var c = InnerConnection.CreateCommand();
 				if(CommandTimeout.HasValue)
 					c.CommandTimeout = CommandTimeout.Value;
 				return c;
 			}
 
-			public void Dispose() => inner.Dispose();
+			public void Dispose() => InnerConnection.Dispose();
 
-			public void Open() => inner.Open();
+			public void Open() => InnerConnection.Open();
 		}
 	}
 }
