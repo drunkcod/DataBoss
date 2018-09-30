@@ -42,41 +42,54 @@ namespace DataBoss.Data
 		public static void Into<T>(this IDbConnection connection, string destinationTable, IEnumerable<T> rows) =>
 			Into(connection, destinationTable, rows, new DataBossBulkCopySettings());
 		
-		public static void Into<T>(this IDbConnection connection, string destinationTable, IEnumerable<T> rows, DataBossBulkCopySettings settings) {
-			switch(connection) {
-				case SqlConnection con: 
-					SqlConnectionExtensions.Into(con, destinationTable, rows, settings);
-					break;
-				case ProfiledSqlConnection con:
-					con.Into(destinationTable, SequenceDataReader.Create(rows, x => x.MapAll()), settings);
-					break;
-				case DbConnectionDecorator con:
-					var s = settings;
-					s.CommandTimeout = s.CommandTimeout ?? con.CommandTimeout;
-					Into(con.InnerConnection, destinationTable, rows, s);
-					break;
-				default: throw new NotSupportedException();
-			}
-		}
+		public static void Into<T>(this IDbConnection connection, string destinationTable, IEnumerable<T> rows, DataBossBulkCopySettings settings) =>
+			GetExtras(connection).Into(destinationTable, rows, settings);
 
 		public static void Insert<T>(this IDbConnection connection, string destinationTable, IEnumerable<T> rows) =>
 			Insert(connection, destinationTable, rows, new DataBossBulkCopySettings());
 
-		public static void Insert<T>(this IDbConnection connection, string destinationTable, IEnumerable<T> rows, DataBossBulkCopySettings settings) {
+		public static void Insert<T>(this IDbConnection connection, string destinationTable, IEnumerable<T> rows, DataBossBulkCopySettings settings) =>
+			GetExtras(connection).Insert(destinationTable, rows, settings);
+
+		static IConnectionExtras GetExtras(IDbConnection connection) {
 			switch (connection) {
-				case SqlConnection con:
-					SqlConnectionExtensions.Insert(con, destinationTable, rows, settings);
-					break;
-				case ProfiledSqlConnection con:
-					con.Insert(destinationTable, SequenceDataReader.Create(rows, x => x.MapAll()), settings);
-					break;
-				case DbConnectionDecorator con:
-					var s = settings;
-					s.CommandTimeout = s.CommandTimeout ?? con.CommandTimeout;
-					Insert(con.InnerConnection, destinationTable, rows, s);
-					break;
+				case SqlConnection con: return new SqlConnectionExtras(con);
+				case ProfiledSqlConnection con: return new ProfiledSqlConnectionExtras(con);
+				case IConnectionExtras con: return con;
 				default: throw new NotSupportedException();
 			}
+		}
+
+		interface IConnectionExtras
+		{
+			void Into<T>(string destinationTable, IEnumerable<T> rows, DataBossBulkCopySettings settings);
+			void Insert<T>(string destinationTable, IEnumerable<T> rows, DataBossBulkCopySettings settings);
+		}
+
+		class SqlConnectionExtras : IConnectionExtras
+		{
+			readonly SqlConnection connection;
+
+			public SqlConnectionExtras(SqlConnection connection) { this.connection = connection; }
+
+			public void Insert<T>(string destinationTable, IEnumerable<T> rows, DataBossBulkCopySettings settings) =>
+				connection.Insert(destinationTable, rows, settings);
+
+			public void Into<T>(string destinationTable, IEnumerable<T> rows, DataBossBulkCopySettings settings) =>
+				connection.Into(destinationTable, rows, settings);
+		}
+
+		class ProfiledSqlConnectionExtras : IConnectionExtras
+		{
+			readonly ProfiledSqlConnection connection;
+
+			public ProfiledSqlConnectionExtras(ProfiledSqlConnection connection) { this.connection = connection; }
+
+			public void Insert<T>(string destinationTable, IEnumerable<T> rows, DataBossBulkCopySettings settings) =>
+				connection.Insert(destinationTable, SequenceDataReader.Create(rows, x => x.MapAll()), settings);
+
+			public void Into<T>(string destinationTable, IEnumerable<T> rows, DataBossBulkCopySettings settings) =>
+				connection.Into(destinationTable, SequenceDataReader.Create(rows, x => x.MapAll()), settings);
 		}
 
 		public static IEnumerable<T> Query<T>(this IDbConnection db, string sql, object args = null, bool buffered = true) => 
@@ -127,7 +140,7 @@ namespace DataBoss.Data
 		public static IDbConnection WithCommandTimeout(this IDbConnection db, int commandTimeout) =>
 			new DbConnectionDecorator(db) { CommandTimeout = commandTimeout };
 		
-		class DbConnectionDecorator : IDbConnection
+		class DbConnectionDecorator : IDbConnection, IConnectionExtras
 		{
 			public readonly IDbConnection InnerConnection;
 
@@ -163,6 +176,12 @@ namespace DataBoss.Data
 			public void Dispose() => InnerConnection.Dispose();
 
 			public void Open() => InnerConnection.Open();
+
+			public void Into<T>(string destinationTable, IEnumerable<T> rows, DataBossBulkCopySettings settings) =>
+				InnerConnection.Into(destinationTable, rows, settings.CommandTimeout.HasValue ? settings : settings.WithCommandTimeout(CommandTimeout));
+
+			public void Insert<T>(string destinationTable, IEnumerable<T> rows, DataBossBulkCopySettings settings) => 
+				InnerConnection.Insert(destinationTable, rows, settings.CommandTimeout.HasValue ? settings : settings.WithCommandTimeout(CommandTimeout));
 		}
 	}
 }

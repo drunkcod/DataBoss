@@ -13,6 +13,12 @@ namespace DataBoss.Data
 		public int? BatchSize;
 		public int? CommandTimeout;
 		public SqlBulkCopyOptions? Options;
+
+		public DataBossBulkCopySettings WithCommandTimeout(int? value) {
+			var x = this;
+			x.CommandTimeout = value;
+			return x;
+		}
 	}
 
 	public class DataBossBulkCopy
