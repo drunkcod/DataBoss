@@ -17,6 +17,11 @@ namespace DataBoss.Data
 			return cmd;
 		}
 
+		public static void CreateTable(this SqlConnection connection, string tableName, IDataReader data) {
+			var scripter = new DataBossScripter();
+			connection.ExecuteNonQuery(scripter.ScriptTable(tableName, data));
+		}
+
 		public static object ExecuteScalar(this SqlConnection connection, string cmdText) {
 			using(var q = connection.CreateCommand(cmdText))
 				return q.ExecuteScalar();
@@ -54,13 +59,8 @@ namespace DataBoss.Data
 			Into(connection, destinationTable, toInsert, new DataBossBulkCopySettings());
 
 		public static void Into(this SqlConnection connection, string destinationTable, IDataReader toInsert, DataBossBulkCopySettings settings) {
-			connection.CreateTable(destinationTable, toInsert);
-			connection.Insert(destinationTable, toInsert, settings);
-		}
-
-		public static void CreateTable(this SqlConnection connection, string tableName, IDataReader data) {
-			var scripter = new DataBossScripter();
-			connection.ExecuteNonQuery(scripter.ScriptTable(tableName, data));
+			CreateTable(connection, destinationTable, toInsert);
+			Insert(connection, destinationTable, toInsert, settings);
 		}
 
 		public static void Insert<T>(this SqlConnection connection, string destinationTable, IEnumerable<T> rows) =>

@@ -9,12 +9,6 @@ using System.Reflection;
 
 namespace DataBoss.Data
 {
-	interface IDbConnectionExtras
-	{
-		void CreateTable(string destinationTable, IDataReader data);
-		void Insert(string destinationTable, IDataReader rows, DataBossBulkCopySettings settings);
-	}
-
 	public static class DbConnectionExtensions
 	{
 		static MethodInfo AddTo = typeof(ToParams).GetMethod(nameof(ToParams.AddTo));
@@ -140,7 +134,7 @@ namespace DataBoss.Data
 		
 		class DbConnectionDecorator : IDbConnection, IDbConnectionExtras
 		{
-			public readonly IDbConnection InnerConnection;
+			 readonly IDbConnection InnerConnection;
 
 			public DbConnectionDecorator(IDbConnection inner) { this.InnerConnection = inner; }
 
