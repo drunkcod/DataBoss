@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
@@ -22,7 +23,7 @@ namespace DataBoss.Data
 		}
 	}
 
-	public class ProfiledSqlConnection : DbConnection
+	public class ProfiledSqlConnection : DbConnection, IDbConnectionExtras
 	{
 		readonly SqlConnection inner;
 
@@ -60,8 +61,7 @@ namespace DataBoss.Data
 		public override Task OpenAsync(CancellationToken cancellationToken) => inner.OpenAsync(cancellationToken);
 
 		public void Into(string destinationTable, IDataReader toInsert, DataBossBulkCopySettings settings) {
-			var scripter = new DataBossScripter();
-			this.ExecuteNonQuery(scripter.ScriptTable(destinationTable, toInsert));
+			inner.CreateTable(destinationTable, toInsert);
 			Insert(destinationTable, toInsert, settings);
 		}
 
@@ -96,6 +96,9 @@ namespace DataBoss.Data
 			CommandExecuting?.Invoke(this, new ProfiledSqlCommandExecutingEventArgs(command));
 			return new ExecutionScope(command);
 		}
+
+		void IDbConnectionExtras.CreateTable(string destinationTable, IDataReader data) =>
+			inner.CreateTable(destinationTable, data);
 	}
 
 	delegate int ExecuteT<T>(SqlCommand command, out T result);

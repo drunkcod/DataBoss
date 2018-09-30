@@ -54,9 +54,13 @@ namespace DataBoss.Data
 			Into(connection, destinationTable, toInsert, new DataBossBulkCopySettings());
 
 		public static void Into(this SqlConnection connection, string destinationTable, IDataReader toInsert, DataBossBulkCopySettings settings) {
-			var scripter = new DataBossScripter();
-			connection.ExecuteNonQuery(scripter.ScriptTable(destinationTable, toInsert));
+			connection.CreateTable(destinationTable, toInsert);
 			connection.Insert(destinationTable, toInsert, settings);
+		}
+
+		public static void CreateTable(this SqlConnection connection, string tableName, IDataReader data) {
+			var scripter = new DataBossScripter();
+			connection.ExecuteNonQuery(scripter.ScriptTable(tableName, data));
 		}
 
 		public static void Insert<T>(this SqlConnection connection, string destinationTable, IEnumerable<T> rows) =>
