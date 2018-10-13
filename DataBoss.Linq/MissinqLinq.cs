@@ -41,6 +41,24 @@ namespace DataBoss.Linq
 			static void ThrowInsufficientSpaceException() => new int[1].CopyTo(new int[0], 0);
 		}
 
+		static KeyValuePair<TKey, TValue> KeyValuePair<TKey, TValue>(TKey key, TValue value) => new KeyValuePair<TKey, TValue>(key, value);
+
+		public static IEnumerable<KeyValuePair<TKey, TAcc>> AggregateBy<T, TKey, TAcc>(this IEnumerable<T> items, Func<T, TKey> keySelector, Func<T, TAcc> getAccumulator, Func<TAcc, T, TAcc> accumulate) {
+			var r = new List<KeyValuePair<TKey, TAcc>>();
+			var pos = new Dictionary<TKey, int>();
+			foreach (var item in items) {
+				var key = keySelector(item);
+				if (pos.TryGetValue(key, out var n))
+					r[n] = KeyValuePair(key, accumulate(r[n].Value, item));
+				else {
+					n = r.Count;
+					pos.Add(key, n);
+					r.Add(KeyValuePair(key, getAccumulator(item)));
+				}
+			}
+			return r;
+		}
+
 		public static IReadOnlyCollection<T> AsReadOnly<T>(this IReadOnlyCollection<T> self) => AsReadOnly(self, Lambdas.Id<T>);
 		public static IReadOnlyCollection<TItem> AsReadOnly<T, TItem>(this IReadOnlyCollection<T> self, Func<T, TItem> selector) =>
 			new CollectionAdapter<T, TItem>(self, selector);
@@ -150,7 +168,7 @@ namespace DataBoss.Linq
 			return default(TValue);
 		}
 
-		public static ICollection<T> ToCollection<T>(this IEnumerable<T> items) {
+		public static BlockCollection<T> ToCollection<T>(this IEnumerable<T> items) {
 			var c = new BlockCollection<T>();
 			foreach(var item in items)
 				c.Add(item);
