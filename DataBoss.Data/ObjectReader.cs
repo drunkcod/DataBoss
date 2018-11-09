@@ -10,6 +10,9 @@ namespace DataBoss.Data
 		public static ObjectReader<TReader> For<TReader>(TReader reader) where TReader : IDataReader =>
 			new ObjectReader<TReader>(reader);
 
+		public static Func<TReader, T> GetConverter<TReader, T>(TReader reader) where TReader : IDataReader =>
+			GetConverter<TReader, T>(reader, null);
+
 		public static Func<TReader, T> GetConverter<TReader, T>(TReader reader, ConverterCollection customConversions) where TReader : IDataReader => 
 			ConverterFactory(customConversions).GetConverter<TReader, T>(reader).Compiled;
 

@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Linq;
 using System.Linq.Expressions;
@@ -110,94 +111,134 @@ namespace DataBoss.Data
 			this.converterCache = converterCache;
 		}
 
-		public DataRecordConverter<TReader, T> GetConverter<TReader, T>(TReader reader) where TReader : IDataReader { 
-			var root = new ChildBinding();
-			return new DataRecordConverter<TReader, T>(converterCache.GetOrAdd(reader, typeof(T), (map, result) => BuildConverter(ConverterContext.Create<TReader>(result), map, result, ref root)));
-		}
+		class DataRecordConverterFactory
+		{
+			readonly ConverterCollection customConversions;
 
-		LambdaExpression BuildConverter(ConverterContext context, FieldMap map, Type result, ref ChildBinding item) => 
-			Expression.Lambda(MemberInit(context, result, map, ref item), context.Arg0);
+			public DataRecordConverterFactory(ConverterCollection customConversions) { this.customConversions = customConversions; }
 
-		Expression MemberInit(ConverterContext context, Type fieldType, FieldMap map, ref ChildBinding item) =>
-			Expression.MemberInit(
-				GetCtor(context, map, fieldType, ref item),
-				GetMembers(context, map, fieldType, ref item));
-
-		NewExpression GetCtor(ConverterContext context, FieldMap map, Type fieldType, ref ChildBinding item) {
-			var ctors = fieldType.GetConstructors()
-				.Select(ctor => new { ctor, p = ctor.GetParameters() })
-				.OrderByDescending(x => x.p.Length);
-			foreach(var x in ctors) {
-				var pn = new Expression[x.p.Length];
-				if(TryMapParameters(context, map, ref item, x.p, pn))
-					return Expression.New(x.ctor, pn);
+			public LambdaExpression BuildConverter<TReader>(FieldMap map, Type result) where TReader : IDataReader {
+				var root = new ChildBinding();
+				return BuildConverter(ConverterContext.Create<TReader>(result), map, result, ref root);
 			}
 
-			if(fieldType.IsValueType)
-				return Expression.New(fieldType);
+			LambdaExpression BuildConverter(ConverterContext context, FieldMap map, Type result, ref ChildBinding item) =>
+				Expression.Lambda(MemberInit(context, result, map, ref item), context.Arg0);
 
-			throw new InvalidConversionException("No suitable constructor found for " + fieldType, context.ResultType);
-		}
+			Expression MemberInit(ConverterContext context, Type fieldType, FieldMap map, ref ChildBinding item) =>
+				Expression.MemberInit(
+					GetCtor(context, map, fieldType, ref item),
+					GetMembers(context, map, fieldType, ref item));
 
-		ArraySegment<MemberAssignment> GetMembers(ConverterContext context, FieldMap map, Type targetType, ref ChildBinding item) {
-			var fields = targetType.GetFields().Where(x => !x.IsInitOnly).Select(x => new { x.Name, x.FieldType, Member = (MemberInfo)x });
-			var props = targetType.GetProperties().Where(x => x.CanWrite).Select(x => new { x.Name, FieldType = x.PropertyType, Member = (MemberInfo)x });
-			var members = fields.Concat(props).ToArray();
-			var ordinals = new int[members.Length];
-			var bindings = new MemberAssignment[members.Length];
-			var found = 0;
-			foreach(var x in members) {
-				if(!TryReadOrInit(context, map, x.FieldType, x.Name, ref item))
-					continue;
-				ordinals[found] = item.Reader.Ordinal;
-				bindings[found] = Expression.Bind(x.Member, item.Reader.GetReader());
-				++found;
+			NewExpression GetCtor(ConverterContext context, FieldMap map, Type fieldType, ref ChildBinding item) {
+				var ctors = fieldType.GetConstructors()
+					.Select(ctor => new { ctor, p = ctor.GetParameters() })
+					.OrderByDescending(x => x.p.Length);
+				foreach (var x in ctors) {
+					var pn = new Expression[x.p.Length];
+					if (TryMapParameters(context, map, ref item, x.p, pn))
+						return Expression.New(x.ctor, pn);
+				}
+
+				if (fieldType.IsValueType)
+					return Expression.New(fieldType);
+
+				throw new InvalidConversionException("No suitable constructor found for " + fieldType, context.ResultType);
 			}
-			Array.Sort(ordinals, bindings, 0, found);
-			return new ArraySegment<MemberAssignment>(bindings, 0, found);
-		}
 
-		bool TryMapParameters(ConverterContext context, FieldMap map, ref ChildBinding item, ParameterInfo[] parameters, Expression[] exprs) {
-			for(var i = 0; i != parameters.Length; ++i) {
-				if(!TryReadOrInit(context, map, parameters[i].ParameterType, parameters[i].Name, ref item))
+			ArraySegment<MemberAssignment> GetMembers(ConverterContext context, FieldMap map, Type targetType, ref ChildBinding item) {
+				var fields = targetType.GetFields().Where(x => !x.IsInitOnly).Select(x => new { x.Name, x.FieldType, Member = (MemberInfo)x });
+				var props = targetType.GetProperties().Where(x => x.CanWrite).Select(x => new { x.Name, FieldType = x.PropertyType, Member = (MemberInfo)x });
+				var members = fields.Concat(props).ToArray();
+				var ordinals = new int[members.Length];
+				var bindings = new MemberAssignment[members.Length];
+				var found = 0;
+				foreach (var x in members) {
+					if (!TryReadOrInit(context, map, x.FieldType, x.Name, ref item))
+						if (x.Member.GetCustomAttributes(typeof(RequiredAttribute), false).Length != 0)
+							throw new ArgumentException("Failed to set required member.", x.Name);
+						else continue;
+					ordinals[found] = item.Reader.Ordinal;
+					bindings[found] = Expression.Bind(x.Member, item.Reader.GetReader());
+					++found;
+				}
+				Array.Sort(ordinals, bindings, 0, found);
+				return new ArraySegment<MemberAssignment>(bindings, 0, found);
+			}
+
+			bool TryMapParameters(ConverterContext context, FieldMap map, ref ChildBinding item, ParameterInfo[] parameters, Expression[] exprs) {
+				for (var i = 0; i != parameters.Length; ++i) {
+					if (!TryReadOrInit(context, map, parameters[i].ParameterType, parameters[i].Name, ref item))
+						return false;
+					exprs[i] = item.Reader.GetReader();
+				}
+				return true;
+			}
+
+			bool TryReadOrInit(ConverterContext context, FieldMap map, Type itemType, string itemName, ref ChildBinding item) {
+				if (itemType.TryGetNullableTargetType(out var baseType)) {
+					var childItem = new ChildBinding { IsRequired = true };
+					if (TryReadOrInit(context, map, baseType, itemName, ref childItem)) {
+						item.Reader = childItem.GetMemberReader(itemType);
+						return true;
+					}
 					return false;
-				exprs[i] = item.Reader.GetReader();
-			}
-			return true;
-		}
-		
-		bool TryReadOrInit(ConverterContext context, FieldMap map, Type itemType, string itemName, ref ChildBinding item) {
-			if(itemType.TryGetNullableTargetType(out var baseType)) {
-				var childItem = new ChildBinding { IsRequired = true };
-				if(TryReadOrInit(context, map, baseType, itemName, ref childItem)) {
-					item.Reader = childItem.GetMemberReader(itemType);
+				}
+
+				FieldMapItem column;
+				if (map.TryGetOrdinal(itemName, out column)) {
+					var o = Expression.Constant(column.Ordinal);
+					Expression convertedField;
+					if (!TryConvertField(context.ReadField(column.FieldType, o), itemType, out convertedField)
+					&& !(column.ProviderSpecificFieldType != null && TryConvertField(context.ReadField(column.ProviderSpecificFieldType, o), itemType, out convertedField)))
+						throw new InvalidConversionException($"Can't read '{itemName}' of type {itemType.Name} given {column.FieldType.Name}", context.ResultType);
+
+					var thisNull = context.IsNull(o);
+					if (item.IsRequired && column.CanBeNull)
+						item.AnyRequiredNull = OrElse(item.AnyRequiredNull, thisNull);
+					item.Reader = new MemberReader(column.Ordinal, convertedField, column.CanBeNull ? thisNull : null);
 					return true;
 				}
+
+				FieldMap subMap;
+				if (map.TryGetSubMap(itemName, out subMap)) {
+					item.Reader = new MemberReader(subMap.MinOrdinal, MemberInit(context, itemType, subMap, ref item), null);
+					return true;
+				}
+
 				return false;
 			}
 
-			FieldMapItem column;
-			if (map.TryGetOrdinal(itemName, out column)) {
-				var o = Expression.Constant(column.Ordinal);
-				Expression convertedField;
-				if(!TryConvertField(context.ReadField(column.FieldType, o), itemType, out convertedField) 
-				&& !(column.ProviderSpecificFieldType != null && TryConvertField(context.ReadField(column.ProviderSpecificFieldType, o), itemType, out convertedField)))
-					throw new InvalidConversionException($"Can't read '{itemName}' of type {itemType.Name} given {column.FieldType.Name}", context.ResultType);
+			bool TryConvertField(Expression rawField, Type to, out Expression convertedField) {
+				var from = rawField.Type;
+				if (from == to) {
+					convertedField = rawField;
+					return true;
+				}
 
-				var thisNull = context.IsNull(o);
-				if (item.IsRequired && column.CanBeNull)
-					item.AnyRequiredNull = OrElse(item.AnyRequiredNull, thisNull);
-				item.Reader = new MemberReader(column.Ordinal, convertedField, column.CanBeNull ? thisNull : null);
-				return true;
+				if (TryGetConverter(rawField, to, out convertedField))
+					return true;
+
+				return false;
 			}
 
-			FieldMap subMap;
-			if(map.TryGetSubMap(itemName, out subMap)) {
-				item.Reader = new MemberReader(subMap.MinOrdinal, MemberInit(context, itemType, subMap, ref item), null);
-				return true;
-			}
+			bool TryGetConverter(Expression rawField, Type to, out Expression converter) {
+				if (customConversions.TryGetConverter(rawField, to, out converter))
+					return true;
 
-			return false;
+				if (rawField.Type == typeof(object) && to == typeof(byte[])) {
+					converter = Expression.Convert(rawField, to);
+					return true;
+				}
+
+				return false;
+			}
+		}
+
+		public DataRecordConverter<TReader, T> GetConverter<TReader, T>(TReader reader) where TReader : IDataReader { 
+			return new DataRecordConverter<TReader, T>(
+				converterCache.GetOrAdd(reader, typeof(T),
+				new DataRecordConverterFactory(customConversions).BuildConverter<TReader>));
 		}
 	
 		static Expression OrElse(Expression left, Expression right) {
@@ -206,31 +247,6 @@ namespace DataBoss.Data
 			if(right == null)
 				return left;
 			return Expression.OrElse(left, right);
-		}
-
-		bool TryConvertField(Expression rawField, Type to, out Expression convertedField) {
-			var from = rawField.Type;
-			if (from == to) {
-				convertedField = rawField;
-				return true;
-			}
-
-			if (TryGetConverter(rawField, to, out convertedField))
-				return true;
-
-			return false;
-		}
-
-		bool TryGetConverter(Expression rawField, Type to, out Expression converter) {
-			if(customConversions.TryGetConverter(rawField, to, out converter))
-				return true;
-
-			if (rawField.Type == typeof(object) && to == typeof(byte[])) {
-				converter = Expression.Convert(rawField, to);
-				return true;
-			}
-
-			return false;
 		}
 
 		static string MapFieldType(Type fieldType) {

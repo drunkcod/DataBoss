@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using System.Linq.Expressions;
 
@@ -89,6 +90,9 @@ namespace DataBoss.Data
 			converter = null;
 			return false;
 		}
+
+		public Func<TReader, T> GetConverter<TReader, T>(TReader reader) where TReader : IDataReader =>
+			ObjectReader.GetConverter<TReader, T>(reader, this);
 
 		public IEnumerator<ConverterCollectionItem> GetEnumerator() => 
 			converters.GetEnumerator();

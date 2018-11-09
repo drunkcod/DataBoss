@@ -4,6 +4,7 @@ using DataBoss.Data;
 using DataBoss.Migrations;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Diagnostics;
 using System.Linq;
@@ -294,6 +295,18 @@ namespace DataBoss.Specs
 			Check
 				.With(() => ObjectReader.For(source).Read<StructRow<int>>().ToArray())
 				.That(x => x[0].Value == 0);
+		}
+
+		class MyRequiredValue<T>
+		{
+			[Required]
+			public T Value;
+		}
+
+		public void ensures_required_fields_are_present() {
+			var source = new SimpleDataReader(Col<int>($"Not{nameof(MyRequiredValue<int>.Value)}"));
+			source.Add(1);
+			Check.Exception<ArgumentException>(() => ObjectReader.For(source).Read<MyRequiredValue<int>>().ToArray());
 		}
 	}
 }

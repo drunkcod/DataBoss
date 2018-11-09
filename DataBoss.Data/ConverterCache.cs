@@ -25,8 +25,14 @@ namespace DataBoss.Data
 	{
 		readonly ConcurrentDictionary<string, DataRecordConverter> converterCache = new ConcurrentDictionary<string, DataRecordConverter>(); 
 
-		public DataRecordConverter GetOrAdd<TReader>(TReader reader, Type result, Func<FieldMap, Type, LambdaExpression> createConverter) where TReader : IDataReader =>
-			converterCache.GetOrAdd($"{typeof(TReader)}({FieldKey(reader)}) -> {result}", _ => NullConverterCache.Instance.GetOrAdd(reader, result, createConverter));
+		public DataRecordConverter GetOrAdd<TReader>(TReader reader, Type result, Func<FieldMap, Type, LambdaExpression> createConverter) where TReader : IDataReader { 
+			var key = $"{typeof(TReader)}({FieldKey(reader)}) -> {result}";
+			if(!converterCache.TryGetValue(key, out var found)) { 
+				found = NullConverterCache.Instance.GetOrAdd(reader, result, createConverter);
+				converterCache.TryAdd(key, found);
+			}
+			return found;
+		}
 
 		static string FieldKey(IDataReader reader) =>
 			string.Join(", ", Enumerable.Range(0, reader.FieldCount).Select(ordinal => $"{reader.GetFieldType(ordinal)} [{reader.GetName(ordinal)}]"));

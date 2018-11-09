@@ -87,7 +87,7 @@ namespace DataBoss.Linq
 		}
 
 		public static IEnumerable<IGrouping<TKey, TElement>> ChunkBy<TElement, TKey>(this IEnumerable<TElement> items, Func<TElement, TKey> selector) =>
-			ChunkBy(items, selector, Lambdas.Id<TElement>);
+			ChunkBy(items, selector, Lambdas.Id);
 
 		public static IEnumerable<IGrouping<TKey, TElement>> ChunkBy<T, TKey, TElement>(this IEnumerable<T> items, Func<T, TKey> keySelector, Func<T, TElement> elementSelector) {
 			using (var x = items.GetEnumerator()) {

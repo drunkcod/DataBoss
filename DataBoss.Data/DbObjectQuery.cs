@@ -23,10 +23,11 @@ namespace DataBoss.Data
 			this.executeReader = executeReader;
 		}
 
-		public DbCommandEnumerable<TCommand, TReader, TOutput> Read<TOutput>() => Read(x => ObjectReader.GetConverter<TReader, TOutput>(x, null));
+		public DbCommandEnumerable<TCommand, TReader, TOutput> Read<TOutput>() =>
+			Read(ObjectReader.GetConverter<TReader, TOutput>);
 
 		public DbCommandEnumerable<TCommand, TReader, TOutput> Read<TOutput>(ConverterCollection converters) => 
-			Read(x => ObjectReader.GetConverter<TReader, TOutput>(x, converters));
+			Read(converters.GetConverter<TReader, TOutput>);
 
 		public DbCommandEnumerable<TCommand, TReader, TOutput> Read<TOutput>(Func<TReader, Func<TReader, TOutput>> converterFactory) =>
 			new DbCommandEnumerable<TCommand, TReader, TOutput>(getCommand, executeReader, converterFactory);
