@@ -7,20 +7,14 @@ namespace DataBoss.Data
 {
 	public class ProfiledSqlCommand : DbCommand
 	{
-
-		static readonly ExecuteT<int> DoExecuteNonQuery = (SqlCommand c, out int result) => result = c.ExecuteNonQuery();
-		static readonly ExecuteT<object> DoExecuteScalar = (SqlCommand c, out object result) => {
-			result = c.ExecuteScalar();
-			return 1;
-		};
-
-		readonly ProfiledSqlConnection parent;
 		readonly internal SqlCommand inner;
 
 		internal ProfiledSqlCommand(ProfiledSqlConnection parent, SqlCommand inner) {
-			this.parent = parent;
+			this.Connection = parent;
 			this.inner = inner;
 		}
+
+		public ProfiledSqlCommand(SqlCommand inner) : this(null, inner) { }
 
 		public override string CommandText {
 			get => inner.CommandText;
@@ -37,6 +31,8 @@ namespace DataBoss.Data
 			set => inner.CommandType = value;
 		}
 
+		public new ProfiledSqlConnection Connection { get; set; }
+
 		public override bool DesignTimeVisible {
 			get => inner.DesignTimeVisible;
 			set => inner.DesignTimeVisible = value;
@@ -50,8 +46,11 @@ namespace DataBoss.Data
 		public new SqlParameterCollection Parameters => inner.Parameters;
 
 		protected override DbConnection DbConnection {
-			get => parent;
-			set => throw new NotSupportedException("Can't switch connection for profiled command");
+			get => Connection;
+			set {
+				Connection = (ProfiledSqlConnection)value;
+				inner.Connection = (SqlConnection)Connection;
+			}
 		}
 
 		protected override DbParameterCollection DbParameterCollection => inner.Parameters;
@@ -63,15 +62,27 @@ namespace DataBoss.Data
 
 		public override void Cancel() => inner.Cancel();
 
-		public override int ExecuteNonQuery() => parent.Execute(this, DoExecuteNonQuery);
-		public override object ExecuteScalar() => parent.Execute(this, DoExecuteScalar);
+		public override int ExecuteNonQuery() {
+			var s = Connection.OnExecuting(this);
+			var r = inner.ExecuteNonQuery();
+			s.OnExecuted(r, null);
+			return r;
+		}
+
+		public override object ExecuteScalar() {
+			var s = Connection.OnExecuting(this);
+			var r = inner.ExecuteScalar();
+			s.OnExecuted(1, null);
+			return r;
+		}
+
 		public new ProfiledDataReader ExecuteReader(CommandBehavior behavior) => new ProfiledDataReader(inner.ExecuteReader(behavior));
 
 		protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior) {
-			var s = parent.OnExecuting(this);
-			var reader = ExecuteReader(behavior);
-			s.OnExecuted(0, reader);
-			return reader;
+			var s = Connection.OnExecuting(this);
+			var r = ExecuteReader(behavior);
+			s.OnExecuted(0, r);
+			return r;
 		}
 
 		public override void Prepare() => inner.Prepare();

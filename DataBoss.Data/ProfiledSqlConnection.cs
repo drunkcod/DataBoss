@@ -1,6 +1,5 @@
 using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
@@ -8,22 +7,10 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using DataBoss.Data.Scripting;
 
 namespace DataBoss.Data
 {
-	public static class ProfiledSqlConnectionExtensions
-	{
-		public static ProfiledSqlConnectionTraceWriter StartTrace(this ProfiledSqlConnection self, TextWriter target) => new ProfiledSqlConnectionTraceWriter(self, target);
-		public static ProfiledSqlConnectionStatistics StartGatheringQueryStatistics(this ProfiledSqlConnection self) {
-			var stats = new ProfiledSqlConnectionStatistics(self) {
-				StatisticsEnabled = true
-			};
-			return stats;
-		}
-	}
-
-	public class ProfiledSqlConnection : DbConnection, IDbConnectionExtras
+	public class ProfiledSqlConnection : DbConnection, IDataBossConnectionExtras
 	{
 		readonly SqlConnection inner;
 
@@ -52,6 +39,10 @@ namespace DataBoss.Data
 		public event EventHandler<ProfiledSqlCommandExecutingEventArgs> CommandExecuting;
 		public event EventHandler<ProfiledSqlCommandExecutedEventArgs> CommandExecuted;
 		public event EventHandler<ProfiledBulkCopyStartingEventArgs> BulkCopyStarting;
+		public override event StateChangeEventHandler StateChange {
+			add { inner.StateChange += value; }
+			remove { inner.StateChange -= value; }
+		}
 
 		protected override DbCommand CreateDbCommand() => new ProfiledSqlCommand(this, inner.CreateCommand());
 		protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel) => inner.BeginTransaction(isolationLevel);
@@ -59,6 +50,8 @@ namespace DataBoss.Data
 		public override void ChangeDatabase(string databaseName) => inner.ChangeDatabase(databaseName);
 		public override void Open() => inner.Open();
 		public override Task OpenAsync(CancellationToken cancellationToken) => inner.OpenAsync(cancellationToken);
+
+		protected override DbProviderFactory DbProviderFactory => new ProfiledSqlDbProviderFactory();
 
 		public void Into(string destinationTable, IDataReader toInsert, DataBossBulkCopySettings settings) {
 			inner.CreateTable(destinationTable, toInsert);
@@ -72,36 +65,32 @@ namespace DataBoss.Data
 			}
 		}
 
-		internal T Execute<T>(ProfiledSqlCommand command, ExecuteT<T> executeT) {
-			var scope = OnExecuting(command);
-			scope.OnExecuted(executeT(command.inner, out var r), null);
-			return r;
-		}
-
-		internal class ExecutionScope
+		internal class ProfiledCommandExecutionScope
 		{
-			readonly ProfiledSqlCommand parent;
+			readonly ProfiledSqlCommand command;
 			readonly Stopwatch stopwatch = Stopwatch.StartNew();
 
-			public ExecutionScope(ProfiledSqlCommand parent) {
-				this.parent = parent;
+			public ProfiledCommandExecutionScope(ProfiledSqlCommand parent) {
+				this.command = parent;
 			}
 
 			public void OnExecuted(int rowCount, ProfiledDataReader reader) =>
-				((ProfiledSqlConnection)parent.Connection).CommandExecuted?.Invoke(this, new ProfiledSqlCommandExecutedEventArgs(parent, stopwatch.Elapsed, rowCount, reader));
-
+				command.Connection.OnExecuted(command, stopwatch.Elapsed, rowCount, reader);
 		}
 
-		internal ExecutionScope OnExecuting(ProfiledSqlCommand command) {
+		internal ProfiledCommandExecutionScope OnExecuting(ProfiledSqlCommand command) {
 			CommandExecuting?.Invoke(this, new ProfiledSqlCommandExecutingEventArgs(command));
-			return new ExecutionScope(command);
+			return new ProfiledCommandExecutionScope(command);
 		}
 
-		void IDbConnectionExtras.CreateTable(string destinationTable, IDataReader data) =>
-			inner.CreateTable(destinationTable, data);
-	}
+		void OnExecuted(ProfiledSqlCommand command, TimeSpan elapsed, int rowCount, ProfiledDataReader reader) =>
+			CommandExecuted?.Invoke(this, new ProfiledSqlCommandExecutedEventArgs(command, elapsed, rowCount, reader));
 
-	delegate int ExecuteT<T>(SqlCommand command, out T result);
+		void IDataBossConnectionExtras.CreateTable(string destinationTable, IDataReader data) =>
+			inner.CreateTable(destinationTable, data);
+
+		public static explicit operator SqlConnection(ProfiledSqlConnection self) => self.inner;
+	}
 
 	public class ProfiledSqlCommandExecutingEventArgs : EventArgs
 	{
@@ -135,6 +124,17 @@ namespace DataBoss.Data
 		public ProfiledBulkCopyStartingEventArgs(string destinationTable, ProfiledDataReader rows) {
 			this.DestinationTable = destinationTable;
 			this.Rows = rows;
+		}
+	}
+
+	public static class ProfiledSqlConnectionExtensions
+	{
+		public static ProfiledSqlConnectionTraceWriter StartTrace(this ProfiledSqlConnection self, TextWriter target) => new ProfiledSqlConnectionTraceWriter(self, target);
+		public static ProfiledSqlConnectionStatistics StartGatheringQueryStatistics(this ProfiledSqlConnection self) {
+			var stats = new ProfiledSqlConnectionStatistics(self) {
+				StatisticsEnabled = true
+			};
+			return stats;
 		}
 	}
 }

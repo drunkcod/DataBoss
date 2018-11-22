@@ -63,15 +63,15 @@ namespace DataBoss.Data
 		public static void CreateTable(this IDbConnection connection, string tableName, IDataReader data) =>
 			GetExtras(connection).CreateTable(tableName, data);
 
-		static IDbConnectionExtras GetExtras(IDbConnection connection) {
+		static IDataBossConnectionExtras GetExtras(IDbConnection connection) {
 			switch (connection) {
 				case SqlConnection con: return new SqlConnectionExtras(con);
-				case IDbConnectionExtras con: return con;
+				case IDataBossConnectionExtras con: return con;
 				default: throw new NotSupportedException();
 			}
 		}
 
-		class SqlConnectionExtras : IDbConnectionExtras
+		class SqlConnectionExtras : IDataBossConnectionExtras
 		{
 			readonly SqlConnection connection;
 
@@ -132,7 +132,7 @@ namespace DataBoss.Data
 		public static IDbConnection WithCommandTimeout(this IDbConnection db, int commandTimeout) =>
 			new DbConnectionDecorator(db) { CommandTimeout = commandTimeout };
 		
-		class DbConnectionDecorator : IDbConnection, IDbConnectionExtras
+		class DbConnectionDecorator : IDbConnection, IDataBossConnectionExtras
 		{
 			 readonly IDbConnection InnerConnection;
 

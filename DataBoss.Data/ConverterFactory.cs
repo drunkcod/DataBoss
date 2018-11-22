@@ -30,10 +30,9 @@ namespace DataBoss.Data
 
 			public readonly Type ResultType;
 
-			public static ConverterContext Create<TRecord>(Type resultType) where TRecord : IDataRecord {
-				var record = typeof(TRecord);
-				return new ConverterContext(Expression.Parameter(record, "x"), 
-					record.GetMethod(nameof(IDataRecord.IsDBNull)) ?? typeof(IDataRecord).GetMethod(nameof(IDataRecord.IsDBNull)),
+			public static ConverterContext Create(Type recordType, Type resultType) {
+				return new ConverterContext(Expression.Parameter(recordType, "x"), 
+					recordType.GetMethod(nameof(IDataRecord.IsDBNull)) ?? typeof(IDataRecord).GetMethod(nameof(IDataRecord.IsDBNull)),
 					resultType);
 			}
 
@@ -100,14 +99,14 @@ namespace DataBoss.Data
 			Expression ReadAs(Type itemType) => Expression.Convert(Reader.Read, itemType);
 		}
 
-		readonly ConverterCollection customConversions;
+		readonly DataRecordConverterFactory recordConverterFactory;
 		readonly IConverterCache converterCache;
 
 		public ConverterFactory(ConverterCollection customConversions) : this(customConversions, new ConcurrentConverterCache())
 		{ }
 
 		public ConverterFactory(ConverterCollection customConversions, IConverterCache converterCache) {
-			this.customConversions = new ConverterCollection(customConversions);
+			this.recordConverterFactory = new DataRecordConverterFactory(new ConverterCollection(customConversions));
 			this.converterCache = converterCache;
 		}
 
@@ -117,13 +116,23 @@ namespace DataBoss.Data
 
 			public DataRecordConverterFactory(ConverterCollection customConversions) { this.customConversions = customConversions; }
 
-			public LambdaExpression BuildConverter<TReader>(FieldMap map, Type result) where TReader : IDataReader {
+			public DataRecordConverter BuildConverter(Type readerType, FieldMap map, Type result) {
 				var root = new ChildBinding();
-				return BuildConverter(ConverterContext.Create<TReader>(result), map, result, ref root);
+				return BuildConverter(ConverterContext.Create(readerType, result), map, result, ref root);
 			}
 
-			LambdaExpression BuildConverter(ConverterContext context, FieldMap map, Type result, ref ChildBinding item) =>
-				Expression.Lambda(MemberInit(context, result, map, ref item), context.Arg0);
+			public DataRecordConverter BuildConverter<TReader,TArg0, T>(FieldMap map, Expression<Func<TArg0, T>> factory) where TReader : IDataReader {
+				var context = ConverterContext.Create(typeof(TReader), typeof(T));
+				var pn = new Expression[factory.Parameters.Count];
+				var root = new ChildBinding();
+				if (TryMapParameters(context, map, ref root, factory.Parameters.Select(x => (x.Type, x.Name)).ToArray(), pn))
+					return new DataRecordConverter(Expression.Lambda(Expression.Invoke(factory, pn), context.Arg0));
+
+				throw new InvalidConversionException("Mapping failed.", typeof(T));
+			}
+
+			DataRecordConverter BuildConverter(ConverterContext context, FieldMap map, Type result, ref ChildBinding item) =>
+				new DataRecordConverter(Expression.Lambda(MemberInit(context, result, map, ref item), context.Arg0));
 
 			Expression MemberInit(ConverterContext context, Type fieldType, FieldMap map, ref ChildBinding item) =>
 				Expression.MemberInit(
@@ -132,7 +141,7 @@ namespace DataBoss.Data
 
 			NewExpression GetCtor(ConverterContext context, FieldMap map, Type fieldType, ref ChildBinding item) {
 				var ctors = fieldType.GetConstructors()
-					.Select(ctor => new { ctor, p = ctor.GetParameters() })
+					.Select(ctor => new { ctor, p = Array.ConvertAll(ctor.GetParameters(), x => (x.ParameterType, x.Name)) })
 					.OrderByDescending(x => x.p.Length);
 				foreach (var x in ctors) {
 					var pn = new Expression[x.p.Length];
@@ -166,7 +175,7 @@ namespace DataBoss.Data
 				return new ArraySegment<MemberAssignment>(bindings, 0, found);
 			}
 
-			bool TryMapParameters(ConverterContext context, FieldMap map, ref ChildBinding item, ParameterInfo[] parameters, Expression[] exprs) {
+			bool TryMapParameters(ConverterContext context, FieldMap map, ref ChildBinding item, (Type ParameterType, string Name)[] parameters, Expression[] exprs) {
 				for (var i = 0; i != parameters.Length; ++i) {
 					if (!TryReadOrInit(context, map, parameters[i].ParameterType, parameters[i].Name, ref item))
 						return false;
@@ -235,12 +244,25 @@ namespace DataBoss.Data
 			}
 		}
 
-		public DataRecordConverter<TReader, T> GetConverter<TReader, T>(TReader reader) where TReader : IDataReader { 
-			return new DataRecordConverter<TReader, T>(
-				converterCache.GetOrAdd(reader, typeof(T),
-				new DataRecordConverterFactory(customConversions).BuildConverter<TReader>));
-		}
+		public DataRecordConverter<TReader, T> GetConverter<TReader, T>(TReader reader) where TReader : IDataReader =>
+			converterCache.GetOrAdd(
+				reader, ConverterCacheKey.Create(reader, typeof(T)),
+				x => recordConverterFactory.BuildConverter(typeof(TReader), x, typeof(T)))
+			.ToTyped<TReader, T>();
 	
+		public DataRecordConverter<TReader, T> GetConverter<TReader, TArg0, T>(TReader reader, Expression<Func<TArg0, T>> factory) where TReader : IDataReader {
+			if(ConverterCacheKey.TryCreate(typeof(TReader), factory, out var key)) {
+				return converterCache.GetOrAdd(
+					reader, key,
+					x => recordConverterFactory.BuildConverter<TReader, TArg0, T>(x, factory))
+				.ToTyped<TReader, T>();
+			}
+
+			return recordConverterFactory
+				.BuildConverter<TReader, TArg0, T>(FieldMap.Create(reader), factory)
+				.ToTyped<TReader, T>();
+		}
+
 		static Expression OrElse(Expression left, Expression right) {
 			if(left == null)
 				return right;

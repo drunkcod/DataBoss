@@ -14,13 +14,15 @@ namespace DataBoss.Data
 			this.Expression = expression;
 			this.compiled = null;
 		}
+
+		public DataRecordConverter<TReader, T> ToTyped<TReader,T>() => new DataRecordConverter<TReader, T>(this);
 	}
 
 	public struct DataRecordConverter<TReader, T>
 	{
 		readonly DataRecordConverter converter;
 
-		public DataRecordConverter(DataRecordConverter converter) {
+		internal DataRecordConverter(DataRecordConverter converter) {
 			this.converter = converter;
 		}
 
