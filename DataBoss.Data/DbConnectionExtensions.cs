@@ -84,24 +84,50 @@ namespace DataBoss.Data
 				connection.Insert(destinationTable, rows, settings);
 		}
 
-		public static IEnumerable<T> Query<T>(this IDbConnection db, string sql, object args = null, bool buffered = true) => 
-			Query<T>(db, sql, new DataBossQueryOptions {
-				Parameters = args,
-				Buffered = buffered,
-			});
+		public static IEnumerable<T> Query<T>(this IDbConnection db, string sql, object args = null, bool buffered = true) =>
+			Query<T>(db, sql, new DataBossQueryOptions { Parameters = args, Buffered = buffered });
+
+		public static IEnumerable<T> Query<TArg0, T>(this IDbConnection db, Expression<Func<TArg0, T>> selector, string sql, object args = null, bool buffered = true) =>
+			Query(db, sql, args, buffered).Read(selector);
+
+		public static IEnumerable<T> Query<TArg0, TArg1, T>(this IDbConnection db, Expression<Func<TArg0, TArg1, T>> selector, string sql, object args = null, bool buffered = true) =>
+			Query(db, sql, args, buffered).Read(selector);
+
+		public static IEnumerable<T> Query<TArg0, TArg1, TArg2, T>(this IDbConnection db, Expression<Func<TArg0, TArg1, TArg2, T>> selector, string sql, object args = null, bool buffered = true) =>
+			Query(db, sql, args, buffered).Read(selector);
+
+		public static IEnumerable<T> Query<TArg0, TArg1, TArg2, TArg3, T>(this IDbConnection db, Expression<Func<TArg0, TArg1, TArg2, TArg3, T>> selector, string sql, object args = null, bool buffered = true) =>
+			Query(db, sql, args, buffered).Read(selector);
 
 		public static IEnumerable<T> Query<T>(this IDbConnection db, string commandText, DataBossQueryOptions options) =>
-			new DbQuery {
-				Connection = db,
-				CommandText = commandText,
-				Options = options,
-			}.Read<T>();
+			new DbQuery(db, commandText, options).Read<T>();
+
+		public static IEnumerable<T> Query<TArg0, T>(this IDbConnection db, Expression<Func<TArg0, T>> selector, string commandText, DataBossQueryOptions options) =>
+			new DbQuery(db, commandText, options).Read(selector);
+
+		public static IEnumerable<T> Query<TArg0, TArg1, T>(this IDbConnection db, Expression<Func<TArg0, TArg1, T>> selector, string commandText, DataBossQueryOptions options) =>
+			new DbQuery(db, commandText, options).Read(selector);
+
+		public static IEnumerable<T> Query<TArg0, TArg1, TArg2, T>(this IDbConnection db, Expression<Func<TArg0, TArg1, TArg2, T>> selector, string commandText, DataBossQueryOptions options) =>
+			new DbQuery(db, commandText, options).Read(selector);
+
+		public static IEnumerable<T> Query<TArg0, TArg1, TArg2, TArg3, T>(this IDbConnection db, Expression<Func<TArg0, TArg1, TArg2, TArg3, T>> selector, string commandText, DataBossQueryOptions options) =>
+			new DbQuery(db, commandText, options).Read(selector);
+
+		static DbQuery Query(IDbConnection db, string commandText, object args, bool buffered) =>
+			new DbQuery(db, commandText, new DataBossQueryOptions { Parameters = args, Buffered = buffered });
 
 		class DbQuery
 		{
-			public IDbConnection Connection;
-			public string CommandText;
-			public DataBossQueryOptions Options;
+			public readonly IDbConnection Connection;
+			public readonly string CommandText;
+			public readonly DataBossQueryOptions Options;
+
+			public DbQuery(IDbConnection db, string command, DataBossQueryOptions options) {
+				this.Connection = db;
+				this.CommandText = command;
+				this.Options = options;
+			}
 
 			IDbCommand GetCommand() {
 				var cmd = Connection.CreateCommand(CommandText);
@@ -113,10 +139,21 @@ namespace DataBoss.Data
 				return cmd;
 			}
 	
-			public IEnumerable<T> Read<T>() {
-				var rows = DbObjectQuery.Create(GetCommand).Read<T>();
-				return Options.Buffered ? rows.ToList() as IEnumerable<T> : rows;
-			}
+			public IEnumerable<T> Read<T>() => BufferOrNot(DbObjectQuery.Create(GetCommand).Read<T>());
+
+			public IEnumerable<T> Read<TArg0, T>(Expression<Func<TArg0, T>> selector) =>
+				BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
+
+			public IEnumerable<T> Read<TArg0, TArg1, T>(Expression<Func<TArg0, TArg1, T>> selector) =>
+				BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
+
+			public IEnumerable<T> Read<TArg0, TArg1, TArg2, T>(Expression<Func<TArg0, TArg1, TArg2, T>> selector) =>
+				BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
+
+			public IEnumerable<T> Read<TArg0, TArg1, TArg2, TArg3, T>(Expression<Func<TArg0, TArg1, TArg2, TArg3, T>> selector) =>
+				BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
+
+			IEnumerable<T> BufferOrNot<T>(IEnumerable<T> xs) => Options.Buffered ? xs.ToList() : xs;
 
 			static Action<IDbCommand, object> AddParameters(Type t) =>
 				CommandFactory.GetOrAdd(t, type => {

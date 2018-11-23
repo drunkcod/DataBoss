@@ -31,7 +31,7 @@ namespace DataBoss.Specs
 			var factory = new ConverterFactory(new ConverterCollection());
 			var reader = SequenceDataReader.Create(new[] { new { key = 1, } }, x => x.MapAll());
 			reader.Read();
-			Check.With(() => factory.GetConverter<IDataReader, int, KeyValuePair<int, string>>(reader, key => new KeyValuePair<int, string>(key, key.ToString())))
+			Check.With(() => factory.GetConverter(reader, (int key) => new KeyValuePair<int, string>(key, key.ToString())))
 				.That(
 					converter => converter.Compiled(reader).Key == reader.GetInt32(0), 
 					converter => converter.Compiled(reader).Value == reader.GetInt32(0).ToString());

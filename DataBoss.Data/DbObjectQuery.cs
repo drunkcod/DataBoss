@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Linq.Expressions;
 
 namespace DataBoss.Data
 {
@@ -23,8 +24,18 @@ namespace DataBoss.Data
 			this.executeReader = executeReader;
 		}
 
-		public DbCommandEnumerable<TCommand, TReader, TOutput> Read<TOutput>() =>
-			Read(ObjectReader.GetConverter<TReader, TOutput>);
+		public DbCommandEnumerable<TCommand, TReader, TOutput> Read<TOutput>() => Read(DefaultReader<TOutput>);
+		public DbCommandEnumerable<TCommand, TReader, TOutput> Read<TArg0, TOutput>(Expression<Func<TArg0, TOutput>> factory) => 
+			Read(x => ConverterFactory.Default.GetConverter(x, factory).Compiled);
+		public DbCommandEnumerable<TCommand, TReader, TOutput> Read<TArg0, TArg1, TOutput>(Expression<Func<TArg0, TArg1, TOutput>> factory) =>
+			Read(x => ConverterFactory.Default.GetConverter(x, factory).Compiled);
+		public DbCommandEnumerable<TCommand, TReader, TOutput> Read<TArg0, TArg1, TArg2, TOutput>(Expression<Func<TArg0, TArg1, TArg2, TOutput>> factory) =>
+			Read(x => ConverterFactory.Default.GetConverter(x, factory).Compiled);
+		public DbCommandEnumerable<TCommand, TReader, TOutput> Read<TArg0, TArg1, TArg2, TArg3, TOutput>(Expression<Func<TArg0, TArg1, TArg2, TArg3, TOutput>> factory) =>
+			Read(x => ConverterFactory.Default.GetConverter(x, factory).Compiled);
+
+		static Func<TReader, T> DefaultReader<T>(TReader reader) =>
+			ConverterFactory.Default.GetConverter<TReader, T>(reader).Compiled;
 
 		public DbCommandEnumerable<TCommand, TReader, TOutput> Read<TOutput>(ConverterCollection converters) => 
 			Read(converters.GetConverter<TReader, TOutput>);

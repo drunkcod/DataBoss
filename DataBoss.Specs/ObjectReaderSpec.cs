@@ -308,5 +308,13 @@ namespace DataBoss.Specs
 			source.Add(1);
 			Check.Exception<ArgumentException>(() => ObjectReader.For(source).Read<MyRequiredValue<int>>().ToArray());
 		}
+
+		public void IdOf() {
+			var source = new SimpleDataReader(Col<int>("Value"));
+			source.Add(1);
+			Check
+				.With(() => ObjectReader.For(source).Read<ValueRow<IdOf<ValueRow<int>>>>().ToArray())
+				.That(x => x[0].Value == new IdOf<ValueRow<int>>(1));
+		}
 	}
 }

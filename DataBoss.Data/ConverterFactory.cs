@@ -110,6 +110,8 @@ namespace DataBoss.Data
 			this.converterCache = converterCache;
 		}
 
+		public static ConverterFactory Default = new ConverterFactory(null, NullConverterCache.Instance);
+
 		class DataRecordConverterFactory
 		{
 			readonly ConverterCollection customConversions;
@@ -125,10 +127,13 @@ namespace DataBoss.Data
 				var context = ConverterContext.Create(typeof(TReader), factory.Type);
 				var pn = new Expression[factory.Parameters.Count];
 				var root = new ChildBinding();
-				if (TryMapParameters(context, map, ref root, factory.Parameters.Select(x => (x.Type, x.Name)).ToArray(), pn))
-					return new DataRecordConverter(Expression.Lambda(Expression.Invoke(factory, pn), context.Arg0));
-
-				throw new InvalidConversionException("Mapping failed.", factory.Type);
+				var parameters = factory.Parameters.Select(x => (Type: x.Type, Name: x.Name)).ToArray();
+				for (var i = 0; i != pn.Length; ++i) {
+					if (!TryReadOrInit(context, map, parameters[i].Type, parameters[i].Name, ref root))
+						throw new InvalidConversionException($"Failed to map parameter \"{parameters[i].Name}\"", factory.Type);
+					pn[i] = root.Reader.GetReader();
+				}
+				return new DataRecordConverter(Expression.Lambda(Expression.Invoke(factory, pn), context.Arg0));
 			}
 
 			DataRecordConverter BuildConverter(ConverterContext context, FieldMap map, Type result, ref ChildBinding item) =>
@@ -235,7 +240,9 @@ namespace DataBoss.Data
 				if (customConversions.TryGetConverter(rawField, to, out converter))
 					return true;
 
-				if (rawField.Type == typeof(object) && to == typeof(byte[])) {
+				if (rawField.Type == typeof(object) && to == typeof(byte[]) 
+				|| (to.IsGenericType && to.GetGenericTypeDefinition() == typeof(IdOf<>) && rawField.Type == typeof(int))
+				) {
 					converter = Expression.Convert(rawField, to);
 					return true;
 				}
@@ -251,6 +258,15 @@ namespace DataBoss.Data
 			.ToTyped<TReader, T>();
 	
 		public DataRecordConverter<TReader, T> GetConverter<TReader, TArg0, T>(TReader reader, Expression<Func<TArg0, T>> factory) where TReader : IDataReader =>
+			GetConverter<TReader>(reader, factory).ToTyped<TReader, T>();
+
+		public DataRecordConverter<TReader, T> GetConverter<TReader, TArg0, TArg1, T>(TReader reader, Expression<Func<TArg0, TArg1, T>> factory) where TReader : IDataReader =>
+			GetConverter<TReader>(reader, factory).ToTyped<TReader, T>();
+
+		public DataRecordConverter<TReader, T> GetConverter<TReader, TArg0, TArg1, TArg2, T>(TReader reader, Expression<Func<TArg0, TArg1, TArg2, T>> factory) where TReader : IDataReader =>
+			GetConverter<TReader>(reader, factory).ToTyped<TReader, T>();
+
+		public DataRecordConverter<TReader, T> GetConverter<TReader, TArg0, TArg1, TArg2, TArg3, T>(TReader reader, Expression<Func<TArg0, TArg1, TArg2, TArg3, T>> factory) where TReader : IDataReader =>
 			GetConverter<TReader>(reader, factory).ToTyped<TReader, T>();
 
 		public DataRecordConverter GetConverter<TReader>(TReader reader, LambdaExpression factory) where TReader : IDataReader {
