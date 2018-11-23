@@ -60,5 +60,16 @@ namespace DataBoss.Specs
 				paras => paras.Length == 1,
 				paras => paras[0].ParameterName == "@RowVersion",
 				paras => paras[0].SqlDbType == SqlDbType.Binary);
+
+		class MyRow { }
+		public void IdOf_as_int() {
+			var x = GetParams(new { Id = new IdOf<MyRow>(1) });
+			Check.That(() => x.Length == 1);
+			Check
+			.That(
+				() => x.Length == 1,
+				() => x[0].ParameterName == "@Id",
+				() => x[0].SqlDbType == SqlDbType.Int);
+		}
 	}
 }

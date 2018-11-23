@@ -121,14 +121,14 @@ namespace DataBoss.Data
 				return BuildConverter(ConverterContext.Create(readerType, result), map, result, ref root);
 			}
 
-			public DataRecordConverter BuildConverter<TReader,TArg0, T>(FieldMap map, Expression<Func<TArg0, T>> factory) where TReader : IDataReader {
-				var context = ConverterContext.Create(typeof(TReader), typeof(T));
+			public DataRecordConverter BuildConverter<TReader>(FieldMap map, LambdaExpression factory) where TReader : IDataReader {
+				var context = ConverterContext.Create(typeof(TReader), factory.Type);
 				var pn = new Expression[factory.Parameters.Count];
 				var root = new ChildBinding();
 				if (TryMapParameters(context, map, ref root, factory.Parameters.Select(x => (x.Type, x.Name)).ToArray(), pn))
 					return new DataRecordConverter(Expression.Lambda(Expression.Invoke(factory, pn), context.Arg0));
 
-				throw new InvalidConversionException("Mapping failed.", typeof(T));
+				throw new InvalidConversionException("Mapping failed.", factory.Type);
 			}
 
 			DataRecordConverter BuildConverter(ConverterContext context, FieldMap map, Type result, ref ChildBinding item) =>
@@ -250,17 +250,17 @@ namespace DataBoss.Data
 				x => recordConverterFactory.BuildConverter(typeof(TReader), x, typeof(T)))
 			.ToTyped<TReader, T>();
 	
-		public DataRecordConverter<TReader, T> GetConverter<TReader, TArg0, T>(TReader reader, Expression<Func<TArg0, T>> factory) where TReader : IDataReader {
-			if(ConverterCacheKey.TryCreate(typeof(TReader), factory, out var key)) {
+		public DataRecordConverter<TReader, T> GetConverter<TReader, TArg0, T>(TReader reader, Expression<Func<TArg0, T>> factory) where TReader : IDataReader =>
+			GetConverter<TReader>(reader, factory).ToTyped<TReader, T>();
+
+		public DataRecordConverter GetConverter<TReader>(TReader reader, LambdaExpression factory) where TReader : IDataReader {
+			if (ConverterCacheKey.TryCreate(typeof(TReader), factory, out var key)) {
 				return converterCache.GetOrAdd(
 					reader, key,
-					x => recordConverterFactory.BuildConverter<TReader, TArg0, T>(x, factory))
-				.ToTyped<TReader, T>();
+					x => recordConverterFactory.BuildConverter<TReader>(x, factory));
 			}
 
-			return recordConverterFactory
-				.BuildConverter<TReader, TArg0, T>(FieldMap.Create(reader), factory)
-				.ToTyped<TReader, T>();
+			return recordConverterFactory.BuildConverter<TReader>(FieldMap.Create(reader), factory);
 		}
 
 		static Expression OrElse(Expression left, Expression right) {

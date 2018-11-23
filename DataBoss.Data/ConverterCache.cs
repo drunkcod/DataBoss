@@ -6,16 +6,20 @@ using System.Linq.Expressions;
 
 namespace DataBoss.Data
 {
-	public struct ConverterCacheKey
+	public struct ConverterCacheKey : IEquatable<ConverterCacheKey>
 	{
+		readonly Type resultType;
 		readonly string key;
 
-		ConverterCacheKey(string key) { this.key = key; }
+		ConverterCacheKey(Type resultType, string key) {
+			this.resultType = resultType;
+			this.key = key; 
+		}
 
 		public override string ToString() => key ?? string.Empty;
 
 		public static ConverterCacheKey Create<T>(T reader, Type result) where T : IDataReader => 
-			new ConverterCacheKey($"{typeof(T)}({FieldKey(reader)}) -> {result}");
+			new ConverterCacheKey(result, $"{typeof(T)}({FieldKey(reader)}) -> {result}");
 
 		public static bool TryCreate(Type readerType, LambdaExpression e, out ConverterCacheKey key) { 
 			var b = e.Body;
@@ -23,7 +27,7 @@ namespace DataBoss.Data
 				var args = string.Join(", ", 
 					Enumerable.Range(0, c.Arguments.Count)
 					.Select(x => $"{c.Arguments[x].Type} _{e.Parameters.IndexOf(c.Arguments[0] as ParameterExpression)}"));
-				key = new ConverterCacheKey($"{readerType} -> .ctor({args})");
+				key = new ConverterCacheKey(e.Type, $"{readerType} -> .ctor({args})");
 				return true;
 			}
 			key = default(ConverterCacheKey);
@@ -32,6 +36,9 @@ namespace DataBoss.Data
 
 		static string FieldKey(IDataReader reader) =>
 			string.Join(", ", Enumerable.Range(0, reader.FieldCount).Select(ordinal => $"{reader.GetFieldType(ordinal)} [{reader.GetName(ordinal)}]"));
+
+		public override int GetHashCode() => key.GetHashCode();
+		public bool Equals(ConverterCacheKey other) => other.key == this.key && other.resultType == this.resultType;
 	}
 
 	public interface IConverterCache

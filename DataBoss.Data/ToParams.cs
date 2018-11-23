@@ -95,7 +95,6 @@ namespace DataBoss.Data
 		}
 
 		static void ExtractValues(ExtractorContext extractor, string prefix, Expression input) {
-
 			foreach (var value in input.Type.GetProperties()
 				.Where(x => x.CanRead)
 				.Concat<MemberInfo>(input.Type.GetFields())
@@ -111,7 +110,8 @@ namespace DataBoss.Data
 					initP = MakeParameterFromNullable(p, readMember);
 				else if(readMember.Type == typeof(RowVersion))
 					initP = MakeRowVersionParameter(p, readMember);
-				
+				else if(readMember.Type.IsGenericType && readMember.Type.GetGenericTypeDefinition() == typeof(IdOf<>))
+					initP = MakeIdOfParameter(p, readMember);
 				if(initP != null)
 					extractor.AddParameter(p, initP);
 				else
@@ -147,6 +147,9 @@ namespace DataBoss.Data
 
 			return Expression.Block(setType, setValue);
 		}
+
+		static Expression MakeIdOfParameter(Expression p, Expression value) =>
+			MakeParameter(p, Expression.Convert(value, typeof(int)));
 
 		public static void AddTo<TCommand, T>(TCommand command, T args) where TCommand : IDbCommand => 
 			Extractor<TCommand,T>.CreateParameters(command, args);
