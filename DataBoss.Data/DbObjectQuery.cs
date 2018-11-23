@@ -24,14 +24,27 @@ namespace DataBoss.Data
 			this.executeReader = executeReader;
 		}
 
-		public DbCommandEnumerable<TCommand, TReader, TOutput> Read<TOutput>() => Read(DefaultReader<TOutput>);
-		public DbCommandEnumerable<TCommand, TReader, TOutput> Read<TArg0, TOutput>(Expression<Func<TArg0, TOutput>> factory) => 
+		public DbCommandEnumerable<TCommand, TReader, TResult> Read<TResult>() => Read(DefaultReader<TResult>);
+
+		public DbCommandEnumerable<TCommand, TReader, TResult> Read<T1, TResult>(Expression<Func<T1, TResult>> factory) => 
 			Read(x => ConverterFactory.Default.GetConverter(x, factory).Compiled);
-		public DbCommandEnumerable<TCommand, TReader, TOutput> Read<TArg0, TArg1, TOutput>(Expression<Func<TArg0, TArg1, TOutput>> factory) =>
+		
+		public DbCommandEnumerable<TCommand, TReader, TResult> Read<T1, T2, TResult>(Expression<Func<T1, T2, TResult>> factory) =>
 			Read(x => ConverterFactory.Default.GetConverter(x, factory).Compiled);
-		public DbCommandEnumerable<TCommand, TReader, TOutput> Read<TArg0, TArg1, TArg2, TOutput>(Expression<Func<TArg0, TArg1, TArg2, TOutput>> factory) =>
+		
+		public DbCommandEnumerable<TCommand, TReader, TResult> Read<T1, T2, T3, TResult>(Expression<Func<T1, T2, T3, TResult>> factory) =>
 			Read(x => ConverterFactory.Default.GetConverter(x, factory).Compiled);
-		public DbCommandEnumerable<TCommand, TReader, TOutput> Read<TArg0, TArg1, TArg2, TArg3, TOutput>(Expression<Func<TArg0, TArg1, TArg2, TArg3, TOutput>> factory) =>
+		
+		public DbCommandEnumerable<TCommand, TReader, TResult> Read<T1, T2, T3, T4, TResult>(Expression<Func<T1, T2, T3, T4, TResult>> factory) =>
+			Read(x => ConverterFactory.Default.GetConverter(x, factory).Compiled);
+
+		public DbCommandEnumerable<TCommand, TReader, TResult> Read<T1, T2, T3, T4, T5, TResult>(Expression<Func<T1, T2, T3, T4, T5, TResult>> factory) =>
+			Read(x => ConverterFactory.Default.GetConverter(x, factory).Compiled);
+
+		public DbCommandEnumerable<TCommand, TReader, TResult> Read<T1, T2, T3, T4, T5, T6, TResult>(Expression<Func<T1, T2, T3, T4, T5, T6, TResult>> factory) =>
+			Read(x => ConverterFactory.Default.GetConverter(x, factory).Compiled);
+
+		public DbCommandEnumerable<TCommand, TReader, TResult> Read<T1, T2, T3, T4, T5, T6, T7, TResult>(Expression<Func<T1, T2, T3, T4, T5, T6, T7, TResult>> factory) =>
 			Read(x => ConverterFactory.Default.GetConverter(x, factory).Compiled);
 
 		static Func<TReader, T> DefaultReader<T>(TReader reader) =>

@@ -141,16 +141,25 @@ namespace DataBoss.Data
 	
 			public IEnumerable<T> Read<T>() => BufferOrNot(DbObjectQuery.Create(GetCommand).Read<T>());
 
-			public IEnumerable<T> Read<TArg0, T>(Expression<Func<TArg0, T>> selector) =>
+			public IEnumerable<TResult> Read<T1, TResult>(Expression<Func<T1, TResult>> selector) =>
 				BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
 
-			public IEnumerable<T> Read<TArg0, TArg1, T>(Expression<Func<TArg0, TArg1, T>> selector) =>
+			public IEnumerable<TResult> Read<T1, T2, TResult>(Expression<Func<T1, T2, TResult>> selector) =>
 				BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
 
-			public IEnumerable<T> Read<TArg0, TArg1, TArg2, T>(Expression<Func<TArg0, TArg1, TArg2, T>> selector) =>
+			public IEnumerable<TResult> Read<T1, T2, T3, TResult>(Expression<Func<T1, T2, T3, TResult>> selector) =>
 				BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
 
-			public IEnumerable<T> Read<TArg0, TArg1, TArg2, TArg3, T>(Expression<Func<TArg0, TArg1, TArg2, TArg3, T>> selector) =>
+			public IEnumerable<TResult> Read<T1, T2, T3, T4, TResult>(Expression<Func<T1, T2, T3, T4, TResult>> selector) =>
+				BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
+
+			public IEnumerable<TResult> Read<T1, T2, T3, T4, T5, TResult>(Expression<Func<T1, T2, T3, T4, T5, TResult>> selector) =>
+				BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
+
+			public IEnumerable<TResult> Read<T1, T2, T3, T4, T5, T6, TResult>(Expression<Func<T1, T2, T3, T4, T5, T6, TResult>> selector) =>
+				BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
+
+			public IEnumerable<TResult> Read<T1, T2, T3, T4, T5, T6, T7, TResult>(Expression<Func<T1, T2, T3, T4, T5, T6, T7, TResult>> selector) =>
 				BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
 
 			IEnumerable<T> BufferOrNot<T>(IEnumerable<T> xs) => Options.Buffered ? xs.ToList() : xs;

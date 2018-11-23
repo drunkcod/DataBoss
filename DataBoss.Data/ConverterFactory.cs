@@ -257,17 +257,26 @@ namespace DataBoss.Data
 				x => recordConverterFactory.BuildConverter(typeof(TReader), x, typeof(T)))
 			.ToTyped<TReader, T>();
 	
-		public DataRecordConverter<TReader, T> GetConverter<TReader, TArg0, T>(TReader reader, Expression<Func<TArg0, T>> factory) where TReader : IDataReader =>
-			GetConverter<TReader>(reader, factory).ToTyped<TReader, T>();
+		public DataRecordConverter<TReader, TResult> GetConverter<TReader, T1, TResult>(TReader reader, Expression<Func<T1, TResult>> factory) where TReader : IDataReader =>
+			GetConverter<TReader>(reader, factory).ToTyped<TReader, TResult>();
 
-		public DataRecordConverter<TReader, T> GetConverter<TReader, TArg0, TArg1, T>(TReader reader, Expression<Func<TArg0, TArg1, T>> factory) where TReader : IDataReader =>
-			GetConverter<TReader>(reader, factory).ToTyped<TReader, T>();
+		public DataRecordConverter<TReader, TResult> GetConverter<TReader, TArg0, T2, TResult>(TReader reader, Expression<Func<TArg0, T2, TResult>> factory) where TReader : IDataReader =>
+			GetConverter<TReader>(reader, factory).ToTyped<TReader, TResult>();
 
-		public DataRecordConverter<TReader, T> GetConverter<TReader, TArg0, TArg1, TArg2, T>(TReader reader, Expression<Func<TArg0, TArg1, TArg2, T>> factory) where TReader : IDataReader =>
-			GetConverter<TReader>(reader, factory).ToTyped<TReader, T>();
+		public DataRecordConverter<TReader, TResult> GetConverter<TReader, T1, T2, T3, TResult>(TReader reader, Expression<Func<T1, T2, T3, TResult>> factory) where TReader : IDataReader =>
+			GetConverter<TReader>(reader, factory).ToTyped<TReader, TResult>();
 
-		public DataRecordConverter<TReader, T> GetConverter<TReader, TArg0, TArg1, TArg2, TArg3, T>(TReader reader, Expression<Func<TArg0, TArg1, TArg2, TArg3, T>> factory) where TReader : IDataReader =>
-			GetConverter<TReader>(reader, factory).ToTyped<TReader, T>();
+		public DataRecordConverter<TReader, TResult> GetConverter<TReader, T1, T2, T3, T4, TResult>(TReader reader, Expression<Func<T1, T2, T3, T4, TResult>> factory) where TReader : IDataReader =>
+			GetConverter<TReader>(reader, factory).ToTyped<TReader, TResult>();
+
+		public DataRecordConverter<TReader, TResult> GetConverter<TReader, T1, T2, T3, T4, T5, TResult>(TReader reader, Expression<Func<T1, T2, T3, T4, T5, TResult>> factory) where TReader : IDataReader =>
+			GetConverter<TReader>(reader, factory).ToTyped<TReader, TResult>();
+
+		public DataRecordConverter<TReader, TResult> GetConverter<TReader, T1, T2, T3, T4, T5, T6, TResult>(TReader reader, Expression<Func<T1, T2, T3, T4, T5, T6, TResult>> factory) where TReader : IDataReader =>
+			GetConverter<TReader>(reader, factory).ToTyped<TReader, TResult>();
+
+		public DataRecordConverter<TReader, TResult> GetConverter<TReader, T1, T2, T3, T4, T5, T6, T7, TResult>(TReader reader, Expression<Func<T1, T2, T3, T4, T5, T6, T7, TResult>> factory) where TReader : IDataReader =>
+			GetConverter<TReader>(reader, factory).ToTyped<TReader, TResult>();
 
 		public DataRecordConverter GetConverter<TReader>(TReader reader, LambdaExpression factory) where TReader : IDataReader {
 			if (ConverterCacheKey.TryCreate(typeof(TReader), factory, out var key)) {
