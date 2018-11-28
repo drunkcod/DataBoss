@@ -31,18 +31,18 @@ namespace DataBoss.Specs
 			var factory = new ConverterFactory(new ConverterCollection());
 			var reader = SequenceDataReader.Create(new[] { new { key = 1, } }, x => x.MapAll());
 			reader.Read();
-			Check.With(() => factory.GetConverter(reader, (int key) => new KeyValuePair<int, string>(key, key.ToString())))
+			Check.With(() => factory.Compile(reader, (int key) => new KeyValuePair<int, string>(key, key.ToString())))
 				.That(
-					converter => converter.Compiled(reader).Key == reader.GetInt32(0), 
-					converter => converter.Compiled(reader).Value == reader.GetInt32(0).ToString());
+					converter => converter(reader).Key == reader.GetInt32(0), 
+					converter => converter(reader).Value == reader.GetInt32(0).ToString());
 		}
 
 		public void factory_expression_ctor_reuse() {
 			var factory = new ConverterFactory(new ConverterCollection(), new ConcurrentConverterCache());
 			var reader = SequenceDataReader.Create(new[] { new { x = 1, } }, x => x.MapAll());
 			Check.That(() => Equals(
-				factory.GetConverter<IDataReader, int, KeyValuePair<int, int>>(reader, x => new KeyValuePair<int, int>(x, x)),
-				factory.GetConverter<IDataReader, int, KeyValuePair<int, int>>(reader, x => new KeyValuePair<int, int>(x, x))));
+				factory.Compile<IDataReader, int, KeyValuePair<int, int>>(reader, x => new KeyValuePair<int, int>(x, x)),
+				factory.Compile<IDataReader, int, KeyValuePair<int, int>>(reader, x => new KeyValuePair<int, int>(x, x))));
 		}
 	}
 
@@ -50,9 +50,10 @@ namespace DataBoss.Specs
 	public class ConverterCacheKeySpec
 	{
 		public void ctor_key() {
-			var created = ConverterCacheKey.TryCreate(typeof(IDataReader), Expr<int, KeyValuePair<int, int>>(x => new KeyValuePair<int, int>(x, x)), out var key);
+			IDataReader r = SequenceDataReader.Create(new[] { new { x = 1 } });
+			var created = ConverterCacheKey.TryCreate(r, Expr<int, KeyValuePair<int, int>>(x => new KeyValuePair<int, int>(x, x)), out var key);
 			Check.That(() => created);
-			Check.That(() => key.ToString() == "System.Data.IDataReader -> .ctor(System.Int32 _0, System.Int32 _0)");
+			Check.That(() => key.ToString() == "System.Data.IDataReader(System.Int32) -> .ctor(System.Int32 _0, System.Int32 _0)");
 		}
 
 		static Expression<Func<TArg0, T>> Expr<TArg0, T>(Expression<Func<TArg0, T>> e) => e;

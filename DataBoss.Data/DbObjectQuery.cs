@@ -27,25 +27,25 @@ namespace DataBoss.Data
 		public DbCommandEnumerable<TCommand, TReader, TResult> Read<TResult>() => Read(DefaultReader<TResult>);
 
 		public DbCommandEnumerable<TCommand, TReader, TResult> Read<T1, TResult>(Expression<Func<T1, TResult>> factory) => 
-			Read(x => ConverterFactory.Default.GetConverter(x, factory).Compiled);
+			Read(x => ConverterFactory.Default.Compile(x, factory));
 		
 		public DbCommandEnumerable<TCommand, TReader, TResult> Read<T1, T2, TResult>(Expression<Func<T1, T2, TResult>> factory) =>
-			Read(x => ConverterFactory.Default.GetConverter(x, factory).Compiled);
+			Read(x => ConverterFactory.Default.Compile(x, factory));
 		
 		public DbCommandEnumerable<TCommand, TReader, TResult> Read<T1, T2, T3, TResult>(Expression<Func<T1, T2, T3, TResult>> factory) =>
-			Read(x => ConverterFactory.Default.GetConverter(x, factory).Compiled);
+			Read(x => ConverterFactory.Default.Compile(x, factory));
 		
 		public DbCommandEnumerable<TCommand, TReader, TResult> Read<T1, T2, T3, T4, TResult>(Expression<Func<T1, T2, T3, T4, TResult>> factory) =>
-			Read(x => ConverterFactory.Default.GetConverter(x, factory).Compiled);
+			Read(x => ConverterFactory.Default.Compile(x, factory));
 
 		public DbCommandEnumerable<TCommand, TReader, TResult> Read<T1, T2, T3, T4, T5, TResult>(Expression<Func<T1, T2, T3, T4, T5, TResult>> factory) =>
-			Read(x => ConverterFactory.Default.GetConverter(x, factory).Compiled);
+			Read(x => ConverterFactory.Default.Compile(x, factory));
 
 		public DbCommandEnumerable<TCommand, TReader, TResult> Read<T1, T2, T3, T4, T5, T6, TResult>(Expression<Func<T1, T2, T3, T4, T5, T6, TResult>> factory) =>
-			Read(x => ConverterFactory.Default.GetConverter(x, factory).Compiled);
+			Read(x => ConverterFactory.Default.Compile(x, factory));
 
 		public DbCommandEnumerable<TCommand, TReader, TResult> Read<T1, T2, T3, T4, T5, T6, T7, TResult>(Expression<Func<T1, T2, T3, T4, T5, T6, T7, TResult>> factory) =>
-			Read(x => ConverterFactory.Default.GetConverter(x, factory).Compiled);
+			Read(x => ConverterFactory.Default.Compile(x, factory));
 
 		static Func<TReader, T> DefaultReader<T>(TReader reader) =>
 			ConverterFactory.Default.GetConverter<TReader, T>(reader).Compiled;

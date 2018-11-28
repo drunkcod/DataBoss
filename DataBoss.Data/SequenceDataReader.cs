@@ -29,17 +29,17 @@ namespace DataBoss.Data
 
 	public static class SequenceDataReader
 	{
-		public static SequenceDataReader<T> Create<T>(IEnumerable<T> data) => Create(data, x => x.MapAll());
-		public static SequenceDataReader<T> Create<T>(IEnumerable<T> data, Action<FieldMapping<T>> mapFields) {
+		public static IDataReader Create<T>(IEnumerable<T> data) => Create(data, x => x.MapAll());
+		public static IDataReader Create<T>(IEnumerable<T> data, Action<FieldMapping<T>> mapFields) {
 			var fieldMapping = new FieldMapping<T>();
 			mapFields(fieldMapping);
 			return new SequenceDataReader<T>(data?.GetEnumerator(), fieldMapping);
 		}
 
-		public static SequenceDataReader<T> Create<T>(IEnumerable<T> data, params string[] members) =>
+		public static IDataReader Create<T>(IEnumerable<T> data, params string[] members) =>
 			Create(data, fields => Array.ForEach(members, x => fields.Map(x)));
 
-		public static SequenceDataReader<T> Create<T>(IEnumerable<T> data, params MemberInfo[] members) =>
+		public static IDataReader Create<T>(IEnumerable<T> data, params MemberInfo[] members) =>
 			Create(data, fields => Array.ForEach(members, x => fields.Map(x)));
 	}
 

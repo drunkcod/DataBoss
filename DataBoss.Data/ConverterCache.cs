@@ -21,13 +21,16 @@ namespace DataBoss.Data
 		public static ConverterCacheKey Create<T>(T reader, Type result) where T : IDataReader => 
 			new ConverterCacheKey(result, $"{typeof(T)}({FieldKey(reader)}) -> {result}");
 
-		public static bool TryCreate(Type readerType, LambdaExpression e, out ConverterCacheKey key) { 
+		public static ConverterCacheKey Create<T>(T reader, Delegate exemplar) where T : IDataReader =>
+			new ConverterCacheKey(exemplar.Method.ReturnType, $"{typeof(T)}({FieldKey(reader)}) -> Invoke({ParameterKey(exemplar)})");
+
+		public static bool TryCreate<T>(T reader, LambdaExpression e, out ConverterCacheKey key) where T : IDataReader { 
 			var b = e.Body;
 			if(b.NodeType == ExpressionType.New && (b is NewExpression c) && c.Arguments.All(x => x.NodeType == ExpressionType.Parameter)) {
 				var args = string.Join(", ", 
 					Enumerable.Range(0, c.Arguments.Count)
 					.Select(x => $"{c.Arguments[x].Type} _{e.Parameters.IndexOf(c.Arguments[0] as ParameterExpression)}"));
-				key = new ConverterCacheKey(e.Type, $"{readerType} -> .ctor({args})");
+				key = new ConverterCacheKey(e.Type, $"{typeof(T)}({FieldTypeKey(reader)}) -> .ctor({args})");
 				return true;
 			}
 			key = default(ConverterCacheKey);
@@ -36,6 +39,12 @@ namespace DataBoss.Data
 
 		static string FieldKey(IDataReader reader) =>
 			string.Join(", ", Enumerable.Range(0, reader.FieldCount).Select(ordinal => $"{reader.GetFieldType(ordinal)} [{reader.GetName(ordinal)}]"));
+
+		static string FieldTypeKey(IDataReader reader) =>
+			string.Join(", ", Enumerable.Range(0, reader.FieldCount).Select(ordinal => $"{reader.GetFieldType(ordinal)}"));
+
+		static string ParameterKey(Delegate exemplar) =>
+			string.Join(", ", exemplar.Method.GetParameters().Select(x => $"{x.ParameterType} {x.Name}"));
 
 		public override int GetHashCode() => key.GetHashCode();
 		public bool Equals(ConverterCacheKey other) => other.key == this.key && other.resultType == this.resultType;

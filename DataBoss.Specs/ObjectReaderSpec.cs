@@ -50,7 +50,7 @@ namespace DataBoss.Specs
 				x.Map("Name");
 			});
 			var formatter = new ExpressionFormatter(GetType());
-			Check.That(() => formatter.Format(ObjectReader.MakeConverter<SequenceDataReader<DataBossMigrationInfo>, DataBossMigrationInfo>(source)) == 
+			Check.That(() => formatter.Format(ObjectReader.MakeConverter<IDataReader, DataBossMigrationInfo>(source)) == 
 			"x => new DataBossMigrationInfo { Id = x.GetInt64(0), Context = x.IsDBNull(1) ? default(string) : x.GetString(1), Name = x.IsDBNull(2) ? default(string) : x.GetString(2) }");
 		}
 

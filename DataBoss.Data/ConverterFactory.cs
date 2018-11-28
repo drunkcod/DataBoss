@@ -136,6 +136,22 @@ namespace DataBoss.Data
 				return new DataRecordConverter(Expression.Lambda(Expression.Invoke(factory, pn), context.Arg0));
 			}
 
+			public DataRecordConverter BuildConverter(Type readerType, FieldMap map, Delegate exemplar) {
+				var m = exemplar.Method;
+				var context = ConverterContext.Create(readerType, m.ReturnType);
+				var ps = m.GetParameters();
+				var pn = new Expression[ps.Length];
+				var root = new ChildBinding();
+				var parameters = Array.ConvertAll(ps, x =>(Type: x.ParameterType, Name: x.Name));
+				for (var i = 0; i != pn.Length; ++i) {
+					if (!TryReadOrInit(context, map, parameters[i].Type, parameters[i].Name, ref root))
+						throw new InvalidOperationException($"Failed to map parameter \"{parameters[i].Name}\"");
+					pn[i] = root.Reader.GetReader();
+				}
+				var arg1 = Expression.Parameter(exemplar.GetType());
+				return new DataRecordConverter(Expression.Lambda(Expression.Invoke(arg1, pn), context.Arg0, arg1));
+			}
+
 			DataRecordConverter BuildConverter(ConverterContext context, FieldMap map, Type result, ref ChildBinding item) =>
 				new DataRecordConverter(Expression.Lambda(MemberInit(context, result, map, ref item), context.Arg0));
 
@@ -257,29 +273,29 @@ namespace DataBoss.Data
 				x => recordConverterFactory.BuildConverter(typeof(TReader), x, typeof(T)))
 			.ToTyped<TReader, T>();
 	
-		public DataRecordConverter<TReader, TResult> GetConverter<TReader, T1, TResult>(TReader reader, Expression<Func<T1, TResult>> factory) where TReader : IDataReader =>
-			GetConverter<TReader>(reader, factory).ToTyped<TReader, TResult>();
+		public Func<TReader, TResult> Compile<TReader, T1, TResult>(TReader reader, Expression<Func<T1, TResult>> selector) where TReader : IDataReader =>
+			(Func<TReader, TResult>)GetConverter(reader, selector).Compile();
 
-		public DataRecordConverter<TReader, TResult> GetConverter<TReader, TArg0, T2, TResult>(TReader reader, Expression<Func<TArg0, T2, TResult>> factory) where TReader : IDataReader =>
-			GetConverter<TReader>(reader, factory).ToTyped<TReader, TResult>();
+		public Func<TReader, TResult> Compile<TReader, TArg0, T2, TResult>(TReader reader, Expression<Func<TArg0, T2, TResult>> selector) where TReader : IDataReader =>
+			(Func<TReader, TResult>)GetConverter(reader, selector).Compile();
 
-		public DataRecordConverter<TReader, TResult> GetConverter<TReader, T1, T2, T3, TResult>(TReader reader, Expression<Func<T1, T2, T3, TResult>> factory) where TReader : IDataReader =>
-			GetConverter<TReader>(reader, factory).ToTyped<TReader, TResult>();
+		public Func<TReader, TResult> Compile<TReader, T1, T2, T3, TResult>(TReader reader, Expression<Func<T1, T2, T3, TResult>> selector) where TReader : IDataReader =>
+			(Func<TReader, TResult>)GetConverter(reader, selector).Compile();
 
-		public DataRecordConverter<TReader, TResult> GetConverter<TReader, T1, T2, T3, T4, TResult>(TReader reader, Expression<Func<T1, T2, T3, T4, TResult>> factory) where TReader : IDataReader =>
-			GetConverter<TReader>(reader, factory).ToTyped<TReader, TResult>();
+		public Func<TReader, TResult> Compile<TReader, T1, T2, T3, T4, TResult>(TReader reader, Expression<Func<T1, T2, T3, T4, TResult>> selector) where TReader : IDataReader =>
+			(Func<TReader, TResult>)GetConverter(reader, selector).Compile();
 
-		public DataRecordConverter<TReader, TResult> GetConverter<TReader, T1, T2, T3, T4, T5, TResult>(TReader reader, Expression<Func<T1, T2, T3, T4, T5, TResult>> factory) where TReader : IDataReader =>
-			GetConverter<TReader>(reader, factory).ToTyped<TReader, TResult>();
+		public Func<TReader, TResult> Compile<TReader, T1, T2, T3, T4, T5, TResult>(TReader reader, Expression<Func<T1, T2, T3, T4, T5, TResult>> selector) where TReader : IDataReader =>
+			(Func<TReader, TResult>)GetConverter(reader, selector).Compile();
 
-		public DataRecordConverter<TReader, TResult> GetConverter<TReader, T1, T2, T3, T4, T5, T6, TResult>(TReader reader, Expression<Func<T1, T2, T3, T4, T5, T6, TResult>> factory) where TReader : IDataReader =>
-			GetConverter<TReader>(reader, factory).ToTyped<TReader, TResult>();
+		public Func<TReader, TResult> Compile<TReader, T1, T2, T3, T4, T5, T6, TResult>(TReader reader, Expression<Func<T1, T2, T3, T4, T5, T6, TResult>> selector) where TReader : IDataReader =>
+			(Func<TReader, TResult>)GetConverter(reader, selector).Compile();
 
-		public DataRecordConverter<TReader, TResult> GetConverter<TReader, T1, T2, T3, T4, T5, T6, T7, TResult>(TReader reader, Expression<Func<T1, T2, T3, T4, T5, T6, T7, TResult>> factory) where TReader : IDataReader =>
-			GetConverter<TReader>(reader, factory).ToTyped<TReader, TResult>();
+		public Func<TReader, TResult> Compile<TReader, T1, T2, T3, T4, T5, T6, T7, TResult>(TReader reader, Expression<Func<T1, T2, T3, T4, T5, T6, T7, TResult>> selector) where TReader : IDataReader =>
+			(Func<TReader, TResult>)GetConverter(reader, selector).Compile();
 
 		public DataRecordConverter GetConverter<TReader>(TReader reader, LambdaExpression factory) where TReader : IDataReader {
-			if (ConverterCacheKey.TryCreate(typeof(TReader), factory, out var key)) {
+			if (ConverterCacheKey.TryCreate(reader, factory, out var key)) {
 				return converterCache.GetOrAdd(
 					reader, key,
 					x => recordConverterFactory.BuildConverter<TReader>(x, factory));
@@ -287,6 +303,11 @@ namespace DataBoss.Data
 
 			return recordConverterFactory.BuildConverter<TReader>(FieldMap.Create(reader), factory);
 		}
+
+		public DataRecordConverter GetConverter<TReader>(TReader reader, Delegate exemplar) where TReader : IDataReader =>
+			converterCache.GetOrAdd(
+				reader, ConverterCacheKey.Create(reader, exemplar),
+				x => recordConverterFactory.BuildConverter(typeof(TReader), x, exemplar));
 
 		static Expression OrElse(Expression left, Expression right) {
 			if(left == null)

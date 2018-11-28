@@ -8,7 +8,6 @@ namespace DataBoss.Data
 		Delegate compiled;
 
 		public readonly LambdaExpression Expression;
-		public Delegate Compiled => compiled ?? (compiled = Expression.Compile());
 
 		public DataRecordConverter(LambdaExpression expression) {
 			this.Expression = expression;
@@ -16,6 +15,7 @@ namespace DataBoss.Data
 		}
 
 		public DataRecordConverter<TReader, T> ToTyped<TReader,T>() => new DataRecordConverter<TReader, T>(this);
+		public Delegate Compile() => compiled ?? (compiled = Expression.Compile());
 	}
 
 	public struct DataRecordConverter<TReader, T>
@@ -27,6 +27,6 @@ namespace DataBoss.Data
 		}
 
 		public Expression<Func<TReader, T>> Expression => (Expression<Func<TReader, T>>)converter.Expression;
-		public Func<TReader, T> Compiled => (Func<TReader, T>)converter.Compiled;
+		public Func<TReader, T> Compiled => (Func<TReader, T>)converter.Compile();
 	}
 }
