@@ -64,6 +64,6 @@ namespace DataBoss.Specs.Data
 		}
 
 		DbCommandEnumerable<SqlCommand, SqlDataReader, int> IntRows(string query) =>
-			new DbCommandEnumerable<SqlCommand, SqlDataReader, int>(() => Db.CreateCommand(query), x => x.ExecuteReader(), r => ReadInt0);
+			new DbCommandEnumerable<SqlCommand, SqlDataReader, int>(() => Db.CreateCommand(query), x => x.ExecuteReader(), (r,_) => ReadInt0, null);
 	}
 }

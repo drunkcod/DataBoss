@@ -154,11 +154,14 @@ namespace DataBoss.Specs
 				rows => rows[0].Value.HasValue == false);
 		}
 
+		#pragma warning disable CS0649
 		struct WithNullable
 		{
 			public int? CanBeNull;
 			public int NotNull; 
 		}
+		#pragma warning restore CS0649
+
 		public void nullable_nullable() {
 			var source = new SimpleDataReader(Col<int>("Value.CanBeNull"), Col<int>("Value.NotNull")) { new object[] { null, 1 } };
 			source.SetNullable(0, true);
@@ -169,10 +172,12 @@ namespace DataBoss.Specs
 				rows => rows[0].Value.Equals(new WithNullable { NotNull = 1 }));
 		}
 
+		#pragma warning disable CS0649
 		struct RowOf<T>
 		{
 			public T Item;
 		}
+		#pragma warning restore CS0649
 
 		public void row_with_nullable_missing_field() {
 			var source = new SimpleDataReader(Col<int>("Item.ctorValue")) { new object[] { null } };
@@ -297,11 +302,14 @@ namespace DataBoss.Specs
 				.That(x => x[0].Value == 0);
 		}
 
+		#pragma warning disable CS0649
 		class MyRequiredValue<T>
 		{
 			[Required]
 			public T Value;
 		}
+		#pragma warning restore CS0649
+
 
 		public void ensures_required_fields_are_present() {
 			var source = new SimpleDataReader(Col<int>($"Not{nameof(MyRequiredValue<int>.Value)}"));

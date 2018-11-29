@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Linq;
@@ -125,31 +126,28 @@ namespace DataBoss.Data
 
 			public DataRecordConverter BuildConverter<TReader>(FieldMap map, LambdaExpression factory) where TReader : IDataReader {
 				var context = ConverterContext.Create(typeof(TReader), factory.Type);
-				var pn = new Expression[factory.Parameters.Count];
-				var root = new ChildBinding();
-				var parameters = factory.Parameters.Select(x => (Type: x.Type, Name: x.Name)).ToArray();
-				for (var i = 0; i != pn.Length; ++i) {
-					if (!TryReadOrInit(context, map, parameters[i].Type, parameters[i].Name, ref root))
-						throw new InvalidConversionException($"Failed to map parameter \"{parameters[i].Name}\"", factory.Type);
-					pn[i] = root.Reader.GetReader();
-				}
+				var pn = BindAllParameters(context, map, factory.Parameters);
 				return new DataRecordConverter(Expression.Lambda(Expression.Invoke(factory, pn), context.Arg0));
 			}
 
 			public DataRecordConverter BuildConverter(Type readerType, FieldMap map, Delegate exemplar) {
 				var m = exemplar.Method;
 				var context = ConverterContext.Create(readerType, m.ReturnType);
-				var ps = m.GetParameters();
-				var pn = new Expression[ps.Length];
-				var root = new ChildBinding();
-				var parameters = Array.ConvertAll(ps, x =>(Type: x.ParameterType, Name: x.Name));
+				var pn = BindAllParameters(context, map, 
+					Array.ConvertAll(m.GetParameters(), x => Expression.Parameter(x.ParameterType, x.Name)));
+				var arg1 = Expression.Parameter(exemplar.GetType());
+				return new DataRecordConverter(Expression.Lambda(Expression.Invoke(arg1, pn), context.Arg0, arg1));
+			}
+
+			Expression[] BindAllParameters(ConverterContext context, FieldMap map, IReadOnlyList<ParameterExpression> parameters) {
+				var pn = new Expression[parameters.Count];
 				for (var i = 0; i != pn.Length; ++i) {
+					var root = new ChildBinding();
 					if (!TryReadOrInit(context, map, parameters[i].Type, parameters[i].Name, ref root))
 						throw new InvalidOperationException($"Failed to map parameter \"{parameters[i].Name}\"");
 					pn[i] = root.Reader.GetReader();
 				}
-				var arg1 = Expression.Parameter(exemplar.GetType());
-				return new DataRecordConverter(Expression.Lambda(Expression.Invoke(arg1, pn), context.Arg0, arg1));
+				return pn;
 			}
 
 			DataRecordConverter BuildConverter(ConverterContext context, FieldMap map, Type result, ref ChildBinding item) =>
@@ -304,10 +302,12 @@ namespace DataBoss.Data
 			return recordConverterFactory.BuildConverter<TReader>(FieldMap.Create(reader), factory);
 		}
 
-		public DataRecordConverter GetConverter<TReader>(TReader reader, Delegate exemplar) where TReader : IDataReader =>
+		public DataRecordConverter GetTrampoline<TReader>(TReader reader, Delegate exemplar) where TReader : IDataReader =>
 			converterCache.GetOrAdd(
 				reader, ConverterCacheKey.Create(reader, exemplar),
 				x => recordConverterFactory.BuildConverter(typeof(TReader), x, exemplar));
+
+		public Delegate CompileTrampoline<TReader>(TReader reader, Delegate exemplar) where TReader : IDataReader => GetTrampoline(reader, exemplar).Compile();
 
 		static Expression OrElse(Expression left, Expression right) {
 			if(left == null)

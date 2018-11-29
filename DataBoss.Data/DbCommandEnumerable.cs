@@ -13,12 +13,14 @@ namespace DataBoss.Data
 		static T NoRowsReturned() => throw new InvalidOperationException("No rows returned.");
 		readonly Func<TCommand> getCommand;
 		readonly Func<TCommand, TReader> executeReader;
-		readonly Func<TReader, Func<TReader, T>> converterFactory;
+		readonly Func<TReader, object, Func<TReader, T>> converterFactory;
+		readonly object factoryState;
 
-		public DbCommandEnumerable(Func<TCommand> getCommand, Func<TCommand, TReader> executeReader, Func<TReader, Func<TReader, T>> converterFactory) {
+		public DbCommandEnumerable(Func<TCommand> getCommand, Func<TCommand, TReader> executeReader, Func<TReader, object, Func<TReader, T>> converterFactory, object factoryState) {
 			this.getCommand = getCommand;
 			this.executeReader = executeReader;
 			this.converterFactory = converterFactory;
+			this.factoryState = factoryState;
 		}
 
 		public List<T> ToList(RetryStrategy retry) =>
@@ -86,7 +88,7 @@ namespace DataBoss.Data
 				read: if(reader.Read()) 
 					return true;
 				if(reader.NextResult()) {
-					materialize = parent.converterFactory(reader);
+					materialize = parent.converterFactory(reader, parent.factoryState);
 					goto read;
 				}
 				reader.Dispose();
@@ -97,7 +99,7 @@ namespace DataBoss.Data
 			public void Reset() { 
 				reader = parent.executeReader(command);
 				try { 
-					materialize = parent.converterFactory(reader);
+					materialize = parent.converterFactory(reader, parent.factoryState);
 				} catch {
 					reader.Dispose();
 					throw;

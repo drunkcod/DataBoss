@@ -89,10 +89,7 @@ namespace DataBoss.Data
 	
 			converter = null;
 			return false;
-		}
-
-		public Func<TReader, T> GetConverter<TReader, T>(TReader reader) where TReader : IDataReader =>
-			ObjectReader.GetConverter<TReader, T>(reader, this);
+		}			
 
 		public IEnumerator<ConverterCollectionItem> GetEnumerator() => 
 			converters.GetEnumerator();

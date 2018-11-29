@@ -41,12 +41,15 @@ namespace DataBoss.Data
 			Check.That(() => fieldMapping.GetAccessorExpression().Body.ToString() == "(target[0] = Convert(String.Empty))");
 		}
 
+		#pragma warning disable CS0649
 		class MyThingWithStaticMember
 		{
 			public string TheAnswer;
 			public static string TheQuestion;
 			public static float YourBoat => 42;
 		}
+		#pragma warning restore CS0649
+
 
 		public static void MapAll_ignores_static_fields() {
 			var mapping = new FieldMapping<MyThingWithStaticMember>();
