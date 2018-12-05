@@ -43,7 +43,7 @@ namespace DataBoss.Data
 			public Expression ReadField(Type fieldType, Expression ordinal) => 
 				Expression.Call(Arg0, GetGetMethod(fieldType), ordinal);
 
-			public MethodInfo GetGetMethod(Type fieldType) {
+			MethodInfo GetGetMethod(Type fieldType) {
 				var getterName = "Get" + MapFieldType(fieldType);
 				var getter = Arg0.Type.GetMethod(getterName) ?? typeof(IDataRecord).GetMethod("Get" + MapFieldType(fieldType));
 				if(getter != null)
@@ -254,15 +254,22 @@ namespace DataBoss.Data
 				if (customConversions.TryGetConverter(rawField, to, out converter))
 					return true;
 
-				if (rawField.Type == typeof(object) && to == typeof(byte[]) 
-				|| (to.IsGenericType && to.GetGenericTypeDefinition() == typeof(IdOf<>) && rawField.Type == typeof(int))
-				) {
+				if (IsByteArray(rawField, to) || IsIdOf(rawField, to) || IsEnum(rawField, to)) {
 					converter = Expression.Convert(rawField, to);
 					return true;
 				}
 
 				return false;
 			}
+
+			static bool IsByteArray(Expression rawField, Type to) =>
+				rawField.Type == typeof(object) && to == typeof(byte[]);
+
+			static bool IsIdOf(Expression rawField, Type to) => 
+				(to.IsGenericType && to.GetGenericTypeDefinition() == typeof(IdOf<>) && rawField.Type == typeof(int));
+
+			static bool IsEnum(Expression rawField, Type to) =>
+				to.IsEnum && Enum.GetUnderlyingType(to) == rawField.Type;
 		}
 
 		public DataRecordConverter<TReader, T> GetConverter<TReader, T>(TReader reader) where TReader : IDataReader =>
@@ -323,6 +330,8 @@ namespace DataBoss.Data
 				case "System.Object": return "Value";
 				case "System.Byte[]": return "Value";
 			}
+			if(fieldType.IsEnum)
+				return Enum.GetUnderlyingType(fieldType).Name;
 			return fieldType.Name;
 		}
 	}

@@ -86,6 +86,19 @@ namespace DataBoss.Specs
 				rows => rows[0].Value == expected.Value);
 		}
 
+		enum MyEnum32 : int { Something = 1 }
+
+		public void supports_enums() {
+			var source = new SimpleDataReader(Col<MyEnum32>("Value"));
+			var expected = new ValueRow<MyEnum32> { Value = MyEnum32.Something };
+			source.Add(expected.Value);
+			Check.With(() => ObjectReader.For(source).Read<ValueRow<MyEnum32>>().ToArray())
+			.That(
+				rows => rows.Length == 1,
+				rows => rows[0].Value.Equals(expected.Value));
+
+		}
+
 		public void supports_nested_fields() {
 			var expected = new ValueRow<ValueRow<int>> { Value = new ValueRow<int> { Value = 42 } };
 			var source = new SimpleDataReader(Col<int>("Value.Value")) { expected.Value.Value };

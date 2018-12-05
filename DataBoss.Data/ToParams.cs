@@ -119,7 +119,7 @@ namespace DataBoss.Data
 			}
 		}
 
-		public static bool HasSqlTypeMapping(Type t) => t.IsPrimitive || mappedTypes.Contains(t);
+		public static bool HasSqlTypeMapping(Type t) => t.IsPrimitive || mappedTypes.Contains(t) || t.IsEnum;
 
 		static Expression MakeParameter(Expression p, Expression value) => 
 			Expression.Convert(value, typeof(object));
