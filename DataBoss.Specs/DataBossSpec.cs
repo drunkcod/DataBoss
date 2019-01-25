@@ -6,6 +6,7 @@ using DataBoss.Testing;
 using System;
 using System.Data.Linq;
 using System.Data.SqlClient;
+using System.Diagnostics;
 using System.Linq;
 
 namespace DataBoss.Specs
@@ -95,7 +96,6 @@ namespace DataBoss.Specs
 				Id = Migrations.Max(x => (long?)x.Id).GetValueOrDefault() + 1,
 				Name = "External Command",
 			};
-
 			Apply(migration, migrator => {
 				migrator.Execute(DataBossQueryBatch.ExternalCommand("cmd /C echo %DATABOSS_CONNECTION%", string.Empty));
 			});
