@@ -93,7 +93,9 @@ namespace DataBoss
 
 		IDataBossMigrationScope GetTargetScope(DataBossConfiguration config) {
 			if(string.IsNullOrEmpty(config.Script)) {
-				return new DataBossLogMigrationScope(log, new DataBossMigrationScope(db, new DataBossShellExecute()));
+				var shell = new DataBossShellExecute();
+				shell.OutputDataReceived += (_,e) => Console.WriteLine(e.Data);
+				return new DataBossLogMigrationScope(log, new DataBossMigrationScope(db, shell));
 			}
 			return config.Script == "con:"
 				? new DataBossScriptMigrationScope(Console.Out, false) 

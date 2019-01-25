@@ -329,6 +329,7 @@ namespace DataBoss.Data
 				case "System.Single": return "Float";
 				case "System.Object": return "Value";
 				case "System.Byte[]": return "Value";
+				case "System.Data.SqlTypes.SqlByte": return "Byte";
 			}
 			if(fieldType.IsEnum)
 				return Enum.GetUnderlyingType(fieldType).Name;

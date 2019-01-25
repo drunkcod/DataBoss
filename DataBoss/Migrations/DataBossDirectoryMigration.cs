@@ -24,6 +24,8 @@ namespace DataBoss.Migrations
 			this.childContext = childContext;
 		}
 
+		public string Path => path;
+
 		public IEnumerable<IDataBossMigration> GetSubMigrations() =>
 			GetFileMigrations()
 			.Concat(GetDirectoryMigrations())
@@ -32,10 +34,10 @@ namespace DataBoss.Migrations
 		IEnumerable<IDataBossMigration> GetFileMigrations() =>
 			GetMigrations(Directory.GetFiles(path, "*"))
 			.Select(x => {
-				switch(Path.GetExtension(x.Key).ToLower()) {
+				switch(System.IO.Path.GetExtension(x.Key).ToLower()) {
 					default: throw new ArgumentException($"Unsupported migration {x.Key}");
-					case ".sql": return (IDataBossMigration)new DataBossQueryMigration(() => File.OpenText(x.Key), x.Value);
-					case ".cmd": return new DataBossExternalCommandMigration(() => File.OpenText(x.Key), x.Value);
+					case ".sql": return (IDataBossMigration)new DataBossQueryMigration(x.Key, () => File.OpenText(x.Key), x.Value);
+					case ".cmd": return new DataBossExternalCommandMigration(x.Key, () => File.OpenText(x.Key), x.Value);
 				}
 			});
 
@@ -49,7 +51,7 @@ namespace DataBoss.Migrations
 
 		public IEnumerable<KeyValuePair<string, DataBossMigrationInfo>> GetMigrations(string[] paths) {
 			for(var i = 0; i != paths.Length; ++i) {
-				var m = IdNameEx.Match(Path.GetFileName(paths[i]));
+				var m = IdNameEx.Match(System.IO.Path.GetFileName(paths[i]));
 				if(m.Success)
 					yield return new KeyValuePair<string, DataBossMigrationInfo>(
 						paths[i], GetMigrationInfo(m)

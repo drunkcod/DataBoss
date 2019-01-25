@@ -193,6 +193,7 @@ namespace DataBoss.Data
 
 			switch (type.FullName) {
 				case "System.Byte": return new DataBossDbType(BossTypeTag.TinyInt, canBeNull);
+				case "System.Data.SqlTypes.SqlByte": return new DataBossDbType(BossTypeTag.TinyInt, canBeNull);
 				case "System.Int16": return new DataBossDbType(BossTypeTag.SmallInt, canBeNull);
 				case "System.Int32": return new DataBossDbType(BossTypeTag.Int, canBeNull);
 				case "System.Int64": return new DataBossDbType(BossTypeTag.BigInt, canBeNull);

@@ -63,9 +63,9 @@ namespace DataBoss.Specs
 			};
 
 			Apply(failingMigration, migrator => {
-				migrator.Execute(DataBossQueryBatch.Query("create table Foo(Id int not null)"));//should work
-				migrator.Execute(DataBossQueryBatch.Query("select syntax error"));//should error
-				migrator.Execute(DataBossQueryBatch.Query("create table Foo(Id int not null)"));//should be ignored
+				migrator.Execute(DataBossQueryBatch.Query("create table Foo(Id int not null)", string.Empty));//should work
+				migrator.Execute(DataBossQueryBatch.Query("select syntax error", string.Empty));//should error
+				migrator.Execute(DataBossQueryBatch.Query("create table Foo(Id int not null)", string.Empty));//should be ignored
 			});
 
 			Check.That(
@@ -84,7 +84,7 @@ namespace DataBoss.Specs
 			};
 
 			Apply(migration, migrator => {
-				migrator.Execute(DataBossQueryBatch.Query("create table Bar(Id int not null)"));
+				migrator.Execute(DataBossQueryBatch.Query("create table Bar(Id int not null)", string.Empty));
 			});
 
 			Check.That(() => SysObjects.Any(x => x.Name == "Bar"));
@@ -97,7 +97,7 @@ namespace DataBoss.Specs
 			};
 
 			Apply(migration, migrator => {
-				migrator.Execute(DataBossQueryBatch.ExternalCommand("cmd /C echo %DATABOSS_CONNECTION%"));
+				migrator.Execute(DataBossQueryBatch.ExternalCommand("cmd /C echo %DATABOSS_CONNECTION%", string.Empty));
 			});
 			Check.That(() => ShellExecuteOutput == Connection.ConnectionString);
 		}

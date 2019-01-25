@@ -12,17 +12,19 @@ namespace DataBoss.Migrations
 	{
 		readonly Func<TextReader> getReader;
  
-		public DataBossExternalCommandMigration(Func<TextReader> getReader, DataBossMigrationInfo info) {
+		public DataBossExternalCommandMigration(string path, Func<TextReader> getReader, DataBossMigrationInfo info) {
+			this.Path = path;
 			this.getReader = getReader;
 			this.Info = info;
 		}
 
 		public DataBossMigrationInfo Info { get; }
+		public string Path { get;}
 
 		public bool HasQueryBatches => true;
 
 		public IEnumerable<DataBossQueryBatch> GetQueryBatches() => 
-			getReader.Select(DataBossQueryBatch.ExternalCommand);
+			getReader.Select(x => DataBossQueryBatch.ExternalCommand(x, Path));
 
 		IEnumerable<IDataBossMigration> IDataBossMigration.GetSubMigrations() => 
 			Enumerable.Empty<IDataBossMigration>();
@@ -34,12 +36,14 @@ namespace DataBoss.Migrations
 
 		readonly Func<TextReader> getReader;
  
-		public DataBossQueryMigration(Func<TextReader> getReader, DataBossMigrationInfo info) {
+		public DataBossQueryMigration(string path, Func<TextReader> getReader, DataBossMigrationInfo info) {
+			this.Path = path;
 			this.getReader = getReader;
 			this.Info = info;
 		}
 
 		public DataBossMigrationInfo Info { get; }
+		public string Path { get; }
 
 		public bool HasQueryBatches => true;
 
@@ -53,7 +57,7 @@ namespace DataBoss.Migrations
 					if(m.Index > 0)
 						append(line.Substring(0, m.Index));
 					if(batch.Length > 0) {
-						yield return DataBossQueryBatch.Query(batch.ToString());
+						yield return DataBossQueryBatch.Query(batch.ToString(), Path);
 						batch.Clear();
 					}
 				} else {
@@ -62,7 +66,7 @@ namespace DataBoss.Migrations
 			}
 
 			if(batch.Length > 0)
-				yield return DataBossQueryBatch.Query(batch.ToString());
+				yield return DataBossQueryBatch.Query(batch.ToString(), Path);
 		}
 
 		IEnumerable<IDataBossMigration> IDataBossMigration.GetSubMigrations() => 

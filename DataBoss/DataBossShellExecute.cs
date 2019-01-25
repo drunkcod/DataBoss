@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 
 namespace DataBoss
 {
@@ -7,8 +8,7 @@ namespace DataBoss
 	{
 		public event DataReceivedEventHandler OutputDataReceived;
 
-		public bool Execute(string command, IEnumerable<KeyValuePair<string, string>> environmentVariables)
-		{
+		public bool Execute(string workingDir, string command, IEnumerable<KeyValuePair<string, string>> environmentVariables) {
 			var argPos = command.IndexOf(' ');
 			var args = string.Empty;
 			if(argPos != -1) {
@@ -16,12 +16,12 @@ namespace DataBoss
 				command = command.Substring(0, argPos);
 			}
 
-			var si = new ProcessStartInfo
-			{
+			var si = new ProcessStartInfo {
 				UseShellExecute = false,
-				FileName = command,
+				FileName = Path.Combine(workingDir, command),
 				Arguments = args,
 				RedirectStandardOutput = true,
+				WorkingDirectory = workingDir,
 			};
 			foreach(var item in environmentVariables)
 				si.EnvironmentVariables.Add(item.Key, item.Value);

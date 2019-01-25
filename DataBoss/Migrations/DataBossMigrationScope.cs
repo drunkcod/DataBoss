@@ -56,8 +56,10 @@ namespace DataBoss.Migrations
 		}
 
 		private bool ExecuteCommand(DataBossQueryBatch command) =>
-			shellExecute.Execute(command.ToString(), new []{
-				new KeyValuePair<string, string>("DATABOSS_CONNECTION", db.ConnectionString), 
+			shellExecute.Execute(Path.GetDirectoryName(command.Path), command.ToString(), new [] {
+				new KeyValuePair<string, string>("DATABOSS_CONNECTION", db.ConnectionString),
+				new KeyValuePair<string, string>("DATABOSS_DATABASE", db.Database),
+				new KeyValuePair<string, string>("DATABOSS_SERVER", string.IsNullOrEmpty(db.DataSource) ? "." : db.DataSource),
 			});
 
 		public void Done() {

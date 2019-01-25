@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -50,7 +50,7 @@ namespace DataBoss.Specs
 
 			Check.That(
 				() => scope.ExecutedQueries.Count == 1,
-				() => scope.ExecutedQueries.SequenceEqual(new[] { DataBossQueryBatch.Query("First!"), }));
+				() => scope.ExecutedQueries.SequenceEqual(new[] { DataBossQueryBatch.Query("First!", string.Empty), }));
 		}
 
 		public void breaks_appliction_on_first_query_failure() {
@@ -68,7 +68,7 @@ namespace DataBoss.Specs
 		}
 
 		IDataBossMigration TextMigration(string s) {
-			return new DataBossQueryMigration(() => new StringReader(s), new DataBossMigrationInfo());
+			return new DataBossQueryMigration(string.Empty, () => new StringReader(s), new DataBossMigrationInfo());
 		}
 	}
 }

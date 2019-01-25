@@ -21,7 +21,7 @@ namespace DataBoss.Migrations
 		public void Begin(DataBossMigrationInfo info) {
 			id = info.Id;
 			context = info.Context;
-			Execute(DataBossQueryBatch.Query($"insert __DataBossHistory(Id, Context, Name, StartedAt, [User]) values({id}, '{info.Context}', '{info.Name}', getdate(), '{Environment.UserName}')"));
+			Execute(DataBossQueryBatch.Query($"insert __DataBossHistory(Id, Context, Name, StartedAt, [User]) values({id}, '{info.Context}', '{info.Name}', getdate(), '{Environment.UserName}')", string.Empty));
 		}
 
 		public bool Execute(DataBossQueryBatch query) {
@@ -36,7 +36,7 @@ namespace DataBoss.Migrations
 		}
 
 		public void Done() {
-			Execute(DataBossQueryBatch.Query("update __DataBossHistory set FinishedAt = getdate() where Id = " + id + " and Context = '" + context + "'"));
+			Execute(DataBossQueryBatch.Query("update __DataBossHistory set FinishedAt = getdate() where Id = " + id + " and Context = '" + context + "'", string.Empty));
 			output.Flush();
 		}
 

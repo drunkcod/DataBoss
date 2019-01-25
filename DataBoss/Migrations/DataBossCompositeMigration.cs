@@ -11,9 +11,8 @@ namespace DataBoss.Migrations
 			this.migrations = migrations;
 		}
 
-		public DataBossMigrationInfo Info {
-			get { throw new NotImplementedException(); }
-		}
+		public DataBossMigrationInfo Info => throw new NotImplementedException(); 
+		public string Path => throw new NotSupportedException();
 
 		public bool HasQueryBatches => false;
 
@@ -21,8 +20,6 @@ namespace DataBoss.Migrations
 			yield break;
 		}
 
-		public IEnumerable<IDataBossMigration> GetSubMigrations() {
-			return migrations;
-		}
+		public IEnumerable<IDataBossMigration> GetSubMigrations() => migrations;
 	}
 }
