@@ -40,16 +40,19 @@ namespace DataBoss.Data
 			public readonly ParameterExpression Arg0;
 			public readonly MethodInfo IsDBNull;
 
-			public Expression ReadField(Type fieldType, Expression ordinal) => 
-				Expression.Call(Arg0, GetGetMethod(fieldType), ordinal);
+			public bool TryReadField(Type fieldType, Expression ordinal, out Expression reader) {  
+				if(!TryGetGetMethod(fieldType, out var getter)) {
+					reader = null;
+					return false;
+				}
+				reader = Expression.Call(Arg0, getter, ordinal);
+				return true;
+			}
 
-			MethodInfo GetGetMethod(Type fieldType) {
+			bool TryGetGetMethod(Type fieldType, out MethodInfo getter) {
 				var getterName = "Get" + MapFieldType(fieldType);
-				var getter = Arg0.Type.GetMethod(getterName) ?? typeof(IDataRecord).GetMethod("Get" + MapFieldType(fieldType));
-				if(getter != null)
-					return getter;
-
-				throw new InvalidConversionException($"Can't read field of type: {fieldType} given {Arg0.Type}", ResultType);
+				getter = Arg0.Type.GetMethod(getterName) ?? typeof(IDataRecord).GetMethod("Get" + MapFieldType(fieldType));
+				return getter != null;
 			}
 
 			public Expression IsNull(Expression o) => Expression.Call(Arg0, IsDBNull, o);
@@ -217,8 +220,8 @@ namespace DataBoss.Data
 				if (map.TryGetOrdinal(itemName, out column)) {
 					var o = Expression.Constant(column.Ordinal);
 					Expression convertedField;
-					if (!TryConvertField(context.ReadField(column.FieldType, o), itemType, out convertedField)
-					&& !(column.ProviderSpecificFieldType != null && TryConvertField(context.ReadField(column.ProviderSpecificFieldType, o), itemType, out convertedField)))
+					if (!(context.TryReadField(column.FieldType, o, out var reader) && TryConvertField(reader, itemType, out convertedField))
+					&& !(column.ProviderSpecificFieldType != null && context.TryReadField(column.ProviderSpecificFieldType, o, out reader) && TryConvertField(reader, itemType, out convertedField)))
 						throw new InvalidConversionException($"Can't read '{itemName}' of type {itemType.Name} given {column.FieldType.Name}", context.ResultType);
 
 					var thisNull = context.IsNull(o);
@@ -254,7 +257,7 @@ namespace DataBoss.Data
 				if (customConversions.TryGetConverter(rawField, to, out converter))
 					return true;
 
-				if (IsByteArray(rawField, to) || IsIdOf(rawField, to) || IsEnum(rawField, to)) {
+				if (IsByteArray(rawField, to) || IsIdOf(rawField, to) || IsEnum(rawField, to) || HasExplictCast(rawField, to)) {
 					converter = Expression.Convert(rawField, to);
 					return true;
 				}
@@ -270,6 +273,12 @@ namespace DataBoss.Data
 
 			static bool IsEnum(Expression rawField, Type to) =>
 				to.IsEnum && Enum.GetUnderlyingType(to) == rawField.Type;
+
+			static bool HasExplictCast(Expression rawField, Type to) { 
+				var cast = to.GetMethod("op_Explicit", new[] { rawField.Type });
+
+				return cast != null && to.IsAssignableFrom(cast.ReturnType);
+			}
 		}
 
 		public DataRecordConverter<TReader, T> GetConverter<TReader, T>(TReader reader) where TReader : IDataReader =>

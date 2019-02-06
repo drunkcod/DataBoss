@@ -139,6 +139,10 @@ namespace DataBoss.Linq
 			}
 		}
 
+
+		public static bool IsEmpty<T>(this IEnumerable<T> self) => !self.Any();
+		public static bool IsEmpty<T>(this IReadOnlyCollection<T> self) => self.Count == 0;
+
 		public static bool IsSorted<T>(this IEnumerable<T> self) where T : IComparable<T> => IsSortedBy(self, id => id);
 
 		public static bool IsSortedBy<T,TKey>(this IEnumerable<T> self, Func<T,TKey> selector) where TKey : IComparable<TKey> {
@@ -174,6 +178,8 @@ namespace DataBoss.Linq
 				c.Add(item);
 			return c;
 		}
+
+		public static HashSet<T> ToHashSet<T>(this IEnumerable<T> items) => new HashSet<T>(items);
 
 		static void ThrowTooManyElementsException() => Enumerable.Range(0, 2).SingleOrDefault(x => true);
 	}
