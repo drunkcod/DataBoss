@@ -49,7 +49,7 @@ namespace DataBoss.Migrations
 		}
 
 		private bool ExecuteQuery(DataBossQueryBatch query) {
-			using (var q = new SqlCommand(query.ToString(), db, cmd.Transaction)) {
+			using (var q = new SqlCommand(query.ToString(), db, cmd.Transaction) { CommandTimeout = 0 }) {
 					q.ExecuteNonQuery();
 					return true;
 			}
