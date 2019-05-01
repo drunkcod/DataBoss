@@ -6,6 +6,37 @@ using DataBoss.Collections;
 
 namespace DataBoss.Linq
 {
+
+	public class EmptyCollection<T> : ICollection<T>, IReadOnlyCollection<T>, IEnumerator<T>
+	{
+		T IEnumerator<T>.Current => throw new InvalidOperationException();
+		object IEnumerator.Current => throw new InvalidOperationException();
+		bool IEnumerator.MoveNext() => false;
+		void IEnumerator.Reset() { }
+		void IDisposable.Dispose() { }
+
+		public int Count => 0;
+		public bool IsReadOnly => true;
+
+		public void Add(T item) => throw new InvalidOperationException();
+		public void Clear() => throw new InvalidOperationException();
+		public bool Remove(T item) => throw new InvalidOperationException();
+
+		public bool Contains(T item) => false;
+		public void CopyTo(T[] array, int arrayIndex) { }
+
+		public IEnumerator<T> GetEnumerator() => this;
+		IEnumerator IEnumerable.GetEnumerator() => this;
+
+		internal EmptyCollection() { }
+	}
+
+
+	public static class Collection
+	{
+		public static EmptyCollection<T> Empty<T>() => new EmptyCollection<T>();
+	}
+
 	public static class MissingLinq
 	{
 		class CollectionAdapter<T, TItem> : IReadOnlyCollection<TItem>, ICollection<TItem>
@@ -59,7 +90,7 @@ namespace DataBoss.Linq
 			return r;
 		}
 
-		public static IReadOnlyCollection<T> AsReadOnly<T>(this IReadOnlyCollection<T> self) => AsReadOnly(self, Lambdas.Id<T>);
+		public static IReadOnlyCollection<T> AsReadOnly<T>(this IReadOnlyCollection<T> self) => self;
 		public static IReadOnlyCollection<TItem> AsReadOnly<T, TItem>(this IReadOnlyCollection<T> self, Func<T, TItem> selector) =>
 			new CollectionAdapter<T, TItem>(self, selector);
 
