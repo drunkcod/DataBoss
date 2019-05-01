@@ -46,15 +46,24 @@ namespace DataBoss.Data
 		}
 
 		public int Map(MemberInfo memberInfo) {
-			var m = Expression.MakeMemberAccess(source, memberInfo);
+			var m = CoerceToDbType(Expression.MakeMemberAccess(source, memberInfo));
 			var column = memberInfo.SingleOrDefault<ColumnAttribute>()?.Name;
 			return Map(column ?? memberInfo.Name, m.Type, DataBossDbType.ToDataBossDbType(m.Type, memberInfo), m);
 		}
 
-		public int Map<TField>(string name, Func<T, TField> selector) => 
-			Map(name, typeof(TField),
-				DataBossDbType.ToDataBossDbType(typeof(TField), NullAttributeProvider.Instance), 
-				Expression.Invoke(Expression.Constant(selector), source));
+		static bool IsIdOf(Type type) => type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IdOf<>);
+
+		public int Map<TField>(string name, Func<T, TField> selector) {
+			var get = CoerceToDbType(Expression.Invoke(Expression.Constant(selector), source));
+			var dbType = DataBossDbType.ToDataBossDbType(get.Type, NullAttributeProvider.Instance);
+			return Map(name, get.Type, dbType, get); 
+		}
+
+		static Expression CoerceToDbType(Expression get) {
+			if (IsIdOf(get.Type))
+				return Expression.Convert(get, typeof(int));
+			return get;
+		}
 
 		public int Map(string name, LambdaExpression selector) {
 			if(selector.Parameters.Count != 1)

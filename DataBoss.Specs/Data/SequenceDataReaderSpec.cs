@@ -125,5 +125,12 @@ namespace DataBoss.Specs.Data
 			Check.With(() => ObjectReader.For(reader).Read<MyRow<float?>>().ToList())
 				.That(rows => rows[0].Value == null);
 		}
+
+		public void treats_IdOf_as_int() {
+			var items = new[] { new MyRow<IdOf<float>> { Value = (IdOf<float>)1 } };
+
+			Check.With(() => SequenceDataReader.Create(items, x => x.MapAll()))
+				.That(x => x.GetFieldType(0) == typeof(int));
+		}
 	}
 }

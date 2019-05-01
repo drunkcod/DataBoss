@@ -17,7 +17,7 @@ namespace DataBoss.Data
 			typeof(object),
 			typeof(string),
 			typeof(DateTime),
-			typeof(Decimal),
+			typeof(decimal),
 			typeof(Guid),
 			typeof(SqlDecimal),
 			typeof(SqlMoney),

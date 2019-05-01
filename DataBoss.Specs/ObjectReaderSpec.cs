@@ -345,13 +345,13 @@ namespace DataBoss.Specs
 
 			public static explicit operator MyCastable(int value) => new MyCastable { Value = value };
 		}
+
 		public void explicit_cast() {
 			var source = new SimpleDataReader(Col<int>("Value"));
-			source.Add(1);
+			source.Add(10);
 			Check
 				.With(() => ObjectReader.For(source).Read<MyRequiredValue<MyCastable>>().ToArray())
 				.That(x => x[0].Value.Value == 10);
-
 		}
 	}
 }
