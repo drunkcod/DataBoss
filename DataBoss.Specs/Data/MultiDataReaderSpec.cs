@@ -14,12 +14,16 @@ namespace DataBoss.Data
 	{ 
 		readonly IDataReader[] readers;
 		int next;
+		int[] nextNext;
 		IDataReader currentReader;
 		public MultiDataReader(params IDataReader[] readers) { 
 			this.readers = readers;
+			this.nextNext = new int[readers.Length];
 			this.currentReader = readers[0];
+			for(var i = 0; i != readers.Length; ++i)
+				this.nextNext[i] = (i + 1) % readers.Length;
+			this.next = readers.Length - 1;
 		}
-
 
 		public object this[int i] => currentReader[i];
 		public object this[string name] => currentReader[name];
@@ -71,21 +75,25 @@ namespace DataBoss.Data
 		public bool NextResult() { throw new NotSupportedException(); }
 
 		public bool Read() {
-
-			if(readers[next].Read()) {
-				currentReader = readers[next];
-				next = (next + 1) % readers.Length;
-				return true;
+			for(;;) {
+				var current = nextNext[next];
+				if (readers[current].Read()) {
+					currentReader = readers[current];
+					next = current;
+					return true;
+				} else {
+					if(current == nextNext[current])
+						return false;
+					nextNext[next] = nextNext[current];
+				}
 			}
-			return false;
 		}
 	}
 
 	[Describe(typeof(MultiDataReader))]
 	public class MultiDataReaderSpec
 	{
-		public void reads_elements_in_round_robin_fashion() 
-		{
+		public void reads_elements_in_round_robin_fashion() {
 			var reader = new MultiDataReader(
 				SequenceDataReader.Create(new[]{ 1, 3, 5 }.Select(x => new IdRow<int> { Id = x })),
 				SequenceDataReader.Create(new[]{ 2, 4 }.Select(x => new IdRow<int> { Id = x })));
@@ -94,6 +102,18 @@ namespace DataBoss.Data
 				xs => xs.Count == 5,
 				xs => xs[0].Id == 1,
 				xs => xs[1].Id == 2);
+		}
+
+		public void handle_jagged_readers() {
+			var reader = new MultiDataReader(
+				SequenceDataReader.Create(new[] { 1, 4 }.Select(x => new IdRow<int> { Id = x })),
+				SequenceDataReader.Create(new[] { 2 }.Select(x => new IdRow<int> { Id = x })),
+				SequenceDataReader.Create(new[] { 3, 5, 6 }.Select(x => new IdRow<int> { Id = x })));
+
+			Check.With(() => ObjectReader.For(reader).Read<IdRow<int>>().ToList()).That(
+				xs => xs.Count == 6,
+				xs => xs[0].Id == 1,
+				xs => xs[5].Id == 6);
 		}
 	}
 }
