@@ -34,10 +34,10 @@ namespace DataBoss.Data
 			CreateCommand(connection, commandText, args).Use(DbOps<IDbCommand, IDataReader>.ExecuteScalar);
 
 		public static int ExecuteNonQuery(this IDbConnection connection, string commandText) =>
-			CreateCommand(connection, commandText).Use(DbOps<IDbCommand, IDataReader>.ExecuteQuery);
+			CreateCommand(connection, commandText).Use(DbOps<IDbCommand, IDataReader>.ExecuteNonQuery);
 
 		public static int ExecuteNonQuery<T>(this IDbConnection connection, string commandText, T args) =>
-			CreateCommand(connection, commandText, args).Use(DbOps<IDbCommand, IDataReader>.ExecuteQuery);
+			CreateCommand(connection, commandText, args).Use(DbOps<IDbCommand, IDataReader>.ExecuteNonQuery);
 
 		public static void Into<T>(this IDbConnection connection, string destinationTable, IEnumerable<T> rows) =>
 			Into(connection, destinationTable, rows, new DataBossBulkCopySettings());

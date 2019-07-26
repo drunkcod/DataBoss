@@ -1,5 +1,7 @@
-﻿using System;
+using System;
+using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 
 namespace DataBoss.Data
 {
@@ -9,6 +11,7 @@ namespace DataBoss.Data
 		int next;
 		int[] nextNext;
 		IDataReader currentReader;
+		public MultiDataReader(IEnumerable<IDataReader> readers) : this(readers.ToArray()) { }
 		public MultiDataReader(params IDataReader[] readers) { 
 			this.readers = readers;
 			this.nextNext = new int[readers.Length];
@@ -49,15 +52,10 @@ namespace DataBoss.Data
 		public long GetInt64(int i) => currentReader.GetInt64(i);
 		public string GetName(int i) => currentReader.GetName(i);
 		public int GetOrdinal(string name) => currentReader.GetOrdinal(name);
-
 		public DataTable GetSchemaTable() => currentReader.GetSchemaTable();
-
 		public string GetString(int i) => currentReader.GetString(i);
-
 		public object GetValue(int i) => currentReader.GetValue(i);
-
 		public int GetValues(object[] values) => currentReader.GetValues(values);
-
 		public bool IsDBNull(int i) => currentReader.IsDBNull(i);
 
 		public bool NextResult() { throw new NotSupportedException(); }

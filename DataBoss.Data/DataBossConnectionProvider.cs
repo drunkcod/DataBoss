@@ -13,6 +13,7 @@ namespace DataBoss.Data
 	[Flags]
 	public enum CommandOptions
 	{
+		None = 0,
 		DisposeConnection = 1,
 		OpenConnection = 2,
 	}
@@ -61,9 +62,7 @@ namespace DataBoss.Data
 			this.connectionString = connectionString;
 		}
 
-		public SqlConnection OpenConnection() => OpenConnection(connectionString);
-
-		public SqlConnection OpenConnection(string connectionString) {
+		public SqlConnection OpenConnection() {
 			var c = NewConnection(connectionString);
 			c.Open();
 			return c;
@@ -72,7 +71,7 @@ namespace DataBoss.Data
 		public SqlConnection NewConnection() => NewConnection(connectionString);
 		public ProfiledSqlConnection NewProfiledConnection() => new ProfiledSqlConnection(NewConnection());
 
-		public SqlConnection NewConnection(string connectionString) {
+		SqlConnection NewConnection(string connectionString) {
 			var db = new SqlConnection(connectionString) {
 				StatisticsEnabled = statisticsEnabled,
 			};
@@ -119,14 +118,59 @@ namespace DataBoss.Data
 		}
 
 		public int ExecuteNonQuery(string commandText, CommandType commandType = CommandType.Text) =>
-			Execute(commandText, commandType, DbOps<SqlCommand, SqlDataReader>.ExecuteQuery);
+			Execute(commandText, commandType, DbOps<SqlCommand, SqlDataReader>.ExecuteNonQuery);
+		public object ExecuteNonQuery<TArgs>(string commandText, TArgs args, CommandType commandType = CommandType.Text) =>
+			Execute(commandText, args, commandType, DbOps<SqlCommand, SqlDataReader>.ExecuteNonQuery);
 
 		public object ExecuteScalar(string commandText, CommandType commandType = CommandType.Text) => 
 			Execute(commandText, commandType, DbOps<SqlCommand, SqlDataReader>.ExecuteScalar);
+		public object ExecuteScalar<TArgs>(string commandText, TArgs args, CommandType commandType = CommandType.Text) =>
+			Execute(commandText, args, commandType, DbOps<SqlCommand, SqlDataReader>.ExecuteScalar);
 
 		T Execute<T>(string commandText, CommandType commandType, Func<SqlCommand, T> @do) {
 			using (var c = NewCommand(commandText, CommandOptions.DisposeConnection | CommandOptions.OpenConnection, commandType))
 				return @do(c);
+		}
+
+		T Execute<T,TArgs>(string commandText, TArgs args, CommandType commandType, Func<SqlCommand, T> @do) {
+			using (var c = NewCommand(commandText, args, CommandOptions.DisposeConnection | CommandOptions.OpenConnection, commandType))
+				return @do(c);
+		}
+
+		public SqlDataReader ExecuteReader<TArgs>(string commandText, TArgs args, int? commandTimeout = null)	{
+			var c = NewCommand(commandText, args, CommandOptions.None);
+			if(commandTimeout.HasValue)
+				c.CommandTimeout = commandTimeout.Value;
+			c.Connection.Open();
+			var r = c.ExecuteReader(CommandBehavior.CloseConnection);
+			c.Connection.StateChange += new ReaderCleanup(c, r).CleanupOnClose;
+			return r;
+		}
+
+		class ReaderCleanup
+		{
+			SqlCommand command;
+			IDisposable reader;
+
+			public ReaderCleanup(SqlCommand command, SqlDataReader reader) {
+				this.command = command;
+				this.reader = reader;
+			}
+
+			public void CleanupOnClose(object sender, StateChangeEventArgs e) {
+				var connection = (SqlConnection)sender;
+				if(e.CurrentState == ConnectionState.Closed) {
+					connection.StateChange -= CleanupOnClose;
+					Cleanup();
+				}
+			}
+
+			void Cleanup() {
+				reader.Dispose();
+				command.Dispose();
+				reader = null;
+				command = null;
+			}
 		}
 
 		public int ConnectionsCreated => nextConnectionId;
