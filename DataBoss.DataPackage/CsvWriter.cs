@@ -10,40 +10,44 @@ namespace DataBoss.DataPackage
 			InRecord = 1
 		}
 
-		static readonly char[] QuotableChars = new[] { '"', '\n' };
+		static readonly char[] QuotableChars = new[] { '"', '\n', };
 
 		public const string DefaultDelimiter = ";";
+		const string RecordDelimiter = "\r\n";
 
-		readonly TextWriter output;
 		WriterState state;
 		bool leaveOpen;
 		
 		public string Delimiter = DefaultDelimiter;
 
-		public TextWriter Writer => output;
+		public TextWriter Writer { get; }
 
 		public CsvWriter(TextWriter output, bool leaveOpen = false) {
-			this.output = output;
+			this.Writer = output;
 			this.leaveOpen = leaveOpen;
 		}
 
 		public void WriteField(string value) {
 			if(state == WriterState.InRecord)
-				output.Write(Delimiter);
+				Writer.Write(Delimiter);
 			else 
 				state = WriterState.InRecord;
 
-			if (value.IndexOfAny(QuotableChars) != -1 || value.Contains(Delimiter)) {
-				output.Write('"');				
-				output.Write(value.Replace("\"", "\"\""));
-				output.Write('"');
+			if (ShouldQuote(value)) {
+				Writer.Write('"');				
+				Writer.Write(value.Replace("\"", "\"\""));
+				Writer.Write('"');
 			} 
 			else
-				output.Write(value);
+				Writer.Write(value);
 		}
 
+		bool ShouldQuote(string value) =>
+			value.IndexOfAny(QuotableChars) != -1 
+			|| value.Contains(Delimiter);
+		
 		public void NextRecord() {
-			output.Write("\r\n");
+			Writer.Write(RecordDelimiter);
 			state = WriterState.BeginRecord;
 		}
 
@@ -52,7 +56,7 @@ namespace DataBoss.DataPackage
 		void IDisposable.Dispose() { 
 			Flush();
 			if(!leaveOpen)
-				output.Close();
+				Writer.Close();
 		}
 	}
 }
