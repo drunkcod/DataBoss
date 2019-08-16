@@ -2,8 +2,12 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Linq.Expressions;
+using System.Reflection;
 using System.Text;
 using System.Threading;
 using Newtonsoft.Json;
@@ -17,10 +21,13 @@ namespace DataBoss.DataPackage
 		public static void Create(string path, params DataPackageResource[] resources) =>
 			Create(path, (IEnumerable<DataPackageResource>)resources);
 
-		public static void Create(string path, IEnumerable<DataPackageResource> resources) =>
-			Create(name => File.Create(Path.Combine(path, name)), resources);
+		public static void Create(string path, CultureInfo culture, params DataPackageResource[] resources) =>
+			Create(path, (IEnumerable<DataPackageResource>)resources, culture);
 
-		static void Create(Func<string, Stream> createOutput, IEnumerable<DataPackageResource> resources) {
+		public static void Create(string path, IEnumerable<DataPackageResource> resources, CultureInfo culture = null) =>
+			Create(name => File.Create(Path.Combine(path, name)), resources, culture);
+
+		static void Create(Func<string, Stream> createOutput, IEnumerable<DataPackageResource> resources, CultureInfo culture = null) {
 			var resourceInfo = new List<ResourceInfo>();
 			foreach (var item in resources) {
 				var resourcePath = $"{item.Name}.csv";
@@ -30,7 +37,7 @@ namespace DataBoss.DataPackage
 						Path = resourcePath,
 						Schema = GetFieldInfo(data),
 					});
-					WriteRecords(output, data);
+					WriteRecords(output, culture ?? CultureInfo.CurrentCulture, data);
 				}
 			};
 
@@ -81,6 +88,7 @@ namespace DataBoss.DataPackage
 					throw new NotSupportedException($"Can't map {type}");
 				case "System.Boolean": return "boolean";
 				case "System.DateTime": return "datetime";
+				case "System.Decimal":
 				case "System.Double": return "number";
 				case "System.Byte":
 				case "System.Int16":
@@ -89,7 +97,7 @@ namespace DataBoss.DataPackage
 			}
 		}
 
-		static void WriteRecords(Stream output, IDataReader data) {
+		static void WriteRecords(Stream output, CultureInfo culture, IDataReader data) {
 			var encoding = new UTF8Encoding(false);
 			CsvWriter NewCsvWriter(Stream stream) => new CsvWriter(new StreamWriter(stream, encoding, 4096, leaveOpen: true));
 
@@ -108,6 +116,7 @@ namespace DataBoss.DataPackage
 					DataReader = data,
 					Records = reader.GetConsumingEnumerable(),
 					Csv = csv,
+					Format = culture,
 				};
 				writer.Start();
 
@@ -130,8 +139,7 @@ namespace DataBoss.DataPackage
 			void DoWork() {
 				try {
 					DoWorkCore();
-				}
-				catch (Exception ex) {
+				} catch (Exception ex) {
 					Error = ex;
 				}
 			}
@@ -163,7 +171,7 @@ namespace DataBoss.DataPackage
 					while (DataReader.Read()) {
 						var first = RowOffset(n);
 						for (var i = 0; i != DataReader.FieldCount; ++i)
-							values[first + i] = DataReader.GetValue(i);
+							values[first + i] = DataReader.IsDBNull(i) ? null : DataReader.GetValue(i);
 
 						if (++n == BufferRows) {
 							records.Add((values, n));
@@ -181,12 +189,43 @@ namespace DataBoss.DataPackage
 			}
 		}
 
+		class CsvFormatter
+		{
+			readonly IFormatProvider formatProvider;
+
+			public CsvFormatter(IFormatProvider formatProvider) {
+				this.formatProvider = formatProvider;
+			}
+
+			public string Format(string value) => value;
+
+			public string Format(object obj) =>
+				obj is IFormattable x ? x.ToString(null, formatProvider) : obj?.ToString();
+		}
+
 		class ChunkWriter : WorkItem
 		{
+			static readonly ConcurrentDictionary<Type, Func<CsvFormatter, object, string>> ConversionCache = new ConcurrentDictionary<Type, Func<CsvFormatter, object, string>>();
+			static readonly Func<CsvFormatter, object, string>  DefaultFormat = (Func<CsvFormatter, object, string>)Delegate.CreateDelegate(typeof(Func<CsvFormatter, object, string>), typeof(CsvFormatter).GetMethod("Format", new[]{ typeof(object)}));
+
+			static Func<CsvFormatter, object, string> GetFormatFunc(Type fieldType) {
+				var formatBy = typeof(CsvFormatter).GetMethods(BindingFlags.Instance | BindingFlags.Public).SingleOrDefault(x => x.Name == "Format" && x.GetParameters().Single().ParameterType == fieldType);
+				if(formatBy == null)
+					return DefaultFormat;
+
+				var formatArg = Expression.Parameter(typeof(CsvFormatter), "format");
+				var xArg = Expression.Parameter(typeof(object), "x");
+				return Expression.Lambda<Func<CsvFormatter, object, string>>(
+						Expression.Call(formatArg, formatBy, Expression.Convert(xArg, fieldType)),
+						formatArg, xArg)
+					.Compile();
+			}
+
 			readonly BlockingCollection<MemoryStream> chunks = new BlockingCollection<MemoryStream>(128);
 			public IDataReader DataReader;
 			public IEnumerable<(object[] Values, int Rows)> Records;
 			public CsvWriter Csv;
+			public IFormatProvider Format;
 
 			Encoding Encoding => Csv.Writer.Encoding;
 			CsvWriter NewCsvWriter(Stream stream) => new CsvWriter(new StreamWriter(stream, Encoding, 4096, leaveOpen: true));
@@ -195,11 +234,14 @@ namespace DataBoss.DataPackage
 
 			public IEnumerable<MemoryStream> GetConsumingEnumerable() => chunks.GetConsumingEnumerable();
 
-			public string ConvertToString(object value, int ordinal) =>
-				value.ToString();
-
 			protected override void DoWorkCore() {
+				var format = new CsvFormatter(Format);
+
 				try {
+					var toString = new Func<CsvFormatter, object, string>[DataReader.FieldCount];
+					for (var i = 0; i != DataReader.FieldCount; ++i)
+						toString[i] = ConversionCache.GetOrAdd(DataReader.GetFieldType(i), GetFormatFunc);
+
 					var bom = Encoding.GetPreamble();
 					var bufferGuess = RecordReader.BufferRows * 128;
 					Records.AsParallel().AsOrdered()
@@ -210,8 +252,10 @@ namespace DataBoss.DataPackage
 						using (var fragment = NewCsvWriter(chunk)) {
 							for (var n = 0; n != item.Rows; ++n) {
 								var first = RowOffset(n);
-								for (var i = 0; i != DataReader.FieldCount; ++i)
-									fragment.WriteField(ConvertToString(item.Values[first + i], i));
+								for (var i = 0; i != DataReader.FieldCount; ++i) {
+									var value = item.Values[first + i];
+									fragment.WriteField(value == null ? string.Empty : toString[i](format, value));
+								}
 								fragment.NextRecord();
 							}
 							fragment.Flush();

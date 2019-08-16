@@ -9,8 +9,14 @@ using System.Xml.Serialization;
 
 namespace DataBoss
 {
+	public interface IDataBossConfiguration
+	{
+		string GetConnectionString();
+		IDataBossMigration GetTargetMigration();
+	}
+
 	[XmlRoot("db")]
-	public class DataBossConfiguration
+	public class DataBossConfiguration : IDataBossConfiguration
 	{
 		[XmlAttribute("server")]
 		public string ServerInstance;
@@ -32,6 +38,18 @@ namespace DataBoss
 
 		[XmlIgnore]
 		public bool UseIntegratedSecurity => string.IsNullOrEmpty(User);
+
+		public IDataBossMigration GetTargetMigration() =>
+			new DataBossCompositeMigration(Migrations.ConvertAll(MakeDirectoryMigration));
+
+		static IDataBossMigration MakeDirectoryMigration(DataBossMigrationPath x) => 
+			new DataBossDirectoryMigration(
+				x.Path, 
+				new DataBossMigrationInfo {
+					Id = 0,
+					Context = x.Context,
+					Name = x.Path,
+				});
 
 		public static DataBossConfiguration Create(SqlConnectionStringBuilder connectionString, params DataBossMigrationPath[] migrationPaths) {
 			return new DataBossConfiguration {

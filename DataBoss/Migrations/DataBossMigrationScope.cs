@@ -5,14 +5,38 @@ using System.IO;
 
 namespace DataBoss.Migrations
 {
-	public class DataBossMigrationScope : IDataBossMigrationScope
+	public class DataBossMigrationScopeContext
 	{
+		public readonly string ConnectionString;
+		public readonly string Database;
+		public readonly string Server;
+
+		DataBossMigrationScopeContext(string connectionString, string database, string server) {
+			this.ConnectionString = connectionString;
+			this.Database = database;
+			this.Server = server;
+		}
+
+		public static DataBossMigrationScopeContext From(SqlConnection db) =>
+			new DataBossMigrationScopeContext(
+				db.ConnectionString,
+				db.Database,
+				string.IsNullOrEmpty(db.DataSource) ? "." : db.DataSource);
+}
+
+public class DataBossMigrationScope : IDataBossMigrationScope
+	{
+		readonly DataBossMigrationScopeContext scopeContext;
 		readonly SqlConnection db;
 		readonly DataBossShellExecute shellExecute;
 		SqlCommand cmd;
 		bool isFaulted;
 
-		public DataBossMigrationScope(SqlConnection db, DataBossShellExecute shellExecute) {
+		public DataBossMigrationScope(
+			DataBossMigrationScopeContext scopeContext,
+			SqlConnection db, 
+			DataBossShellExecute shellExecute) {
+			this.scopeContext = scopeContext;
 			this.db = db;
 			this.shellExecute = shellExecute;
 		}
@@ -57,9 +81,9 @@ namespace DataBoss.Migrations
 
 		private bool ExecuteCommand(DataBossQueryBatch command) =>
 			shellExecute.Execute(string.IsNullOrEmpty(command.Path) ? string.Empty: Path.GetDirectoryName(command.Path), command.ToString(), new [] {
-				new KeyValuePair<string, string>("DATABOSS_CONNECTION", db.ConnectionString),
-				new KeyValuePair<string, string>("DATABOSS_DATABASE", db.Database),
-				new KeyValuePair<string, string>("DATABOSS_SERVER", string.IsNullOrEmpty(db.DataSource) ? "." : db.DataSource),
+				new KeyValuePair<string, string>("DATABOSS_CONNECTION", scopeContext.ConnectionString),
+				new KeyValuePair<string, string>("DATABOSS_DATABASE", scopeContext.Database),
+				new KeyValuePair<string, string>("DATABOSS_SERVER", scopeContext.Server),
 			});
 
 		public void Done() {

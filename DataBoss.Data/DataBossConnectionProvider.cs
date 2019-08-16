@@ -137,9 +137,14 @@ namespace DataBoss.Data
 				return @do(c);
 		}
 
-		public SqlDataReader ExecuteReader<TArgs>(string commandText, TArgs args, int? commandTimeout = null)	{
-			var c = NewCommand(commandText, args, CommandOptions.None);
-			if(commandTimeout.HasValue)
+		public SqlDataReader ExecuteReader(string commandText, int? commandTimeout = null) => 
+			ExecuteReaderWithCleanup(NewCommand(commandText, CommandOptions.None), commandTimeout);
+
+		public SqlDataReader ExecuteReader<TArgs>(string commandText, TArgs args, int? commandTimeout = null) =>
+			ExecuteReaderWithCleanup(NewCommand(commandText, args, CommandOptions.None), commandTimeout);
+
+		static SqlDataReader ExecuteReaderWithCleanup(SqlCommand c, int? commandTimeout) {
+			if (commandTimeout.HasValue)
 				c.CommandTimeout = commandTimeout.Value;
 			c.Connection.Open();
 			var r = c.ExecuteReader(CommandBehavior.CloseConnection);

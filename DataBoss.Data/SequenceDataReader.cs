@@ -41,6 +41,8 @@ namespace DataBoss.Data
 
 		public static IDataReader Create<T>(IEnumerable<T> data, params MemberInfo[] members) =>
 			Create(data, fields => Array.ForEach(members, x => fields.Map(x)));
+
+		public static IDataReader ToDataReader<T>(this IEnumerable<T> data) => Create(data); 
 	}
 
 	public class SequenceDataReader<T> : IDataReader

@@ -49,19 +49,19 @@ namespace DataBoss.Migrations
 
 		public IEnumerable<DataBossQueryBatch> GetQueryBatches() {
 			var batch = new StringBuilder();
-			Action<string> append = x => (batch.Length == 0 ? batch : batch.AppendLine()).Append(x);
+			void Append(string x) => (batch.Length == 0 ? batch : batch.AppendLine()).Append(x);
 			
 			foreach(var line in getReader.AsEnumerable()) {
 				var m = BatchSeparatorEx.Match(line);
 				if(m.Success) {
 					if(m.Index > 0)
-						append(line.Substring(0, m.Index));
+						Append(line.Substring(0, m.Index));
 					if(batch.Length > 0) {
 						yield return DataBossQueryBatch.Query(batch.ToString(), Path);
 						batch.Clear();
 					}
 				} else {
-					append(line);
+					Append(line);
 				}
 			}
 

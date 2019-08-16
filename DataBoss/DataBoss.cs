@@ -15,12 +15,12 @@ namespace DataBoss
 {
 	public class DataBoss : IDisposable
 	{
-		readonly DataBossConfiguration config;
+		readonly IDataBossConfiguration config;
 		readonly IDataBossLog log;
 		readonly SqlConnection db;
 		readonly DataBossScripter scripter = new DataBossScripter();
 
-		DataBoss(DataBossConfiguration config, IDataBossLog log, SqlConnection db) {
+		DataBoss(IDataBossConfiguration config, IDataBossLog log, SqlConnection db) {
 			this.config = config;
 			this.log = log;
 			this.db = db;
@@ -28,7 +28,7 @@ namespace DataBoss
 
 		void IDisposable.Dispose() => db.Dispose();
 
-		public static DataBoss Create(DataBossConfiguration config, IDataBossLog log) =>
+		public static DataBoss Create(IDataBossConfiguration config, IDataBossLog log) =>
 			new DataBoss(config, log, new SqlConnection(config.GetConnectionString()));
 
 		[DataBossCommand("init")]
@@ -91,42 +91,31 @@ namespace DataBoss
 				db.Open();
 		}
 
-		IDataBossMigrationScope GetTargetScope(DataBossConfiguration config) {
-			if(string.IsNullOrEmpty(config.Script)) {
-				var shell = new DataBossShellExecute();
-				shell.OutputDataReceived += (_,e) => Console.WriteLine(e.Data);
-				return new DataBossLogMigrationScope(log, new DataBossMigrationScope(db, shell));
-			}
-			return config.Script == "con:"
-				? new DataBossScriptMigrationScope(Console.Out, false) 
-				: new DataBossScriptMigrationScope(new StreamWriter(File.Create(config.Script)), true);
+		IDataBossMigrationScope GetTargetScope(IDataBossConfiguration config) {
+			var scopeContext = DataBossMigrationScopeContext.From(db);
+
+			if (config is DataBossConfiguration  x && !string.IsNullOrEmpty(x.Script))
+				return x.Script == "con:"
+					? new DataBossScriptMigrationScope(scopeContext, Console.Out, false) 
+					: new DataBossScriptMigrationScope(scopeContext, new StreamWriter(File.Create(x.Script)), true);
+			
+			var shell = new DataBossShellExecute();
+			shell.OutputDataReceived += (_, e) => Console.WriteLine(e.Data);
+			return new DataBossLogMigrationScope(log, new DataBossMigrationScope(scopeContext, db, shell));
 		}
 
-		List<IDataBossMigration> GetPendingMigrations(DataBossConfiguration config) {
-			var applied = new HashSet<string>(GetAppliedMigrations(config).Select(x => x.FullId));
+		List<IDataBossMigration> GetPendingMigrations(IDataBossConfiguration config) {
+			var applied = new HashSet<string>(GetAppliedMigrations().Select(x => x.FullId));
 			Func<IDataBossMigration, bool> notApplied = x => !applied.Contains(x.Info.FullId);
 
-			return GetTargetMigration(config.Migrations).Flatten()
+			return config.GetTargetMigration()
+				.Flatten()
 				.Where(item => item.HasQueryBatches)
 				.Where(notApplied)
 				.ToList();
 		}
 
-		public static IDataBossMigration GetTargetMigration(DataBossMigrationPath[] migrations) {
-			return new DataBossCompositeMigration(migrations.ConvertAll(MakeDirectoryMigration));
-		}
-
-		static IDataBossMigration MakeDirectoryMigration(DataBossMigrationPath x) {
-			return new DataBossDirectoryMigration(
-				x.Path, new DataBossMigrationInfo {
-					Id = 0,
-					Context = x.Context,
-					Name = x.Path,
-				}
-			);
-		}
-
-		public List<DataBossMigrationInfo> GetAppliedMigrations(DataBossConfiguration config) {
+		public List<DataBossMigrationInfo> GetAppliedMigrations() {
 			using(var cmd = new SqlCommand("select object_id('__DataBossHistory', 'U')", db)) {
 				if(cmd.ExecuteScalar() is DBNull)
 					throw new InvalidOperationException($"DataBoss has not been initialized, run: init <target>");

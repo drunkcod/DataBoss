@@ -8,7 +8,7 @@
 
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
     <PackageReference Include="System.Data.SqlClient">
-      <Version>4.4.*</Version>
+      <Version>4.6.1</Version>
     </PackageReference>
   </ItemGroup>
 
@@ -17,7 +17,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="System.ComponentModel.Annotations" Version="4.4.*" />
+    <PackageReference Include="System.ComponentModel.Annotations" Version="4.5.0" />
     <PackageReference Condition="'$(TargetFramework)'=='net452'" Include="System.ValueTuple" Version="4.5.0" />
   </ItemGroup>
 

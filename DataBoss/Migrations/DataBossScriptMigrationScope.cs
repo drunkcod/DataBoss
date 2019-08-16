@@ -6,12 +6,16 @@ namespace DataBoss.Migrations
 	class DataBossScriptMigrationScope : IDataBossMigrationScope
 	{
 		const string BatchSeparator = "GO";
+
+		readonly DataBossMigrationScopeContext scopeContext;
 		readonly TextWriter output;
 		readonly bool closeOutput;
+		
 		long id;
 		string context;
 
-		public DataBossScriptMigrationScope(TextWriter output, bool closeOutput) {
+		public DataBossScriptMigrationScope(DataBossMigrationScopeContext scopeContext, TextWriter output, bool closeOutput) {
+			this.scopeContext = scopeContext;
 			this.output = output;
 			this.closeOutput = closeOutput;
 		}

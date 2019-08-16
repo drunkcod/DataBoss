@@ -103,7 +103,11 @@ namespace DataBoss.Specs
 		}
 
 		void Apply(DataBossMigrationInfo info, Action<IDataBossMigrationScope> scope) {
-			var migrator = new DataBossMigrationScope(Connection, ShellExecute);
+			var migrator = new DataBossMigrationScope(
+				DataBossMigrationScopeContext.From(Connection),
+				Connection, 
+				ShellExecute);
+
 			migrator.Begin(info);
 			scope(migrator);
 			migrator.Done();

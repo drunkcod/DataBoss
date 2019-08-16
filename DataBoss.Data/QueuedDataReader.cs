@@ -5,6 +5,11 @@ using System.Data;
 
 namespace DataBoss.Data
 {
+	static class Empty<T>
+	{
+		public static readonly T[] Array = new T[0];
+	}
+
 	public class QueuedDataReader<T> : IDataReader
 	{
 		readonly Func<IReadOnlyList<T>, IDataReader> executeBatch;
@@ -21,7 +26,7 @@ namespace DataBoss.Data
 			this.readQueue = maxQueue.HasValue ? new BlockingCollection<T>(maxQueue.Value) : new BlockingCollection<T>();
 		}
 
-		IDataReader EnsureCurrent() => current ?? (current = executeBatch(Array.Empty<T>()));
+		IDataReader EnsureCurrent() => current ?? (current = executeBatch(Empty<T>.Array));
 
 		public void Add(T item) => readQueue.Add(item);
 		public void CompleteAdding() => readQueue.CompleteAdding();
@@ -37,7 +42,7 @@ namespace DataBoss.Data
 		public void Close() => current?.Close();
 
 		public void Dispose() {
-			ReleaseCurrent();
+			SetCurrent(null);
 			batch = null;
 		}
 
@@ -69,10 +74,9 @@ namespace DataBoss.Data
 		public bool NextResult() => false;
 
 		public bool Read() {
-			if (current != null)
+			if (current != null && current.Read())
 				if (current.Read())
 					return true;
-				else ReleaseCurrent();
 			return StartBatch() && Read();
 		}
 
@@ -85,15 +89,15 @@ namespace DataBoss.Data
 				while (n < batch.Length && readQueue.TryTake(out var item, timeout))
 					batch[n++] = item;
 				if (n != 0) {
-					current = executeBatch(new ArraySegment<T>(batch, 0, n));
+					SetCurrent(executeBatch(new ArraySegment<T>(batch, 0, n)));
 					return true;
 				}
 			}
 		}
 
-		void ReleaseCurrent() {
+		void SetCurrent(IDataReader next) {
 			current?.Dispose();
-			current = null;
+			current = next;
 		}
 	}
 }

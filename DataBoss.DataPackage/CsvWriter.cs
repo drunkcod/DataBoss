@@ -28,10 +28,7 @@ namespace DataBoss.DataPackage
 		}
 
 		public void WriteField(string value) {
-			if(state == WriterState.InRecord)
-				Writer.Write(Delimiter);
-			else 
-				state = WriterState.InRecord;
+			NextField();
 
 			if (ShouldQuote(value)) {
 				Writer.Write('"');				
@@ -40,6 +37,13 @@ namespace DataBoss.DataPackage
 			} 
 			else
 				Writer.Write(value);
+		}
+
+		void NextField() {
+			if (state == WriterState.InRecord)
+				Writer.Write(Delimiter);
+			else
+				state = WriterState.InRecord;
 		}
 
 		bool ShouldQuote(string value) =>

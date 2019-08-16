@@ -15,9 +15,10 @@
     <ProjectReference Include="..\DataBoss.DataPackage\DataBoss.DataPackage.csproj" />
     <ProjectReference Include="..\DataBoss.Data\DataBoss.Data.csproj" />
     <ProjectReference Include="..\DataBoss\DataBoss.csproj" />
-    <PackageReference Include="System.ComponentModel.Annotations" Version="4.4.*" />
-    <PackageReference Include="Cone" Version="2018.7.9" />
-    <PackageReference Include="System.ValueTuple" Version="4.5.0" /> 
-    <DotNetCliToolReference Include="dotnet-conesole" Version="2018.6.21" /> 
+    <PackageReference Include="System.ComponentModel.Annotations" Version="4.5.0" />
+    <PackageReference Include="System.ValueTuple" Version="4.5.0" />
+    <PackageReference Include="Cone" Version="2019.8.13.5" />
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.2" />
+    <DotNetCliToolReference Include="dotnet-conesole" Version="2019.8.13.5" /> 
   </ItemGroup>
 </Project>
