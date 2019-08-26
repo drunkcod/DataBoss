@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.IO;
+using DataBoss.Linq;
 
 namespace DataBoss.Migrations
 {
@@ -11,7 +12,7 @@ namespace DataBoss.Migrations
 		public readonly string Database;
 		public readonly string Server;
 
-		DataBossMigrationScopeContext(string connectionString, string database, string server) {
+		public DataBossMigrationScopeContext(string connectionString, string database, string server) {
 			this.ConnectionString = connectionString;
 			this.Database = database;
 			this.Server = server;
@@ -81,9 +82,9 @@ public class DataBossMigrationScope : IDataBossMigrationScope
 
 		private bool ExecuteCommand(DataBossQueryBatch command) =>
 			shellExecute.Execute(string.IsNullOrEmpty(command.Path) ? string.Empty: Path.GetDirectoryName(command.Path), command.ToString(), new [] {
-				new KeyValuePair<string, string>("DATABOSS_CONNECTION", scopeContext.ConnectionString),
-				new KeyValuePair<string, string>("DATABOSS_DATABASE", scopeContext.Database),
-				new KeyValuePair<string, string>("DATABOSS_SERVER", scopeContext.Server),
+				KeyValuePair.Create("DATABOSS_CONNECTION", scopeContext.ConnectionString),
+				KeyValuePair.Create("DATABOSS_DATABASE", scopeContext.Database),
+				KeyValuePair.Create("DATABOSS_SERVER", scopeContext.Server),
 			});
 
 		public void Done() {

@@ -199,6 +199,8 @@ namespace DataBoss.DataPackage
 
 			public string Format(string value) => value;
 
+			public string Format(DateTime value) => value.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ssK");
+
 			public string Format(object obj) =>
 				obj is IFormattable x ? x.ToString(null, formatProvider) : obj?.ToString();
 		}

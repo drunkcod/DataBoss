@@ -42,17 +42,23 @@ namespace DataBoss.Specs
 				.That(x => x.Length == 1, x => x.Any(p => p.ParameterName == "@Value"));
 		}
 
+		public void null_string() => Check.With(() =>
+			GetParams(new { NullString = (string)null }))
+			.That(
+				xs => xs.Length == 1,
+				xs => xs[0].Value == DBNull.Value);
+
 		public void nullable_values() => Check.With(() => 
 			GetParams(new {
 				HasValue = new int?(1),
 				NoInt32 = new int?(),
 			}))
 			.That(
-				paras => paras.Length == 2,
-				paras => paras[0].Value.Equals(1),
-				paras => paras[0].SqlDbType == SqlDbType.Int,
-				paras => paras[1].Value == DBNull.Value,
-				paras => paras[1].SqlDbType == SqlDbType.Int);
+				xs => xs.Length == 2,
+				xs => xs[0].Value.Equals(1),
+				xs => xs[0].SqlDbType == SqlDbType.Int,
+				xs => xs[1].Value == DBNull.Value,
+				xs => xs[1].SqlDbType == SqlDbType.Int);
 
 		public void RowVersion_as_SqlBinary_value() => Check
 			.With(() => GetParams(new { RowVersion = new RowVersion(new byte[8])}))

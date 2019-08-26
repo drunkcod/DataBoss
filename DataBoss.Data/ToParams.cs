@@ -121,8 +121,12 @@ namespace DataBoss.Data
 
 		public static bool HasSqlTypeMapping(Type t) => t.IsPrimitive || mappedTypes.Contains(t) || t.IsEnum;
 
-		static Expression MakeParameter(Expression p, Expression value) => 
-			Expression.Convert(value, typeof(object));
+		static Expression MakeParameter(Expression p, Expression value) =>
+			p.Type.IsClass 
+			? (Expression)Expression.Coalesce(
+				Expression.Convert(value, typeof(object)), 
+				Expression.Constant(DBNull.Value, typeof(object)))
+			: Expression.Convert(value, typeof(object));
 
 		static Expression MakeParameterFromNullable(Expression p, Expression value) =>
 			Expression.Condition(

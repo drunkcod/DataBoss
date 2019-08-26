@@ -2,7 +2,6 @@ using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using DataBoss.Data.Scripting;
-
 namespace DataBoss.Schema
 {
 	[Table("__DataBossHistory", Schema = "dbo")]
