@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.Common;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Linq.Expressions;
@@ -25,6 +26,19 @@ namespace DataBoss.Data
 			var cmd = CreateCommand(connection, cmdText);
 			ToParams.AddTo(cmd, args);
 			return cmd;
+		}
+
+		public static void DisposeOnClose(this DbConnection connection) {
+			connection.StateChange += DisposeOnClose;
+		}
+
+		static void DisposeOnClose(object obj, StateChangeEventArgs e)
+		{
+			if(e.CurrentState == ConnectionState.Closed) {
+				var c = (DbConnection)obj;
+				c.StateChange -= DisposeOnClose;
+				c.Dispose();
+			}
 		}
 
 		public static object ExecuteScalar(this IDbConnection connection, string commandText) =>

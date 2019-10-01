@@ -2,7 +2,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -10,6 +9,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
 using System.Threading;
+using DataBoss.Data;
 using Newtonsoft.Json;
 
 namespace DataBoss.DataPackage
@@ -18,14 +18,25 @@ namespace DataBoss.DataPackage
 	{
 		public static string Delimiter = ";";
 
-		public static void Create(string path, params DataPackageResource[] resources) =>
-			Create(path, (IEnumerable<DataPackageResource>)resources);
+		readonly List<DataPackageResource> resources = new List<DataPackageResource>();
 
-		public static void Create(string path, CultureInfo culture, params DataPackageResource[] resources) =>
-			Create(path, (IEnumerable<DataPackageResource>)resources, culture);
+		public DataPackage AddResource(string name, Func<IDataReader> getData)
+		{
+			resources.Add(new DataPackageResource(name, getData));
+			return this;
+		}
 
-		public static void Create(string path, IEnumerable<DataPackageResource> resources, CultureInfo culture = null) =>
+		public DataPackage AddResource<T>(string name, IEnumerable<T> data) =>
+			AddResource(name, () => data.ToDataReader());
+
+		public DataPackage AddResource<T>(string name, Func<IEnumerable<T>> getData) =>
+			AddResource(name, () => getData().ToDataReader());
+
+		public void Create(string path, CultureInfo culture = null) =>
 			Create(name => File.Create(Path.Combine(path, name)), resources, culture);
+
+		public void Create(Func<string, Stream> createOutput, CultureInfo culture = null) =>
+			Create(createOutput, resources, culture);
 
 		static void Create(Func<string, Stream> createOutput, IEnumerable<DataPackageResource> resources, CultureInfo culture = null) {
 			var resourceInfo = new List<ResourceInfo>();
@@ -34,8 +45,9 @@ namespace DataBoss.DataPackage
 				using (var output = createOutput(resourcePath))
 				using (var data = item.GetData()) {
 					resourceInfo.Add(new ResourceInfo {
-						Path = resourcePath,
-						Schema = GetFieldInfo(data),
+						Path = Path.GetFileName(resourcePath),
+						Delimiter = Delimiter,
+						Schema = new TabularSchema { Fields = GetFieldInfo(data) },
 					});
 					WriteRecords(output, culture ?? CultureInfo.CurrentCulture, data);
 				}
@@ -43,24 +55,24 @@ namespace DataBoss.DataPackage
 
 			using (var meta = new StreamWriter(createOutput("datapackage.json")))
 				meta.Write(JsonConvert.SerializeObject(new {
-					resources = resourceInfo.Select(x =>
-							new {
-								path = Path.GetFileName(x.Path),
-								dialect = new {
-									delimiter = Delimiter,
-								},
-								schema = x.Schema,
-							}),
-
-				}, Newtonsoft.Json.Formatting.Indented));
+					resources = resourceInfo,
+				}, Formatting.Indented));
 		}
 
 		class ResourceInfo
 		{
 			[JsonProperty("path")]
 			public string Path;
+			[JsonProperty("delimiter")]
+			public string Delimiter;
 			[JsonProperty("schema")]
-			public IEnumerable<TabularFieldInfo> Schema;
+			public TabularSchema Schema;
+		}
+
+		class TabularSchema
+		{
+			[JsonProperty("fields")]
+			public IEnumerable<TabularFieldInfo> Fields;
 		}
 
 		class TabularFieldInfo
@@ -97,11 +109,11 @@ namespace DataBoss.DataPackage
 			}
 		}
 
-		static void WriteRecords(Stream output, CultureInfo culture, IDataReader data) {
-			var encoding = new UTF8Encoding(false);
-			CsvWriter NewCsvWriter(Stream stream) => new CsvWriter(new StreamWriter(stream, encoding, 4096, leaveOpen: true));
+		static CsvWriter NewCsvWriter(Stream stream, Encoding encoding) => new CsvWriter(new StreamWriter(stream, encoding, 4096, leaveOpen: true));
 
-			using (var csv = NewCsvWriter(output)) {
+		static void WriteRecords(Stream output, CultureInfo culture, IDataReader data) {
+
+			using (var csv = NewCsvWriter(output, Encoding.UTF8)) {
 				for (var i = 0; i != data.FieldCount; ++i)
 					csv.WriteField(data.GetName(i));
 				csv.NextRecord();
@@ -115,7 +127,7 @@ namespace DataBoss.DataPackage
 				var writer = new ChunkWriter {
 					DataReader = data,
 					Records = reader.GetConsumingEnumerable(),
-					Csv = csv,
+					Encoding = new UTF8Encoding(false),
 					Format = culture,
 				};
 				writer.Start();
@@ -224,13 +236,12 @@ namespace DataBoss.DataPackage
 			}
 
 			readonly BlockingCollection<MemoryStream> chunks = new BlockingCollection<MemoryStream>(128);
+
 			public IDataReader DataReader;
 			public IEnumerable<(object[] Values, int Rows)> Records;
-			public CsvWriter Csv;
 			public IFormatProvider Format;
 
-			Encoding Encoding => Csv.Writer.Encoding;
-			CsvWriter NewCsvWriter(Stream stream) => new CsvWriter(new StreamWriter(stream, Encoding, 4096, leaveOpen: true));
+			public Encoding Encoding;
 
 			int RowOffset(int n) => DataReader.FieldCount * n;
 
@@ -251,7 +262,7 @@ namespace DataBoss.DataPackage
 						if (item.Rows == 0)
 							return;
 						var chunk = new MemoryStream(bufferGuess);
-						using (var fragment = NewCsvWriter(chunk)) {
+						using (var fragment = NewCsvWriter(chunk, Encoding)) {
 							for (var n = 0; n != item.Rows; ++n) {
 								var first = RowOffset(n);
 								for (var i = 0; i != DataReader.FieldCount; ++i) {
