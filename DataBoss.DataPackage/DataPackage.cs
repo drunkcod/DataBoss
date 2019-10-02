@@ -14,26 +14,75 @@ using Newtonsoft.Json;
 
 namespace DataBoss.DataPackage
 {
-	public class DataPackage
+
+	public interface IDataPackageBuilder
+	{
+		IDataPackageResourceBuilder AddResource(string name, Func<IDataReader> getData);
+		void Create(Func<string, Stream> createOutput, CultureInfo culture = null);
+	}
+
+	public interface IDataPackageResourceBuilder : IDataPackageBuilder
+	{
+		IDataPackageResourceBuilder WithForeignKey(DataPackageForeignKey fk);
+		IDataPackageResourceBuilder WithPrimaryKey(string field, params string[] parts);
+	}
+
+	public static class DataPackageBuilderExtensions
+	{
+		public static IDataPackageResourceBuilder AddResource<T>(this IDataPackageBuilder self, string name, IEnumerable<T> data) =>
+			self.AddResource(name, () => data.ToDataReader());
+
+		public static IDataPackageResourceBuilder AddResource<T>(this IDataPackageBuilder self, string name, Func<IEnumerable<T>> getData) =>
+			self.AddResource(name, () => getData().ToDataReader());
+
+		public static IDataPackageResourceBuilder WithForeignKey(this IDataPackageResourceBuilder self, string field, DataPackageKeyReference reference) =>
+			self.WithForeignKey(new DataPackageForeignKey(field, reference));
+
+		public static void Create(this IDataPackageBuilder self, string path, CultureInfo culture = null) =>
+			self.Create(name => File.Create(Path.Combine(path, name)), culture);
+	}
+
+	public class DataPackage : IDataPackageBuilder
 	{
 		public static string Delimiter = ";";
 
 		readonly List<DataPackageResource> resources = new List<DataPackageResource>();
 
-		public DataPackage AddResource(string name, Func<IDataReader> getData)
+		class DataPackageResourceBuilder : IDataPackageResourceBuilder
 		{
-			resources.Add(new DataPackageResource(name, getData));
-			return this;
+			readonly DataPackage package;
+			readonly DataPackageResource resource;
+
+			public DataPackageResourceBuilder(DataPackage package, DataPackageResource resource) {
+				this.package = package;
+				this.resource = resource;
+			}
+
+			public IDataPackageResourceBuilder AddResource(string name, Func<IDataReader> getData) =>
+				package.AddResource(name, getData);
+
+			public void Create(Func<string, Stream> createOutput, CultureInfo culture = null) =>
+				package.Create(createOutput, culture);
+
+			public IDataPackageResourceBuilder WithPrimaryKey(string field, params string[] parts) {
+				resource.PrimaryKey.Add(field);
+				if(parts != null && parts.Length > 0)
+					resource.PrimaryKey.AddRange(parts);
+				return this;
+			}
+
+			public IDataPackageResourceBuilder WithForeignKey(DataPackageForeignKey fk) {
+				resource.ForeignKeys.Add(fk);
+				return this;
+			}
 		}
 
-		public DataPackage AddResource<T>(string name, IEnumerable<T> data) =>
-			AddResource(name, () => data.ToDataReader());
-
-		public DataPackage AddResource<T>(string name, Func<IEnumerable<T>> getData) =>
-			AddResource(name, () => getData().ToDataReader());
-
-		public void Create(string path, CultureInfo culture = null) =>
-			Create(name => File.Create(Path.Combine(path, name)), resources, culture);
+		public IDataPackageResourceBuilder AddResource(string name, Func<IDataReader> getData)
+		{
+			var resource = new DataPackageResource(name, getData);
+			resources.Add(resource);
+			return new DataPackageResourceBuilder(this, resource);
+		}
 
 		public void Create(Func<string, Stream> createOutput, CultureInfo culture = null) =>
 			Create(createOutput, resources, culture);
@@ -45,9 +94,14 @@ namespace DataBoss.DataPackage
 				using (var output = createOutput(resourcePath))
 				using (var data = item.GetData()) {
 					resourceInfo.Add(new ResourceInfo {
+						Name = item.Name, 
 						Path = Path.GetFileName(resourcePath),
 						Delimiter = Delimiter,
-						Schema = new TabularSchema { Fields = GetFieldInfo(data) },
+						Schema = new TabularSchema { 
+							Fields = GetFieldInfo(data),
+							PrimaryKey = NullIfEmpty(item.PrimaryKey),
+							ForeignKeys = NullIfEmpty(item.ForeignKeys),
+						},
 					});
 					WriteRecords(output, culture ?? CultureInfo.CurrentCulture, data);
 				}
@@ -59,8 +113,13 @@ namespace DataBoss.DataPackage
 				}, Formatting.Indented));
 		}
 
+		static IReadOnlyCollection<T> NullIfEmpty<T>(IReadOnlyCollection<T> values) => 
+			values.Count == 0 ? null : values;
+
 		class ResourceInfo
 		{
+			[JsonProperty("name")]
+			public string Name;
 			[JsonProperty("path")]
 			public string Path;
 			[JsonProperty("delimiter")]
@@ -73,6 +132,12 @@ namespace DataBoss.DataPackage
 		{
 			[JsonProperty("fields")]
 			public IEnumerable<TabularFieldInfo> Fields;
+
+			[JsonProperty("primaryKey", DefaultValueHandling = DefaultValueHandling.Ignore)]
+			public IEnumerable<string> PrimaryKey;
+
+			[JsonProperty("foreignKeys", DefaultValueHandling = DefaultValueHandling.Ignore)]
+			public IEnumerable<DataPackageForeignKey> ForeignKeys;
 		}
 
 		class TabularFieldInfo
@@ -211,7 +276,11 @@ namespace DataBoss.DataPackage
 
 			public string Format(string value) => value;
 
-			public string Format(DateTime value) => value.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ssK");
+			public string Format(DateTime value) {
+				if(value.Kind == DateTimeKind.Unspecified)
+					throw new InvalidOperationException("DateTimeKind.Unspecified not supported.");
+				return value.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ssK");
+			}
 
 			public string Format(object obj) =>
 				obj is IFormattable x ? x.ToString(null, formatProvider) : obj?.ToString();

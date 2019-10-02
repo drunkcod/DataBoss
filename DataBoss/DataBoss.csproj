@@ -15,4 +15,7 @@
     <ProjectReference Condition="'$(DataBossPackageVersion)'==''" Include="..\DataBoss.Data\DataBoss.Data.csproj" />
     <PackageReference Condition="'$(DataBossPackageVersion)'!=''" Include="DataBoss.Data" Version="$(DataBossPackageVersion)" /> 
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Properties\" />
+  </ItemGroup>
 </Project>

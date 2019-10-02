@@ -17,6 +17,7 @@ function NuPack {
 }
 
 dotnet msbuild  DataBoss\DataBoss.sln /t:Restore /t:Clean /t:Build
-NuPack DataBoss.Linq/DataBoss.Linq.csproj /t:Restore
-NuPack DataBoss.Data/DataBoss.Data.csproj /t:Restore
-NuPack DataBoss\DataBoss.csproj /t:Restore
+NuPack DataBoss.Linq/DataBoss.Linq.csproj
+NuPack DataBoss.Data/DataBoss.Data.csproj 
+NuPack DataBoss.DataPackage/DataBoss.DataPackage.csproj
+NuPack DataBoss\DataBoss.csproj
