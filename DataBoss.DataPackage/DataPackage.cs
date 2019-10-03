@@ -14,32 +14,32 @@ using Newtonsoft.Json;
 
 namespace DataBoss.DataPackage
 {
-
-	public interface IDataPackageBuilder
+	public class DataPackageTabularSchema
 	{
-		IDataPackageResourceBuilder AddResource(string name, Func<IDataReader> getData);
-		void Create(Func<string, Stream> createOutput, CultureInfo culture = null);
+		[JsonProperty("fields")]
+		public IEnumerable<DataPackageTabularFieldDescription> Fields;
+
+		[JsonProperty("primaryKey", DefaultValueHandling = DefaultValueHandling.Ignore)]
+		public IEnumerable<string> PrimaryKey;
+
+		[JsonProperty("foreignKeys", DefaultValueHandling = DefaultValueHandling.Ignore)]
+		public IEnumerable<DataPackageForeignKey> ForeignKeys;
 	}
 
-	public interface IDataPackageResourceBuilder : IDataPackageBuilder
+	public class DataPackageTabularFieldDescription
 	{
-		IDataPackageResourceBuilder WithForeignKey(DataPackageForeignKey fk);
-		IDataPackageResourceBuilder WithPrimaryKey(string field, params string[] parts);
+		[JsonProperty("name")]
+		public string Name;
+		[JsonProperty("type")]
+		public string Type;
 	}
 
-	public static class DataPackageBuilderExtensions
+	public class DataPackageDescription
 	{
-		public static IDataPackageResourceBuilder AddResource<T>(this IDataPackageBuilder self, string name, IEnumerable<T> data) =>
-			self.AddResource(name, () => data.ToDataReader());
+		[JsonProperty("resources")]
+		public List<DataPackageResourceDescription> Resources = new List<DataPackageResourceDescription>();
 
-		public static IDataPackageResourceBuilder AddResource<T>(this IDataPackageBuilder self, string name, Func<IEnumerable<T>> getData) =>
-			self.AddResource(name, () => getData().ToDataReader());
-
-		public static IDataPackageResourceBuilder WithForeignKey(this IDataPackageResourceBuilder self, string field, DataPackageKeyReference reference) =>
-			self.WithForeignKey(new DataPackageForeignKey(field, reference));
-
-		public static void Create(this IDataPackageBuilder self, string path, CultureInfo culture = null) =>
-			self.Create(name => File.Create(Path.Combine(path, name)), culture);
+		public static DataPackageDescription Load(string path) => JsonConvert.DeserializeObject<DataPackageDescription>(File.ReadAllText(path));
 	}
 
 	public class DataPackage : IDataPackageBuilder
@@ -72,6 +72,8 @@ namespace DataBoss.DataPackage
 			}
 
 			public IDataPackageResourceBuilder WithForeignKey(DataPackageForeignKey fk) {
+				if(!package.resources.Any(x => x.Name == fk.Reference.Resource))
+					throw new InvalidOperationException($"Missing resource '{fk.Reference.Resource}'");
 				resource.ForeignKeys.Add(fk);
 				return this;
 			}
@@ -84,20 +86,17 @@ namespace DataBoss.DataPackage
 			return new DataPackageResourceBuilder(this, resource);
 		}
 
-		public void Create(Func<string, Stream> createOutput, CultureInfo culture = null) =>
-			Create(createOutput, resources, culture);
-
-		static void Create(Func<string, Stream> createOutput, IEnumerable<DataPackageResource> resources, CultureInfo culture = null) {
-			var resourceInfo = new List<ResourceInfo>();
+		public void Create(Func<string, Stream> createOutput, CultureInfo culture = null) {
+			var description = new DataPackageDescription();
 			foreach (var item in resources) {
 				var resourcePath = $"{item.Name}.csv";
 				using (var output = createOutput(resourcePath))
 				using (var data = item.GetData()) {
-					resourceInfo.Add(new ResourceInfo {
+					description.Resources.Add(new DataPackageResourceDescription {
 						Name = item.Name, 
 						Path = Path.GetFileName(resourcePath),
 						Delimiter = Delimiter,
-						Schema = new TabularSchema { 
+						Schema = new DataPackageTabularSchema { 
 							Fields = GetFieldInfo(data),
 							PrimaryKey = NullIfEmpty(item.PrimaryKey),
 							ForeignKeys = NullIfEmpty(item.ForeignKeys),
@@ -108,50 +107,16 @@ namespace DataBoss.DataPackage
 			};
 
 			using (var meta = new StreamWriter(createOutput("datapackage.json")))
-				meta.Write(JsonConvert.SerializeObject(new {
-					resources = resourceInfo,
-				}, Formatting.Indented));
+				meta.Write(JsonConvert.SerializeObject(description, Formatting.Indented));
 		}
 
 		static IReadOnlyCollection<T> NullIfEmpty<T>(IReadOnlyCollection<T> values) => 
 			values.Count == 0 ? null : values;
 
-		class ResourceInfo
-		{
-			[JsonProperty("name")]
-			public string Name;
-			[JsonProperty("path")]
-			public string Path;
-			[JsonProperty("delimiter")]
-			public string Delimiter;
-			[JsonProperty("schema")]
-			public TabularSchema Schema;
-		}
-
-		class TabularSchema
-		{
-			[JsonProperty("fields")]
-			public IEnumerable<TabularFieldInfo> Fields;
-
-			[JsonProperty("primaryKey", DefaultValueHandling = DefaultValueHandling.Ignore)]
-			public IEnumerable<string> PrimaryKey;
-
-			[JsonProperty("foreignKeys", DefaultValueHandling = DefaultValueHandling.Ignore)]
-			public IEnumerable<DataPackageForeignKey> ForeignKeys;
-		}
-
-		class TabularFieldInfo
-		{
-			[JsonProperty("name")]
-			public string Name;
-			[JsonProperty("type")]
-			public string Type;
-		}
-
-		static TabularFieldInfo[] GetFieldInfo(IDataReader reader) {
-			var r = new TabularFieldInfo[reader.FieldCount];
+		static DataPackageTabularFieldDescription[] GetFieldInfo(IDataReader reader) {
+			var r = new DataPackageTabularFieldDescription[reader.FieldCount];
 			for (var i = 0; i != reader.FieldCount; ++i) {
-				r[i] = new TabularFieldInfo {
+				r[i] = new DataPackageTabularFieldDescription {
 					Name = reader.GetName(i),
 					Type = ToTableSchemaType(reader.GetFieldType(i)),
 				};
