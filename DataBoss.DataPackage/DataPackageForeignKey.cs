@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Newtonsoft.Json;
 
 namespace DataBoss.DataPackage
@@ -6,12 +6,18 @@ namespace DataBoss.DataPackage
 	public struct DataPackageForeignKey
 	{
 		[JsonProperty("fields")]
-		public IReadOnlyCollection<string> Fields;
+		[JsonConverter(typeof(ItemOrArrayJsonConverter))]
+		public IReadOnlyCollection<string> Fields { get; }
+
 		[JsonProperty("reference")]
-		public readonly DataPackageKeyReference Reference;
+		public DataPackageKeyReference Reference { get; }
 
 		public DataPackageForeignKey(string field, DataPackageKeyReference reference) : this(new[]{ field }, reference) { }
-		public DataPackageForeignKey(string[] fields, DataPackageKeyReference reference)
+
+		[JsonConstructor]
+		public DataPackageForeignKey(
+			[JsonConverter(typeof(ItemOrArrayJsonConverter))] string[] fields,
+			DataPackageKeyReference reference)
 		{
 			this.Fields = fields;
 			this.Reference = reference;

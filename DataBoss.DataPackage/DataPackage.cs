@@ -20,10 +20,11 @@ namespace DataBoss.DataPackage
 		public IEnumerable<DataPackageTabularFieldDescription> Fields;
 
 		[JsonProperty("primaryKey", DefaultValueHandling = DefaultValueHandling.Ignore)]
-		public IEnumerable<string> PrimaryKey;
+		[JsonConverter(typeof(ItemOrArrayJsonConverter))]
+		public List<string> PrimaryKey;
 
 		[JsonProperty("foreignKeys", DefaultValueHandling = DefaultValueHandling.Ignore)]
-		public IEnumerable<DataPackageForeignKey> ForeignKeys;
+		public List<DataPackageForeignKey> ForeignKeys;
 	}
 
 	public class DataPackageTabularFieldDescription
@@ -110,7 +111,7 @@ namespace DataBoss.DataPackage
 				meta.Write(JsonConvert.SerializeObject(description, Formatting.Indented));
 		}
 
-		static IReadOnlyCollection<T> NullIfEmpty<T>(IReadOnlyCollection<T> values) => 
+		static List<T> NullIfEmpty<T>(List<T> values) => 
 			values.Count == 0 ? null : values;
 
 		static DataPackageTabularFieldDescription[] GetFieldInfo(IDataReader reader) {

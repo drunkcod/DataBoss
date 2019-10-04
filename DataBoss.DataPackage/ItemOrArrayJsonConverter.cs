@@ -9,7 +9,7 @@ namespace DataBoss.DataPackage
 {
 	public class ItemOrArrayJsonConverter : JsonConverter
 	{
-		public override bool CanConvert(Type objectType) => typeof(ICollection<>).IsAssignableFrom(objectType);
+		public override bool CanConvert(Type objectType) => typeof(IEnumerable<>).IsAssignableFrom(objectType);
 
 		public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer) {
 			var itemType = GetItemType(objectType);
@@ -21,7 +21,7 @@ namespace DataBoss.DataPackage
 		}
 
 		static Type GetItemType(Type collectionType) =>
-			(collectionType.GetInterface(typeof(ICollection<>).Name) ?? collectionType).GetGenericArguments()[0];
+			(collectionType.GetInterface(typeof(IEnumerable<>).Name) ?? collectionType).GetGenericArguments()[0];
 
 		static object ReadArray(Type itemType, JsonReader reader, JsonSerializer serializer) =>
 			GetGenericMethod(nameof(DoReadArray), itemType)
@@ -34,18 +34,19 @@ namespace DataBoss.DataPackage
 			GetGenericMethod(nameof(DoReadCollection), itemType)
 			.Invoke(null, new[] { reader, existingValue, serializer });
 
-		static ICollection<T> DoReadCollection<T>(JsonReader reader, ICollection<T> existingValue, JsonSerializer serializer) {
-			var target = existingValue ?? new List<T>();
-			void ReadItem() => target.Add((T)serializer.Deserialize(reader, typeof(T)));
+		static IEnumerable<T> DoReadCollection<T>(JsonReader reader, object existingValue, JsonSerializer serializer) {
+			var target = (existingValue as ICollection<T>) ?? new List<T>();
+			void ReadItem() => target.Add(serializer.Deserialize<T>(reader));
 
-			if (reader.TokenType == JsonToken.StartArray) {
+			if(reader.TokenType == JsonToken.None && !reader.Read())
+				return null;
+
+			if (reader.TokenType == JsonToken.StartArray)
 				while (reader.Read() && reader.TokenType != JsonToken.EndArray)
 					ReadItem();
-			}
-			else
-				ReadItem();
+			else ReadItem();
 			
-			return target;;
+			return target;
 		}
 
 		static MethodInfo GetGenericMethod(string name, Type type) => 
@@ -67,9 +68,12 @@ namespace DataBoss.DataPackage
 				if (items.MoveNext()) {
 					writer.WriteStartArray();
 					serializer.Serialize(writer, first);
+
 					do {
 						serializer.Serialize(writer, items.Current);
 					} while (items.MoveNext());
+
+					writer.WriteEndArray();
 				}
 				else serializer.Serialize(writer, first);
 			} finally {

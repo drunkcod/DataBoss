@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Cone;
 using DataBoss.DataPackage;
@@ -18,21 +19,20 @@ namespace DataBoss.Specs.DataPackage
 			public T Value;
 		}
 
-		WithItemOrArrayValue<T> Value<T>(T value) => new WithItemOrArrayValue<T> { Value = value };
 
 		public void single_item() => Check.That(
-			() => ToJson(Value(new[]{ "hello" })) == ToJson(new { value = "hello" }),
-			() => FromJson<List<int>>(ToJson(new { value = 42 })).Value.SequenceEqual(new[]{ 42 }));
+			() => ToItemOrArray("hello") == ToJson("hello"),
+			() => FromJson<List<int>>(ToItemOrArray(42)).SequenceEqual(new[]{ 42 }));
 
 		public void multi_item() => Check.That(
-			() => ToJson(Value(new[] { "hello", "world" })) == ToJson(new { value = new[]{ "hello", "world" } }),
-			() => FromJson<List<int>>(ToJson(new { value = new[]{ 1, 2, 3 } })).Value.SequenceEqual(new[] { 1, 2, 3 }));
+			() => ToItemOrArray("hello", "world") == ToJson(new[]{ "hello", "world" }),
+			() => FromJson<List<int>>(ToItemOrArray(1, 2, 3)).SequenceEqual(new[] { 1, 2, 3 }));
 
 		public void ICollection_of_T() => Check.That(
-			() => FromJson<ICollection<int>>(ToJson(new { value = new[] { 321 } })).Value.SequenceEqual(new[] { 321 }));
+			() => FromJson<ICollection<int>>(ToItemOrArray(321)).SequenceEqual(new[] { 321 }));
 
 		public void Array_of_T() => Check.That(
-			() => FromJson<int[]>(ToJson(new { value = new[] { 321 } })).Value.SequenceEqual(new[] { 321 }));
+			() => FromJson<int[]>(ToItemOrArray(321)).SequenceEqual(new[] { 321 }));
 
 		public void dispose_enumerators() {
 			var items = new MyCollection<string> { "Hello World!" };
@@ -43,7 +43,7 @@ namespace DataBoss.Specs.DataPackage
 				xs.Disposed += (_,__) => enumeratorDisposed = true;
 			};
 
-			ToJson(Value(items));
+			ToJson(items);
 			Check.That(() => enumeratorCreated, () => enumeratorDisposed);
 		}
 
@@ -96,7 +96,19 @@ namespace DataBoss.Specs.DataPackage
 		}
 
 		static string ToJson(object value) => JsonConvert.SerializeObject(value);
-		static WithItemOrArrayValue<T> FromJson<T>(string json) => 
-			JsonConvert.DeserializeObject<WithItemOrArrayValue<T>>(json);
+
+		static string ToItemOrArray(params object[] values) {
+			var r = new StringWriter();
+			new ItemOrArrayJsonConverter().WriteJson(
+				new JsonTextWriter(r), values, new JsonSerializer());
+			return r.ToString();
+		}
+		static T FromJson<T>(string json) {
+			return (T)new ItemOrArrayJsonConverter().ReadJson(
+				new JsonTextReader(new StringReader(json)), 
+				typeof(T), 
+				null, 
+				new JsonSerializer());
+		}
 	}
 }
