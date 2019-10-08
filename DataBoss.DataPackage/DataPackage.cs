@@ -9,7 +9,6 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
 using System.Threading;
-using DataBoss.Data;
 using Newtonsoft.Json;
 
 namespace DataBoss.DataPackage
@@ -17,7 +16,7 @@ namespace DataBoss.DataPackage
 	public class DataPackageTabularSchema
 	{
 		[JsonProperty("fields")]
-		public IEnumerable<DataPackageTabularFieldDescription> Fields;
+		public List<DataPackageTabularFieldDescription> Fields;
 
 		[JsonProperty("primaryKey", DefaultValueHandling = DefaultValueHandling.Ignore)]
 		[JsonConverter(typeof(ItemOrArrayJsonConverter))]
@@ -47,7 +46,7 @@ namespace DataBoss.DataPackage
 	{
 		public static string Delimiter = ";";
 
-		readonly List<DataPackageResource> resources = new List<DataPackageResource>();
+		public readonly List<DataPackageResource> Resources = new List<DataPackageResource>();
 
 		class DataPackageResourceBuilder : IDataPackageResourceBuilder
 		{
@@ -66,41 +65,61 @@ namespace DataBoss.DataPackage
 				package.Create(createOutput, culture);
 
 			public IDataPackageResourceBuilder WithPrimaryKey(string field, params string[] parts) {
-				resource.PrimaryKey.Add(field);
+				resource.Schema.PrimaryKey.Add(field);
 				if(parts != null && parts.Length > 0)
-					resource.PrimaryKey.AddRange(parts);
+					resource.Schema.PrimaryKey.AddRange(parts);
 				return this;
 			}
 
 			public IDataPackageResourceBuilder WithForeignKey(DataPackageForeignKey fk) {
-				if(!package.resources.Any(x => x.Name == fk.Reference.Resource))
+				if(!package.Resources.Any(x => x.Name == fk.Reference.Resource))
 					throw new InvalidOperationException($"Missing resource '{fk.Reference.Resource}'");
-				resource.ForeignKeys.Add(fk);
+				resource.Schema.ForeignKeys.Add(fk);
 				return this;
 			}
 		}
 
+		public static DataPackage Load(string path) {
+			var description = JsonConvert.DeserializeObject<DataPackageDescription>(File.ReadAllText(path));
+			var r = new DataPackage();
+
+			r.Resources.AddRange(description.Resources.Select(x => 
+				new DataPackageResource(x.Name, x.Schema, 
+					() => new CsvDataReader(
+						new CsvHelper.CsvReader(File.OpenText(Path.Combine(Path.GetDirectoryName(path), x.Path))),
+						x.Schema))));
+
+			return r;
+		}
+
 		public IDataPackageResourceBuilder AddResource(string name, Func<IDataReader> getData)
 		{
-			var resource = new DataPackageResource(name, getData);
-			resources.Add(resource);
+			var resource = new DataPackageResource(name, 
+				new DataPackageTabularSchema {
+					PrimaryKey = new List<string>(),
+					ForeignKeys = new List<DataPackageForeignKey>(),
+				}, 
+				getData);
+			Resources.Add(resource);
 			return new DataPackageResourceBuilder(this, resource);
 		}
 
+		public DataPackageResource GetResource(string name) => Resources.Single(x => x.Name == name);
+
 		public void Create(Func<string, Stream> createOutput, CultureInfo culture = null) {
 			var description = new DataPackageDescription();
-			foreach (var item in resources) {
+			foreach (var item in Resources) {
 				var resourcePath = $"{item.Name}.csv";
 				using (var output = createOutput(resourcePath))
-				using (var data = item.GetData()) {
+				using (var data = item.Read()) {
 					description.Resources.Add(new DataPackageResourceDescription {
 						Name = item.Name, 
 						Path = Path.GetFileName(resourcePath),
 						Delimiter = Delimiter,
 						Schema = new DataPackageTabularSchema { 
-							Fields = GetFieldInfo(data),
-							PrimaryKey = NullIfEmpty(item.PrimaryKey),
-							ForeignKeys = NullIfEmpty(item.ForeignKeys),
+							Fields = item.Schema.Fields,
+							PrimaryKey = NullIfEmpty(item.Schema.PrimaryKey),
+							ForeignKeys = NullIfEmpty(item.Schema.ForeignKeys),
 						},
 					});
 					WriteRecords(output, culture ?? CultureInfo.CurrentCulture, data);
@@ -113,32 +132,6 @@ namespace DataBoss.DataPackage
 
 		static List<T> NullIfEmpty<T>(List<T> values) => 
 			values.Count == 0 ? null : values;
-
-		static DataPackageTabularFieldDescription[] GetFieldInfo(IDataReader reader) {
-			var r = new DataPackageTabularFieldDescription[reader.FieldCount];
-			for (var i = 0; i != reader.FieldCount; ++i) {
-				r[i] = new DataPackageTabularFieldDescription {
-					Name = reader.GetName(i),
-					Type = ToTableSchemaType(reader.GetFieldType(i)),
-				};
-			}
-			return r;
-		}
-
-		static string ToTableSchemaType(Type type) {
-			switch (type.FullName) {
-				default:
-					throw new NotSupportedException($"Can't map {type}");
-				case "System.Boolean": return "boolean";
-				case "System.DateTime": return "datetime";
-				case "System.Decimal":
-				case "System.Double": return "number";
-				case "System.Byte":
-				case "System.Int16":
-				case "System.Int32": return "integer";
-				case "System.String": return "string";
-			}
-		}
 
 		static CsvWriter NewCsvWriter(Stream stream, Encoding encoding) => new CsvWriter(new StreamWriter(stream, encoding, 4096, leaveOpen: true));
 

@@ -27,6 +27,59 @@ namespace DataBoss.Data
 		public static DataColumn Add(this DataColumnCollection cs, SchemaColumn column) => cs.Add(column.Name, column.ColumnType);
 	}
 
+	public class DataReaderSchemaRow
+	{
+		public string ColumnName;
+		public int Ordinal;
+		public Type FieldType;
+		public bool IsNullable;
+		public int? ColumnSize;
+	}
+
+	public class DataReaderSchemaTable
+	{		
+		readonly List<DataReaderSchemaRow> rows = new List<DataReaderSchemaRow>();
+
+		public int Count => rows.Count;
+
+		public DataReaderSchemaRow this[int index] => rows[index];
+
+		public void Add(string name, int ordinal, Type fieldType, bool isNullable, int? columnSize = null) {
+			rows.Add(new DataReaderSchemaRow {
+				ColumnName = name,
+				Ordinal = ordinal,
+				FieldType = fieldType,
+				IsNullable = isNullable,
+				ColumnSize = columnSize,
+			});
+		}
+
+		public int GetOrdinal(string name) {
+			var n = rows.FindIndex(x => x.ColumnName == name);
+			return n != -1 ? n : throw new InvalidOperationException($"No column named '{name}' found");
+		}
+
+		public DataTable ToDataTable() {
+			var schema = new DataTable();
+			var columnName = schema.Columns.Add(DataReaderSchemaColumns.ColumnName);
+			var columnOrdinal = schema.Columns.Add(DataReaderSchemaColumns.ColumnOrdinal);
+			var columnSize = schema.Columns.Add(DataReaderSchemaColumns.ColumnSize);
+			var isNullable = schema.Columns.Add(DataReaderSchemaColumns.AllowDBNull);
+			var dataType = schema.Columns.Add(DataReaderSchemaColumns.DataType);
+			foreach(var item in rows) {
+				var r = schema.NewRow();
+				r[columnName] = item.ColumnName;
+				r[columnOrdinal] = item.Ordinal;
+				r[columnSize] = item.ColumnSize.HasValue ? (object)item.ColumnSize.Value : DBNull.Value;
+				r[isNullable] = item.IsNullable;
+				r[dataType] = item.FieldType;
+				schema.Rows.Add(r);
+			}
+
+			return schema;
+		}
+	}
+
 	public static class SequenceDataReader
 	{
 		public static IDataReader Create<T>(IEnumerable<T> data) => Create(data, x => x.MapAll());
@@ -100,23 +153,10 @@ namespace DataBoss.Data
 		}
 
 		DataTable IDataReader.GetSchemaTable() {
-			var schema = new DataTable();
-			var columnName = schema.Columns.Add(DataReaderSchemaColumns.ColumnName);
-			var columnOrdinal = schema.Columns.Add(DataReaderSchemaColumns.ColumnOrdinal);
-			var columnSize = schema.Columns.Add(DataReaderSchemaColumns.ColumnSize);
-			var isNullable = schema.Columns.Add(DataReaderSchemaColumns.AllowDBNull);
-			var dataType = schema.Columns.Add(DataReaderSchemaColumns.DataType);
-			for(var i = 0; i != FieldCount; ++i) {
-				var r = schema.NewRow();
-				var dbType = dbTypes[i];
-				r[columnName] = fieldNames[i];
-				r[columnOrdinal] = i;
-				r[columnSize] = dbType.ColumnSize.HasValue ? (object)dbType.ColumnSize.Value : DBNull.Value;
-				r[isNullable] = dbType.IsNullable;
-				r[dataType] = GetFieldType(i);
-				schema.Rows.Add(r);
-			}
-			return schema;
+			var schema = new DataReaderSchemaTable();
+			for(var i = 0; i != FieldCount; ++i)
+				schema.Add(fieldNames[i], i, GetFieldType(i), dbTypes[i].IsNullable, dbTypes[i].ColumnSize);
+			return schema.ToDataTable();
 		}
 
 		//SqlBulkCopy.EnableStreaming requires this
