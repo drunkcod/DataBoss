@@ -13,7 +13,7 @@ using Newtonsoft.Json;
 
 namespace DataBoss.DataPackage
 {
-	public class DataPackageTabularSchema
+	public class TabularDataSchema
 	{
 		[JsonProperty("fields")]
 		public List<DataPackageTabularFieldDescription> Fields;
@@ -46,14 +46,14 @@ namespace DataBoss.DataPackage
 	{
 		public static string Delimiter = ";";
 
-		public readonly List<DataPackageResource> Resources = new List<DataPackageResource>();
+		public readonly List<TabularDataResource> Resources = new List<TabularDataResource>();
 
 		class DataPackageResourceBuilder : IDataPackageResourceBuilder
 		{
 			readonly DataPackage package;
-			readonly DataPackageResource resource;
+			readonly TabularDataResource resource;
 
-			public DataPackageResourceBuilder(DataPackage package, DataPackageResource resource) {
+			public DataPackageResourceBuilder(DataPackage package, TabularDataResource resource) {
 				this.package = package;
 				this.resource = resource;
 			}
@@ -84,7 +84,7 @@ namespace DataBoss.DataPackage
 			var r = new DataPackage();
 
 			r.Resources.AddRange(description.Resources.Select(x => 
-				new DataPackageResource(x.Name, x.Schema, 
+				new TabularDataResource(x.Name, x.Schema, 
 					() => new CsvDataReader(
 						new CsvHelper.CsvReader(File.OpenText(Path.Combine(Path.GetDirectoryName(path), x.Path))),
 						x.Schema))));
@@ -94,8 +94,8 @@ namespace DataBoss.DataPackage
 
 		public IDataPackageResourceBuilder AddResource(string name, Func<IDataReader> getData)
 		{
-			var resource = new DataPackageResource(name, 
-				new DataPackageTabularSchema {
+			var resource = new TabularDataResource(name, 
+				new TabularDataSchema {
 					PrimaryKey = new List<string>(),
 					ForeignKeys = new List<DataPackageForeignKey>(),
 				}, 
@@ -104,7 +104,14 @@ namespace DataBoss.DataPackage
 			return new DataPackageResourceBuilder(this, resource);
 		}
 
-		public DataPackageResource GetResource(string name) => Resources.Single(x => x.Name == name);
+		public void UpdateResource(string name, Func<TabularDataResource, TabularDataResource> doUpdate) {
+			var found = Resources.FindIndex(x => x.Name == name);
+			if(found == -1)
+				throw new InvalidOperationException($"Resource '{name}' not found.");
+			Resources[found] = doUpdate(Resources[found]);
+		}
+
+		public TabularDataResource GetResource(string name) => Resources.Single(x => x.Name == name);
 
 		public void Create(Func<string, Stream> createOutput, CultureInfo culture = null) {
 			var description = new DataPackageDescription();
@@ -116,13 +123,17 @@ namespace DataBoss.DataPackage
 						Name = item.Name, 
 						Path = Path.GetFileName(resourcePath),
 						Delimiter = Delimiter,
-						Schema = new DataPackageTabularSchema { 
+						Schema = new TabularDataSchema { 
 							Fields = item.Schema.Fields,
 							PrimaryKey = NullIfEmpty(item.Schema.PrimaryKey),
 							ForeignKeys = NullIfEmpty(item.Schema.ForeignKeys),
 						},
 					});
-					WriteRecords(output, culture ?? CultureInfo.CurrentCulture, data);
+					try {
+						WriteRecords(output, culture ?? CultureInfo.CurrentCulture, data);
+					} catch(Exception ex) {
+						throw new Exception($"Failed writing {item.Name}.", ex);
+					}
 				}
 			};
 
@@ -131,7 +142,7 @@ namespace DataBoss.DataPackage
 		}
 
 		static List<T> NullIfEmpty<T>(List<T> values) => 
-			values.Count == 0 ? null : values;
+			values == null ? null : values.Count == 0 ? null : values;
 
 		static CsvWriter NewCsvWriter(Stream stream, Encoding encoding) => new CsvWriter(new StreamWriter(stream, encoding, 4096, leaveOpen: true));
 

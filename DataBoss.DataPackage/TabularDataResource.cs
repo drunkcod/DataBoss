@@ -1,17 +1,18 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace DataBoss.DataPackage
 {
-	public class DataPackageResource
+	public class TabularDataResource
 	{
 		readonly Func<IDataReader> getData;
 		public readonly string Name;
-		public readonly DataPackageTabularSchema Schema;
+		public readonly TabularDataSchema Schema;
 
-		public DataPackageResource(string name, DataPackageTabularSchema schema, Func<IDataReader> getData) {
+		public TabularDataResource(string name, TabularDataSchema schema, Func<IDataReader> getData) {
 			if(!Regex.IsMatch(name, @"^[a-z0-9-._]+$"))
 				throw new NotSupportedException($"name MUST consist only of lowercase alphanumeric characters plus '.', '-' and '_' was '{name}'");
 			this.Name = name;
@@ -24,6 +25,17 @@ namespace DataBoss.DataPackage
 			if(Schema.Fields == null)
 				Schema.Fields = GetFieldInfo(reader);
 			return reader;
+		}
+
+		public TabularDataResource Transform(Action<DataReaderTransform> defineTransform) {
+			var schema = new TabularDataSchema();
+			schema.PrimaryKey = Schema.PrimaryKey?.ToList();
+			schema.ForeignKeys = Schema.ForeignKeys?.ToList();
+			return new TabularDataResource(Name, schema, () => {
+				var data = new DataReaderTransform(getData());
+				defineTransform(data);
+				return data;
+			});
 		}
 
 		static List<DataPackageTabularFieldDescription> GetFieldInfo(IDataReader reader) {
@@ -52,6 +64,4 @@ namespace DataBoss.DataPackage
 			}
 		}
 	}
-
-
 }

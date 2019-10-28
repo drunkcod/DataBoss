@@ -11,6 +11,6 @@ namespace DataBoss.DataPackage
 		[JsonProperty("delimiter")]
 		public string Delimiter;
 		[JsonProperty("schema")]
-		public DataPackageTabularSchema Schema;
+		public TabularDataSchema Schema;
 	}
 }

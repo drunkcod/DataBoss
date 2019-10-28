@@ -10,8 +10,10 @@ namespace DataBoss.DataPackage
 		readonly CsvReader csv;
 		readonly DataReaderSchemaTable schema;
 		readonly DataBossDbType[] dbTypes;
-
-		public CsvDataReader(CsvReader csv, DataPackageTabularSchema tabularSchema, bool hasHeaders = true) { 
+		readonly object[] currentRow;
+		int rowNumber;
+	
+		public CsvDataReader(CsvReader csv, TabularDataSchema tabularSchema, bool hasHeaderRow = true) { 
 			this.csv = csv; 
 			this.schema = new DataReaderSchemaTable();
 			this.dbTypes = new DataBossDbType[tabularSchema.Fields.Count];
@@ -20,34 +22,68 @@ namespace DataBoss.DataPackage
 				schema.Add(tabularSchema.Fields[i].Name, i, fieldType, dbType.IsNullable, dbType.ColumnSize);
 				dbTypes[i] = dbType;
 			}
+			this.currentRow = new object[FieldCount];
 
-			if (hasHeaders) {
-				csv.Read();
-				for(var i = 0; i != tabularSchema.Fields.Count; ++i) {
-					var expected = tabularSchema.Fields[i].Name;
-					var actual = csv.GetField(i);
-					if(actual != expected) 
-						throw new InvalidOperationException($"Header mismatch, expected '{expected}' got {actual}");
-				}
+			if (hasHeaderRow)
+				ValidateHeaderRow();
+		}
+
+		void ValidateHeaderRow() {
+			if(!ReadRow()) 
+				throw new InvalidOperationException("Missing header row.");
+			for (var i = 0; i != schema.Count; ++i) {
+				var expected = schema[i].ColumnName;
+				var actual = csv.GetField(i);
+				if (actual != expected)
+					throw new InvalidOperationException($"Header mismatch, expected '{expected}' got {actual}");
 			}
+		}
+
+		bool ReadRow() {
+			var ok = csv.Read();
+			if(!ok)
+				return false;
+			++rowNumber;
+			return true;
 		}
 
 		static (Type, DataBossDbType) ToDbType(DataPackageTabularFieldDescription field) {
 			switch(field.Type) {
 				default: throw new NotSupportedException($"Don't know how to map '{field.Type}'");
+				case "boolean": return (typeof(bool), DataBossDbType.ToDataBossDbType(typeof(bool)));
+				case "datetime": return (typeof(DateTime), DataBossDbType.ToDataBossDbType(typeof(DateTime)));
 				case "integer": return (typeof(int), DataBossDbType.ToDataBossDbType(typeof(int)));
-				case "string": return (typeof(string), DataBossDbType.ToDataBossDbType(typeof(int)));
+				case "number": return (typeof(double), DataBossDbType.ToDataBossDbType(typeof(double)));
+				case "string": return (typeof(string), DataBossDbType.ToDataBossDbType(typeof(string)));
 			}
 		}
 
 		public int FieldCount => schema.Count;
 
 		public DataTable GetSchemaTable() => schema.ToDataTable();
-		public bool Read() => csv.Read();
+		
+		public bool Read() {
+			var ok = ReadRow();
+			if(!ok)
+				return false;
+			var i = 0;
+			try {
+				for(; i != currentRow.Length; ++i) {
+					var value = csv.GetField(i);
+					currentRow[i] = IsNull(value) ? DBNull.Value : Convert.ChangeType(value, GetFieldType(i));
+				}
+			} catch(FormatException ex) {
+				throw new InvalidOperationException($"Failed to parse {GetName(i)} of type {GetFieldType(i)} given '{csv.GetField(i)}' on line {rowNumber}", ex);
+			}
+			return true;
+		}
+
+		static bool IsNull(string input) => string.IsNullOrEmpty(input);
+
 		public bool NextResult() => false;
 
-		public object GetValue(int i) => Convert.ChangeType(csv.GetField(i), GetFieldType(i));
-		public Type GetFieldType(int i) => schema[i].FieldType;
+		public object GetValue(int i) => currentRow[i];
+		public Type GetFieldType(int i) => schema[i].ColumnType;
 		public string GetDataTypeName(int i) => dbTypes[i].TypeName;
 		public string GetName(int i) => schema[i].ColumnName;
 		public int GetOrdinal(string name) => schema.GetOrdinal(name);
@@ -63,7 +99,6 @@ namespace DataBoss.DataPackage
 		int IDataReader.Depth => throw new NotSupportedException();
 		bool IDataReader.IsClosed => throw new NotSupportedException();
 		int IDataReader.RecordsAffected => throw new NotSupportedException();
-
 
 		public bool GetBoolean(int i) => (bool)GetValue(i);
 		public byte GetByte(int i) => (byte)GetValue(i);

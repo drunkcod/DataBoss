@@ -31,7 +31,7 @@ namespace DataBoss.Data
 	{
 		public string ColumnName;
 		public int Ordinal;
-		public Type FieldType;
+		public Type ColumnType;
 		public bool IsNullable;
 		public int? ColumnSize;
 	}
@@ -44,11 +44,11 @@ namespace DataBoss.Data
 
 		public DataReaderSchemaRow this[int index] => rows[index];
 
-		public void Add(string name, int ordinal, Type fieldType, bool isNullable, int? columnSize = null) {
+		public void Add(string name, int ordinal, Type columnType, bool isNullable, int? columnSize = null) {
 			rows.Add(new DataReaderSchemaRow {
 				ColumnName = name,
 				Ordinal = ordinal,
-				FieldType = fieldType,
+				ColumnType = columnType,
 				IsNullable = isNullable,
 				ColumnSize = columnSize,
 			});
@@ -72,7 +72,7 @@ namespace DataBoss.Data
 				r[columnOrdinal] = item.Ordinal;
 				r[columnSize] = item.ColumnSize.HasValue ? (object)item.ColumnSize.Value : DBNull.Value;
 				r[isNullable] = item.IsNullable;
-				r[dataType] = item.FieldType;
+				r[dataType] = item.ColumnType;
 				schema.Rows.Add(r);
 			}
 
