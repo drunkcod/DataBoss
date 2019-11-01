@@ -61,8 +61,8 @@ namespace DataBoss.DataPackage
 			public IDataPackageResourceBuilder AddResource(string name, Func<IDataReader> getData) =>
 				package.AddResource(name, getData);
 
-			public void Create(Func<string, Stream> createOutput, CultureInfo culture = null) =>
-				package.Create(createOutput, culture);
+			public void Save(Func<string, Stream> createOutput, CultureInfo culture = null) =>
+				package.Save(createOutput, culture);
 
 			public IDataPackageResourceBuilder WithPrimaryKey(string field, params string[] parts) {
 				resource.Schema.PrimaryKey.Add(field);
@@ -111,9 +111,12 @@ namespace DataBoss.DataPackage
 			Resources[found] = doUpdate(Resources[found]);
 		}
 
+		public void TransformResource(string name, Action<DataReaderTransform> defineTransform) =>
+			UpdateResource(name, xs => xs.Transform(defineTransform));
+
 		public TabularDataResource GetResource(string name) => Resources.Single(x => x.Name == name);
 
-		public void Create(Func<string, Stream> createOutput, CultureInfo culture = null) {
+		public void Save(Func<string, Stream> createOutput, CultureInfo culture = null) {
 			var description = new DataPackageDescription();
 			foreach (var item in Resources) {
 				var resourcePath = $"{item.Name}.csv";

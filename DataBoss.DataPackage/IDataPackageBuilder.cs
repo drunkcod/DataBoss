@@ -10,7 +10,7 @@ namespace DataBoss.DataPackage
 	public interface IDataPackageBuilder
 	{
 		IDataPackageResourceBuilder AddResource(string name, Func<IDataReader> getData);
-		void Create(Func<string, Stream> createOutput, CultureInfo culture = null);
+		void Save(Func<string, Stream> createOutput, CultureInfo culture = null);
 	}
 
 	public interface IDataPackageResourceBuilder : IDataPackageBuilder
@@ -30,7 +30,9 @@ namespace DataBoss.DataPackage
 		public static IDataPackageResourceBuilder WithForeignKey(this IDataPackageResourceBuilder self, string field, DataPackageKeyReference reference) =>
 			self.WithForeignKey(new DataPackageForeignKey(field, reference));
 
-		public static void Create(this IDataPackageBuilder self, string path, CultureInfo culture = null) =>
-			self.Create(name => File.Create(Path.Combine(path, name)), culture);
+		public static void Save(this IDataPackageBuilder self, string path, CultureInfo culture = null) {
+			Directory.CreateDirectory(path);
+			self.Save(name => File.Create(Path.Combine(path, name)), culture);
+		}
 	}
 }

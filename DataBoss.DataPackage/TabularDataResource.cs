@@ -27,6 +27,9 @@ namespace DataBoss.DataPackage
 			return reader;
 		}
 
+		public TabularDataResource Where(Func<IDataRecord, bool> predicate) =>
+			new TabularDataResource(Name, Schema, () => new WhereDataReader(getData(), predicate));
+
 		public TabularDataResource Transform(Action<DataReaderTransform> defineTransform) {
 			var schema = new TabularDataSchema();
 			schema.PrimaryKey = Schema.PrimaryKey?.ToList();
@@ -56,10 +59,12 @@ namespace DataBoss.DataPackage
 				case "System.Boolean": return "boolean";
 				case "System.DateTime": return "datetime";
 				case "System.Decimal":
+				case "System.Single":
 				case "System.Double": return "number";
 				case "System.Byte":
 				case "System.Int16":
-				case "System.Int32": return "integer";
+				case "System.Int32": 
+				case "System.Int64": return "integer";
 				case "System.String": return "string";
 			}
 		}
