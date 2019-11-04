@@ -19,7 +19,6 @@ namespace DataBoss.Specs.DataPackage
 			public T Value;
 		}
 
-
 		public void single_item() => Check.That(
 			() => ToItemOrArray("hello") == ToJson("hello"),
 			() => FromJson<List<int>>(ToItemOrArray(42)).SequenceEqual(new[]{ 42 }));

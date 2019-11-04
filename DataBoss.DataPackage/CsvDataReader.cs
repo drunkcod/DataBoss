@@ -13,6 +13,8 @@ namespace DataBoss.DataPackage
 		readonly object[] currentRow;
 		int rowNumber;
 	
+		public event EventHandler Disposed;
+
 		public CsvDataReader(CsvReader csv, TabularDataSchema tabularSchema, bool hasHeaderRow = true) { 
 			this.csv = csv; 
 			this.schema = new DataReaderSchemaTable();
@@ -92,7 +94,10 @@ namespace DataBoss.DataPackage
 		public object this[string name] => GetValue(GetOrdinal(name));
 
 		public void Close() => csv.Context.Reader.Close();
-		public void Dispose() => csv.Dispose();
+		public void Dispose() {
+			csv.Dispose();
+			Disposed?.Invoke(this, EventArgs.Empty);
+		}
 
 		public bool IsDBNull(int i) => GetValue(i) is DBNull;
 

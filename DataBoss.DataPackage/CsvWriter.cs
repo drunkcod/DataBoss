@@ -3,7 +3,7 @@ using System.IO;
 
 namespace DataBoss.DataPackage
 {
-	public class CsvWriter : IDisposable
+	public sealed class CsvWriter : IDisposable
 	{
 		enum WriterState : byte {
 			BeginRecord = 0,
@@ -57,7 +57,7 @@ namespace DataBoss.DataPackage
 
 		public void Flush() => Writer.Flush();
 
-		void IDisposable.Dispose() { 
+		public void Dispose() { 
 			Flush();
 			if(!leaveOpen)
 				Writer.Close();

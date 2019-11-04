@@ -20,6 +20,8 @@ namespace DataBoss.DataPackage
 			this.getData = getData;
 		}
 
+		public int GetOrdinal(string name) => Schema.Fields.FindIndex(x => x.Name == name);
+
 		public IDataReader Read() {
 			var reader = getData();
 			if(Schema.Fields == null)

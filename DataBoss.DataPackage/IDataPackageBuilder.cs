@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
 using System.IO;
+using System.IO.Compression;
 using DataBoss.Data;
 
 namespace DataBoss.DataPackage
@@ -33,6 +34,11 @@ namespace DataBoss.DataPackage
 		public static void Save(this IDataPackageBuilder self, string path, CultureInfo culture = null) {
 			Directory.CreateDirectory(path);
 			self.Save(name => File.Create(Path.Combine(path, name)), culture);
+		}
+
+		public static void SaveZip(this IDataPackageBuilder self, string path, CultureInfo culture = null) {
+			using (var zip = new ZipArchive(File.Create(path, 16384), ZipArchiveMode.Create))
+				self.Save(x => zip.CreateEntry(x).Open(), culture);
 		}
 	}
 }

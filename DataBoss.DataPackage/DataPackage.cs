@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -80,16 +81,43 @@ namespace DataBoss.DataPackage
 		}
 
 		public static DataPackage Load(string path) {
-			var description = JsonConvert.DeserializeObject<DataPackageDescription>(File.ReadAllText(path));
+			if(path.EndsWith(".zip")) 
+				return LoadZip(path);
+
+			var datapackagePath = path.EndsWith("datapackage.json") ? path : Path.Combine(path, "datapackage.json");
+			var description = JsonConvert.DeserializeObject<DataPackageDescription>(File.ReadAllText(datapackagePath));
 			var r = new DataPackage();
 
+			var datapackageRoot = Path.GetDirectoryName(datapackagePath);
 			r.Resources.AddRange(description.Resources.Select(x => 
 				new TabularDataResource(x.Name, x.Schema, 
 					() => new CsvDataReader(
-						new CsvHelper.CsvReader(File.OpenText(Path.Combine(Path.GetDirectoryName(path), x.Path))),
+						new CsvHelper.CsvReader(File.OpenText(Path.Combine(datapackageRoot, x.Path))),
 						x.Schema))));
 
 			return r;
+		}
+
+		static DataPackage LoadZip(string path) {
+			using (var zip = new ZipArchive(File.OpenRead(path), ZipArchiveMode.Read)) {
+				var description = JsonConvert.DeserializeObject<DataPackageDescription>(new StreamReader(zip.GetEntry("datapackage.json").Open()).ReadToEnd());
+				var r = new DataPackage();
+
+				var datapackageRoot = string.Empty;
+				r.Resources.AddRange(description.Resources.Select(x =>
+					new TabularDataResource(x.Name, x.Schema,
+						() =>  { 
+							var source = new ZipArchive(File.OpenRead(path), ZipArchiveMode.Read);
+							var csv = new CsvDataReader(
+								new CsvHelper.CsvReader(new StreamReader(source.GetEntry(x.Path).Open())),
+								x.Schema);
+							csv.Disposed += delegate { source.Dispose(); };
+							return csv;
+						})));
+					
+
+				return r;
+			}
 		}
 
 		public IDataPackageResourceBuilder AddResource(string name, Func<IDataReader> getData)
