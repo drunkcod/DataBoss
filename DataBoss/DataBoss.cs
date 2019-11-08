@@ -47,8 +47,9 @@ namespace DataBoss
 		[DataBossCommand("list")]
 		public int ListMigrations() {
 			var message = new StringBuilder();
+			message.AppendLine("Found migrations:");
 			foreach (var item in config.GetTargetMigration().Flatten().Where(x => x.HasQueryBatches))
-				message.AppendFormat($"{0} - {1}\n", item.Info.FullId, item.Info.Name);
+				message.AppendFormat("  {0} - {1}\n", item.Info.FullId, item.Info.Name);
 			log.Info(message.ToString());
 			return 0;
 		}
