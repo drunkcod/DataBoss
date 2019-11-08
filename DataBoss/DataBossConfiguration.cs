@@ -73,14 +73,12 @@ namespace DataBoss
 
 			config.Migrations = config.Migrations.ConvertAll(x => new DataBossMigrationPath {
 				Context = x.Context,
-				Path = Path.Combine(roothPath, x.Path)
+				Path = Path.Combine(roothPath, x.GetOsPath())
 			});
 			return config;
 		}
 
-		public static KeyValuePair<string, DataBossConfiguration> ParseCommandConfig(IEnumerable<string> args) {
-			return ParseCommandConfig(args, Load);
-		}
+		public static KeyValuePair<string, DataBossConfiguration> ParseCommandConfig(IEnumerable<string> args) => ParseCommandConfig(args, Load);
 
 		public static KeyValuePair<string, DataBossConfiguration> ParseCommandConfig(IEnumerable<string> args, Func<string, DataBossConfiguration> load) {
 			var parsedArgs = PowerArgs.Parse(args);

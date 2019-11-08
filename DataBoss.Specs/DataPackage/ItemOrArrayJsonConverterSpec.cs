@@ -16,7 +16,7 @@ namespace DataBoss.Specs.DataPackage
 		{
 			[JsonProperty("value")]
 			[JsonConverter(typeof(ItemOrArrayJsonConverter))]
-			public T Value;
+			public T Value { get; set; }
 		}
 
 		public void single_item() => Check.That(

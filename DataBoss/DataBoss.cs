@@ -70,6 +70,13 @@ namespace DataBoss
 			}
 		}
 
+		[DataBossCommand("list")]
+		public int ListMigrations() {
+			foreach(var item in config.GetTargetMigration().Flatten().Where(x => x.HasQueryBatches))
+				log.Info($"{item.Info.FullId}) {item.Info.Name}");
+			return 0;
+		}
+
 		public static void EnsureDataBase(string connectionString) {
 			var qs = new SqlConnectionStringBuilder(connectionString);
 			var dbName = qs.InitialCatalog;

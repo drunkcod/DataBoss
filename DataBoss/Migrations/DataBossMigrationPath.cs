@@ -1,4 +1,5 @@
 using System.Xml.Serialization;
+using IoPath = System.IO.Path;
 
 namespace DataBoss.Migrations
 {
@@ -9,5 +10,7 @@ namespace DataBoss.Migrations
 
 		[XmlAttribute("path")]
 		public string Path;
+
+		public string GetOsPath() => IoPath.GetPathRoot(Path) + IoPath.Combine(Path.Split(new[]{'\\', '/' }, System.StringSplitOptions.RemoveEmptyEntries));
 	}
 }
