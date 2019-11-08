@@ -44,6 +44,15 @@ namespace DataBoss
 			return 0;
 		}
 
+		[DataBossCommand("list")]
+		public int ListMigrations() {
+			var message = new StringBuilder();
+			foreach (var item in config.GetTargetMigration().Flatten().Where(x => x.HasQueryBatches))
+				message.AppendFormat($"{0} - {1}\n", item.Info.FullId, item.Info.Name);
+			log.Info(message.ToString());
+			return 0;
+		}
+
 		[DataBossCommand("status")]
 		public int Status() {
 			Open();
@@ -68,13 +77,6 @@ namespace DataBoss
 				var migrator = new DataBossMigrator(info => targetScope);
 				return migrator.ApplyRange(pending) ? 0 : -1;
 			}
-		}
-
-		[DataBossCommand("list")]
-		public int ListMigrations() {
-			foreach(var item in config.GetTargetMigration().Flatten().Where(x => x.HasQueryBatches))
-				log.Info($"{item.Info.FullId}) {item.Info.Name}");
-			return 0;
 		}
 
 		public static void EnsureDataBase(string connectionString) {
@@ -113,12 +115,12 @@ namespace DataBoss
 
 		List<IDataBossMigration> GetPendingMigrations(IDataBossConfiguration config) {
 			var applied = new HashSet<string>(GetAppliedMigrations().Select(x => x.FullId));
-			Func<IDataBossMigration, bool> notApplied = x => !applied.Contains(x.Info.FullId);
+			bool NotApplied(IDataBossMigration x) => !applied.Contains(x.Info.FullId);
 
 			return config.GetTargetMigration()
 				.Flatten()
 				.Where(item => item.HasQueryBatches)
-				.Where(notApplied)
+				.Where(NotApplied)
 				.ToList();
 		}
 

@@ -83,9 +83,7 @@ namespace DataBoss
 		public static KeyValuePair<string, DataBossConfiguration> ParseCommandConfig(IEnumerable<string> args, Func<string, DataBossConfiguration> load) {
 			var parsedArgs = PowerArgs.Parse(args);
 			var config = GetBaseConfig(parsedArgs, load);
-			var command = parsedArgs.Commands.SingleOrDefault();
-			if(command == null) 
-				throw new ArgumentException("missing command and/or configuration options.");
+			var command = parsedArgs.Commands.SingleOrDefault() ?? throw new ArgumentException("missing command and/or configuration options.");
 
 			parsedArgs.Into(config);
 
@@ -93,8 +91,7 @@ namespace DataBoss
 		}
 
 		private static DataBossConfiguration GetBaseConfig(PowerArgs parsedArgs, Func<string, DataBossConfiguration> load) {
-			string target;
-			if(parsedArgs.TryGetArg("Target", out target))
+			if(parsedArgs.TryGetArg("Target", out var target))
 				return load(target);
 
 			var targets = Directory.GetFiles(".", "*.databoss");
