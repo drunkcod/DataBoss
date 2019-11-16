@@ -4,39 +4,11 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Data;
 using System.Linq;
-using System.Reflection;
 using System.Text;
 using DataBoss.Linq;
 
 namespace DataBoss.Data.Scripting
 {
-	[AttributeUsage(AttributeTargets.Field | AttributeTargets.Property)]
-	public class AnsiStringAttribute : Attribute
-	{ }
-
-	public class DataBossTableColumn : ICustomAttributeProvider
-	{
-		readonly ICustomAttributeProvider attributes;
-
-		public readonly string Name;
-		public readonly DataBossDbType ColumnType;
-
-		public DataBossTableColumn(DataBossDbType columnType, ICustomAttributeProvider attributes, string name) {
-			this.ColumnType = columnType;
-			this.attributes = attributes;
-			this.Name = name;
-		}
-
-		public object[] GetCustomAttributes(Type attributeType, bool inherit) =>
-			attributes.GetCustomAttributes(attributeType, inherit);
-
-		public object[] GetCustomAttributes(bool inherit) =>
-			attributes.GetCustomAttributes(inherit);
-
-		public bool IsDefined(Type attributeType, bool inherit) =>
-			attributes.IsDefined(attributeType, inherit);
-	}
-
 	public class DataBossScripter
 	{
 		class DataBossTable
@@ -98,7 +70,7 @@ namespace DataBoss.Data.Scripting
 
 		public string ScriptValuesTable(string name, IDataReader reader) {
 			var result = new StringBuilder("(values");
-			var columns = new DataBossScripter().GetColumns(reader);
+			var columns = GetColumns(reader);
 			var row = new object[reader.FieldCount];
 			while (reader.Read()) {
 				result.Append("\r\n  (");
@@ -115,7 +87,6 @@ namespace DataBoss.Data.Scripting
 			result.Length -= 2;
 			result.Append(')');
 			return result.ToString();
-
 		}
 
 		public DataBossTableColumn[] GetColumns(IDataReader reader) {
