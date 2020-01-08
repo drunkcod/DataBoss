@@ -91,7 +91,9 @@ namespace DataBoss.DataPackage
 			r.Resources.AddRange(description.Resources.Select(x => 
 				new TabularDataResource(x.Name, x.Schema, 
 					() => new CsvDataReader(
-						new CsvHelper.CsvReader(File.OpenText(Path.Combine(datapackageRoot, x.Path))),
+						new CsvHelper.CsvReader(
+							File.OpenText(Path.Combine(datapackageRoot, x.Path)),
+							new CsvHelper.Configuration.Configuration { Delimiter = x.Delimiter }),
 						x.Schema))));
 
 			return r;
@@ -108,7 +110,9 @@ namespace DataBoss.DataPackage
 						() =>  { 
 							var source = new ZipArchive(File.OpenRead(path), ZipArchiveMode.Read);
 							var csv = new CsvDataReader(
-								new CsvHelper.CsvReader(new StreamReader(source.GetEntry(x.Path).Open())),
+								new CsvHelper.CsvReader(
+									new StreamReader(source.GetEntry(x.Path).Open()),
+									new CsvHelper.Configuration.Configuration { Delimiter = x.Delimiter }),
 								x.Schema);
 							csv.Disposed += delegate { source.Dispose(); };
 							return csv;
