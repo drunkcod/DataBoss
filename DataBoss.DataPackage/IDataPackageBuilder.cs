@@ -36,8 +36,14 @@ namespace DataBoss.DataPackage
 			self.Save(name => File.Create(Path.Combine(path, name)), culture);
 		}
 
-		public static void SaveZip(this IDataPackageBuilder self, string path, CultureInfo culture = null) {
-			using (var zip = new ZipArchive(File.Create(path, 16384), ZipArchiveMode.Create))
+		public static void SaveZip(this IDataPackageBuilder self, string path, CultureInfo culture = null) => 
+			SaveZip(self, File.Create(path, 16384), culture, leaveOpen: false);
+		
+		public static void SaveZip(this IDataPackageBuilder self, Stream stream, CultureInfo culture = null) =>
+			SaveZip(self, stream, culture, leaveOpen: false);
+
+		public static void SaveZip(this IDataPackageBuilder self, Stream stream, CultureInfo culture, bool leaveOpen) {
+			using (var zip = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: leaveOpen))
 				self.Save(x => zip.CreateEntry(x).Open(), culture);
 		}
 	}
