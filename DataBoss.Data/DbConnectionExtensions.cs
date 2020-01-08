@@ -7,9 +7,37 @@ using System.Data.SqlClient;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using DataBoss.Data;
+
+[assembly: RegisterConnectionExtras(typeof(SqlConnection), typeof(SqlConnectionExtras))]
 
 namespace DataBoss.Data
 {
+	public class SqlConnectionExtras : IDataBossConnectionExtras
+	{
+		readonly SqlConnection connection;
+
+		public SqlConnectionExtras(SqlConnection connection) { this.connection = connection; }
+
+		public void CreateTable(string destinationTable, IDataReader data) =>
+			connection.CreateTable(destinationTable, data);
+
+		public void Insert(string destinationTable, IDataReader rows, DataBossBulkCopySettings settings) =>
+			connection.Insert(destinationTable, rows, settings);
+	}
+
+	[AttributeUsage(AttributeTargets.Assembly)]
+	public class RegisterConnectionExtras : Attribute
+	{
+		public readonly Type ConnectionType;
+		public readonly Type ExtrasType;
+
+		public RegisterConnectionExtras(Type connectionType, Type extrasType) {
+			this.ConnectionType = connectionType;
+			this.ExtrasType = extrasType;
+		}
+	}
+
 	public static class DbConnectionExtensions
 	{
 		static MethodInfo AddTo = typeof(ToParams).GetMethod(nameof(ToParams.AddTo));
@@ -55,9 +83,12 @@ namespace DataBoss.Data
 
 		public static void Into<T>(this IDbConnection connection, string destinationTable, IEnumerable<T> rows) =>
 			Into(connection, destinationTable, rows, new DataBossBulkCopySettings());
-		
+
 		public static void Into<T>(this IDbConnection connection, string destinationTable, IEnumerable<T> rows, DataBossBulkCopySettings settings) =>
 			Into(connection, destinationTable, SequenceDataReader.Create(rows, x => x.MapAll()), settings);
+
+		public static void Into(this IDbConnection connection, string destinationTable, IDataReader rows) =>
+			Into(connection, destinationTable, rows, new DataBossBulkCopySettings());
 
 		public static void Into(this IDbConnection connection, string destinationTable, IDataReader rows, DataBossBulkCopySettings settings) {
 			var extras = GetExtras(connection);
@@ -77,25 +108,19 @@ namespace DataBoss.Data
 		public static void CreateTable(this IDbConnection connection, string tableName, IDataReader data) =>
 			GetExtras(connection).CreateTable(tableName, data);
 
+		static readonly ConcurrentDictionary<Type, Delegate> extras = new ConcurrentDictionary<Type, Delegate>();
+
+		public static void RegisterExtras<T>(Func<T,IDataBossConnectionExtras> getExtras) =>
+			extras[typeof(T)] = getExtras;
+
 		static IDataBossConnectionExtras GetExtras(IDbConnection connection) {
 			switch (connection) {
 				case SqlConnection con: return new SqlConnectionExtras(con);
 				case IDataBossConnectionExtras con: return con;
-				default: throw new NotSupportedException();
+				default: return extras.TryGetValue(connection.GetType(), out var found) 
+						? (IDataBossConnectionExtras)found.DynamicInvoke(connection)
+						: throw new NotSupportedException();
 			}
-		}
-
-		class SqlConnectionExtras : IDataBossConnectionExtras
-		{
-			readonly SqlConnection connection;
-
-			public SqlConnectionExtras(SqlConnection connection) { this.connection = connection; }
-
-			public void CreateTable(string destinationTable, IDataReader data) =>
-				connection.CreateTable(destinationTable, data);
-
-			public void Insert(string destinationTable, IDataReader rows, DataBossBulkCopySettings settings) =>
-				connection.Insert(destinationTable, rows, settings);
 		}
 
 		public static IEnumerable<T> Query<T>(this IDbConnection db, string sql, object args = null, bool buffered = true) =>
@@ -163,7 +188,7 @@ namespace DataBoss.Data
 
 			IDbCommand GetCommand() {
 				var cmd = Connection.CreateCommand(CommandText);
-				cmd.CommandType = Options.CommandType;
+				cmd.CommandType = Options.CommandType == 0 ? CommandType.Text : Options.CommandType;
 				if (Options.CommandTimeout.HasValue)
 					cmd.CommandTimeout = Options.CommandTimeout.Value;
 				if (Options.Parameters != null)

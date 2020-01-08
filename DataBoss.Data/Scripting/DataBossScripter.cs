@@ -9,8 +9,16 @@ using DataBoss.Linq;
 
 namespace DataBoss.Data.Scripting
 {
+	public class SqlDialect
+	{
+		public virtual string GetTypeName(DataBossDbType dbType) => dbType.ToString();
+		public virtual string GetParameterName(string name) => $"@{name}";
+	}
+	
 	public class DataBossScripter
 	{
+		readonly SqlDialect dialect;
+
 		class DataBossTable
 		{
 			readonly List<DataBossTableColumn> columns;
@@ -45,6 +53,12 @@ namespace DataBoss.Data.Scripting
 			public string FullName => string.IsNullOrEmpty(Schema) ? $"[{Name}]" : $"[{Schema}].[{Name}]";
 			public IReadOnlyList<DataBossTableColumn> Columns => columns.AsReadOnly();
 		}
+
+		public DataBossScripter(SqlDialect dialect) { 
+			this.dialect = dialect;	
+		}
+
+		public DataBossScripter() : this(new SqlDialect()) { }
 
 		public string CreateMissing(Type tableType) {
 			var table = DataBossTable.From(tableType);
@@ -122,7 +136,7 @@ namespace DataBoss.Data.Scripting
 		}
 
 		StringBuilder ScriptColumn(StringBuilder result, DataBossTableColumn column) =>
-			result.AppendFormat("[{0}] {1}", column.Name, column.ColumnType);
+			result.AppendFormat("[{0}] {1}", column.Name, dialect.GetTypeName(column.ColumnType));
 
 		public string ScriptConstraints(Type tableType) {
 			var result = new StringBuilder();

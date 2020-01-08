@@ -35,6 +35,7 @@ namespace DataBoss.Data
 		public DbObjectQuery<TCommand, TReader> Query<T>(string command, T args) =>
 			new DbObjectQuery<TCommand, TReader>(() => {
 				var cmd = CreateCommand();
+				cmd.CommandType = CommandType.Text;
 				cmd.CommandText = command;
 				ToParams.AddTo(cmd, args);
 				return cmd;

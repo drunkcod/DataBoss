@@ -65,8 +65,7 @@ namespace DataBoss.DataPackage
 			public void Save(Func<string, Stream> createOutput, CultureInfo culture = null) =>
 				package.Save(createOutput, culture);
 
-			public IDataPackageResourceBuilder WithPrimaryKey(string field, params string[] parts) {
-				resource.Schema.PrimaryKey.Add(field);
+			public IDataPackageResourceBuilder WithPrimaryKey(params string[] parts) {
 				if(parts != null && parts.Length > 0)
 					resource.Schema.PrimaryKey.AddRange(parts);
 				return this;

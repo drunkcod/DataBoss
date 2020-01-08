@@ -105,13 +105,13 @@ namespace DataBoss.Data
 				var p = extractor.CreatParameter(name);
 				Expression initP = null;
 				if (HasSqlTypeMapping(readMember.Type))
-					initP = MakeParameter(p, readMember);
+					initP = MakeParameter(readMember);
 				else if (readMember.Type.IsNullable())
 					initP = MakeParameterFromNullable(p, readMember);
 				else if(readMember.Type == typeof(RowVersion))
 					initP = MakeRowVersionParameter(p, readMember);
 				else if(readMember.Type.IsGenericType && readMember.Type.GetGenericTypeDefinition() == typeof(IdOf<>))
-					initP = MakeIdOfParameter(p, readMember);
+					initP = MakeIdOfParameter(readMember);
 				if(initP != null)
 					extractor.AddParameter(p, initP);
 				else
@@ -121,7 +121,7 @@ namespace DataBoss.Data
 
 		public static bool HasSqlTypeMapping(Type t) => t.IsPrimitive || mappedTypes.Contains(t) || t.IsEnum;
 
-		static Expression MakeParameter(Expression p, Expression value) =>
+		static Expression MakeParameter(Expression value) =>
 			value.Type.IsClass 
 			? (Expression)Expression.Coalesce(
 				Expression.Convert(value, typeof(object)), 
@@ -152,8 +152,8 @@ namespace DataBoss.Data
 			return Expression.Block(setType, setValue);
 		}
 
-		static Expression MakeIdOfParameter(Expression p, Expression value) =>
-			MakeParameter(p, Expression.Convert(value, typeof(int)));
+		static Expression MakeIdOfParameter(Expression value) =>
+			MakeParameter(Expression.Convert(value, typeof(int)));
 
 		public static void AddTo<TCommand, T>(TCommand command, T args) where TCommand : IDbCommand => 
 			Extractor<TCommand,T>.CreateParameters(command, args);

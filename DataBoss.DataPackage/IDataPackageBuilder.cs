@@ -17,7 +17,7 @@ namespace DataBoss.DataPackage
 	public interface IDataPackageResourceBuilder : IDataPackageBuilder
 	{
 		IDataPackageResourceBuilder WithForeignKey(DataPackageForeignKey fk);
-		IDataPackageResourceBuilder WithPrimaryKey(string field, params string[] parts);
+		IDataPackageResourceBuilder WithPrimaryKey(params string[] parts);
 	}
 
 	public static class DataPackageBuilderExtensions
