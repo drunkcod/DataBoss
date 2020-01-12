@@ -49,7 +49,7 @@ namespace DataBoss.DataPackage
 			return true;
 		}
 
-		static (Type, DataBossDbType) ToDbType(DataPackageTabularFieldDescription field) {
+		static (Type, DataBossDbType) ToDbType(TabularDataSchemaFieldDescription field) {
 			switch(field.Type) {
 				default: throw new NotSupportedException($"Don't know how to map '{field.Type}'");
 				case "boolean": return (typeof(bool), DataBossDbType.ToDataBossDbType(typeof(bool)));

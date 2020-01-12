@@ -17,7 +17,7 @@ namespace DataBoss.DataPackage
 	public class TabularDataSchema
 	{
 		[JsonProperty("fields")]
-		public List<DataPackageTabularFieldDescription> Fields;
+		public List<TabularDataSchemaFieldDescription> Fields;
 
 		[JsonProperty("primaryKey", DefaultValueHandling = DefaultValueHandling.Ignore)]
 		[JsonConverter(typeof(ItemOrArrayJsonConverter))]
@@ -27,7 +27,7 @@ namespace DataBoss.DataPackage
 		public List<DataPackageForeignKey> ForeignKeys;
 	}
 
-	public class DataPackageTabularFieldDescription
+	public class TabularDataSchemaFieldDescription
 	{
 		[JsonProperty("name")]
 		public string Name;
@@ -89,39 +89,50 @@ namespace DataBoss.DataPackage
 
 			var datapackageRoot = Path.GetDirectoryName(datapackagePath);
 			r.Resources.AddRange(description.Resources.Select(x => 
-				new TabularDataResource(x.Name, x.Schema, 
-					() => new CsvDataReader(
-						new CsvHelper.CsvReader(
-							File.OpenText(Path.Combine(datapackageRoot, x.Path)),
-							new CsvHelper.Configuration.Configuration { Delimiter = x.Delimiter }),
+				new TabularDataResource(x.Name, x.Schema, () => 
+					NewCsvDataReader(
+						File.OpenText(Path.Combine(datapackageRoot, x.Path)),
+						x.Delimiter,
 						x.Schema))));
 
 			return r;
 		}
 
-		static DataPackage LoadZip(string path) {
-			using (var zip = new ZipArchive(File.OpenRead(path), ZipArchiveMode.Read)) {
-				var description = JsonConvert.DeserializeObject<DataPackageDescription>(new StreamReader(zip.GetEntry("datapackage.json").Open()).ReadToEnd());
-				var r = new DataPackage();
+		public static DataPackage LoadZip(string path) =>
+			LoadZip(BoundMethod.Bind(File.OpenRead, path));
+ 	
+		public static DataPackage LoadZip(Func<Stream> openZip) {
+			var r = new DataPackage();
+			var description = LoadZipPackageDescription(openZip);
+			r.Resources.AddRange(description.Resources.Select(x => {
+				return new TabularDataResource(x.Name, x.Schema,
+					() => {
+						var source = new ZipArchive(openZip(), ZipArchiveMode.Read);
+						var csv = NewCsvDataReader(
+							new StreamReader(source.GetEntry(x.Path).Open()),
+							x.Delimiter,
+							x.Schema);
+						csv.Disposed += delegate { source.Dispose(); };
+						return csv;
+					});
+			}));
 
-				var datapackageRoot = string.Empty;
-				r.Resources.AddRange(description.Resources.Select(x =>
-					new TabularDataResource(x.Name, x.Schema,
-						() =>  { 
-							var source = new ZipArchive(File.OpenRead(path), ZipArchiveMode.Read);
-							var csv = new CsvDataReader(
-								new CsvHelper.CsvReader(
-									new StreamReader(source.GetEntry(x.Path).Open()),
-									new CsvHelper.Configuration.Configuration { Delimiter = x.Delimiter }),
-								x.Schema);
-							csv.Disposed += delegate { source.Dispose(); };
-							return csv;
-						})));
-					
-
-				return r;
-			}
+			return r;
 		}
+
+		static DataPackageDescription LoadZipPackageDescription(Func<Stream> openZip) {
+			var json = new JsonSerializer();
+			using (var zip = new ZipArchive(openZip(), ZipArchiveMode.Read))
+			using(var reader = new JsonTextReader(new StreamReader(zip.GetEntry("datapackage.json").Open())))
+				return json.Deserialize<DataPackageDescription>(reader);
+		}
+
+		static CsvDataReader NewCsvDataReader(TextReader reader, string delimiter, TabularDataSchema schema) =>
+			new CsvDataReader(
+				new CsvHelper.CsvReader(
+					reader,
+					new CsvHelper.Configuration.Configuration { Delimiter = delimiter }),
+				schema);
 
 		public IDataPackageResourceBuilder AddResource(string name, Func<IDataReader> getData)
 		{
@@ -175,10 +186,11 @@ namespace DataBoss.DataPackage
 				meta.Write(JsonConvert.SerializeObject(description, Formatting.Indented));
 		}
 
-		static List<T> NullIfEmpty<T>(List<T> values) => 
+		static List<T> NullIfEmpty<T>(List<T> values) =>
 			values == null ? null : values.Count == 0 ? null : values;
 
-		static CsvWriter NewCsvWriter(Stream stream, Encoding encoding) => new CsvWriter(new StreamWriter(stream, encoding, 4096, leaveOpen: true));
+		static CsvWriter NewCsvWriter(Stream stream, Encoding encoding) => 
+			new CsvWriter(new StreamWriter(stream, encoding, 4096, leaveOpen: true));
 
 		static void WriteRecords(Stream output, CultureInfo culture, IDataReader data) {
 

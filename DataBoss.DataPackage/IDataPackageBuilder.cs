@@ -23,10 +23,13 @@ namespace DataBoss.DataPackage
 	public static class DataPackageBuilderExtensions
 	{
 		public static IDataPackageResourceBuilder AddResource<T>(this IDataPackageBuilder self, string name, IEnumerable<T> data) =>
-			self.AddResource(name, () => data.ToDataReader());
+			self.AddResource(name, BoundMethod.Bind(SequenceDataReader.ToDataReader, data));
 
 		public static IDataPackageResourceBuilder AddResource<T>(this IDataPackageBuilder self, string name, Func<IEnumerable<T>> getData) =>
-			self.AddResource(name, () => getData().ToDataReader());
+			self.AddResource(name, BoundMethod.Bind(GetSequenceReader,  getData));
+
+		static IDataReader GetSequenceReader<T>(Func<IEnumerable<T>> getData) =>
+			getData().ToDataReader();
 
 		public static IDataPackageResourceBuilder WithForeignKey(this IDataPackageResourceBuilder self, string field, DataPackageKeyReference reference) =>
 			self.WithForeignKey(new DataPackageForeignKey(field, reference));
@@ -43,8 +46,46 @@ namespace DataBoss.DataPackage
 			SaveZip(self, stream, culture, leaveOpen: false);
 
 		public static void SaveZip(this IDataPackageBuilder self, Stream stream, CultureInfo culture, bool leaveOpen) {
+			if(!stream.CanSeek)//work around for ZipArchive Create mode reading Position.
+				stream = new ZipOutputStream(stream);
 			using (var zip = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: leaveOpen))
 				self.Save(x => zip.CreateEntry(x).Open(), culture);
 		}
 	}
+
+	class ZipOutputStream : Stream
+	{
+		readonly Stream stream;
+		long position;
+
+		public ZipOutputStream(Stream stream) {
+			this.stream = stream;
+		}
+
+		protected override void Dispose(bool disposing) {
+			stream.Dispose();
+			base.Dispose(disposing);
+		}
+
+		public override bool CanRead => false;
+		public override bool CanWrite => true;
+		public override bool CanSeek => false;
+
+		public override long Length => throw new NotSupportedException();
+
+		public override long Position { get => position; set => throw new NotSupportedException(); }
+
+		public override void Flush() => stream.Flush();
+
+		public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+		public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+
+		public override void SetLength(long value) => throw new NotSupportedException();
+		public override void Write(byte[] buffer, int offset, int count) {
+			stream.Write(buffer, offset, count);
+			position += count;
+		}
+	}
+
 }

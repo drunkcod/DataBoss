@@ -43,10 +43,10 @@ namespace DataBoss.DataPackage
 			});
 		}
 
-		static List<DataPackageTabularFieldDescription> GetFieldInfo(IDataReader reader) {
-			var r = new List<DataPackageTabularFieldDescription>(reader.FieldCount);
+		static List<TabularDataSchemaFieldDescription> GetFieldInfo(IDataReader reader) {
+			var r = new List<TabularDataSchemaFieldDescription>(reader.FieldCount);
 			for (var i = 0; i != reader.FieldCount; ++i) {
-				r.Add(new DataPackageTabularFieldDescription {
+				r.Add(new TabularDataSchemaFieldDescription {
 					Name = reader.GetName(i),
 					Type = ToTableSchemaType(reader.GetFieldType(i)),
 				});
