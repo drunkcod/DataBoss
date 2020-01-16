@@ -9,17 +9,6 @@ using DataBoss.Data.SqlServer;
 
 namespace DataBoss.Data
 {
-	public class InvalidConversionException : InvalidOperationException
-	{
-		public InvalidConversionException(string message, Type type) :base(message) { 
-			this.Type = type;
-		}
-
-		public readonly Type Type;
-
-		public override string Message => $"Error reading {Type}: " + base.Message;
-	}
-
 	public class ConverterFactory
 	{
 		class ConverterContext
@@ -31,15 +20,14 @@ namespace DataBoss.Data
 			}
 
 			public readonly Type ResultType;
+			public readonly ParameterExpression Arg0;
+			public readonly MethodInfo IsDBNull;
 
 			public static ConverterContext Create(Type recordType, Type resultType) {
 				return new ConverterContext(Expression.Parameter(recordType, "x"), 
 					recordType.GetMethod(nameof(IDataRecord.IsDBNull)) ?? typeof(IDataRecord).GetMethod(nameof(IDataRecord.IsDBNull)),
 					resultType);
 			}
-
-			public readonly ParameterExpression Arg0;
-			public readonly MethodInfo IsDBNull;
 
 			public bool TryReadField(Type fieldType, Expression ordinal, out Expression reader) {  
 				if(!TryGetGetMethod(fieldType, out var getter)) {
@@ -125,7 +113,8 @@ namespace DataBoss.Data
 
 			public DataRecordConverter BuildConverter(Type readerType, FieldMap map, Type result) {
 				var root = new ChildBinding();
-				return BuildConverter(ConverterContext.Create(readerType, result), map, result, ref root);
+				var context = ConverterContext.Create(readerType, result);
+				return new DataRecordConverter(Expression.Lambda(MemberInit(context, context.ResultType, map, ref root), context.Arg0));
 			}
 
 			public DataRecordConverter BuildConverter<TReader>(FieldMap map, LambdaExpression factory) where TReader : IDataReader {
@@ -154,9 +143,6 @@ namespace DataBoss.Data
 				return pn;
 			}
 
-			DataRecordConverter BuildConverter(ConverterContext context, FieldMap map, Type result, ref ChildBinding item) =>
-				new DataRecordConverter(Expression.Lambda(MemberInit(context, result, map, ref item), context.Arg0));
-
 			Expression MemberInit(ConverterContext context, Type fieldType, FieldMap map, ref ChildBinding item) {
 				var ctor = GetCtor(context, map, fieldType, ref item);
 
@@ -175,7 +161,7 @@ namespace DataBoss.Data
 
 			NewExpression GetCtor(ConverterContext context, FieldMap map, Type fieldType, ref ChildBinding item) {
 				var ctors = fieldType.GetConstructors()
-					.Select(ctor => new { ctor, p = Array.ConvertAll(ctor.GetParameters(), x => (x.ParameterType, x.Name)) })
+					.Select(ctor => (ctor, p: Array.ConvertAll(ctor.GetParameters(), x => (x.ParameterType, x.Name))))
 					.OrderByDescending(x => x.p.Length);
 				
 				foreach (var x in ctors) {
@@ -191,22 +177,22 @@ namespace DataBoss.Data
 				var factoryFuns = fieldType
 					.GetMethods(BindingFlags.Static | BindingFlags.Public)
 					.Where(x => x.GetCustomAttribute(typeof(ConsiderAsCtorAttribute)) != null)
-					.Select(f => new { fun = f, p = Array.ConvertAll(f.GetParameters(), x => (x.ParameterType, x.Name)) })
+					.Select(f => (fun: f, p: Array.ConvertAll(f.GetParameters(), x => (x.ParameterType, x.Name))))
 					.OrderByDescending(x => x.p.Length);
 
 				foreach (var x in factoryFuns) {
 					var pn = new Expression[x.p.Length];
-					if (TryMapParameters(context, map, ref item, x.p, pn, throwOnConversionFailure: false)) {
+					if (TryMapParameters(context, map, ref item, x.p, pn, throwOnConversionFailure: false))
 						return Expression.Call(x.fun, pn);
-					}
 				}
 
 				return null;
 			}
 
+
 			ArraySegment<MemberAssignment> GetMembers(ConverterContext context, FieldMap map, Type targetType, ref ChildBinding item) {
-				var fields = targetType.GetFields().Where(x => !x.IsInitOnly).Select(x => new { x.Name, x.FieldType, Member = (MemberInfo)x });
-				var props = targetType.GetProperties().Where(x => x.CanWrite).Select(x => new { x.Name, FieldType = x.PropertyType, Member = (MemberInfo)x });
+				var fields = targetType.GetFields().Where(x => !x.IsInitOnly).Select(x => (x.Name, x.FieldType, Member: (MemberInfo)x));
+				var props = targetType.GetProperties().Where(x => x.CanWrite).Select(x => (x.Name, FieldType: x.PropertyType, Member: (MemberInfo)x));
 				var members = fields.Concat(props).ToArray();
 				var ordinals = new int[members.Length];
 				var bindings = new MemberAssignment[members.Length];
