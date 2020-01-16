@@ -158,40 +158,50 @@ namespace DataBoss.Data
 				new DataRecordConverter(Expression.Lambda(MemberInit(context, result, map, ref item), context.Arg0));
 
 			Expression MemberInit(ConverterContext context, Type fieldType, FieldMap map, ref ChildBinding item) {
-				var getNew = GetCtor(context, map, fieldType, ref item);
+				var ctor = GetCtor(context, map, fieldType, ref item);
 
-				if(getNew is NewExpression ctor)
-					return Expression.MemberInit(ctor,
-						GetMembers(context, map, fieldType, ref item));
-				return getNew;
+				if(ctor == null) {
+					var fun = GetFactoryFunction(context, map, fieldType, ref item);
+					if(fun != null)
+						return fun;
+					if(fieldType.IsValueType)
+						ctor = Expression.New(fieldType);
+					else throw new InvalidConversionException("No suitable constructor found for " + fieldType, context.ResultType);
+				}
+
+				return Expression.MemberInit(ctor,
+					GetMembers(context, map, fieldType, ref item));
 			}
 
-			Expression GetCtor(ConverterContext context, FieldMap map, Type fieldType, ref ChildBinding item) {
+			NewExpression GetCtor(ConverterContext context, FieldMap map, Type fieldType, ref ChildBinding item) {
 				var ctors = fieldType.GetConstructors()
 					.Select(ctor => new { ctor, p = Array.ConvertAll(ctor.GetParameters(), x => (x.ParameterType, x.Name)) })
 					.OrderByDescending(x => x.p.Length);
+				
 				foreach (var x in ctors) {
 					var pn = new Expression[x.p.Length];
 					if (TryMapParameters(context, map, ref item, x.p, pn, throwOnConversionFailure: false))
 						return Expression.New(x.ctor, pn);
 				}
 
+				return null;
+			}
+
+			Expression GetFactoryFunction(ConverterContext context, FieldMap map, Type fieldType, ref ChildBinding item) {
 				var factoryFuns = fieldType
 					.GetMethods(BindingFlags.Static | BindingFlags.Public)
 					.Where(x => x.GetCustomAttribute(typeof(ConsiderAsCtorAttribute)) != null)
-					.Select(ctor => new { ctor, p = Array.ConvertAll(ctor.GetParameters(), x => (x.ParameterType, x.Name)) })
+					.Select(f => new { fun = f, p = Array.ConvertAll(f.GetParameters(), x => (x.ParameterType, x.Name)) })
 					.OrderByDescending(x => x.p.Length);
 
 				foreach (var x in factoryFuns) {
 					var pn = new Expression[x.p.Length];
-					if (TryMapParameters(context, map, ref item, x.p, pn, throwOnConversionFailure: false))
-						return Expression.Call(x.ctor, pn);
+					if (TryMapParameters(context, map, ref item, x.p, pn, throwOnConversionFailure: false)) {
+						return Expression.Call(x.fun, pn);
+					}
 				}
 
-				if (fieldType.IsValueType)
-					return Expression.New(fieldType);
-
-				throw new InvalidConversionException("No suitable constructor found for " + fieldType, context.ResultType);
+				return null;
 			}
 
 			ArraySegment<MemberAssignment> GetMembers(ConverterContext context, FieldMap map, Type targetType, ref ChildBinding item) {
