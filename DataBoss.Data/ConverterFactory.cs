@@ -5,6 +5,7 @@ using System.Data;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using DataBoss.Data.SqlServer;
 
 namespace DataBoss.Data
 {
@@ -146,7 +147,7 @@ namespace DataBoss.Data
 				var pn = new Expression[parameters.Count];
 				for (var i = 0; i != pn.Length; ++i) {
 					var root = new ChildBinding();
-					if (!TryReadOrInit(context, map, parameters[i].Type, parameters[i].Name, ref root))
+					if (!TryReadOrInit(context, map, parameters[i].Type, parameters[i].Name, ref root, throwOnConversionFailure: true))
 						throw new InvalidOperationException($"Failed to map parameter \"{parameters[i].Name}\"");
 					pn[i] = root.Reader.GetReader();
 				}
@@ -156,19 +157,35 @@ namespace DataBoss.Data
 			DataRecordConverter BuildConverter(ConverterContext context, FieldMap map, Type result, ref ChildBinding item) =>
 				new DataRecordConverter(Expression.Lambda(MemberInit(context, result, map, ref item), context.Arg0));
 
-			Expression MemberInit(ConverterContext context, Type fieldType, FieldMap map, ref ChildBinding item) =>
-				Expression.MemberInit(
-					GetCtor(context, map, fieldType, ref item),
-					GetMembers(context, map, fieldType, ref item));
+			Expression MemberInit(ConverterContext context, Type fieldType, FieldMap map, ref ChildBinding item) {
+				var getNew = GetCtor(context, map, fieldType, ref item);
 
-			NewExpression GetCtor(ConverterContext context, FieldMap map, Type fieldType, ref ChildBinding item) {
+				if(getNew is NewExpression ctor)
+					return Expression.MemberInit(ctor,
+						GetMembers(context, map, fieldType, ref item));
+				return getNew;
+			}
+
+			Expression GetCtor(ConverterContext context, FieldMap map, Type fieldType, ref ChildBinding item) {
 				var ctors = fieldType.GetConstructors()
 					.Select(ctor => new { ctor, p = Array.ConvertAll(ctor.GetParameters(), x => (x.ParameterType, x.Name)) })
 					.OrderByDescending(x => x.p.Length);
 				foreach (var x in ctors) {
 					var pn = new Expression[x.p.Length];
-					if (TryMapParameters(context, map, ref item, x.p, pn))
+					if (TryMapParameters(context, map, ref item, x.p, pn, throwOnConversionFailure: false))
 						return Expression.New(x.ctor, pn);
+				}
+
+				var factoryFuns = fieldType
+					.GetMethods(BindingFlags.Static | BindingFlags.Public)
+					.Where(x => x.GetCustomAttribute(typeof(ConsiderAsCtorAttribute)) != null)
+					.Select(ctor => new { ctor, p = Array.ConvertAll(ctor.GetParameters(), x => (x.ParameterType, x.Name)) })
+					.OrderByDescending(x => x.p.Length);
+
+				foreach (var x in factoryFuns) {
+					var pn = new Expression[x.p.Length];
+					if (TryMapParameters(context, map, ref item, x.p, pn, throwOnConversionFailure: false))
+						return Expression.Call(x.ctor, pn);
 				}
 
 				if (fieldType.IsValueType)
@@ -185,7 +202,7 @@ namespace DataBoss.Data
 				var bindings = new MemberAssignment[members.Length];
 				var found = 0;
 				foreach (var x in members) {
-					if (!TryReadOrInit(context, map, x.FieldType, x.Name, ref item))
+					if (!TryReadOrInit(context, map, x.FieldType, x.Name, ref item, throwOnConversionFailure: true))
 						if (x.Member.GetCustomAttributes(typeof(RequiredAttribute), false).Length != 0)
 							throw new ArgumentException("Failed to set required member.", x.Name);
 						else continue;
@@ -197,19 +214,19 @@ namespace DataBoss.Data
 				return new ArraySegment<MemberAssignment>(bindings, 0, found);
 			}
 
-			bool TryMapParameters(ConverterContext context, FieldMap map, ref ChildBinding item, (Type ParameterType, string Name)[] parameters, Expression[] exprs) {
+			bool TryMapParameters(ConverterContext context, FieldMap map, ref ChildBinding item, (Type ParameterType, string Name)[] parameters, Expression[] exprs, bool throwOnConversionFailure) {
 				for (var i = 0; i != parameters.Length; ++i) {
-					if (!TryReadOrInit(context, map, parameters[i].ParameterType, parameters[i].Name, ref item))
+					if (!TryReadOrInit(context, map, parameters[i].ParameterType, parameters[i].Name, ref item, throwOnConversionFailure))
 						return false;
 					exprs[i] = item.Reader.GetReader();
 				}
 				return true;
 			}
 
-			bool TryReadOrInit(ConverterContext context, FieldMap map, Type itemType, string itemName, ref ChildBinding item) {
+			bool TryReadOrInit(ConverterContext context, FieldMap map, Type itemType, string itemName, ref ChildBinding item, bool throwOnConversionFailure) {
 				if (itemType.TryGetNullableTargetType(out var baseType)) {
 					var childItem = new ChildBinding { IsRequired = true };
-					if (TryReadOrInit(context, map, baseType, itemName, ref childItem)) {
+					if (TryReadOrInit(context, map, baseType, itemName, ref childItem, throwOnConversionFailure)) {
 						item.Reader = childItem.GetMemberReader(itemType);
 						return true;
 					}
@@ -222,7 +239,9 @@ namespace DataBoss.Data
 					Expression convertedField;
 					if (!(context.TryReadField(column.FieldType, o, out var reader) && TryConvertField(reader, itemType, out convertedField))
 					&& !(column.ProviderSpecificFieldType != null && context.TryReadField(column.ProviderSpecificFieldType, o, out reader) && TryConvertField(reader, itemType, out convertedField)))
-						throw new InvalidConversionException($"Can't read '{itemName}' of type {itemType.Name} given {column.FieldType.Name}", context.ResultType);
+						return throwOnConversionFailure 
+							? throw new InvalidConversionException($"Can't read '{itemName}' of type {itemType.Name} given {column.FieldType.Name}", context.ResultType)
+							: false;
 
 					var thisNull = context.IsNull(o);
 					if (item.IsRequired && column.CanBeNull)

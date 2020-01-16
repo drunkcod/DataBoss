@@ -109,7 +109,7 @@ namespace DataBoss.Specs
 				(DataBossDbType.ToDataBossDbType(typeof(string)), "Hello World", "N'Hello World'"),
 				(DataBossDbType.ToDataBossDbType(typeof(string)), "'", "N''''"),
 				(DataBossDbType.ToDataBossDbType(typeof(byte[])), new byte[]{ 1, 2, 3 }, "0x010203"),
-				(DataBossDbType.ToDataBossDbType(typeof(RowVersion)), new RowVersion(new SqlBinary(new byte[]{ 1, 2, 3, 4, 5, 6, 7, 8 })), "0x0102030405060708"),
+				(DataBossDbType.ToDataBossDbType(typeof(RowVersion)), new RowVersion(new SqlBinary(new byte[]{ 1, 2, 3, 4, 5, 6, 7, 8 }).Value), "0x0102030405060708"),
 			}.Select(x =>
 				new RowTestData(new Cone.Core.Invokable(GetType().GetMethod(nameof(format_value))),
 				new object[] { x.Item1, x.Item2, x.Item3 }));

@@ -1,15 +1,15 @@
-using Cone;
-using Cone.Core;
-using DataBoss.Data;
-using DataBoss.Migrations;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
-using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using Cone;
+using Cone.Core;
+using DataBoss.Data;
+using DataBoss.Data.SqlServer;
+using DataBoss.Migrations;
 
 namespace DataBoss.Specs
 {
@@ -338,6 +338,13 @@ namespace DataBoss.Specs
 				.That(x => x[0].Value == new IdOf<ValueRow<int>>(1));
 		}
 
+		public void RowVersion_from_bytes() {
+			var source = new SimpleDataReader(Col<byte[]>("Value.value"));
+			source.Add(new byte[]{ 1, 2, 3, 4, 5, 6, 7, 8 });
+			Check
+				.With(() => ObjectReader.For(source).Read<ValueRow<RowVersion>>().ToArray())
+				.That(x => x[0].Value == new RowVersion(new byte[]{ 1, 2, 3, 4, 5, 6, 7, 8, }));
+		}
 
 		class MyCastable
 		{
