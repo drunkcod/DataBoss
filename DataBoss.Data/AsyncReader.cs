@@ -16,33 +16,26 @@ namespace DataBoss.Data
 
 	public class AsyncReader<T>
 	{
-		delegate void ItemProducer(object state, ref IDisposable cleanup);
+		delegate void ItemProducer(AsyncReader<T> reader, object state, ref IDisposable cleanup);
 
 		readonly BlockingCollection<T> items;
 		public Task Task { get; private set; }
 		public Exception Exception { get; private set; }
 
-		internal AsyncReader(BlockingCollection<T> items) {
-			this.items = items;
+		internal AsyncReader(int? maxBacklog) {
+			this.items = maxBacklog.HasValue ? new BlockingCollection<T>(maxBacklog.Value) : new BlockingCollection<T>();
 		}
 
-		public static AsyncReader<T> StartNew(IEnumerable<T> items, int? maxBacklog = null) {
-			var reader = new AsyncReader<T>(NewQueue(maxBacklog));
-			reader.StartProducer(reader.ProduceItems, items);
+		public static AsyncReader<T> StartNew(IEnumerable<T> items, int? maxBacklog = null) =>
+			StartReader(ProduceItems, items, maxBacklog);
+
+		public static AsyncReader<T> StartNew<TReader>(Func<TReader> getReader, int? maxBacklog = null) where TReader : IDataReader =>
+			StartReader(ProduceRows<TReader>, getReader, maxBacklog);
+
+		static AsyncReader<T> StartReader(ItemProducer producer, object state, int? maxBacklog) {
+			var reader = new AsyncReader<T>(maxBacklog);
+			reader.Task = Task.Factory.StartNew(RunProducer, Tuple.Create(reader, producer, state), TaskCreationOptions.LongRunning);
 			return reader;
-		}
-
-		public static AsyncReader<T> StartNew<TReader>(Func<TReader> getReader, int? maxBacklog = null) where TReader : IDataReader {
-			var reader = new AsyncReader<T>(NewQueue(maxBacklog));
-			reader.StartProducer(reader.ProduceRows<TReader>, getReader);
-			return reader;
-		}
-
-		static BlockingCollection<T> NewQueue(int? maxBacklog) =>
-			maxBacklog.HasValue ? new BlockingCollection<T>(maxBacklog.Value) : new BlockingCollection<T>();
-
-		void StartProducer(ItemProducer producer, object state) {
-			this.Task = Task.Factory.StartNew(RunProducer, Tuple.Create(producer, state), TaskCreationOptions.LongRunning);
 		}
 
 		public IEnumerable<T> GetConsumingEnumerable() {
@@ -50,39 +43,38 @@ namespace DataBoss.Data
 				if (items.TryTake(out var item, Timeout.Infinite))
 					yield return item;
 			} while (!items.IsCompleted);
+
 			if (Exception != null)
 				ExceptionDispatchInfo.Capture(Exception).Throw();
 		}
 
-		void RunProducer(object obj)
+		static void RunProducer(object obj)
 		{
-			var (producer, state) = (Tuple<ItemProducer, object>)obj;
+			var (reader, producer, state) = (Tuple<AsyncReader<T>, ItemProducer, object>)obj;
 			IDisposable cleanup = null;
 			try {
-				producer(state, ref cleanup);
-			}
-			catch (Exception ex) {
-				Exception = ex;
-			}
-			finally {
-				items.CompleteAdding();
+				producer(reader, state, ref cleanup);
+			} catch (Exception ex) {
+				reader.Exception = ex;
+			} finally {
+				reader.items.CompleteAdding();
 				cleanup?.Dispose();
 			}
 		}
 
-		void ProduceItems(object obj, ref IDisposable cleanup) {
+		static void ProduceItems(AsyncReader<T> self, object obj, ref IDisposable cleanup) {
 			var source = (IEnumerable<T>)obj;
 			var xs = source.GetEnumerator();
 			cleanup = xs;
 			while(xs.MoveNext())
-				items.Add(xs.Current);
+				self.items.Add(xs.Current);
 		}
 
-		void ProduceRows<TReader>(object obj, ref IDisposable cleanup) where TReader : IDataReader {
+		static void ProduceRows<TReader>(AsyncReader<T> self, object obj, ref IDisposable cleanup) where TReader : IDataReader {
 			var getReader = (Func<TReader>)obj;
 			var reader = ObjectReader.For(getReader());
 			cleanup = reader;
-			reader.Read<T>(items.Add);
+			reader.Read<T>(self.items.Add);
 		}
 	}
 }

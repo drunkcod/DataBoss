@@ -40,7 +40,7 @@ namespace DataBoss.Data
 
 			bool TryGetGetMethod(Type fieldType, out MethodInfo getter) {
 				var getterName = "Get" + MapFieldType(fieldType);
-				getter = Arg0.Type.GetMethod(getterName) ?? typeof(IDataRecord).GetMethod("Get" + MapFieldType(fieldType));
+				getter = Arg0.Type.GetMethod(getterName) ?? typeof(IDataRecord).GetMethod(getterName);
 				return getter != null;
 			}
 
