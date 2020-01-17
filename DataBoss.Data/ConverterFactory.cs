@@ -13,20 +13,30 @@ namespace DataBoss.Data
 	{
 		class ConverterContext
 		{
-			ConverterContext(ParameterExpression arg0, MethodInfo isDBNull, Type resultType) {
+			readonly ConverterCollection converters;
+
+			ConverterContext(ParameterExpression arg0, MethodInfo isDBNull, Type resultType, ConverterCollection converters) {
 				this.Arg0 = arg0;
 				this.IsDBNull = isDBNull;
 				this.ResultType = resultType;
+				this.converters = converters;
 			}
 
 			public readonly Type ResultType;
 			public readonly ParameterExpression Arg0;
 			public readonly MethodInfo IsDBNull;
 
-			public static ConverterContext Create(Type recordType, Type resultType) {
+			public static ConverterContext Create(Type recordType, Type resultType, ConverterCollection converters) {
 				return new ConverterContext(Expression.Parameter(recordType, "x"), 
 					recordType.GetMethod(nameof(IDataRecord.IsDBNull)) ?? typeof(IDataRecord).GetMethod(nameof(IDataRecord.IsDBNull)),
-					resultType);
+					resultType,
+					converters);
+			}
+
+			public bool TryReadFieldAs(Type fieldType, Expression ordinal, Type itemType, out Expression reader) {
+				if(!(TryReadField(fieldType, ordinal, out var readerRaw) && TryConvertField(readerRaw, itemType, out reader)))
+					reader = null;
+				return reader != null;
 			}
 
 			public bool TryReadField(Type fieldType, Expression ordinal, out Expression reader) {  
@@ -42,6 +52,46 @@ namespace DataBoss.Data
 				var getterName = "Get" + MapFieldType(fieldType);
 				getter = Arg0.Type.GetMethod(getterName) ?? typeof(IDataRecord).GetMethod(getterName);
 				return getter != null;
+			}
+
+			bool TryConvertField(Expression rawField, Type to, out Expression convertedField) {
+				var from = rawField.Type;
+				if (from == to) {
+					convertedField = rawField;
+					return true;
+				}
+
+				if (TryGetConverter(rawField, to, out convertedField))
+					return true;
+
+				return false;
+			}
+
+			bool TryGetConverter(Expression rawField, Type to, out Expression converter) {
+				if (converters.TryGetConverter(rawField, to, out converter))
+					return true;
+
+				if (IsByteArray(rawField, to) || IsIdOf(rawField, to) || IsEnum(rawField, to) || HasExplictCast(rawField, to)) {
+					converter = Expression.Convert(rawField, to);
+					return true;
+				}
+
+				return false;
+			}
+
+			static bool IsByteArray(Expression rawField, Type to) =>
+				rawField.Type == typeof(object) && to == typeof(byte[]);
+
+			static bool IsIdOf(Expression rawField, Type to) =>
+				(to.IsGenericType && to.GetGenericTypeDefinition() == typeof(IdOf<>) && rawField.Type == typeof(int));
+
+			static bool IsEnum(Expression rawField, Type to) =>
+				to.IsEnum && Enum.GetUnderlyingType(to) == rawField.Type;
+
+			static bool HasExplictCast(Expression rawField, Type to) {
+				var cast = to.GetMethod("op_Explicit", new[] { rawField.Type });
+
+				return cast != null && to.IsAssignableFrom(cast.ReturnType);
 			}
 
 			public Expression IsNull(Expression o) => Expression.Call(Arg0, IsDBNull, o);
@@ -113,19 +163,19 @@ namespace DataBoss.Data
 
 			public DataRecordConverter BuildConverter(Type readerType, FieldMap map, Type result) {
 				var root = new ChildBinding();
-				var context = ConverterContext.Create(readerType, result);
-				return new DataRecordConverter(Expression.Lambda(MemberInit(context, context.ResultType, map, ref root), context.Arg0));
+				var context = ConverterContext.Create(readerType, result, customConversions);
+				return new DataRecordConverter(Expression.Lambda(MemberInit(context, map, context.ResultType, ref root), context.Arg0));
 			}
 
-			public DataRecordConverter BuildConverter<TReader>(FieldMap map, LambdaExpression factory) where TReader : IDataReader {
-				var context = ConverterContext.Create(typeof(TReader), factory.Type);
-				var pn = BindAllParameters(context, map, factory.Parameters);
-				return new DataRecordConverter(Expression.Lambda(Expression.Invoke(factory, pn), context.Arg0));
+			public DataRecordConverter BuildConverter<TReader>(FieldMap map, LambdaExpression resultFactory) where TReader : IDataReader {
+				var context = ConverterContext.Create(typeof(TReader), resultFactory.Type, customConversions);
+				var pn = BindAllParameters(context, map, resultFactory.Parameters);
+				return new DataRecordConverter(Expression.Lambda(Expression.Invoke(resultFactory, pn), context.Arg0));
 			}
 
 			public DataRecordConverter BuildConverter(Type readerType, FieldMap map, Delegate exemplar) {
 				var m = exemplar.Method;
-				var context = ConverterContext.Create(readerType, m.ReturnType);
+				var context = ConverterContext.Create(readerType, m.ReturnType, customConversions);
 				var pn = BindAllParameters(context, map, 
 					Array.ConvertAll(m.GetParameters(), x => Expression.Parameter(x.ParameterType, x.Name)));
 				var arg1 = Expression.Parameter(exemplar.GetType());
@@ -143,7 +193,7 @@ namespace DataBoss.Data
 				return pn;
 			}
 
-			Expression MemberInit(ConverterContext context, Type fieldType, FieldMap map, ref ChildBinding item) {
+			Expression MemberInit(ConverterContext context, FieldMap map, Type fieldType, ref ChildBinding item) {
 				var ctor = GetCtor(context, map, fieldType, ref item);
 
 				if(ctor == null) {
@@ -189,7 +239,6 @@ namespace DataBoss.Data
 				return null;
 			}
 
-
 			ArraySegment<MemberAssignment> GetMembers(ConverterContext context, FieldMap map, Type targetType, ref ChildBinding item) {
 				var fields = targetType.GetFields().Where(x => !x.IsInitOnly).Select(x => (x.Name, x.FieldType, Member: (MemberInfo)x));
 				var props = targetType.GetProperties().Where(x => x.CanWrite).Select(x => (x.Name, FieldType: x.PropertyType, Member: (MemberInfo)x));
@@ -229,70 +278,32 @@ namespace DataBoss.Data
 					return false;
 				}
 
-				FieldMapItem column;
-				if (map.TryGetOrdinal(itemName, out column)) {
-					var o = Expression.Constant(column.Ordinal);
+				FieldMapItem field;
+				if (map.TryGetField(itemName, out field)) {
+					var o = Expression.Constant(field.Ordinal);
 					Expression convertedField;
-					if (!(context.TryReadField(column.FieldType, o, out var reader) && TryConvertField(reader, itemType, out convertedField))
-					&& !(column.ProviderSpecificFieldType != null && context.TryReadField(column.ProviderSpecificFieldType, o, out reader) && TryConvertField(reader, itemType, out convertedField)))
+					var canReadAsItem =
+						context.TryReadFieldAs(field.FieldType, o, itemType, out convertedField)
+						|| (field.ProviderSpecificFieldType != null && context.TryReadFieldAs(field.ProviderSpecificFieldType, o, itemType, out convertedField));
+					if(!canReadAsItem)
 						return throwOnConversionFailure 
-							? throw new InvalidConversionException($"Can't read '{itemName}' of type {itemType.Name} given {column.FieldType.Name}", context.ResultType)
+							? throw new InvalidConversionException($"Can't read '{itemName}' of type {itemType.Name} given {field.FieldType.Name}", context.ResultType)
 							: false;
 
 					var thisNull = context.IsNull(o);
-					if (item.IsRequired && column.CanBeNull)
+					if (item.IsRequired && field.CanBeNull)
 						item.AnyRequiredNull = OrElse(item.AnyRequiredNull, thisNull);
-					item.Reader = new MemberReader(column.Ordinal, convertedField, column.CanBeNull ? thisNull : null);
+					item.Reader = new MemberReader(field.Ordinal, convertedField, field.CanBeNull ? thisNull : null);
 					return true;
 				}
 
 				FieldMap subMap;
 				if (map.TryGetSubMap(itemName, out subMap)) {
-					item.Reader = new MemberReader(subMap.MinOrdinal, MemberInit(context, itemType, subMap, ref item), null);
+					item.Reader = new MemberReader(subMap.MinOrdinal, MemberInit(context, subMap, itemType, ref item), null);
 					return true;
 				}
 
 				return false;
-			}
-
-			bool TryConvertField(Expression rawField, Type to, out Expression convertedField) {
-				var from = rawField.Type;
-				if (from == to) {
-					convertedField = rawField;
-					return true;
-				}
-
-				if (TryGetConverter(rawField, to, out convertedField))
-					return true;
-
-				return false;
-			}
-
-			bool TryGetConverter(Expression rawField, Type to, out Expression converter) {
-				if (customConversions.TryGetConverter(rawField, to, out converter))
-					return true;
-
-				if (IsByteArray(rawField, to) || IsIdOf(rawField, to) || IsEnum(rawField, to) || HasExplictCast(rawField, to)) {
-					converter = Expression.Convert(rawField, to);
-					return true;
-				}
-
-				return false;
-			}
-
-			static bool IsByteArray(Expression rawField, Type to) =>
-				rawField.Type == typeof(object) && to == typeof(byte[]);
-
-			static bool IsIdOf(Expression rawField, Type to) => 
-				(to.IsGenericType && to.GetGenericTypeDefinition() == typeof(IdOf<>) && rawField.Type == typeof(int));
-
-			static bool IsEnum(Expression rawField, Type to) =>
-				to.IsEnum && Enum.GetUnderlyingType(to) == rawField.Type;
-
-			static bool HasExplictCast(Expression rawField, Type to) { 
-				var cast = to.GetMethod("op_Explicit", new[] { rawField.Type });
-
-				return cast != null && to.IsAssignableFrom(cast.ReturnType);
 			}
 		}
 

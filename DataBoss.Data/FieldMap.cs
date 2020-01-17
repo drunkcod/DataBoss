@@ -63,7 +63,7 @@ namespace DataBoss.Data
 			fields.Add(name, new FieldMapItem(ordinal, fieldType, providerSpecificFieldType, allowDBNull));
 		}
 
-		public bool TryGetOrdinal(string key, out FieldMapItem item) =>
+		public bool TryGetField(string key, out FieldMapItem item) =>
 			fields.TryGetValue(key, out item);
 
 		public bool TryGetSubMap(string key, out FieldMap subMap) {
