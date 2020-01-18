@@ -109,23 +109,23 @@ namespace DataBoss.Data
 					readIt);
 			}
 
-			public bool TryReadOrInit(FieldMap map, Type itemType, string itemName, ref ChildBinding item, out MemberReader reader, bool throwOnConversionFailure) {
+			public BindingResult TryReadOrInit(FieldMap map, Type itemType, string itemName, ref ChildBinding item, out MemberReader reader, bool throwOnConversionFailure) {
 				if (itemType.TryGetNullableTargetType(out var baseType)) {
 					//IsRequired since otherwise we'd get a default(T) and thus a nullable with a value.
 					var childItem = new ChildBinding { IsRequired = true };
-					if (TryReadOrInit(map, baseType, itemName, ref childItem, out var childReader, throwOnConversionFailure: true)) {
+					var r = TryReadOrInit(map, baseType, itemName, ref childItem, out var childReader, throwOnConversionFailure: true);
+					if (r == BindingResult.Ok) {
 						reader = new MemberReader(
 							childReader.Ordinal, 
 							Expression.Convert(childReader.Read, itemType), 
 							OrElse(childReader.IsNull, childItem.AnyRequiredNull));
-						return true;
+						return BindingResult.Ok;;
 					}
 					reader = default;
-					return false;
+					return r;
 				}
 
-				FieldMapItem field;
-				if (map.TryGetField(itemName, out field)) {
+				if (map.TryGetField(itemName, out var field)) {
 					var o = Expression.Constant(field.Ordinal);
 					Expression convertedField;
 					var canReadAsItem =
@@ -135,23 +135,22 @@ namespace DataBoss.Data
 						reader = default;
 						return throwOnConversionFailure
 							? throw new InvalidConversionException($"Can't read '{itemName}' of type {itemType.Name} given {field.FieldType.Name}", ResultType)
-							: false;
+							: BindingResult.InvalidCast;
 					}
 
-					var thisNull = IsNull(o);
-					if (item.IsRequired && field.CanBeNull)
+					var thisNull = field.CanBeNull ? IsNull(o) : null;
+					if (item.IsRequired && thisNull != null)
 						item.AnyRequiredNull = OrElse(item.AnyRequiredNull, thisNull);
-					reader = new MemberReader(field.Ordinal, convertedField, field.CanBeNull ? thisNull : null);
-					return true;
+					reader = new MemberReader(field.Ordinal, convertedField, thisNull);
+					return BindingResult.Ok;
 				}
 
-				FieldMap subMap;
-				if (map.TryGetSubMap(itemName, out subMap)) {
+				if (map.TryGetSubMap(itemName, out var subMap)) {
 					reader = new MemberReader(subMap.MinOrdinal, FieldInit(subMap, itemType, ref item), null);
-					return true;
+					return BindingResult.Ok;
 				}
 				reader = default;
-				return false;
+				return BindingResult.NotFound;
 			}
 
 			public Expression FieldInit(FieldMap map, Type fieldType, ref ChildBinding item) {
@@ -208,7 +207,7 @@ namespace DataBoss.Data
 				var bindings = new MemberAssignment[members.Length];
 				var found = 0;
 				foreach (var x in members) {
-					if (!TryReadOrInit(map, x.FieldType, x.Name, ref item, out var reader, throwOnConversionFailure: true))
+					if (TryReadOrInit(map, x.FieldType, x.Name, ref item, out var reader, throwOnConversionFailure: true) != BindingResult.Ok)
 						if (x.Member.GetCustomAttribute(typeof(RequiredAttribute), false) != null)
 							throw new ArgumentException("Failed to set required member.", x.Name);
 						else continue;
@@ -222,7 +221,7 @@ namespace DataBoss.Data
 
 			bool TryMapParameters(FieldMap map, ref ChildBinding item, (Type ParameterType, string Name)[] parameters, Expression[] exprs, bool throwOnConversionFailure) {
 				for (var i = 0; i != parameters.Length; ++i) {
-					if (!TryReadOrInit(map, parameters[i].ParameterType, parameters[i].Name, ref item, out var reader, throwOnConversionFailure))
+					if (TryReadOrInit(map, parameters[i].ParameterType, parameters[i].Name, ref item, out var reader, throwOnConversionFailure) != BindingResult.Ok)
 						return false;
 					exprs[i] = reader.GetReader();
 				}
@@ -257,6 +256,13 @@ namespace DataBoss.Data
 		{
 			public Expression AnyRequiredNull;
 			public bool IsRequired;
+		}
+
+		enum BindingResult
+		{
+			Ok,
+			NotFound,
+			InvalidCast
 		}
 
 		readonly DataRecordConverterFactory recordConverterFactory;
@@ -303,7 +309,7 @@ namespace DataBoss.Data
 				var pn = new Expression[parameters.Count];
 				for (var i = 0; i != pn.Length; ++i) {
 					var root = new ChildBinding();
-					if (!context.TryReadOrInit(map, parameters[i].Type, parameters[i].Name, ref root, out var reader, throwOnConversionFailure: true))
+					if (context.TryReadOrInit(map, parameters[i].Type, parameters[i].Name, ref root, out var reader, throwOnConversionFailure: true) != BindingResult.Ok)
 						throw new InvalidOperationException($"Failed to map parameter \"{parameters[i].Name}\"");
 					pn[i] = reader.GetReader();
 				}
