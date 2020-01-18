@@ -148,7 +148,7 @@ namespace DataBoss.Specs
 				rows => rows[0].Value == expected.Value);	
 		}
 
-		public void can_read_nullable_structs() {
+		public void can_read_nullable_struct() {
 			var expected = 3.14f;
 			var source = new SimpleDataReader(Col<float>("Value.ctorValue")) { expected };
 			Check.With(() => ObjectReader.For(source).Read<StructRow<StructRow<float>?>>().ToArray())

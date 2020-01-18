@@ -109,16 +109,17 @@ namespace DataBoss.Data
 					readIt);
 			}
 
-			public BindingResult TryReadOrInit(FieldMap map, Type itemType, string itemName, ref ChildBinding item, out MemberReader reader) {
+			public BindingResult BindItem(FieldMap map, Type itemType, string itemName, ref ChildBinding item, out MemberReader reader) {
 				if (itemType.TryGetNullableTargetType(out var baseType)) {
 					//IsRequired since otherwise we'd get a default(T) and thus a nullable with a value.
 					var childItem = new ChildBinding { IsRequired = true };
-					var r = TryReadOrInit(map, baseType, itemName, ref childItem, out var childReader);
+					var r = BindItem(map, baseType, itemName, ref childItem, out var childReader);
 					if (r == BindingResult.Ok) {
+						
 						reader = new MemberReader(
-							childReader.Ordinal, 
+							childReader.Ordinal,
 							Expression.Convert(childReader.Read, itemType), 
-							OrElse(childReader.IsNull, childItem.AnyRequiredNull));
+							childItem.AnyRequiredNull);
 						return BindingResult.Ok;;
 					}
 					reader = default;
@@ -177,10 +178,10 @@ namespace DataBoss.Data
 					.Select(ctor => (ctor, p: Array.ConvertAll(ctor.GetParameters(), x => (x.ParameterType, x.Name))))
 					.OrderByDescending(x => x.p.Length);
 
-				foreach (var x in ctors) {
-					var pn = new Expression[x.p.Length];
-					if (TryMapParameters(map, ref item, x.p, pn))
-						return Expression.New(x.ctor, pn);
+				foreach (var (ctor, p) in ctors) {
+					var pn = new MemberReader[p.Length];
+					if (TryMapParameters(map, ref item, p, pn))
+						return Expression.New(ctor, Array.ConvertAll(pn, x => x.GetReader()));
 				}
 
 				return null;
@@ -193,10 +194,10 @@ namespace DataBoss.Data
 					.Select(f => (fun: f, p: Array.ConvertAll(f.GetParameters(), x => (x.ParameterType, x.Name))))
 					.OrderByDescending(x => x.p.Length);
 
-				foreach (var x in factoryFuns) {
-					var pn = new Expression[x.p.Length];
-					if (TryMapParameters(map, ref item, x.p, pn))
-						return Expression.Call(x.fun, pn);
+				foreach (var (fun, p) in factoryFuns) {
+					var pn = new MemberReader[p.Length];
+					if (TryMapParameters(map, ref item, p, pn))
+						return Expression.Call(fun, Array.ConvertAll(pn, x => x.GetReader()));
 				}
 
 				return null;
@@ -210,7 +211,7 @@ namespace DataBoss.Data
 				var bindings = new MemberAssignment[members.Length];
 				var found = 0;
 				foreach (var x in members) {
-					switch(TryReadOrInit(map, x.FieldType, x.Name, ref item, out var reader)) {
+					switch(BindItem(map, x.FieldType, x.Name, ref item, out var reader)) {
 						case BindingResult.InvalidCast: throw InvalidConversion(map, x.FieldType, x.Name);
 						case BindingResult.NotFound:
 							if (x.Member.GetCustomAttribute(typeof(RequiredAttribute), false) != null)
@@ -228,15 +229,13 @@ namespace DataBoss.Data
 				return new ArraySegment<MemberAssignment>(bindings, 0, found);
 			}
 
-			bool TryMapParameters(FieldMap map, ref ChildBinding item, (Type ParameterType, string Name)[] parameters, Expression[] exprs) {
+			bool TryMapParameters(FieldMap map, ref ChildBinding item, (Type ParameterType, string Name)[] parameters, MemberReader[] exprs) {
 				for (var i = 0; i != parameters.Length; ++i) {
-					if (TryReadOrInit(map, parameters[i].ParameterType, parameters[i].Name, ref item, out var reader) != BindingResult.Ok)
+					if (BindItem(map, parameters[i].ParameterType, parameters[i].Name, ref item, out exprs[i]) != BindingResult.Ok)
 						return false;
-					exprs[i] = reader.GetReader();
 				}
 				return true;
 			}
-
 		}
 
 		struct MemberReader
@@ -318,7 +317,7 @@ namespace DataBoss.Data
 				var pn = new Expression[parameters.Count];
 				for (var i = 0; i != pn.Length; ++i) {
 					var root = new ChildBinding();
-					switch(context.TryReadOrInit(map, parameters[i].Type, parameters[i].Name, ref root, out var reader))
+					switch(context.BindItem(map, parameters[i].Type, parameters[i].Name, ref root, out var reader))
 					{
 						case BindingResult.InvalidCast: throw context.InvalidConversion(map, parameters[i].Type, parameters[i].Name);
 						case BindingResult.NotFound: throw new InvalidOperationException($"Failed to map parameter \"{parameters[i].Name}\"");
