@@ -156,20 +156,11 @@ namespace DataBoss.Data
 				return new InvalidConversionException($"Can't read '{itemName}' of type {itemType.Name} given {field.FieldType.Name}", ResultType);
 			}
 
-			public MemberReader FieldInit(FieldMap map, Type fieldType) {
-				var ctor = GetCtor(map, fieldType);
-				if(ctor.HasValue)
-					return ctor.Value;
-
-				var fun = GetFactoryFunction(map, fieldType);
-				if (fun.HasValue)
-					return fun.Value;
-
-				if (fieldType.IsValueType)
-					return new MemberReader(map.MinOrdinal, Expression.MemberInit(Expression.New(fieldType), GetMembers(map, fieldType)), null);
-
-				throw new InvalidConversionException("No suitable constructor found for " + fieldType, ResultType);
-			}
+			public MemberReader FieldInit(FieldMap map, Type fieldType) =>
+				GetCtor(map, fieldType)
+				?? GetFactoryFunction(map, fieldType)
+				?? InitValueType(map, fieldType)
+				?? throw new InvalidConversionException("No suitable constructor found for " + fieldType, ResultType);
 
 			MemberReader? GetCtor(FieldMap map, Type fieldType) {
 				var ctors = fieldType.GetConstructors()
@@ -204,6 +195,12 @@ namespace DataBoss.Data
 					}
 				}
 
+				return null;
+			}
+
+			MemberReader? InitValueType(FieldMap map, Type fieldType) {
+				if(fieldType.IsValueType)
+					return new MemberReader(map.MinOrdinal, Expression.MemberInit(Expression.New(fieldType), GetMembers(map, fieldType)), null);
 				return null;
 			}
 
