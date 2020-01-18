@@ -159,29 +159,31 @@ namespace DataBoss.Data
 
 			public Expression FieldInit(FieldMap map, Type fieldType, ref ChildBinding item) {
 				var ctor = GetCtor(map, fieldType, ref item);
+				if(ctor != null)
+					return ctor;
 
-				if (ctor == null) {
-					var fun = GetFactoryFunction(map, fieldType, ref item);
-					if (fun != null)
-						return fun;
-					if (fieldType.IsValueType)
-						ctor = Expression.New(fieldType);
-					else throw new InvalidConversionException("No suitable constructor found for " + fieldType, ResultType);
-				}
+				var fun = GetFactoryFunction(map, fieldType, ref item);
+				if (fun != null)
+					return fun;
 
-				return Expression.MemberInit(ctor,
-					GetMembers(map, fieldType, ref item));
+				if (fieldType.IsValueType)
+					return Expression.MemberInit(Expression.New(fieldType), GetMembers(map, fieldType, ref item));
+
+				throw new InvalidConversionException("No suitable constructor found for " + fieldType, ResultType);
 			}
 
-			NewExpression GetCtor(FieldMap map, Type fieldType, ref ChildBinding item) {
+			Expression GetCtor(FieldMap map, Type fieldType, ref ChildBinding item) {
 				var ctors = fieldType.GetConstructors()
 					.Select(ctor => (ctor, p: Array.ConvertAll(ctor.GetParameters(), x => (x.ParameterType, x.Name))))
 					.OrderByDescending(x => x.p.Length);
 
 				foreach (var (ctor, p) in ctors) {
 					var pn = new MemberReader[p.Length];
-					if (TryMapParameters(map, ref item, p, pn))
-						return Expression.New(ctor, Array.ConvertAll(pn, x => x.GetReader()));
+					if (TryMapParameters(map, ref item, p, pn)) {
+						return Expression.MemberInit(
+							Expression.New(ctor, Array.ConvertAll(pn, x => x.GetReader())), 
+							GetMembers(map, fieldType, ref item));
+					}
 				}
 
 				return null;
