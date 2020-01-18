@@ -162,8 +162,8 @@ namespace DataBoss.Data
 					return ctor.Value;
 
 				var fun = GetFactoryFunction(map, fieldType);
-				if (fun != null)
-					return new MemberReader(map.MinOrdinal, fun, null);
+				if (fun.HasValue)
+					return fun.Value;
 
 				if (fieldType.IsValueType)
 					return new MemberReader(map.MinOrdinal, Expression.MemberInit(Expression.New(fieldType), GetMembers(map, fieldType)), null);
@@ -175,32 +175,33 @@ namespace DataBoss.Data
 				var ctors = fieldType.GetConstructors()
 					.Select(ctor => (ctor, p: Array.ConvertAll(ctor.GetParameters(), x => (x.ParameterType, x.Name))))
 					.OrderByDescending(x => x.p.Length);
-
-				foreach (var (ctor, p) in ctors) {
-					var pn = new MemberReader[p.Length];
-					if (TryMapParameters(map, p, pn)) {
-						return new MemberReader(
-							map.MinOrdinal, 
-							Expression.MemberInit(
-								Expression.New(ctor, Array.ConvertAll(pn, x => x.Read)), 
-								GetMembers(map, fieldType)),
-							AnyOf(pn.Select(x => x.IsNull)));
-					}
-				}
-
-				return null;
+				
+				return MakeReader(map, ctors, (ctor, ps) => 
+					Expression.MemberInit(
+						Expression.New(ctor, ps), 
+						GetMembers(map, fieldType)));
 			}
-			Expression GetFactoryFunction(FieldMap map, Type fieldType) {
+
+			MemberReader? GetFactoryFunction(FieldMap map, Type fieldType) {
 				var factoryFuns = fieldType
 					.GetMethods(BindingFlags.Static | BindingFlags.Public)
 					.Where(x => x.GetCustomAttribute(typeof(ConsiderAsCtorAttribute)) != null)
 					.Select(f => (fun: f, p: Array.ConvertAll(f.GetParameters(), x => (x.ParameterType, x.Name))))
 					.OrderByDescending(x => x.p.Length);
+				
+				return MakeReader(map, factoryFuns, Expression.Call);
+			}
 
-				foreach (var (fun, p) in factoryFuns) {
+			MemberReader? MakeReader<T>(FieldMap map, IEnumerable<(T source, (Type ParameterType, string Name)[] parameters)> xs, Func<T, Expression[], Expression> makeExpr)
+			{
+				foreach (var (ctor, p) in xs) {
 					var pn = new MemberReader[p.Length];
-					if (TryMapParameters(map, p, pn))
-						return Expression.Call(fun, Array.ConvertAll(pn, x => x.GetReader()));
+					if (TryMapParameters(map, p, pn)) {
+						return new MemberReader(
+							map.MinOrdinal,
+							makeExpr(ctor, Array.ConvertAll(pn, x => x.Read)),
+							AnyOf(pn.Select(x => x.IsNull)));
+					}
 				}
 
 				return null;
