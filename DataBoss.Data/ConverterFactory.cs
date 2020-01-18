@@ -153,7 +153,7 @@ namespace DataBoss.Data
 				return BindingResult.NotFound;
 			}
 
-			InvalidConversionException InvalidConversion(FieldMap map, Type itemType, string itemName) {
+			internal InvalidConversionException InvalidConversion(FieldMap map, Type itemType, string itemName) {
 				map.TryGetField(itemName, out var field);
 				return new InvalidConversionException($"Can't read '{itemName}' of type {itemType.Name} given {field.FieldType.Name}", ResultType);
 			}
@@ -320,9 +320,15 @@ namespace DataBoss.Data
 				var pn = new Expression[parameters.Count];
 				for (var i = 0; i != pn.Length; ++i) {
 					var root = new ChildBinding();
-					if (context.TryReadOrInit(map, parameters[i].Type, parameters[i].Name, ref root, out var reader, throwOnConversionFailure: true) != BindingResult.Ok)
-						throw new InvalidOperationException($"Failed to map parameter \"{parameters[i].Name}\"");
-					pn[i] = reader.GetReader();
+					switch(context.TryReadOrInit(map, parameters[i].Type, parameters[i].Name, ref root, out var reader, throwOnConversionFailure: false))
+					{
+						case BindingResult.InvalidCast: throw context.InvalidConversion(map, parameters[i].Type, parameters[i].Name);
+						case BindingResult.NotFound: throw new InvalidOperationException($"Failed to map parameter \"{parameters[i].Name}\"");
+
+						case BindingResult.Ok:
+							pn[i] = reader.GetReader();
+							break;
+					}
 				}
 				return pn;
 			}
