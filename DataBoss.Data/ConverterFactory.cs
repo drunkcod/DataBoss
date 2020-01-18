@@ -134,7 +134,7 @@ namespace DataBoss.Data
 					if (!canReadAsItem) {
 						reader = default;
 						return throwOnConversionFailure
-							? throw new InvalidConversionException($"Can't read '{itemName}' of type {itemType.Name} given {field.FieldType.Name}", ResultType)
+							? throw InvalidConversion(map, itemType, itemName)
 							: BindingResult.InvalidCast;
 					}
 
@@ -151,6 +151,11 @@ namespace DataBoss.Data
 				}
 				reader = default;
 				return BindingResult.NotFound;
+			}
+
+			InvalidConversionException InvalidConversion(FieldMap map, Type itemType, string itemName) {
+				map.TryGetField(itemName, out var field);
+				return new InvalidConversionException($"Can't read '{itemName}' of type {itemType.Name} given {field.FieldType.Name}", ResultType);
 			}
 
 			public Expression FieldInit(FieldMap map, Type fieldType, ref ChildBinding item) {
@@ -207,13 +212,19 @@ namespace DataBoss.Data
 				var bindings = new MemberAssignment[members.Length];
 				var found = 0;
 				foreach (var x in members) {
-					if (TryReadOrInit(map, x.FieldType, x.Name, ref item, out var reader, throwOnConversionFailure: true) != BindingResult.Ok)
-						if (x.Member.GetCustomAttribute(typeof(RequiredAttribute), false) != null)
-							throw new ArgumentException("Failed to set required member.", x.Name);
-						else continue;
-					ordinals[found] = reader.Ordinal;
-					bindings[found] = Expression.Bind(x.Member, reader.GetReader());
-					++found;
+					switch(TryReadOrInit(map, x.FieldType, x.Name, ref item, out var reader, throwOnConversionFailure: false)) {
+						case BindingResult.InvalidCast: throw InvalidConversion(map, x.FieldType, x.Name);
+						case BindingResult.NotFound:
+							if (x.Member.GetCustomAttribute(typeof(RequiredAttribute), false) != null)
+								throw new ArgumentException("Failed to set required member.", x.Name);
+							else continue;
+
+						case BindingResult.Ok:
+							ordinals[found] = reader.Ordinal;
+							bindings[found] = Expression.Bind(x.Member, reader.GetReader());
+							++found;
+							break;
+					}
 				}
 				Array.Sort(ordinals, bindings, 0, found);
 				return new ArraySegment<MemberAssignment>(bindings, 0, found);
@@ -315,7 +326,6 @@ namespace DataBoss.Data
 				}
 				return pn;
 			}
-
 		}
 
 		public DataRecordConverter<TReader, T> GetConverter<TReader, T>(TReader reader) where TReader : IDataReader =>
