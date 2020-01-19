@@ -118,7 +118,7 @@ namespace DataBoss.Data
 							childReader.Ordinal,
 							item.Name,
 							Expression.Condition(
-								childReader.IsNull ?? Expression.Constant(false),
+								childReader.IsDbNull ?? Expression.Constant(false),
 								Expression.New(item.Type),
 								Expression.Convert(childReader.Read, item.Type)), 
 							null);
@@ -194,7 +194,7 @@ namespace DataBoss.Data
 							map.MinOrdinal,
 							itemName,
 							makeExpr(ctor, Array.ConvertAll(pn, x => x.Read)),
-							AnyOf(pn.Select(x => x.IsNull)));
+							AnyOf(pn.Select(x => x.IsDbNull)));
 					}
 				}
 
@@ -255,21 +255,21 @@ namespace DataBoss.Data
 
 		readonly struct MemberReader
 		{
-			public MemberReader(int ordinal, string name, Expression reader, Expression isNull) {
+			public MemberReader(int ordinal, string name, Expression reader, Expression IsDbNull) {
 				this.Ordinal = ordinal;
 				this.Name = name;
 				this.Read = reader;
-				this.IsNull = isNull;
+				this.IsDbNull = IsDbNull;
 			}
 
 			public readonly int Ordinal;
 			public readonly string Name;
 			public readonly Expression Read;
-			public readonly Expression IsNull;
+			public readonly Expression IsDbNull;
 		}
 
 		static Expression ReadOrDefault(in MemberReader reader) =>
-			reader.IsNull == null ? reader.Read : Expression.Condition(reader.IsNull, MakeDefault(reader.Read.Type), reader.Read);
+			reader.IsDbNull == null ? reader.Read : Expression.Condition(reader.IsDbNull, MakeDefault(reader.Read.Type), reader.Read);
 
 		static Expression MakeDefault(Type type) {
 			return Expression.Default(type);
@@ -312,7 +312,7 @@ namespace DataBoss.Data
 			}
 
 			static Expression GuardedInvoke(Expression body, MemberReader[] args) {
-				var isNull = AnyOf(args.Where(x => x.Read.Type.IsPrimitive).Select(x => x.IsNull));
+				var isNull = AnyOf(args.Where(x => x.Read.Type.IsPrimitive).Select(x => x.IsDbNull));
 				body = Expression.Invoke(body, Array.ConvertAll(args, x => x.Read));
 				if(isNull == null)
 					return body;
@@ -321,8 +321,8 @@ namespace DataBoss.Data
 						Expression.New(
 							typeof(DataRowNullCastException).GetConstructor(new[]{ typeof(string[]) }),
 							Expression.NewArrayInit(typeof(string), 
-								args.Where(x => x.Read.Type.IsPrimitive && x.IsNull != null).Select(x => 
-									Expression.Condition(x.IsNull,
+								args.Where(x => x.Read.Type.IsPrimitive && x.IsDbNull != null).Select(x => 
+									Expression.Condition(x.IsDbNull,
 										Expression.Constant(x.Name),
 										Expression.Constant(null, typeof(string)))))), 
 						body.Type),
@@ -359,10 +359,10 @@ namespace DataBoss.Data
 			this.converterCache = converterCache;
 		}
 
-		public static ConverterFactory Default = new ConverterFactory(null, NullConverterCache.Instance);
+		public static ConverterFactory Default = new ConverterFactory(null, new ConcurrentConverterCache());
 
 		public Func<TReader, TResult> Compile<TReader, T1, TResult>(TReader reader, Expression<Func<T1, TResult>> selector) where TReader : IDataReader =>
-		(Func<TReader, TResult>)GetConverter(reader, selector).Compile();
+			(Func<TReader, TResult>)GetConverter(reader, selector).Compile();
 
 		public Func<TReader, TResult> Compile<TReader, T1, T2, TResult>(TReader reader, Expression<Func<T1, T2, TResult>> selector) where TReader : IDataReader =>
 			(Func<TReader, TResult>)GetConverter(reader, selector).Compile();

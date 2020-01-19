@@ -76,8 +76,5 @@ namespace DataBoss.Data
 			}
 			return found;
 		}
-
-		static string FieldKey(IDataReader reader) =>
-			string.Join(", ", Enumerable.Range(0, reader.FieldCount).Select(ordinal => $"{reader.GetFieldType(ordinal)} [{reader.GetName(ordinal)}]"));
 	}
 }
