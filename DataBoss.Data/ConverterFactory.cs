@@ -109,18 +109,18 @@ namespace DataBoss.Data
 					readIt);
 			}
 
-			public BindingResult BindItem(FieldMap map, Type itemType, string itemName, out MemberReader reader) {
-				if (itemType.TryGetNullableTargetType(out var baseType)) {
-					var r = BindItem(map, baseType, itemName, out var childReader);
+			public BindingResult BindItem(FieldMap map, in ItemInfo item, out MemberReader reader) {
+				if (item.Type.TryGetNullableTargetType(out var baseType)) {
+					var r = BindItem(map, new ItemInfo(item.Name, baseType), out var childReader);
 					if (r == BindingResult.Ok) {
 						
 						reader = new MemberReader(
 							childReader.Ordinal,
-							itemName,
+							item.Name,
 							Expression.Condition(
 								childReader.IsNull ?? Expression.Constant(false),
-								Expression.New(itemType),
-								Expression.Convert(childReader.Read, itemType)), 
+								Expression.New(item.Type),
+								Expression.Convert(childReader.Read, item.Type)), 
 							null);
 						return BindingResult.Ok;;
 					}
@@ -128,63 +128,64 @@ namespace DataBoss.Data
 					return r;
 				}
 
-				if (map.TryGetField(itemName, out var field)) {
+				if (map.TryGetField(item.Name, out var field)) {
 					var o = Expression.Constant(field.Ordinal);
 					Expression convertedField;
 					var canReadAsItem =
-						TryReadFieldAs(field.FieldType, o, itemType, out convertedField)
-						|| (field.ProviderSpecificFieldType != null && TryReadFieldAs(field.ProviderSpecificFieldType, o, itemType, out convertedField));
+						TryReadFieldAs(field.FieldType, o, item.Type, out convertedField)
+						|| (field.ProviderSpecificFieldType != null && TryReadFieldAs(field.ProviderSpecificFieldType, o, item.Type, out convertedField));
 					if (!canReadAsItem) {
 						reader = default;
 						return BindingResult.InvalidCast;
 					}
 
 					var thisNull = field.CanBeNull ? IsNull(o) : null;
-					reader = new MemberReader(field.Ordinal, itemName, convertedField, thisNull);
+					reader = new MemberReader(field.Ordinal, item.Name, convertedField, thisNull);
 					return BindingResult.Ok;
 				}
 
-				if (map.TryGetSubMap(itemName, out var subMap)) {
-					reader = FieldInit(subMap, itemType, itemName);
+				if (map.TryGetSubMap(item.Name, out var subMap)) {
+					reader = FieldInit(subMap, item);
 					return BindingResult.Ok;
 				}
 				reader = default;
 				return BindingResult.NotFound;
 			}
 
-			internal InvalidConversionException InvalidConversion(FieldMap map, Type itemType, string itemName) {
-				map.TryGetField(itemName, out var field);
-				return new InvalidConversionException($"Can't read '{itemName}' of type {itemType.Name} given {field.FieldType.Name}", ResultType);
+			internal InvalidConversionException InvalidConversion(FieldMap map, in ItemInfo item) {
+				map.TryGetField(item.Name, out var field);
+				return new InvalidConversionException($"Can't read '{item.Name}' of type {item.Type.Name} given {field.FieldType.Name}", ResultType);
 			}
 
-			public MemberReader FieldInit(FieldMap map, Type fieldType, string fieldName) =>
-				GetCtor(map ,fieldType, fieldName)
-				?? GetFactoryFunction(map, fieldType, fieldName)
-				?? InitValueType(map, fieldType, fieldName)
-				?? throw new InvalidConversionException("No suitable way found to init " + fieldType, ResultType);
+			public MemberReader FieldInit(FieldMap map, in ItemInfo item) =>
+				GetCtor(map, item)
+				?? GetFactoryFunction(map, item)
+				?? InitValueType(map, item)
+				?? throw new InvalidConversionException("No suitable way found to init " + item.Type, ResultType);
 
-			MemberReader? GetCtor(FieldMap map, Type fieldType, string fieldName) {
-				var ctors = fieldType.GetConstructors()
-					.Select(ctor => (ctor, p: Array.ConvertAll(ctor.GetParameters(), x => (x.ParameterType, x.Name))))
+			MemberReader? GetCtor(FieldMap map, in ItemInfo item) {
+				var ctors = item.Type.GetConstructors()
+					.Select(ctor => (ctor, p: Array.ConvertAll(ctor.GetParameters(), x => new ItemInfo(x.Name, x.ParameterType))))
 					.OrderByDescending(x => x.p.Length);
 				
-				return MakeReader(map, fieldName, ctors, (ctor, ps) => 
+				var itemType = item.Type;
+				return MakeReader(map, item.Name, ctors, (ctor, ps) => 
 					Expression.MemberInit(
 						Expression.New(ctor, ps), 
-						GetMembers(map, fieldType)));
+						GetMembers(map, itemType)));
 			}
 
-			MemberReader? GetFactoryFunction(FieldMap map, Type fieldType, string fieldName) {
-				var factoryFuns = fieldType
+			MemberReader? GetFactoryFunction(FieldMap map, in ItemInfo item) {
+				var factoryFuns = item.Type
 					.GetMethods(BindingFlags.Static | BindingFlags.Public)
 					.Where(x => x.GetCustomAttribute(typeof(ConsiderAsCtorAttribute)) != null)
-					.Select(f => (fun: f, p: Array.ConvertAll(f.GetParameters(), x => (x.ParameterType, x.Name))))
+					.Select(f => (fun: f, p: Array.ConvertAll(f.GetParameters(), x => new ItemInfo(x.Name, x.ParameterType))))
 					.OrderByDescending(x => x.p.Length);
 				
-				return MakeReader(map, fieldName, factoryFuns, Expression.Call);
+				return MakeReader(map, item.Name, factoryFuns, Expression.Call);
 			}
 
-			MemberReader? MakeReader<T>(FieldMap map, string itemName, IEnumerable<(T source, (Type ParameterType, string Name)[] parameters)> xs, Func<T, Expression[], Expression> makeExpr)
+			MemberReader? MakeReader<T>(FieldMap map, string itemName, IEnumerable<(T, ItemInfo[])> xs, Func<T, Expression[], Expression> makeExpr)
 			{
 				foreach (var (ctor, p) in xs) {
 					var pn = new MemberReader[p.Length];
@@ -200,25 +201,25 @@ namespace DataBoss.Data
 				return null;
 			}
 
-			MemberReader? InitValueType(FieldMap map, Type fieldType, string fieldName) {
-				if(fieldType.IsValueType)
-					return new MemberReader(map.MinOrdinal, fieldName, Expression.MemberInit(Expression.New(fieldType), GetMembers(map, fieldType)), null);
+			MemberReader? InitValueType(FieldMap map, in ItemInfo item) {
+				if(item.Type.IsValueType)
+					return new MemberReader(map.MinOrdinal, item.Name, Expression.MemberInit(Expression.New(item.Type), GetMembers(map, item.Type)), null);
 				return null;
 			}
 
 			ArraySegment<MemberAssignment> GetMembers(FieldMap map, Type targetType) {
-				var fields = targetType.GetFields().Where(x => !x.IsInitOnly).Select(x => (x.Name, x.FieldType, Member: (MemberInfo)x));
-				var props = targetType.GetProperties().Where(x => x.CanWrite).Select(x => (x.Name, FieldType: x.PropertyType, Member: (MemberInfo)x));
+				var fields = targetType.GetFields().Where(x => !x.IsInitOnly).Select(x => (Item: new ItemInfo(x.Name, x.FieldType), Member: (MemberInfo)x));
+				var props = targetType.GetProperties().Where(x => x.CanWrite).Select(x => (Item: new ItemInfo(x.Name, x.PropertyType), Member: (MemberInfo)x));
 				var members = fields.Concat(props).ToArray();
 				var ordinals = new int[members.Length];
 				var bindings = new MemberAssignment[members.Length];
 				var found = 0;
 				foreach (var x in members) {
-					switch(BindItem(map, x.FieldType, x.Name, out var reader)) {
-						case BindingResult.InvalidCast: throw InvalidConversion(map, x.FieldType, x.Name);
+					switch(BindItem(map, x.Item, out var reader)) {
+						case BindingResult.InvalidCast: throw InvalidConversion(map, x.Item);
 						case BindingResult.NotFound:
 							if (x.Member.GetCustomAttribute(typeof(RequiredAttribute), false) != null)
-								throw new ArgumentException("Failed to set required member.", x.Name);
+								throw new ArgumentException("Failed to set required member.", x.Item.Name);
 							else continue;
 
 						case BindingResult.Ok:
@@ -232,13 +233,24 @@ namespace DataBoss.Data
 				return new ArraySegment<MemberAssignment>(bindings, 0, found);
 			}
 
-			bool TryMapParameters(FieldMap map, (Type ParameterType, string Name)[] parameters, MemberReader[] exprs) {
+			bool TryMapParameters(FieldMap map, ItemInfo[] parameters, MemberReader[] exprs) {
 				for (var i = 0; i != parameters.Length; ++i) {
-					if (BindItem(map, parameters[i].ParameterType, parameters[i].Name, out exprs[i]) != BindingResult.Ok)
+					if (BindItem(map, parameters[i], out exprs[i]) != BindingResult.Ok)
 						return false;
 				}
 				return true;
 			}
+		}
+
+		readonly struct ItemInfo 
+		{
+			public ItemInfo(string name, Type type) {
+				this.Name = name;
+				this.Type = type;
+			}
+
+			public readonly string Name;
+			public readonly Type Type;
 		}
 
 		readonly struct MemberReader
@@ -278,7 +290,7 @@ namespace DataBoss.Data
 
 			public DataRecordConverter BuildConverter(Type readerType, FieldMap map, Type result) {
 				var context = ConverterContext.Create(readerType, result, customConversions);
-				return new DataRecordConverter(Expression.Lambda(ReadOrDefault(context.FieldInit(map, context.ResultType, null)), context.Arg0));
+				return new DataRecordConverter(Expression.Lambda(ReadOrDefault(context.FieldInit(map, new ItemInfo(null, context.ResultType))), context.Arg0));
 			}
 
 			public DataRecordConverter BuildConverter<TReader>(FieldMap map, LambdaExpression resultFactory) where TReader : IDataReader {
@@ -286,7 +298,7 @@ namespace DataBoss.Data
 				return new DataRecordConverter(Expression.Lambda(
 					GuardedInvoke(
 						resultFactory, 
-						BindAllParameters(context, map, resultFactory.Parameters)), 
+						BindAllParameters(context, map, resultFactory.Parameters.Select(x => new ItemInfo(x.Name, x.Type)).ToArray())),
 					context.Arg0));
 			}
 
@@ -294,7 +306,7 @@ namespace DataBoss.Data
 				var m = exemplar.Method;
 				var context = ConverterContext.Create(readerType, m.ReturnType, customConversions);
 				var pn = BindAllParameters(context, map,
-					Array.ConvertAll(m.GetParameters(), x => Expression.Parameter(x.ParameterType, x.Name)));
+					Array.ConvertAll(m.GetParameters(), x => new ItemInfo(x.Name, x.ParameterType)));
 				var arg1 = Expression.Parameter(exemplar.GetType());
 				return new DataRecordConverter(Expression.Lambda(GuardedInvoke(arg1, pn), context.Arg0, arg1));
 			}
@@ -324,11 +336,11 @@ namespace DataBoss.Data
 				{}
 			}
 
-			MemberReader[] BindAllParameters(ConverterContext context, FieldMap map, IReadOnlyList<ParameterExpression> parameters) {
-				var pn = new MemberReader[parameters.Count];
+			MemberReader[] BindAllParameters(ConverterContext context, FieldMap map, ItemInfo[] parameters) {
+				var pn = new MemberReader[parameters.Length];
 				for (var i = 0; i != pn.Length; ++i) {
-					switch (context.BindItem(map, parameters[i].Type, parameters[i].Name, out pn[i])) {
-						case BindingResult.InvalidCast: throw context.InvalidConversion(map, parameters[i].Type, parameters[i].Name);
+					switch (context.BindItem(map, parameters[i], out pn[i])) {
+						case BindingResult.InvalidCast: throw context.InvalidConversion(map, parameters[i]);
 						case BindingResult.NotFound: throw new InvalidOperationException($"Failed to map parameter \"{parameters[i].Name}\"");
 					}
 				}
