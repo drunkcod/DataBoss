@@ -160,7 +160,7 @@ namespace DataBoss.Data
 				GetCtor(map, fieldType)
 				?? GetFactoryFunction(map, fieldType)
 				?? InitValueType(map, fieldType)
-				?? throw new InvalidConversionException("No suitable constructor found for " + fieldType, ResultType);
+				?? throw new InvalidConversionException("No suitable way found to init " + fieldType, ResultType);
 
 			MemberReader? GetCtor(FieldMap map, Type fieldType) {
 				var ctors = fieldType.GetConstructors()
@@ -221,7 +221,7 @@ namespace DataBoss.Data
 
 						case BindingResult.Ok:
 							ordinals[found] = reader.Ordinal;
-							bindings[found] = Expression.Bind(x.Member, reader.GetReader());
+							bindings[found] = Expression.Bind(x.Member, ReadOrDefault(reader));
 							++found;
 							break;
 					}
@@ -239,7 +239,7 @@ namespace DataBoss.Data
 			}
 		}
 
-		struct MemberReader
+		readonly struct MemberReader
 		{
 			public MemberReader(int ordinal, Expression reader, Expression isNull) {
 				this.Ordinal = ordinal;
@@ -250,15 +250,13 @@ namespace DataBoss.Data
 			public readonly int Ordinal;
 			public readonly Expression Read;
 			public readonly Expression IsNull;
+		}
 
-			public Expression GetReader() {
-				if (IsNull == null)
-					return Read;
-				return Expression.Condition(
-					IsNull,
-					Expression.Default(Read.Type),
-					Read);
-			}
+		static Expression ReadOrDefault(in MemberReader reader) =>
+			reader.IsNull == null ? reader.Read : Expression.Condition(reader.IsNull, MakeDefault(reader.Read.Type), reader.Read);
+
+		static Expression MakeDefault(Type type) {
+			return Expression.Default(type);
 		}
 
 		enum BindingResult
@@ -266,6 +264,52 @@ namespace DataBoss.Data
 			Ok,
 			NotFound,
 			InvalidCast
+		}
+
+		class DataRecordConverterFactory
+		{
+			readonly ConverterCollection customConversions;
+
+			public DataRecordConverterFactory(ConverterCollection customConversions) { this.customConversions = customConversions; }
+
+			public DataRecordConverter BuildConverter(Type readerType, FieldMap map, Type result) {
+				var context = ConverterContext.Create(readerType, result, customConversions);
+				return new DataRecordConverter(Expression.Lambda(ReadOrDefault(context.FieldInit(map, context.ResultType)), context.Arg0));
+			}
+
+			public DataRecordConverter BuildConverter<TReader>(FieldMap map, LambdaExpression resultFactory) where TReader : IDataReader {
+				var context = ConverterContext.Create(typeof(TReader), resultFactory.Type, customConversions);
+				var pn = BindAllParameters(context, map, resultFactory.Parameters);
+				Expression body = Expression.Invoke(resultFactory, Array.ConvertAll(pn, x => x.Read));
+				var isNull = AnyOf(pn.Where(x => x.Read.Type.IsPrimitive).Select(x => x.IsNull));
+				if(isNull != null)
+					body = Expression.Condition(
+						isNull, 
+						Expression.Throw(Expression.New(typeof(InvalidCastException)), body.Type),
+						body);
+				return new DataRecordConverter(Expression.Lambda(body, context.Arg0));
+			}
+
+			public DataRecordConverter BuildConverter(Type readerType, FieldMap map, Delegate exemplar) {
+				var m = exemplar.Method;
+				var context = ConverterContext.Create(readerType, m.ReturnType, customConversions);
+				var pn = BindAllParameters(context, map,
+					Array.ConvertAll(m.GetParameters(), x => Expression.Parameter(x.ParameterType, x.Name)));
+				var arg1 = Expression.Parameter(exemplar.GetType());
+				var ps = Array.ConvertAll(pn, x => x.Read);
+				return new DataRecordConverter(Expression.Lambda(Expression.Invoke(arg1, ps), context.Arg0, arg1));
+			}
+
+			MemberReader[] BindAllParameters(ConverterContext context, FieldMap map, IReadOnlyList<ParameterExpression> parameters) {
+				var pn = new MemberReader[parameters.Count];
+				for (var i = 0; i != pn.Length; ++i) {
+					switch (context.BindItem(map, parameters[i].Type, parameters[i].Name, out pn[i])) {
+						case BindingResult.InvalidCast: throw context.InvalidConversion(map, parameters[i].Type, parameters[i].Name);
+						case BindingResult.NotFound: throw new InvalidOperationException($"Failed to map parameter \"{parameters[i].Name}\"");
+					}
+				}
+				return pn;
+			}
 		}
 
 		readonly DataRecordConverterFactory recordConverterFactory;
@@ -280,49 +324,6 @@ namespace DataBoss.Data
 		}
 
 		public static ConverterFactory Default = new ConverterFactory(null, NullConverterCache.Instance);
-
-		class DataRecordConverterFactory
-		{
-			readonly ConverterCollection customConversions;
-
-			public DataRecordConverterFactory(ConverterCollection customConversions) { this.customConversions = customConversions; }
-
-			public DataRecordConverter BuildConverter(Type readerType, FieldMap map, Type result) {
-				var context = ConverterContext.Create(readerType, result, customConversions);
-				return new DataRecordConverter(Expression.Lambda(context.FieldInit(map, context.ResultType).GetReader(), context.Arg0));
-			}
-
-			public DataRecordConverter BuildConverter<TReader>(FieldMap map, LambdaExpression resultFactory) where TReader : IDataReader {
-				var context = ConverterContext.Create(typeof(TReader), resultFactory.Type, customConversions);
-				var pn = BindAllParameters(context, map, resultFactory.Parameters);
-				return new DataRecordConverter(Expression.Lambda(Expression.Invoke(resultFactory, pn), context.Arg0));
-			}
-
-			public DataRecordConverter BuildConverter(Type readerType, FieldMap map, Delegate exemplar) {
-				var m = exemplar.Method;
-				var context = ConverterContext.Create(readerType, m.ReturnType, customConversions);
-				var pn = BindAllParameters(context, map, 
-					Array.ConvertAll(m.GetParameters(), x => Expression.Parameter(x.ParameterType, x.Name)));
-				var arg1 = Expression.Parameter(exemplar.GetType());
-				return new DataRecordConverter(Expression.Lambda(Expression.Invoke(arg1, pn), context.Arg0, arg1));
-			}
-
-			Expression[] BindAllParameters(ConverterContext context, FieldMap map, IReadOnlyList<ParameterExpression> parameters) {
-				var pn = new Expression[parameters.Count];
-				for (var i = 0; i != pn.Length; ++i) {
-					switch(context.BindItem(map, parameters[i].Type, parameters[i].Name, out var reader))
-					{
-						case BindingResult.InvalidCast: throw context.InvalidConversion(map, parameters[i].Type, parameters[i].Name);
-						case BindingResult.NotFound: throw new InvalidOperationException($"Failed to map parameter \"{parameters[i].Name}\"");
-
-						case BindingResult.Ok:
-							pn[i] = reader.GetReader();
-							break;
-					}
-				}
-				return pn;
-			}
-		}
 
 		public DataRecordConverter<TReader, T> GetConverter<TReader, T>(TReader reader) where TReader : IDataReader =>
 			converterCache.GetOrAdd(

@@ -84,7 +84,7 @@ namespace DataBoss.Specs.Data
 
 			Check.With(() => DbReader
 				.Query("select Value = cast(@value as smallint)", new { value = 7 })
-				.ReadWithRetry<Row>((_, x) => true, conversions)
+				.ReadWithRetry<Row>((n, x) => n < 10, conversions)
 				.Single()
 			).That(row => row.Value == 21);
 		}

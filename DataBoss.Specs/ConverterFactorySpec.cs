@@ -36,6 +36,34 @@ namespace DataBoss.Specs
 					converter => converter(reader).Value == reader.GetInt32(0).ToString());
 		}
 
+		public void throw_on_unexpected_null() {
+			var factory = new ConverterFactory(new ConverterCollection());
+			var reader = new SimpleDataReader(new KeyValuePair<string, Type>("value", typeof(int)));
+			reader.Add(new[]{ (object)null });
+			reader.SetNullable(0, true);
+
+			reader.Read();
+			var converter = factory.Compile(reader, (int value) => new KeyValuePair<int, string>(value, value.ToString()));
+			Check.Exception<InvalidCastException>(() => converter(reader));
+		}
+
+		public void no_throw_on_expected_null() {
+			var factory = new ConverterFactory(new ConverterCollection());
+			var reader = new SimpleDataReader(
+				new KeyValuePair<string, Type>("id", typeof(int)),
+				new KeyValuePair<string, Type>("value", typeof(string)));
+			reader.Add(new[] { (object)null, (object)null });
+			reader.SetNullable(0, true);
+			reader.SetNullable(1, true);
+
+			reader.Read();
+			var converter = factory.Compile(reader, (int? id, string value) => Tuple.Create(id, value));
+			Check.With(() => converter(reader)).That(
+				x => x.Item1 == null,
+				x => x.Item2 == null);
+		}
+
+
 		public void factory_expression_ctor_reuse() {
 			var factory = new ConverterFactory(new ConverterCollection(), new ConcurrentConverterCache());
 			var reader = SequenceDataReader.Create(new[] { new { x = 1, } }, x => x.MapAll());
