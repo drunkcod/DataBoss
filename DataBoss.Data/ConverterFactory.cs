@@ -116,6 +116,7 @@ namespace DataBoss.Data
 						
 						reader = new MemberReader(
 							childReader.Ordinal,
+							itemName,
 							Expression.Condition(
 								childReader.IsNull ?? Expression.Constant(false),
 								Expression.New(itemType),
@@ -139,12 +140,12 @@ namespace DataBoss.Data
 					}
 
 					var thisNull = field.CanBeNull ? IsNull(o) : null;
-					reader = new MemberReader(field.Ordinal, convertedField, thisNull);
+					reader = new MemberReader(field.Ordinal, itemName, convertedField, thisNull);
 					return BindingResult.Ok;
 				}
 
 				if (map.TryGetSubMap(itemName, out var subMap)) {
-					reader = FieldInit(subMap, itemType);
+					reader = FieldInit(subMap, itemType, itemName);
 					return BindingResult.Ok;
 				}
 				reader = default;
@@ -156,40 +157,41 @@ namespace DataBoss.Data
 				return new InvalidConversionException($"Can't read '{itemName}' of type {itemType.Name} given {field.FieldType.Name}", ResultType);
 			}
 
-			public MemberReader FieldInit(FieldMap map, Type fieldType) =>
-				GetCtor(map, fieldType)
-				?? GetFactoryFunction(map, fieldType)
-				?? InitValueType(map, fieldType)
+			public MemberReader FieldInit(FieldMap map, Type fieldType, string fieldName) =>
+				GetCtor(map ,fieldType, fieldName)
+				?? GetFactoryFunction(map, fieldType, fieldName)
+				?? InitValueType(map, fieldType, fieldName)
 				?? throw new InvalidConversionException("No suitable way found to init " + fieldType, ResultType);
 
-			MemberReader? GetCtor(FieldMap map, Type fieldType) {
+			MemberReader? GetCtor(FieldMap map, Type fieldType, string fieldName) {
 				var ctors = fieldType.GetConstructors()
 					.Select(ctor => (ctor, p: Array.ConvertAll(ctor.GetParameters(), x => (x.ParameterType, x.Name))))
 					.OrderByDescending(x => x.p.Length);
 				
-				return MakeReader(map, ctors, (ctor, ps) => 
+				return MakeReader(map, fieldName, ctors, (ctor, ps) => 
 					Expression.MemberInit(
 						Expression.New(ctor, ps), 
 						GetMembers(map, fieldType)));
 			}
 
-			MemberReader? GetFactoryFunction(FieldMap map, Type fieldType) {
+			MemberReader? GetFactoryFunction(FieldMap map, Type fieldType, string fieldName) {
 				var factoryFuns = fieldType
 					.GetMethods(BindingFlags.Static | BindingFlags.Public)
 					.Where(x => x.GetCustomAttribute(typeof(ConsiderAsCtorAttribute)) != null)
 					.Select(f => (fun: f, p: Array.ConvertAll(f.GetParameters(), x => (x.ParameterType, x.Name))))
 					.OrderByDescending(x => x.p.Length);
 				
-				return MakeReader(map, factoryFuns, Expression.Call);
+				return MakeReader(map, fieldName, factoryFuns, Expression.Call);
 			}
 
-			MemberReader? MakeReader<T>(FieldMap map, IEnumerable<(T source, (Type ParameterType, string Name)[] parameters)> xs, Func<T, Expression[], Expression> makeExpr)
+			MemberReader? MakeReader<T>(FieldMap map, string itemName, IEnumerable<(T source, (Type ParameterType, string Name)[] parameters)> xs, Func<T, Expression[], Expression> makeExpr)
 			{
 				foreach (var (ctor, p) in xs) {
 					var pn = new MemberReader[p.Length];
 					if (TryMapParameters(map, p, pn)) {
 						return new MemberReader(
 							map.MinOrdinal,
+							itemName,
 							makeExpr(ctor, Array.ConvertAll(pn, x => x.Read)),
 							AnyOf(pn.Select(x => x.IsNull)));
 					}
@@ -198,9 +200,9 @@ namespace DataBoss.Data
 				return null;
 			}
 
-			MemberReader? InitValueType(FieldMap map, Type fieldType) {
+			MemberReader? InitValueType(FieldMap map, Type fieldType, string fieldName) {
 				if(fieldType.IsValueType)
-					return new MemberReader(map.MinOrdinal, Expression.MemberInit(Expression.New(fieldType), GetMembers(map, fieldType)), null);
+					return new MemberReader(map.MinOrdinal, fieldName, Expression.MemberInit(Expression.New(fieldType), GetMembers(map, fieldType)), null);
 				return null;
 			}
 
@@ -241,13 +243,15 @@ namespace DataBoss.Data
 
 		readonly struct MemberReader
 		{
-			public MemberReader(int ordinal, Expression reader, Expression isNull) {
+			public MemberReader(int ordinal, string name, Expression reader, Expression isNull) {
 				this.Ordinal = ordinal;
+				this.Name = name;
 				this.Read = reader;
 				this.IsNull = isNull;
 			}
 
 			public readonly int Ordinal;
+			public readonly string Name;
 			public readonly Expression Read;
 			public readonly Expression IsNull;
 		}
@@ -274,20 +278,16 @@ namespace DataBoss.Data
 
 			public DataRecordConverter BuildConverter(Type readerType, FieldMap map, Type result) {
 				var context = ConverterContext.Create(readerType, result, customConversions);
-				return new DataRecordConverter(Expression.Lambda(ReadOrDefault(context.FieldInit(map, context.ResultType)), context.Arg0));
+				return new DataRecordConverter(Expression.Lambda(ReadOrDefault(context.FieldInit(map, context.ResultType, null)), context.Arg0));
 			}
 
 			public DataRecordConverter BuildConverter<TReader>(FieldMap map, LambdaExpression resultFactory) where TReader : IDataReader {
 				var context = ConverterContext.Create(typeof(TReader), resultFactory.Type, customConversions);
-				var pn = BindAllParameters(context, map, resultFactory.Parameters);
-				Expression body = Expression.Invoke(resultFactory, Array.ConvertAll(pn, x => x.Read));
-				var isNull = AnyOf(pn.Where(x => x.Read.Type.IsPrimitive).Select(x => x.IsNull));
-				if(isNull != null)
-					body = Expression.Condition(
-						isNull, 
-						Expression.Throw(Expression.New(typeof(InvalidCastException)), body.Type),
-						body);
-				return new DataRecordConverter(Expression.Lambda(body, context.Arg0));
+				return new DataRecordConverter(Expression.Lambda(
+					GuardedInvoke(
+						resultFactory, 
+						BindAllParameters(context, map, resultFactory.Parameters)), 
+					context.Arg0));
 			}
 
 			public DataRecordConverter BuildConverter(Type readerType, FieldMap map, Delegate exemplar) {
@@ -296,8 +296,32 @@ namespace DataBoss.Data
 				var pn = BindAllParameters(context, map,
 					Array.ConvertAll(m.GetParameters(), x => Expression.Parameter(x.ParameterType, x.Name)));
 				var arg1 = Expression.Parameter(exemplar.GetType());
-				var ps = Array.ConvertAll(pn, x => x.Read);
-				return new DataRecordConverter(Expression.Lambda(Expression.Invoke(arg1, ps), context.Arg0, arg1));
+				return new DataRecordConverter(Expression.Lambda(GuardedInvoke(arg1, pn), context.Arg0, arg1));
+			}
+
+			static Expression GuardedInvoke(Expression body, MemberReader[] args) {
+				var isNull = AnyOf(args.Where(x => x.Read.Type.IsPrimitive).Select(x => x.IsNull));
+				body = Expression.Invoke(body, Array.ConvertAll(args, x => x.Read));
+				if(isNull == null)
+					return body;
+				return Expression.Condition(isNull,
+					Expression.Throw(
+						Expression.New(
+							typeof(DataRowNullCastException).GetConstructor(new[]{ typeof(string[]) }),
+							Expression.NewArrayInit(typeof(string), 
+								args.Where(x => x.Read.Type.IsPrimitive && x.IsNull != null).Select(x => 
+									Expression.Condition(x.IsNull,
+										Expression.Constant(x.Name),
+										Expression.Constant(null, typeof(string)))))), 
+						body.Type),
+					body);
+			}
+
+			class DataRowNullCastException : InvalidCastException
+			{
+				public DataRowNullCastException(string[] nullFields) : 
+					base(string.Format("'{0}' was null.", string.Join(", ", nullFields.Where(x => !string.IsNullOrEmpty(x)))))
+				{}
 			}
 
 			MemberReader[] BindAllParameters(ConverterContext context, FieldMap map, IReadOnlyList<ParameterExpression> parameters) {
@@ -325,16 +349,10 @@ namespace DataBoss.Data
 
 		public static ConverterFactory Default = new ConverterFactory(null, NullConverterCache.Instance);
 
-		public DataRecordConverter<TReader, T> GetConverter<TReader, T>(TReader reader) where TReader : IDataReader =>
-			converterCache.GetOrAdd(
-				reader, ConverterCacheKey.Create(reader, typeof(T)),
-				x => recordConverterFactory.BuildConverter(typeof(TReader), x, typeof(T)))
-			.ToTyped<TReader, T>();
-	
 		public Func<TReader, TResult> Compile<TReader, T1, TResult>(TReader reader, Expression<Func<T1, TResult>> selector) where TReader : IDataReader =>
-			(Func<TReader, TResult>)GetConverter(reader, selector).Compile();
+		(Func<TReader, TResult>)GetConverter(reader, selector).Compile();
 
-		public Func<TReader, TResult> Compile<TReader, TArg0, T2, TResult>(TReader reader, Expression<Func<TArg0, T2, TResult>> selector) where TReader : IDataReader =>
+		public Func<TReader, TResult> Compile<TReader, T1, T2, TResult>(TReader reader, Expression<Func<T1, T2, TResult>> selector) where TReader : IDataReader =>
 			(Func<TReader, TResult>)GetConverter(reader, selector).Compile();
 
 		public Func<TReader, TResult> Compile<TReader, T1, T2, T3, TResult>(TReader reader, Expression<Func<T1, T2, T3, TResult>> selector) where TReader : IDataReader =>
@@ -352,6 +370,12 @@ namespace DataBoss.Data
 		public Func<TReader, TResult> Compile<TReader, T1, T2, T3, T4, T5, T6, T7, TResult>(TReader reader, Expression<Func<T1, T2, T3, T4, T5, T6, T7, TResult>> selector) where TReader : IDataReader =>
 			(Func<TReader, TResult>)GetConverter(reader, selector).Compile();
 
+		public DataRecordConverter<TReader, T> GetConverter<TReader, T>(TReader reader) where TReader : IDataReader =>
+			converterCache.GetOrAdd(
+				reader, ConverterCacheKey.Create(reader, typeof(T)),
+				x => recordConverterFactory.BuildConverter(typeof(TReader), x, typeof(T)))
+			.ToTyped<TReader, T>();
+	
 		public DataRecordConverter GetConverter<TReader>(TReader reader, LambdaExpression factory) where TReader : IDataReader {
 			if (ConverterCacheKey.TryCreate(reader, factory, out var key)) {
 				return converterCache.GetOrAdd(

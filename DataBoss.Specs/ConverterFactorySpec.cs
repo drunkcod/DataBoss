@@ -44,7 +44,8 @@ namespace DataBoss.Specs
 
 			reader.Read();
 			var converter = factory.Compile(reader, (int value) => new KeyValuePair<int, string>(value, value.ToString()));
-			Check.Exception<InvalidCastException>(() => converter(reader));
+			var ex = Check.Exception<InvalidCastException>(() => converter(reader));
+			Check.That(() => ex.Message.Contains("'value'"));
 		}
 
 		public void no_throw_on_expected_null() {
@@ -62,7 +63,6 @@ namespace DataBoss.Specs
 				x => x.Item1 == null,
 				x => x.Item2 == null);
 		}
-
 
 		public void factory_expression_ctor_reuse() {
 			var factory = new ConverterFactory(new ConverterCollection(), new ConcurrentConverterCache());
