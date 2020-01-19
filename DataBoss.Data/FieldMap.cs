@@ -7,7 +7,7 @@ namespace DataBoss.Data
 {
 	public class FieldMap
 	{
-		readonly Dictionary<string, FieldMapItem> fields = new Dictionary<string, FieldMapItem>();
+		readonly Dictionary<string, FieldMapItem> fields = new Dictionary<string, FieldMapItem>(StringComparer.InvariantCultureIgnoreCase);
 		Dictionary<string, FieldMap> subFields;
 
 		public static FieldMap Create(IDataReader reader) {

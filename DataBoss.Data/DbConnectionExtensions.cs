@@ -123,53 +123,23 @@ namespace DataBoss.Data
 			}
 		}
 
-		public static IEnumerable<T> Query<T>(this IDbConnection db, string sql, object args = null, bool buffered = true) =>
-			Query<T>(db, sql, new DataBossQueryOptions { Parameters = args, Buffered = buffered });
+		public static IEnumerable<T> Query<T>(this IDbConnection db, string sql, object args = null, bool buffered = true) => Query<T>(db, sql, new DataBossQueryOptions { Parameters = args, Buffered = buffered });
+		public static IEnumerable<TResult> Query<T, TResult>(this IDbConnection db, Func<T, TResult> selector, string sql, object args = null, bool buffered = true) => Query(db, sql, args, buffered).Read(selector);
+		public static IEnumerable<TResult> Query<T1, T2, TResult>(this IDbConnection db, Func<T1, T2, TResult> selector, string sql, object args = null, bool buffered = true) => Query(db, sql, args, buffered).Read(selector);
+		public static IEnumerable<TResult> Query<T1, T2, T3, TResult>(this IDbConnection db, Func<T1, T2, T3, TResult> selector, string sql, object args = null, bool buffered = true) => Query(db, sql, args, buffered).Read(selector);
+		public static IEnumerable<TResult> Query<T1, T2, T3, T4, TResult>(this IDbConnection db, Func<T1, T2, T3, T4, TResult> selector, string sql, object args = null, bool buffered = true) => Query(db, sql, args, buffered).Read(selector);
+		public static IEnumerable<TResult> Query<T1, T2, T3, T4, T5, TResult>(this IDbConnection db, Func<T1, T2, T3, T4, T5, TResult> selector, string sql, object args = null, bool buffered = true) => Query(db, sql, args, buffered).Read(selector);
+		public static IEnumerable<TResult> Query<T1, T2, T3, T4, T5, T6, TResult>(this IDbConnection db, Func<T1, T2, T3, T4, T5, T6, TResult> selector, string sql, object args = null, bool buffered = true) => Query(db, sql, args, buffered).Read(selector);
+		public static IEnumerable<TResult> Query<T1, T2, T3, T4, T5, T6, T7, TResult>(this IDbConnection db, Func<T1, T2, T3, T4, T5, T6, T7, TResult> selector, string sql, object args = null, bool buffered = true) => Query(db, sql, args, buffered).Read(selector);
 
-		public static IEnumerable<TResult> Query<T, TResult>(this IDbConnection db, Func<T, TResult> selector, string sql, object args = null, bool buffered = true) =>
-			Query(db, sql, args, buffered).Read(selector);
-
-		public static IEnumerable<TResult> Query<T1, T2, TResult>(this IDbConnection db, Func<T1, T2, TResult> selector, string sql, object args = null, bool buffered = true) =>
-			Query(db, sql, args, buffered).Read(selector);
-
-		public static IEnumerable<TResult> Query<T1, T2, T3, TResult>(this IDbConnection db, Func<T1, T2, T3, TResult> selector, string sql, object args = null, bool buffered = true) =>
-			Query(db, sql, args, buffered).Read(selector);
-
-		public static IEnumerable<TResult> Query<T1, T2, T3, T4, TResult>(this IDbConnection db, Func<T1, T2, T3, T4, TResult> selector, string sql, object args = null, bool buffered = true) =>
-			Query(db, sql, args, buffered).Read(selector);
-
-		public static IEnumerable<TResult> Query<T1, T2, T3, T4, T5, TResult>(this IDbConnection db, Func<T1, T2, T3, T4, T5, TResult> selector, string sql, object args = null, bool buffered = true) =>
-			Query(db, sql, args, buffered).Read(selector);
-
-		public static IEnumerable<TResult> Query<T1, T2, T3, T4, T5, T6, TResult>(this IDbConnection db, Func<T1, T2, T3, T4, T5, T6, TResult> selector, string sql, object args = null, bool buffered = true) =>
-			Query(db, sql, args, buffered).Read(selector);
-
-		public static IEnumerable<TResult> Query<T1, T2, T3, T4, T5, T6, T7, TResult>(this IDbConnection db, Func<T1, T2, T3, T4, T5, T6, T7, TResult> selector, string sql, object args = null, bool buffered = true) =>
-			Query(db, sql, args, buffered).Read(selector);
-
-		public static IEnumerable<T> Query<T>(this IDbConnection db, string commandText, DataBossQueryOptions options) =>
-			new DbQuery(db, commandText, options).Read<T>();
-
-		public static IEnumerable<TResult> Query<T1, TResult>(this IDbConnection db, Func<T1, TResult> selector, string commandText, DataBossQueryOptions options) =>
-			new DbQuery(db, commandText, options).Read(selector);
-
-		public static IEnumerable<TResult> Query<T1, T2, TResult>(this IDbConnection db, Func<T1, T2, TResult> selector, string commandText, DataBossQueryOptions options) =>
-			new DbQuery(db, commandText, options).Read(selector);
-
-		public static IEnumerable<TResult> Query<T1, T2, T3, TResult>(this IDbConnection db, Func<T1, T2, T3, TResult> selector, string commandText, DataBossQueryOptions options) =>
-			new DbQuery(db, commandText, options).Read(selector);
-
-		public static IEnumerable<TResult> Query<T1, T2, T3, T4, TResult>(this IDbConnection db, Func<T1, T2, T3, T4, TResult> selector, string commandText, DataBossQueryOptions options) =>
-			new DbQuery(db, commandText, options).Read(selector);
-
-		public static IEnumerable<TResult> Query<T1, T2, T3, T4, T5, TResult>(this IDbConnection db, Func<T1, T2, T3, T4, T5, TResult> selector, string commandText, DataBossQueryOptions options) =>
-			new DbQuery(db, commandText, options).Read(selector);
-
-		public static IEnumerable<TResult> Query<T1, T2, T3, T4, T5, T6, TResult>(this IDbConnection db, Func<T1, T2, T3, T4, T5, T6, TResult> selector, string commandText, DataBossQueryOptions options) =>
-			new DbQuery(db, commandText, options).Read(selector);
-
-		public static IEnumerable<TResult> Query<T1, T2, T3, T4, T5, T6, T7, TResult>(this IDbConnection db, Func<T1, T2, T3, T4, T5, T6, T7, TResult> selector, string commandText, DataBossQueryOptions options) =>
-			new DbQuery(db, commandText, options).Read(selector);
+		public static IEnumerable<T> Query<T>(this IDbConnection db, string commandText, DataBossQueryOptions options) => new DbQuery(db, commandText, options).Read<T>();
+		public static IEnumerable<TResult> Query<T1, TResult>(this IDbConnection db, Func<T1, TResult> selector, string commandText, DataBossQueryOptions options) => new DbQuery(db, commandText, options).Read(selector);
+		public static IEnumerable<TResult> Query<T1, T2, TResult>(this IDbConnection db, Func<T1, T2, TResult> selector, string commandText, DataBossQueryOptions options) => new DbQuery(db, commandText, options).Read(selector);
+		public static IEnumerable<TResult> Query<T1, T2, T3, TResult>(this IDbConnection db, Func<T1, T2, T3, TResult> selector, string commandText, DataBossQueryOptions options) => new DbQuery(db, commandText, options).Read(selector);
+		public static IEnumerable<TResult> Query<T1, T2, T3, T4, TResult>(this IDbConnection db, Func<T1, T2, T3, T4, TResult> selector, string commandText, DataBossQueryOptions options) => new DbQuery(db, commandText, options).Read(selector);
+		public static IEnumerable<TResult> Query<T1, T2, T3, T4, T5, TResult>(this IDbConnection db, Func<T1, T2, T3, T4, T5, TResult> selector, string commandText, DataBossQueryOptions options) => new DbQuery(db, commandText, options).Read(selector);
+		public static IEnumerable<TResult> Query<T1, T2, T3, T4, T5, T6, TResult>(this IDbConnection db, Func<T1, T2, T3, T4, T5, T6, TResult> selector, string commandText, DataBossQueryOptions options) => new DbQuery(db, commandText, options).Read(selector);
+		public static IEnumerable<TResult> Query<T1, T2, T3, T4, T5, T6, T7, TResult>(this IDbConnection db, Func<T1, T2, T3, T4, T5, T6, T7, TResult> selector, string commandText, DataBossQueryOptions options) => new DbQuery(db, commandText, options).Read(selector);
 
 		static DbQuery Query(IDbConnection db, string commandText, object args, bool buffered) =>
 			new DbQuery(db, commandText, new DataBossQueryOptions { Parameters = args, Buffered = buffered });
@@ -198,26 +168,13 @@ namespace DataBoss.Data
 	
 			public IEnumerable<T> Read<T>() => BufferOrNot(DbObjectQuery.Create(GetCommand).Read<T>());
 
-			public IEnumerable<TResult> Read<T1, TResult>(Func<T1, TResult> selector) =>
-				BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
-
-			public IEnumerable<TResult> Read<T1, T2, TResult>(Func<T1, T2, TResult> selector) =>
-				BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
-
-			public IEnumerable<TResult> Read<T1, T2, T3, TResult>(Func<T1, T2, T3, TResult> selector) =>
-				BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
-
-			public IEnumerable<TResult> Read<T1, T2, T3, T4, TResult>(Func<T1, T2, T3, T4, TResult> selector) =>
-				BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
-
-			public IEnumerable<TResult> Read<T1, T2, T3, T4, T5, TResult>(Func<T1, T2, T3, T4, T5, TResult> selector) =>
-				BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
-
-			public IEnumerable<TResult> Read<T1, T2, T3, T4, T5, T6, TResult>(Func<T1, T2, T3, T4, T5, T6, TResult> selector) =>
-				BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
-
-			public IEnumerable<TResult> Read<T1, T2, T3, T4, T5, T6, T7, TResult>(Func<T1, T2, T3, T4, T5, T6, T7, TResult> selector) =>
-				BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
+			public IEnumerable<TResult> Read<T1, TResult>(Func<T1, TResult> selector) => BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
+			public IEnumerable<TResult> Read<T1, T2, TResult>(Func<T1, T2, TResult> selector) => BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
+			public IEnumerable<TResult> Read<T1, T2, T3, TResult>(Func<T1, T2, T3, TResult> selector) => BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
+			public IEnumerable<TResult> Read<T1, T2, T3, T4, TResult>(Func<T1, T2, T3, T4, TResult> selector) => BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
+			public IEnumerable<TResult> Read<T1, T2, T3, T4, T5, TResult>(Func<T1, T2, T3, T4, T5, TResult> selector) => BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
+			public IEnumerable<TResult> Read<T1, T2, T3, T4, T5, T6, TResult>(Func<T1, T2, T3, T4, T5, T6, TResult> selector) => BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
+			public IEnumerable<TResult> Read<T1, T2, T3, T4, T5, T6, T7, TResult>(Func<T1, T2, T3, T4, T5, T6, T7, TResult> selector) => BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
 
 			IEnumerable<T> BufferOrNot<T>(IEnumerable<T> xs) => Options.Buffered ? xs.ToList() : xs;
 

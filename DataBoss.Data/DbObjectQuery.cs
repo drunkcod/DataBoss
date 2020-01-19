@@ -10,7 +10,6 @@ namespace DataBoss.Data
 		public static DbObjectQuery<IDbCommand, IDataReader> Create(Func<IDbCommand> getCommand) =>
 			new DbObjectQuery<IDbCommand, IDataReader>(getCommand, DbOps<IDbCommand, IDataReader>.ExecuteReader);
 
-
 		internal static Func<TReader, TOutput> NewFuncConverter<TReader, TFun, TOutput> (TReader reader, object state) 
 			where TReader : IDataReader
 			where TFun : Delegate 
@@ -32,7 +31,7 @@ namespace DataBoss.Data
 		}
 	}
 
-	public struct DbObjectQuery<TCommand, TReader> 
+	public readonly struct DbObjectQuery<TCommand, TReader> 
 		where TCommand : IDbCommand 
 		where TReader: IDataReader
 	{
@@ -45,27 +44,13 @@ namespace DataBoss.Data
 		}
 
 		public DbCommandEnumerable<TCommand, TReader, TResult> Read<TResult>() => Read(DefaultReader<TResult>, null);
-
-		public DbCommandEnumerable<TCommand, TReader, TResult> Read<T1, TResult>(Func<T1, TResult> factory) =>
-			Read<Func<T1, TResult>, TResult>(factory);
-		
-		public DbCommandEnumerable<TCommand, TReader, TResult> Read<T1, T2, TResult>(Func<T1, T2, TResult> factory) =>
-			Read<Func<T1, T2, TResult>, TResult>(factory);
-
-		public DbCommandEnumerable<TCommand, TReader, TResult> Read<T1, T2, T3, TResult>(Func<T1, T2, T3, TResult> factory) =>
-			Read<Func<T1, T2, T3, TResult>, TResult>(factory);
-
-		public DbCommandEnumerable<TCommand, TReader, TResult> Read<T1, T2, T3, T4, TResult>(Func<T1, T2, T3, T4, TResult> factory) =>
-			Read<Func<T1, T2, T3, T4, TResult>, TResult>(factory);
-
-		public DbCommandEnumerable<TCommand, TReader, TResult> Read<T1, T2, T3, T4, T5, TResult>(Func<T1, T2, T3, T4, T5, TResult> factory) =>
-			Read<Func<T1, T2, T3, T4, T5, TResult>, TResult>(factory);
-
-		public DbCommandEnumerable<TCommand, TReader, TResult> Read<T1, T2, T3, T4, T5, T6, TResult>(Func<T1, T2, T3, T4, T5, T6, TResult> factory) =>
-			Read<Func<T1, T2, T3, T4, T5, T6, TResult>, TResult>(factory);
-
-		public DbCommandEnumerable<TCommand, TReader, TResult> Read<T1, T2, T3, T4, T5, T6, T7, TResult>(Func<T1, T2, T3, T4, T5, T6, T7, TResult> factory) =>
-			Read<Func<T1, T2, T3, T4, T5, T6, T7, TResult>, TResult>(factory);
+		public DbCommandEnumerable<TCommand, TReader, TResult> Read<T1, TResult>(Func<T1, TResult> factory) => Read<Func<T1, TResult>, TResult>(factory);
+		public DbCommandEnumerable<TCommand, TReader, TResult> Read<T1, T2, TResult>(Func<T1, T2, TResult> factory) => Read<Func<T1, T2, TResult>, TResult>(factory);
+		public DbCommandEnumerable<TCommand, TReader, TResult> Read<T1, T2, T3, TResult>(Func<T1, T2, T3, TResult> factory) => Read<Func<T1, T2, T3, TResult>, TResult>(factory);
+		public DbCommandEnumerable<TCommand, TReader, TResult> Read<T1, T2, T3, T4, TResult>(Func<T1, T2, T3, T4, TResult> factory) => Read<Func<T1, T2, T3, T4, TResult>, TResult>(factory);
+		public DbCommandEnumerable<TCommand, TReader, TResult> Read<T1, T2, T3, T4, T5, TResult>(Func<T1, T2, T3, T4, T5, TResult> factory) => Read<Func<T1, T2, T3, T4, T5, TResult>, TResult>(factory);
+		public DbCommandEnumerable<TCommand, TReader, TResult> Read<T1, T2, T3, T4, T5, T6, TResult>(Func<T1, T2, T3, T4, T5, T6, TResult> factory) => Read<Func<T1, T2, T3, T4, T5, T6, TResult>, TResult>(factory);
+		public DbCommandEnumerable<TCommand, TReader, TResult> Read<T1, T2, T3, T4, T5, T6, T7, TResult>(Func<T1, T2, T3, T4, T5, T6, T7, TResult> factory) => Read<Func<T1, T2, T3, T4, T5, T6, T7, TResult>, TResult>(factory);
 
 		static Func<TReader, T> DefaultReader<T>(TReader reader, object _) =>
 			ConverterFactory.Default.GetConverter<TReader, T>(reader).Compiled;
@@ -76,10 +61,9 @@ namespace DataBoss.Data
 		public DbCommandEnumerable<TCommand, TReader, TOutput> Read<TOutput>(Func<TReader, object, Func<TReader, TOutput>> converterFactory, object state) =>
 			new DbCommandEnumerable<TCommand, TReader, TOutput>(getCommand, executeReader, converterFactory, state);
 
-		public DbCommandEnumerable<TCommand, TReader, TOutput> Read<TFun, TOutput>(TFun fun) where TFun : Delegate { 
-			return new DbCommandEnumerable<TCommand, TReader, TOutput>(getCommand, executeReader, DbObjectQuery.NewFuncConverter<TReader, TFun,TOutput>, fun);
-		}
-
+		public DbCommandEnumerable<TCommand, TReader, TOutput> Read<TFun, TOutput>(TFun fun) where TFun : Delegate => 
+			new DbCommandEnumerable<TCommand, TReader, TOutput>(getCommand, executeReader, DbObjectQuery.NewFuncConverter<TReader, TFun,TOutput>, fun);
+		
 		public List<TOutput> ReadWithRetry<TOutput>(RetryStrategy retry) => Read<TOutput>().ToList(retry);
 		public List<TOutput> ReadWithRetry<TOutput>(RetryStrategy retry, ConverterCollection converters) => Read<TOutput>(converters).ToList(retry);
 
