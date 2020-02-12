@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 
 namespace DataBoss.DataPackage
 {
@@ -8,5 +8,13 @@ namespace DataBoss.DataPackage
 		public string Name;
 		[JsonProperty("type")]
 		public string Type;
+		[JsonProperty("constraints", DefaultValueHandling = DefaultValueHandling.Ignore)]
+		public TabularDataSchemaFieldConstraints Constraints;
+	}
+
+	public class TabularDataSchemaFieldConstraints
+	{
+		[JsonProperty("required", DefaultValueHandling = DefaultValueHandling.Ignore)]
+		public bool IsRequired;
 	}
 }

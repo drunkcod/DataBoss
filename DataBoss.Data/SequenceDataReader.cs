@@ -32,7 +32,7 @@ namespace DataBoss.Data
 		public string ColumnName;
 		public int Ordinal;
 		public Type ColumnType;
-		public bool IsNullable;
+		public bool AllowDBNull;
 		public int? ColumnSize;
 	}
 
@@ -44,12 +44,12 @@ namespace DataBoss.Data
 
 		public DataReaderSchemaRow this[int index] => rows[index];
 
-		public void Add(string name, int ordinal, Type columnType, bool isNullable, int? columnSize = null) {
+		public void Add(string name, int ordinal, Type columnType, bool allowDBNull, int? columnSize = null) {
 			rows.Add(new DataReaderSchemaRow {
 				ColumnName = name,
 				Ordinal = ordinal,
 				ColumnType = columnType,
-				IsNullable = isNullable,
+				AllowDBNull = allowDBNull,
 				ColumnSize = columnSize,
 			});
 		}
@@ -64,14 +64,14 @@ namespace DataBoss.Data
 			var columnName = schema.Columns.Add(DataReaderSchemaColumns.ColumnName);
 			var columnOrdinal = schema.Columns.Add(DataReaderSchemaColumns.ColumnOrdinal);
 			var columnSize = schema.Columns.Add(DataReaderSchemaColumns.ColumnSize);
-			var isNullable = schema.Columns.Add(DataReaderSchemaColumns.AllowDBNull);
+			var allowDBNull = schema.Columns.Add(DataReaderSchemaColumns.AllowDBNull);
 			var dataType = schema.Columns.Add(DataReaderSchemaColumns.DataType);
 			foreach(var item in rows) {
 				var r = schema.NewRow();
 				r[columnName] = item.ColumnName;
 				r[columnOrdinal] = item.Ordinal;
 				r[columnSize] = item.ColumnSize.HasValue ? (object)item.ColumnSize.Value : DBNull.Value;
-				r[isNullable] = item.IsNullable;
+				r[allowDBNull] = item.AllowDBNull;
 				r[dataType] = item.ColumnType;
 				schema.Rows.Add(r);
 			}

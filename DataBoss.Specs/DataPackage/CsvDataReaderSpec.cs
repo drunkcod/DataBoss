@@ -2,10 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Cone;
 using DataBoss.Data;
+using DataBoss.Data.Common;
 using DataBoss.DataPackage;
 
 namespace DataBoss.Specs.DataPackage
@@ -25,18 +24,51 @@ namespace DataBoss.Specs.DataPackage
 					}
 				}, hasHeaderRow: false);
 
-			var schema = ObjectReader.For(csv.GetSchemaTable().CreateDataReader()).Read<SchemaTableRow>().ToList();
+			var schema = ObjectReader.For(csv.GetSchemaTable().CreateDataReader()).Read<DataReaderSchemaRow>().ToList();
 			Check.That(
-				() => schema.Single(x => x.ColumnName == "boolean").AllowDbNull == true,
-				() => schema.Single(x => x.ColumnName == "datetime").AllowDbNull == true,
-				() => schema.Single(x => x.ColumnName == "integer").AllowDbNull == true,
-				() => schema.Single(x => x.ColumnName == "number").AllowDbNull == true);
+				() => schema.Single(x => x.ColumnName == "boolean").AllowDBNull == true,
+				() => schema.Single(x => x.ColumnName == "datetime").AllowDBNull == true,
+				() => schema.Single(x => x.ColumnName == "integer").AllowDBNull == true,
+				() => schema.Single(x => x.ColumnName == "number").AllowDBNull == true);
 		}
 
-		class SchemaTableRow
-		{
-			public string ColumnName;
-			public bool AllowDbNull;
+		public void required_field() {
+			var csv = new CsvDataReader(
+				new CsvHelper.CsvReader(TextReader.Null),
+				new TabularDataSchema {
+					Fields = new List<TabularDataSchemaFieldDescription> {
+						new TabularDataSchemaFieldDescription { 
+							Name = "integer", 
+							Type = "integer", 
+							Constraints = new TabularDataSchemaFieldConstraints  {
+								IsRequired = true,
+							} 
+						},
+					}
+				}, hasHeaderRow: false);
+
+			var schema = ObjectReader.For(csv.GetSchemaTable().CreateDataReader()).Read<DataReaderSchemaRow>().ToList();
+			Check.That(
+				() => schema.Single(x => x.ColumnName == "integer").AllowDBNull == false);
+		}
+
+		public void detect_missing_required_value() {
+			var csv = new CsvDataReader(
+				new CsvHelper.CsvReader(new StringReader("1,\n,\n")),
+				new TabularDataSchema {
+					Fields = new List<TabularDataSchemaFieldDescription> {
+						new TabularDataSchemaFieldDescription {
+							Name = "Id",
+							Type = "integer",
+							Constraints = new TabularDataSchemaFieldConstraints  {
+								IsRequired = true,
+							}
+						},
+								}
+				}, hasHeaderRow: false);
+
+			var e = Check.Exception<InvalidOperationException>(() => ObjectReader.For(csv).Read<IdRow<int>>().ToList());
+			Check.That(() => e.InnerException.Message == "Unexpected null value.");
 		}
 	}
 }

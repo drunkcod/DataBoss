@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Text.RegularExpressions;
+using DataBoss.Data;
 
 namespace DataBoss.DataPackage
 {
@@ -29,6 +30,9 @@ namespace DataBoss.DataPackage
 			return reader;
 		}
 
+		public IEnumerable<T> Read<T>() => 
+			ObjectReader.For(Read()).Read<T>();
+
 		public TabularDataResource Where(Func<IDataRecord, bool> predicate) =>
 			new TabularDataResource(Name, Schema, () => new WhereDataReader(getData(), predicate));
 
@@ -45,11 +49,18 @@ namespace DataBoss.DataPackage
 
 		static List<TabularDataSchemaFieldDescription> GetFieldInfo(IDataReader reader) {
 			var r = new List<TabularDataSchemaFieldDescription>(reader.FieldCount);
+			var schema = ObjectReader.For(reader.GetSchemaTable().CreateDataReader())
+				.Read<DataReaderSchemaRow>()
+				.ToDictionary(x => x.ColumnName, x => x);
+			
 			for (var i = 0; i != reader.FieldCount; ++i) {
-				r.Add(new TabularDataSchemaFieldDescription {
+				var field = new TabularDataSchemaFieldDescription {
 					Name = reader.GetName(i),
 					Type = ToTableSchemaType(reader.GetFieldType(i)),
-				});
+				};
+				if(schema.TryGetValue(reader.GetName(i), out var found) && !found.AllowDBNull)
+					field.Constraints = new TabularDataSchemaFieldConstraints { IsRequired = true };
+				r.Add(field);
 			}
 			return r;
 		}

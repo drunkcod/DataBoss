@@ -50,13 +50,14 @@ namespace DataBoss.DataPackage
 		}
 
 		static (Type, DataBossDbType) ToDbType(TabularDataSchemaFieldDescription field) {
+			var required = field.Constraints?.IsRequired ?? false;
 			switch(field.Type) {
 				default: throw new NotSupportedException($"Don't know how to map '{field.Type}'");
-				case "boolean": return GetDbTypePair(typeof(bool));
-				case "datetime": return GetDbTypePair(typeof(DateTime));
-				case "integer": return GetDbTypePair(typeof(int));
-				case "number": return GetDbTypePair(typeof(double));
-				case "string": return GetDbTypePair(typeof(string));
+				case "boolean": return GetDbTypePair(typeof(bool), required);
+				case "datetime": return GetDbTypePair(typeof(DateTime), required);
+				case "integer": return GetDbTypePair(typeof(int), required);
+				case "number": return GetDbTypePair(typeof(double), required);
+				case "string": return GetDbTypePair(typeof(string), required);
 			}
 		}
 
@@ -71,14 +72,19 @@ namespace DataBoss.DataPackage
 			var ok = ReadRow();
 			if(!ok)
 				return false;
-			var i = 0;
-			try {
-				for(; i != currentRow.Length; ++i) {
-					var value = csv.GetField(i);
-					currentRow[i] = IsNull(value) ? DBNull.Value : Convert.ChangeType(value, GetFieldType(i));
+			for (var i = 0; i != currentRow.Length; ++i) {
+				var value = csv.GetField(i);
+				var isNull = IsNull(value);
+				try {
+					if(isNull && !dbTypes[i].IsNullable)
+						throw new FormatException("Unexpected null value.");
+
+					currentRow[i] = isNull ? DBNull.Value : Convert.ChangeType(value, GetFieldType(i));
+
+				} catch (FormatException ex) {
+					var given = isNull ? "null" : $"'{value}'";
+					throw new InvalidOperationException($"Failed to parse {GetName(i)} of type {GetFieldType(i)} given {given} on line {rowNumber}", ex);
 				}
-			} catch(FormatException ex) {
-				throw new InvalidOperationException($"Failed to parse {GetName(i)} of type {GetFieldType(i)} given '{csv.GetField(i)}' on line {rowNumber}", ex);
 			}
 			return true;
 		}
