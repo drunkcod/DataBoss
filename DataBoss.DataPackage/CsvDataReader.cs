@@ -5,7 +5,7 @@ using DataBoss.Data;
 
 namespace DataBoss.DataPackage
 {
-	class CsvDataReader : IDataReader
+	public class CsvDataReader : IDataReader
 	{
 		readonly CsvReader csv;
 		readonly DataReaderSchemaTable schema;
@@ -52,13 +52,16 @@ namespace DataBoss.DataPackage
 		static (Type, DataBossDbType) ToDbType(TabularDataSchemaFieldDescription field) {
 			switch(field.Type) {
 				default: throw new NotSupportedException($"Don't know how to map '{field.Type}'");
-				case "boolean": return (typeof(bool), DataBossDbType.ToDataBossDbType(typeof(bool)));
-				case "datetime": return (typeof(DateTime), DataBossDbType.ToDataBossDbType(typeof(DateTime)));
-				case "integer": return (typeof(int), DataBossDbType.ToDataBossDbType(typeof(int)));
-				case "number": return (typeof(double), DataBossDbType.ToDataBossDbType(typeof(double)));
-				case "string": return (typeof(string), DataBossDbType.ToDataBossDbType(typeof(string)));
+				case "boolean": return GetDbTypePair(typeof(bool));
+				case "datetime": return GetDbTypePair(typeof(DateTime));
+				case "integer": return GetDbTypePair(typeof(int));
+				case "number": return GetDbTypePair(typeof(double));
+				case "string": return GetDbTypePair(typeof(string));
 			}
 		}
+
+		static (Type, DataBossDbType) GetDbTypePair(Type type, bool required = false) =>
+			(type, DataBossDbType.ToDataBossDbType(!type.IsValueType || required ? type : typeof(Nullable<>).MakeGenericType(type)));
 
 		public int FieldCount => schema.Count;
 

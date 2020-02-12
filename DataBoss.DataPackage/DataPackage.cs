@@ -14,34 +14,6 @@ using Newtonsoft.Json;
 
 namespace DataBoss.DataPackage
 {
-	public class TabularDataSchema
-	{
-		[JsonProperty("fields")]
-		public List<TabularDataSchemaFieldDescription> Fields;
-
-		[JsonProperty("primaryKey", DefaultValueHandling = DefaultValueHandling.Ignore)]
-		[JsonConverter(typeof(ItemOrArrayJsonConverter))]
-		public List<string> PrimaryKey;
-
-		[JsonProperty("foreignKeys", DefaultValueHandling = DefaultValueHandling.Ignore)]
-		public List<DataPackageForeignKey> ForeignKeys;
-	}
-
-	public class TabularDataSchemaFieldDescription
-	{
-		[JsonProperty("name")]
-		public string Name;
-		[JsonProperty("type")]
-		public string Type;
-	}
-
-	public class DataPackageDescription
-	{
-		[JsonProperty("resources")]
-		public List<DataPackageResourceDescription> Resources = new List<DataPackageResourceDescription>();
-
-		public static DataPackageDescription Load(string path) => JsonConvert.DeserializeObject<DataPackageDescription>(File.ReadAllText(path));
-	}
 
 	public class DataPackage : IDataPackageBuilder
 	{

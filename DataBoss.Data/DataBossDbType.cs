@@ -126,6 +126,7 @@ namespace DataBoss.Data
 		}
 
 		public static DataBossDbType ToDataBossDbType(Type type) => ToDataBossDbType(type, type);
+
 		public static DataBossDbType ToDataBossDbType(Type type, ICustomAttributeProvider attributes) {
 			var canBeNull = !type.IsValueType && !attributes.Any<RequiredAttribute>();
 			if (type.TryGetNullableTargetType(out var newTargetType)) {
