@@ -9,6 +9,7 @@ namespace DataBoss.DataPackage
 	{
 		readonly CsvReader csv;
 		readonly DataReaderSchemaTable schema;
+		readonly string[] primaryKey;
 		readonly DataBossDbType[] dbTypes;
 		readonly object[] currentRow;
 		int rowNumber;
@@ -18,6 +19,7 @@ namespace DataBoss.DataPackage
 		public CsvDataReader(CsvReader csv, TabularDataSchema tabularSchema, bool hasHeaderRow = true) { 
 			this.csv = csv; 
 			this.schema = new DataReaderSchemaTable();
+			this.primaryKey = tabularSchema.PrimaryKey?.ToArray() ?? Empty<string>.Array;
 			this.dbTypes = new DataBossDbType[tabularSchema.Fields.Count];
 			for (var i = 0; i != tabularSchema.Fields.Count; ++i) {
 				var (fieldType, dbType) = ToDbType(tabularSchema.Fields[i]);
@@ -49,8 +51,8 @@ namespace DataBoss.DataPackage
 			return true;
 		}
 
-		static (Type, DataBossDbType) ToDbType(TabularDataSchemaFieldDescription field) {
-			var required = field.Constraints?.IsRequired ?? false;
+		(Type, DataBossDbType) ToDbType(TabularDataSchemaFieldDescription field) {
+			var required = field.Constraints?.IsRequired ?? Array.IndexOf(primaryKey, field.Name) != -1;
 			switch(field.Type) {
 				default: throw new NotSupportedException($"Don't know how to map '{field.Type}'");
 				case "boolean": return GetDbTypePair(typeof(bool), required);

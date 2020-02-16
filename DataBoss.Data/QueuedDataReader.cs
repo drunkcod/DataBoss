@@ -5,9 +5,13 @@ using System.Data;
 
 namespace DataBoss.Data
 {
-	static class Empty<T>
+	public static class Empty<T>
 	{
+#if NET452
 		public static readonly T[] Array = new T[0];
+#else
+		public static T[] Array => System.Array.Empty<T>();
+#endif
 	}
 
 	public class QueuedDataReader<T> : IDataReader

@@ -52,6 +52,24 @@ namespace DataBoss.Specs.DataPackage
 				() => schema.Single(x => x.ColumnName == "integer").AllowDBNull == false);
 		}
 
+		public void identity_column_is_required() {
+			var csv = new CsvDataReader(
+				new CsvHelper.CsvReader(TextReader.Null),
+				new TabularDataSchema {
+					Fields = new List<TabularDataSchemaFieldDescription> {
+						new TabularDataSchemaFieldDescription {
+							Name = "id",
+							Type = "integer",
+						},
+					}, 
+					PrimaryKey = new List<string>{ "id" },
+				}, hasHeaderRow: false);
+
+			var schema = ObjectReader.For(csv.GetSchemaTable().CreateDataReader()).Read<DataReaderSchemaRow>().ToList();
+			Check.That(
+				() => schema.Single(x => x.ColumnName == "id").AllowDBNull == false);
+		}
+
 		public void detect_missing_required_value() {
 			var csv = new CsvDataReader(
 				new CsvHelper.CsvReader(new StringReader("1,\n,\n")),
