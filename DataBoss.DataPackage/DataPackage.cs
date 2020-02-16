@@ -131,6 +131,8 @@ namespace DataBoss.DataPackage
 		public TabularDataResource GetResource(string name) => Resources.Single(x => x.Name == name);
 
 		public void Save(Func<string, Stream> createOutput, CultureInfo culture = null) {
+			culture = culture ?? CultureInfo.CurrentCulture;
+
 			var description = new DataPackageDescription();
 			foreach (var item in Resources) {
 				var resourcePath = $"{item.Name}.csv";
@@ -141,13 +143,22 @@ namespace DataBoss.DataPackage
 						Path = Path.GetFileName(resourcePath),
 						Delimiter = Delimiter,
 						Schema = new TabularDataSchema { 
-							Fields = item.Schema.Fields,
+							Fields = item.Schema.Fields.ConvertAll(x => {
+								if(!x.IsNumber())
+									return x;
+
+								return new TabularDataSchemaFieldDescription(
+									x.Name,
+									x.Type,
+									constraints: x.Constraints,
+									decimalChar: x.DecimalChar ?? culture.NumberFormat.NumberDecimalSeparator);
+							}),
 							PrimaryKey = NullIfEmpty(item.Schema.PrimaryKey),
 							ForeignKeys = NullIfEmpty(item.Schema.ForeignKeys),
 						},
 					});
 					try {
-						WriteRecords(output, culture ?? CultureInfo.CurrentCulture, data);
+						WriteRecords(output, culture, data);
 					} catch(Exception ex) {
 						throw new Exception($"Failed writing {item.Name}.", ex);
 					}

@@ -17,10 +17,10 @@ namespace DataBoss.Specs.DataPackage
 				new CsvHelper.CsvReader(TextReader.Null),
 				new TabularDataSchema {
 					Fields = new List<TabularDataSchemaFieldDescription> {
-						new TabularDataSchemaFieldDescription { Name = "boolean", Type = "boolean", },
-						new TabularDataSchemaFieldDescription { Name = "datetime", Type = "datetime", },
-						new TabularDataSchemaFieldDescription { Name = "integer", Type = "integer", },
-						new TabularDataSchemaFieldDescription { Name = "number", Type = "number", },
+						new TabularDataSchemaFieldDescription("boolean", "boolean"),
+						new TabularDataSchemaFieldDescription("datetime", "datetime"),
+						new TabularDataSchemaFieldDescription("integer", "integer"),
+						new TabularDataSchemaFieldDescription("number", "number"),
 					}
 				}, hasHeaderRow: false);
 
@@ -37,13 +37,12 @@ namespace DataBoss.Specs.DataPackage
 				new CsvHelper.CsvReader(TextReader.Null),
 				new TabularDataSchema {
 					Fields = new List<TabularDataSchemaFieldDescription> {
-						new TabularDataSchemaFieldDescription { 
-							Name = "integer", 
-							Type = "integer", 
-							Constraints = new TabularDataSchemaFieldConstraints  {
+						new TabularDataSchemaFieldDescription(
+							"integer", 
+							"integer", 
+							new TabularDataSchemaFieldConstraints  {
 								IsRequired = true,
-							} 
-						},
+							}),
 					}
 				}, hasHeaderRow: false);
 
@@ -57,10 +56,7 @@ namespace DataBoss.Specs.DataPackage
 				new CsvHelper.CsvReader(TextReader.Null),
 				new TabularDataSchema {
 					Fields = new List<TabularDataSchemaFieldDescription> {
-						new TabularDataSchemaFieldDescription {
-							Name = "id",
-							Type = "integer",
-						},
+						new TabularDataSchemaFieldDescription("id", "integer"),
 					}, 
 					PrimaryKey = new List<string>{ "id" },
 				}, hasHeaderRow: false);
@@ -75,14 +71,13 @@ namespace DataBoss.Specs.DataPackage
 				new CsvHelper.CsvReader(new StringReader("1,\n,\n")),
 				new TabularDataSchema {
 					Fields = new List<TabularDataSchemaFieldDescription> {
-						new TabularDataSchemaFieldDescription {
-							Name = "Id",
-							Type = "integer",
-							Constraints = new TabularDataSchemaFieldConstraints  {
+						new TabularDataSchemaFieldDescription(
+							"Id",
+							"integer",
+							new TabularDataSchemaFieldConstraints  {
 								IsRequired = true,
-							}
-						},
-								}
+							}),
+					}
 				}, hasHeaderRow: false);
 
 			var e = Check.Exception<InvalidOperationException>(() => ObjectReader.For(csv).Read<IdRow<int>>().ToList());
@@ -94,11 +89,11 @@ namespace DataBoss.Specs.DataPackage
 				new CsvHelper.CsvReader(new StringReader("3·1415")),
 				new TabularDataSchema {
 					Fields = new List<TabularDataSchemaFieldDescription> {
-						new TabularDataSchemaFieldDescription {
-							Name = "value",
-							Type = "number",
-							DecimalChar = "·", //interpunct, no-one uses that.
-						},
+						new TabularDataSchemaFieldDescription(
+							"value",
+							"number",
+							decimalChar: "·"//interpunct, no-one uses that.
+						),
 					}
 				}, hasHeaderRow: false);
 

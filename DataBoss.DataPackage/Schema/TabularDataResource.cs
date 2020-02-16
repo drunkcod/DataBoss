@@ -54,12 +54,15 @@ namespace DataBoss.DataPackage
 				.ToDictionary(x => x.ColumnName, x => x);
 			
 			for (var i = 0; i != reader.FieldCount; ++i) {
-				var field = new TabularDataSchemaFieldDescription {
-					Name = reader.GetName(i),
-					Type = ToTableSchemaType(reader.GetFieldType(i)),
-				};
-				if(schema.TryGetValue(reader.GetName(i), out var found) && !found.AllowDBNull)
-					field.Constraints = new TabularDataSchemaFieldConstraints { IsRequired = true };
+				TabularDataSchemaFieldConstraints constraints = null;
+				if (schema.TryGetValue(reader.GetName(i), out var found) && !found.AllowDBNull)
+					constraints = new TabularDataSchemaFieldConstraints { IsRequired = true };
+
+				var field = new TabularDataSchemaFieldDescription(
+					reader.GetName(i),
+					ToTableSchemaType(reader.GetFieldType(i)),
+					constraints);
+
 				r.Add(field);
 			}
 			return r;
