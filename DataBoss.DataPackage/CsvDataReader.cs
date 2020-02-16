@@ -1,5 +1,6 @@
 using System;
 using System.Data;
+using System.Globalization;
 using CsvHelper;
 using DataBoss.Data;
 
@@ -11,6 +12,7 @@ namespace DataBoss.DataPackage
 		readonly DataReaderSchemaTable schema;
 		readonly string[] primaryKey;
 		readonly DataBossDbType[] dbTypes;
+		readonly IFormatProvider[] fieldFormat;
 		readonly object[] currentRow;
 		int rowNumber;
 	
@@ -21,10 +23,17 @@ namespace DataBoss.DataPackage
 			this.schema = new DataReaderSchemaTable();
 			this.primaryKey = tabularSchema.PrimaryKey?.ToArray() ?? Empty<string>.Array;
 			this.dbTypes = new DataBossDbType[tabularSchema.Fields.Count];
+			this.fieldFormat = new IFormatProvider[tabularSchema.Fields.Count];
 			for (var i = 0; i != tabularSchema.Fields.Count; ++i) {
-				var (fieldType, dbType) = ToDbType(tabularSchema.Fields[i]);
-				schema.Add(tabularSchema.Fields[i].Name, i, fieldType, dbType.IsNullable, dbType.ColumnSize);
+				var field = tabularSchema.Fields[i];
+				var (fieldType, dbType) = ToDbType(field);
+				schema.Add(field.Name, i, fieldType, dbType.IsNullable, dbType.ColumnSize);
 				dbTypes[i] = dbType;
+				if(!string.IsNullOrEmpty(field.DecimalChar)) {
+					fieldFormat[i] = new NumberFormatInfo { 
+						NumberDecimalSeparator = field.DecimalChar,	
+					};
+				}
 			}
 			this.currentRow = new object[FieldCount];
 
@@ -81,7 +90,7 @@ namespace DataBoss.DataPackage
 					if(isNull && !dbTypes[i].IsNullable)
 						throw new FormatException("Unexpected null value.");
 
-					currentRow[i] = isNull ? DBNull.Value : Convert.ChangeType(value, GetFieldType(i));
+					currentRow[i] = isNull ? DBNull.Value : Convert.ChangeType(value, GetFieldType(i), fieldFormat[i]);
 
 				} catch (FormatException ex) {
 					var given = isNull ? "null" : $"'{value}'";

@@ -88,5 +88,25 @@ namespace DataBoss.Specs.DataPackage
 			var e = Check.Exception<InvalidOperationException>(() => ObjectReader.For(csv).Read<IdRow<int>>().ToList());
 			Check.That(() => e.InnerException.Message == "Unexpected null value.");
 		}
+
+		public void support_varying_decimal_separator() {
+			var csv = new CsvDataReader(
+				new CsvHelper.CsvReader(new StringReader("3·1415")),
+				new TabularDataSchema {
+					Fields = new List<TabularDataSchemaFieldDescription> {
+						new TabularDataSchemaFieldDescription {
+							Name = "value",
+							Type = "number",
+							DecimalChar = "·", //interpunct, no-one uses that.
+						},
+					}
+				}, hasHeaderRow: false);
+
+			Check.With(() => ObjectReader.For(csv).Read<ValueRow<double>>().ToList()).That(				
+				xs => xs.Count == 1,
+				xs => xs[0].Value == 3.1415);
+		}
+
+		struct ValueRow<T> { public T Value; }
 	}
 }

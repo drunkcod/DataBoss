@@ -8,6 +8,10 @@ namespace DataBoss.DataPackage
 		public string Name;
 		[JsonProperty("type")]
 		public string Type;
+
+		[JsonProperty("decimalChar", DefaultValueHandling = DefaultValueHandling.Ignore)]
+		public string DecimalChar;
+
 		[JsonProperty("constraints", DefaultValueHandling = DefaultValueHandling.Ignore)]
 		public TabularDataSchemaFieldConstraints Constraints;
 	}
