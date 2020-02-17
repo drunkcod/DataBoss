@@ -25,21 +25,19 @@ namespace DataBoss.DataPackage.Specs
 			var dp = new DataPackage();
 			dp.AddResource("numbers", () => SequenceDataReader.Create(new { Value = 1.0 }));
 
+			var xs = Serialized(dp, CultureInfo.GetCultureInfo("se-SV"));
+			Check.That(
+				() => GetNumbersFormat(xs).NumberDecimalSeparator == ",",
+				() => GetNumbersFormat(Serialized(xs, CultureInfo.InvariantCulture)).NumberDecimalSeparator == ".",
+				() => GetNumbersFormat(Serialized(xs, null)).NumberDecimalSeparator == ",");
+		}
+
+		NumberFormatInfo GetNumbersFormat(DataPackage data) => data.GetResource("numbers").Schema.Fields.Single().GetNumberFormat();
+
+		static DataPackage Serialized(DataPackage data, CultureInfo culture = null) { 
 			var bytes = new MemoryStream();
-			dp.SaveZip(bytes, CultureInfo.GetCultureInfo("se-SV"));
-
-			var xs = DataPackage.LoadZip(() => new MemoryStream(bytes.ToArray()));
-			Check.That(() => xs.GetResource("numbers").Schema.Fields.Single().DecimalChar == ",");
-
-			var xBytes = new MemoryStream();
-			xs.SaveZip(xBytes, CultureInfo.InvariantCulture);
-			var invariant = DataPackage.LoadZip(() => new MemoryStream(xBytes.ToArray()));
-			Check.That(() => invariant.GetResource("numbers").Schema.Fields.Single().DecimalChar == ".");
-
-			var yBytes = new MemoryStream();
-			xs.SaveZip(yBytes);
-			var keep = DataPackage.LoadZip(() => new MemoryStream(yBytes.ToArray()));
-			Check.That(() => keep.GetResource("numbers").Schema.Fields.Single().DecimalChar == ",");
+			data.SaveZip(bytes, culture);
+			return DataPackage.LoadZip(() => new MemoryStream(bytes.ToArray()));
 		}
 	}
 }

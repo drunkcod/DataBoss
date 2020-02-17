@@ -24,7 +24,7 @@ namespace DataBoss.DataPackage
 		[JsonProperty("type")]
 		public readonly string Type;
 
-		[JsonProperty("decimalChar", DefaultValueHandling = DefaultValueHandling.Ignore)]
+		[DefaultValue("."), JsonProperty("decimalChar", DefaultValueHandling = DefaultValueHandling.Ignore)]
 		public readonly string DecimalChar;
 
 		[JsonProperty("constraints", DefaultValueHandling = DefaultValueHandling.Ignore)]
