@@ -131,34 +131,42 @@ namespace DataBoss.DataPackage
 		public TabularDataResource GetResource(string name) => Resources.Single(x => x.Name == name);
 
 		public void Save(Func<string, Stream> createOutput, CultureInfo culture = null) {
-			culture = culture ?? CultureInfo.CurrentCulture;
-
 			var description = new DataPackageDescription();
+			var decimalCharOverride = culture != null ? culture.NumberFormat.NumberDecimalSeparator : null;
 			foreach (var item in Resources) {
 				var resourcePath = $"{item.Name}.csv";
 				using (var output = createOutput(resourcePath))
 				using (var data = item.Read()) {
+					var format = Enumerable.Repeat(new CsvFormatter(culture ?? CultureInfo.CurrentCulture), data.FieldCount).ToArray();
+
+					var fields = new List<TabularDataSchemaFieldDescription>(item.Schema.Fields.Count);
+					for(var i = 0; i != item.Schema.Fields.Count; ++i) {
+						var x = item.Schema.Fields[i];
+						if (!x.IsNumber())
+							fields.Add(x);
+						else {
+							var customFormat = new TabularDataSchemaFieldDescription(
+								x.Name,
+								x.Type,
+								constraints: x.Constraints,
+								decimalChar: decimalCharOverride ?? x.DecimalChar);
+							format[i] = new CsvFormatter(customFormat.GetNumberFormat());
+							fields.Add(customFormat);
+						}
+					}
+
 					description.Resources.Add(new DataPackageResourceDescription {
 						Name = item.Name, 
 						Path = Path.GetFileName(resourcePath),
 						Delimiter = Delimiter,
 						Schema = new TabularDataSchema { 
-							Fields = item.Schema.Fields.ConvertAll(x => {
-								if(!x.IsNumber())
-									return x;
-
-								return new TabularDataSchemaFieldDescription(
-									x.Name,
-									x.Type,
-									constraints: x.Constraints,
-									decimalChar: x.DecimalChar ?? culture.NumberFormat.NumberDecimalSeparator);
-							}),
+							Fields = fields,
 							PrimaryKey = NullIfEmpty(item.Schema.PrimaryKey),
 							ForeignKeys = NullIfEmpty(item.Schema.ForeignKeys),
 						},
 					});
 					try {
-						WriteRecords(output, culture, data);
+						WriteRecords(output, data, format);
 					} catch(Exception ex) {
 						throw new Exception($"Failed writing {item.Name}.", ex);
 					}
@@ -175,7 +183,7 @@ namespace DataBoss.DataPackage
 		static CsvWriter NewCsvWriter(Stream stream, Encoding encoding) => 
 			new CsvWriter(new StreamWriter(stream, encoding, 4096, leaveOpen: true));
 
-		static void WriteRecords(Stream output, CultureInfo culture, IDataReader data) {
+		static void WriteRecords(Stream output, IDataReader data, CsvFormatter[] format) {
 
 			using (var csv = NewCsvWriter(output, Encoding.UTF8)) {
 				for (var i = 0; i != data.FieldCount; ++i)
@@ -192,7 +200,7 @@ namespace DataBoss.DataPackage
 					DataReader = data,
 					Records = reader.GetConsumingEnumerable(),
 					Encoding = new UTF8Encoding(false),
-					Format = culture,
+					Format = format,
 				};
 				writer.Start();
 
@@ -307,7 +315,7 @@ namespace DataBoss.DataPackage
 
 			public IDataReader DataReader;
 			public IEnumerable<(object[] Values, int Rows)> Records;
-			public IFormatProvider Format;
+			public CsvFormatter[] Format;
 
 			public Encoding Encoding;
 
@@ -316,8 +324,6 @@ namespace DataBoss.DataPackage
 			public IEnumerable<MemoryStream> GetConsumingEnumerable() => chunks.GetConsumingEnumerable();
 
 			protected override void DoWorkCore() {
-				var format = new CsvFormatter(Format);
-
 				try {
 					var toString = new Func<CsvFormatter, object, string>[DataReader.FieldCount];
 					for (var i = 0; i != DataReader.FieldCount; ++i)
@@ -335,7 +341,7 @@ namespace DataBoss.DataPackage
 								var first = RowOffset(n);
 								for (var i = 0; i != DataReader.FieldCount; ++i) {
 									var value = item.Values[first + i];
-									fragment.WriteField(value == null ? string.Empty : toString[i](format, value));
+									fragment.WriteField(value == null ? string.Empty : toString[i](Format[i], value));
 								}
 								fragment.NextRecord();
 							}

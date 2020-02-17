@@ -82,6 +82,7 @@ namespace DataBoss.Data
 
 	public static class SequenceDataReader
 	{
+		public static IDataReader Create<T>(params T[] data) => Create((IEnumerable<T>)data);
 		public static IDataReader Create<T>(IEnumerable<T> data) => Create(data, x => x.MapAll());
 		public static IDataReader Create<T>(IEnumerable<T> data, Action<FieldMapping<T>> mapFields) {
 			var fieldMapping = new FieldMapping<T>();

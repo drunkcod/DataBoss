@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Globalization;
 using Newtonsoft.Json;
 
 namespace DataBoss.DataPackage
@@ -23,7 +24,7 @@ namespace DataBoss.DataPackage
 		[JsonProperty("type")]
 		public readonly string Type;
 
-		[DefaultValue("."), JsonProperty("decimalChar", DefaultValueHandling = DefaultValueHandling.Ignore)]
+		[JsonProperty("decimalChar", DefaultValueHandling = DefaultValueHandling.Ignore)]
 		public readonly string DecimalChar;
 
 		[JsonProperty("constraints", DefaultValueHandling = DefaultValueHandling.Ignore)]
@@ -40,7 +41,18 @@ namespace DataBoss.DataPackage
 
 	public static class TabularDataSchemaFieldDescriptionExtensions
 	{
+		static readonly NumberFormatInfo DefaultNumberFormat = new NumberFormatInfo {
+			NumberDecimalSeparator = ".",
+		};
+
 		public static bool IsNumber(this TabularDataSchemaFieldDescription field) =>
 			field.Type == "number";
+
+		public static NumberFormatInfo GetNumberFormat(this TabularDataSchemaFieldDescription field) => 
+			string.IsNullOrEmpty(field.DecimalChar)
+				? DefaultNumberFormat
+				: new NumberFormatInfo {
+					NumberDecimalSeparator = field.DecimalChar,
+				};
 	}
 }

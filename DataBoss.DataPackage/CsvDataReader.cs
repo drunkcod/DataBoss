@@ -8,9 +8,6 @@ namespace DataBoss.DataPackage
 {
 	public class CsvDataReader : IDataReader
 	{
-		static readonly NumberFormatInfo DefaultNumberFormat = new NumberFormatInfo  {
-			NumberDecimalSeparator = ".",
-		};
 
 		readonly CsvReader csv;
 		readonly DataReaderSchemaTable schema;
@@ -33,13 +30,8 @@ namespace DataBoss.DataPackage
 				var (fieldType, dbType) = ToDbType(field);
 				schema.Add(field.Name, i, fieldType, dbType.IsNullable, dbType.ColumnSize);
 				dbTypes[i] = dbType;
-				if(field.IsNumber()) {
-					fieldFormat[i] = string.IsNullOrEmpty(field.DecimalChar) 
-						? DefaultNumberFormat
-						: new NumberFormatInfo { 
-							NumberDecimalSeparator = field.DecimalChar,	
-						};
-				}
+				if(field.IsNumber())
+					fieldFormat[i] = field.GetNumberFormat();
 			}
 			this.currentRow = new object[FieldCount];
 
@@ -48,7 +40,7 @@ namespace DataBoss.DataPackage
 		}
 
 		void ValidateHeaderRow() {
-			if(!ReadRow()) 
+			if(!ReadRow())
 				throw new InvalidOperationException("Missing header row.");
 			for (var i = 0; i != schema.Count; ++i) {
 				var expected = schema[i].ColumnName;
