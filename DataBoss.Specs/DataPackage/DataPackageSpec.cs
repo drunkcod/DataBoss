@@ -25,19 +25,13 @@ namespace DataBoss.DataPackage.Specs
 			var dp = new DataPackage();
 			dp.AddResource("numbers", () => SequenceDataReader.Create(new { Value = 1.0 }));
 
-			var xs = Serialized(dp, CultureInfo.GetCultureInfo("se-SV"));
+			var xs = dp.Serialize(CultureInfo.GetCultureInfo("se-SV"));
 			Check.That(
 				() => GetNumbersFormat(xs).NumberDecimalSeparator == ",",
-				() => GetNumbersFormat(Serialized(xs, CultureInfo.InvariantCulture)).NumberDecimalSeparator == ".",
-				() => GetNumbersFormat(Serialized(xs, null)).NumberDecimalSeparator == ",");
+				() => GetNumbersFormat(xs.Serialize(CultureInfo.InvariantCulture)).NumberDecimalSeparator == ".",
+				() => GetNumbersFormat(xs.Serialize(null)).NumberDecimalSeparator == ",");
 		}
 
 		NumberFormatInfo GetNumbersFormat(DataPackage data) => data.GetResource("numbers").Schema.Fields.Single().GetNumberFormat();
-
-		static DataPackage Serialized(DataPackage data, CultureInfo culture = null) { 
-			var bytes = new MemoryStream();
-			data.SaveZip(bytes, culture);
-			return DataPackage.LoadZip(() => new MemoryStream(bytes.ToArray()));
-		}
 	}
 }

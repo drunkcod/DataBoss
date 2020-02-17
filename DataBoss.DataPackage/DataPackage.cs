@@ -177,6 +177,17 @@ namespace DataBoss.DataPackage
 				meta.Write(JsonConvert.SerializeObject(description, Formatting.Indented));
 		}
 
+		public DataPackage Serialize(CultureInfo culture = null) {
+			var bytes = new MemoryStream();
+			this.SaveZip(bytes, culture);
+#if NET452
+			return LoadZip(() => new MemoryStream(bytes.ToArray(), false));
+#else
+			bytes.TryGetBuffer(out var buffer);
+			return LoadZip(() => new MemoryStream(buffer.Array, buffer.Offset, buffer.Count, false));
+#endif
+		}
+
 		static List<T> NullIfEmpty<T>(List<T> values) =>
 			values == null ? null : values.Count == 0 ? null : values;
 
