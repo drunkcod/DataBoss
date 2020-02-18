@@ -10,6 +10,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
 using System.Threading;
+using DataBoss.Linq;
 using Newtonsoft.Json;
 
 namespace DataBoss.DataPackage
@@ -237,13 +238,16 @@ namespace DataBoss.DataPackage
 		{
 			public Exception Error { get; private set; }
 
-			protected abstract void DoWorkCore();
+			protected abstract void DoWork();
+			protected virtual void Cleanup() { }
 
-			void DoWork() {
+			void Run() {
 				try {
-					DoWorkCore();
+					DoWork();
 				} catch (Exception ex) {
 					Error = ex;
+				} finally {
+					Cleanup();
 				}
 			}
 
@@ -251,13 +255,13 @@ namespace DataBoss.DataPackage
 				ThreadPool.QueueUserWorkItem(RunWorkItem, this);
 
 			static void RunWorkItem(object obj) =>
-				((WorkItem)obj).DoWork();
+				((WorkItem)obj).Run();
 		}
 
 		class RecordReader : WorkItem
 		{
 
-			public const int BufferRows = 1024;
+			public const int BufferRows = 128;
 
 			readonly BlockingCollection<(object[] Values, int Rows)> records = new BlockingCollection<(object[], int)>(1 << 10);
 			public IDataReader DataReader;
@@ -267,28 +271,27 @@ namespace DataBoss.DataPackage
 			public IEnumerable<(object[] Values, int Rows)> GetConsumingEnumerable() =>
 				records.GetConsumingEnumerable();
 
-			protected override void DoWorkCore() {
-				try {
-					var values = new object[DataReader.FieldCount * BufferRows];
-					var n = 0;
-					while (DataReader.Read()) {
-						var first = RowOffset(n);
-						for (var i = 0; i != DataReader.FieldCount; ++i)
-							values[first + i] = DataReader.IsDBNull(i) ? null : DataReader.GetValue(i);
+			protected override void DoWork() {
+				var values = new object[DataReader.FieldCount * BufferRows];
+				var n = 0;
+				while (DataReader.Read()) {
+					var first = RowOffset(n);
+					for (var i = 0; i != DataReader.FieldCount; ++i)
+						values[first + i] = DataReader.IsDBNull(i) ? null : DataReader.GetValue(i);
 
-						if (++n == BufferRows) {
-							records.Add((values, n));
-							n = 0;
-							values = new object[DataReader.FieldCount * BufferRows];
-						}
-					}
-
-					if (n != 0)
+					if (++n == BufferRows) {
 						records.Add((values, n));
+						n = 0;
+						values = new object[DataReader.FieldCount * BufferRows];
+					}
 				}
-				finally {
-					records.CompleteAdding();
-				}
+
+				if (n != 0)
+					records.Add((values, n));
+			}
+
+			protected override void Cleanup() {
+				records.CompleteAdding();
 			}
 		}
 
@@ -342,16 +345,14 @@ namespace DataBoss.DataPackage
 
 			public IEnumerable<MemoryStream> GetConsumingEnumerable() => chunks.GetConsumingEnumerable();
 
-			protected override void DoWorkCore() {
-				try {
-					var toString = new Func<CsvFormatter, object, string>[DataReader.FieldCount];
-					for (var i = 0; i != DataReader.FieldCount; ++i)
-						toString[i] = ConversionCache.GetOrAdd(DataReader.GetFieldType(i), GetFormatFunc);
+			protected override void DoWork() {
+				var toString = new Func<CsvFormatter, object, string>[DataReader.FieldCount];
+				for (var i = 0; i != DataReader.FieldCount; ++i)
+					toString[i] = ConversionCache.GetOrAdd(DataReader.GetFieldType(i), GetFormatFunc);
 
-					var bom = Encoding.GetPreamble();
-					var bufferGuess = RecordReader.BufferRows * 128;
-					Records.AsParallel().AsOrdered()
-					.ForAll(item => {
+				var bom = Encoding.GetPreamble();
+				var bufferGuess = RecordReader.BufferRows * 128;
+				Records.ForEach(item => {
 						if (item.Rows == 0)
 							return;
 						var chunk = new MemoryStream(bufferGuess);
@@ -370,10 +371,10 @@ namespace DataBoss.DataPackage
 						chunk.Position = bom.Length;
 						chunks.Add(chunk);
 					});
-				}
-				finally {
-					chunks.CompleteAdding();
-				}
+			}
+
+			protected override void Cleanup() {
+				chunks.CompleteAdding();
 			}
 		}
 	}
