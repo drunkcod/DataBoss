@@ -37,6 +37,9 @@ namespace DataBoss.DataPackage
 			public void Save(Func<string, Stream> createOutput, CultureInfo culture = null) =>
 				package.Save(createOutput, culture);
 
+			public DataPackage Serialize(CultureInfo culture) =>
+				package.Serialize(culture);
+
 			public IDataPackageResourceBuilder WithPrimaryKey(params string[] parts) {
 				if(parts != null && parts.Length > 0)
 					resource.Schema.PrimaryKey.AddRange(parts);
@@ -49,6 +52,8 @@ namespace DataBoss.DataPackage
 				resource.Schema.ForeignKeys.Add(fk);
 				return this;
 			}
+
+			public DataPackage Done() => package;
 		}
 
 		public static DataPackage Load(string path) {
@@ -117,6 +122,7 @@ namespace DataBoss.DataPackage
 			Resources.Add(resource);
 			return new DataPackageResourceBuilder(this, resource);
 		}
+		DataPackage IDataPackageBuilder.Done() => this;
 
 		public void UpdateResource(string name, Func<TabularDataResource, TabularDataResource> doUpdate) {
 			var found = Resources.FindIndex(x => x.Name == name);
@@ -181,7 +187,9 @@ namespace DataBoss.DataPackage
 			var bytes = new MemoryStream();
 			this.SaveZip(bytes, culture);
 #if NET452
-			return LoadZip(() => new MemoryStream(bytes.ToArray(), false));
+			var buffer = bytes.ToArray();
+			bytes = null;
+			return LoadZip(() => new MemoryStream(buffer, false));
 #else
 			bytes.TryGetBuffer(out var buffer);
 			return LoadZip(() => new MemoryStream(buffer.Array, buffer.Offset, buffer.Count, false));

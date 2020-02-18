@@ -139,7 +139,9 @@ namespace DataBoss.Data
 						return BindingResult.InvalidCast;
 					}
 
-					var thisNull = field.CanBeNull ? IsNull(o) : null;
+					var thisNull = field.CanBeNull 
+						? new[] { new KeyValuePair<string, Expression>(item.Name, IsNull(o)) } 
+						: null;
 					reader = new MemberReader(field.Ordinal, item.Name, convertedField, thisNull);
 					return BindingResult.Ok;
 				}
@@ -185,16 +187,21 @@ namespace DataBoss.Data
 				return MakeReader(map, item.Name, factoryFuns, Expression.Call);
 			}
 
-			MemberReader? MakeReader<T>(FieldMap map, string itemName, IEnumerable<(T, ItemInfo[])> xs, Func<T, Expression[], Expression> makeExpr)
-			{
+			MemberReader? MakeReader<T>(FieldMap map, string itemName, IEnumerable<(T, ItemInfo[])> xs, Func<T, Expression[], Expression> makeExpr) {
 				foreach (var (ctor, p) in xs) {
 					var pn = new MemberReader[p.Length];
 					if (TryMapParameters(map, p, pn)) {
+						var nullability = pn
+							.Where(x => x.Read.Type.IsValueType && x.IsDbNull != null)
+							.Select(x => new KeyValuePair<string, Expression>(x.Name, x.IsDbNull))
+							.ToArray();
 						return new MemberReader(
 							map.MinOrdinal,
 							itemName,
-							makeExpr(ctor, Array.ConvertAll(pn, x => x.Read)),
-							AnyOf(pn.Select(x => x.IsDbNull)));
+							makeExpr(ctor, Array.ConvertAll(pn, x => x.IsDbNull == null  
+								? x.Read
+								: Expression.Condition(x.IsDbNull, Expression.Default(x.Read.Type), x.Read))),
+							nullability);
 					}
 				}
 
@@ -255,25 +262,78 @@ namespace DataBoss.Data
 
 		readonly struct MemberReader
 		{
-			public MemberReader(int ordinal, string name, Expression reader, Expression IsDbNull) {
+			public MemberReader(int ordinal, string name, Expression reader, IReadOnlyCollection<KeyValuePair<string, Expression>> isDbNull) {
 				this.Ordinal = ordinal;
 				this.Name = name;
 				this.Read = reader;
-				this.IsDbNull = IsDbNull;
+				if(isDbNull != null && isDbNull.Any(x => x.Value == null))
+					throw new InvalidOperationException("Null nullability check.");
+				this.NullableFields = isDbNull;
 			}
 
 			public readonly int Ordinal;
 			public readonly string Name;
 			public readonly Expression Read;
-			public readonly Expression IsDbNull;
+			public Expression IsDbNull {
+				get {
+					if(NullableFields == null || NullableFields.Count == 0)
+						return null;
+					return AnyOf(NullableFields.Select(x => x.Value));
+				}
+			}
+
+			public readonly IReadOnlyCollection<KeyValuePair<string, Expression>> NullableFields;
+
 		}
 
 		static Expression ReadOrDefault(in MemberReader reader) =>
 			reader.IsDbNull == null ? reader.Read : Expression.Condition(reader.IsDbNull, MakeDefault(reader.Read.Type), reader.Read);
 
-		static Expression MakeDefault(Type type) {
-			return Expression.Default(type);
+		static Expression GuardedRead(in MemberReader reader) {
+			if(reader.IsDbNull == null)
+				return reader.Read;
+
+			return Expression.Condition(reader.IsDbNull,
+				Expression.Throw(
+					Expression.New(
+						typeof(DataRowNullCastException).GetConstructor(new[] { typeof(string[]) }),
+						Expression.NewArrayInit(
+							typeof(string),
+							reader.NullableFields.Select(x =>
+								Expression.Condition(x.Value,
+										Expression.Constant(x.Key),
+										Expression.Constant(null, typeof(string)))))),
+					reader.Read.Type),
+				reader.Read);
+
 		}
+
+		static Expression GuardedInvoke(Expression body, MemberReader[] args) {
+			var isNull = AnyOf(args.Where(x => x.Read.Type.IsPrimitive).Select(x => x.IsDbNull));
+			body = Expression.Invoke(body, Array.ConvertAll(args, x => x.Read));
+			if (isNull == null)
+				return body;
+			return Expression.Condition(isNull,
+				Expression.Throw(
+					Expression.New(
+						typeof(DataRowNullCastException).GetConstructor(new[] { typeof(string[]) }),
+						Expression.NewArrayInit(typeof(string),
+							args.Where(x => x.Read.Type.IsPrimitive && x.IsDbNull != null).Select(x =>
+								Expression.Condition(x.IsDbNull,
+									Expression.Constant(x.Name),
+									Expression.Constant(null, typeof(string)))))),
+					body.Type),
+				body);
+		}
+
+		class DataRowNullCastException : InvalidCastException
+		{
+			public DataRowNullCastException(string[] nullFields) :
+				base(string.Format("'{0}' was null.", string.Join(", ", nullFields.Where(x => !string.IsNullOrEmpty(x))))) { }
+		}
+
+		static Expression MakeDefault(Type type) =>
+			Expression.Default(type);
 
 		enum BindingResult
 		{
@@ -290,7 +350,9 @@ namespace DataBoss.Data
 
 			public DataRecordConverter BuildConverter(Type readerType, FieldMap map, Type result) {
 				var context = ConverterContext.Create(readerType, result, customConversions);
-				return new DataRecordConverter(Expression.Lambda(ReadOrDefault(context.FieldInit(map, new ItemInfo(null, context.ResultType))), context.Arg0));
+				var reader = context.FieldInit(map, new ItemInfo(null, context.ResultType));
+				return new DataRecordConverter(Expression.Lambda(
+					GuardedRead(reader), context.Arg0));
 			}
 
 			public DataRecordConverter BuildConverter<TReader>(FieldMap map, LambdaExpression resultFactory) where TReader : IDataReader {
@@ -309,31 +371,6 @@ namespace DataBoss.Data
 					Array.ConvertAll(m.GetParameters(), x => new ItemInfo(x.Name, x.ParameterType)));
 				var arg1 = Expression.Parameter(exemplar.GetType());
 				return new DataRecordConverter(Expression.Lambda(GuardedInvoke(arg1, pn), context.Arg0, arg1));
-			}
-
-			static Expression GuardedInvoke(Expression body, MemberReader[] args) {
-				var isNull = AnyOf(args.Where(x => x.Read.Type.IsPrimitive).Select(x => x.IsDbNull));
-				body = Expression.Invoke(body, Array.ConvertAll(args, x => x.Read));
-				if(isNull == null)
-					return body;
-				return Expression.Condition(isNull,
-					Expression.Throw(
-						Expression.New(
-							typeof(DataRowNullCastException).GetConstructor(new[]{ typeof(string[]) }),
-							Expression.NewArrayInit(typeof(string), 
-								args.Where(x => x.Read.Type.IsPrimitive && x.IsDbNull != null).Select(x => 
-									Expression.Condition(x.IsDbNull,
-										Expression.Constant(x.Name),
-										Expression.Constant(null, typeof(string)))))), 
-						body.Type),
-					body);
-			}
-
-			class DataRowNullCastException : InvalidCastException
-			{
-				public DataRowNullCastException(string[] nullFields) : 
-					base(string.Format("'{0}' was null.", string.Join(", ", nullFields.Where(x => !string.IsNullOrEmpty(x)))))
-				{}
 			}
 
 			MemberReader[] BindAllParameters(ConverterContext context, FieldMap map, ItemInfo[] parameters) {

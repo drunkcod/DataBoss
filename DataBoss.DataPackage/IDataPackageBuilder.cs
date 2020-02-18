@@ -12,6 +12,8 @@ namespace DataBoss.DataPackage
 	{
 		IDataPackageResourceBuilder AddResource(string name, Func<IDataReader> getData);
 		void Save(Func<string, Stream> createOutput, CultureInfo culture = null);
+		DataPackage Serialize(CultureInfo culture = null);
+		DataPackage Done();
 	}
 
 	public interface IDataPackageResourceBuilder : IDataPackageBuilder

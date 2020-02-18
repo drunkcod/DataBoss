@@ -102,6 +102,6 @@ namespace DataBoss.Specs.DataPackage
 				xs => xs[0].Value == 3.1415);
 		}
 
-		struct ValueRow<T> { public T Value; }
+		class ValueRow<T> { public T Value { get; set; } }
 	}
 }

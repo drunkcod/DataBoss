@@ -161,7 +161,10 @@ namespace DataBoss.Data
 		}
 
 		//SqlBulkCopy.EnableStreaming requires this
-		public bool IsDBNull(int i) => GetValue(i) is DBNull;
+		public bool IsDBNull(int i) {
+			var x = GetValue(i);
+			return (GetFieldType(i).IsValueType == false && x == null) || x is DBNull;
+		}
 
 		int IDataReader.Depth => throw new NotSupportedException();
 		bool IDataReader.IsClosed => throw new NotSupportedException();

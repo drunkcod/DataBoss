@@ -45,6 +45,9 @@ namespace DataBoss.DataPackage
 			NumberDecimalSeparator = ".",
 		};
 
+		public static bool IsRequired(this TabularDataSchemaFieldDescription field) =>
+			field.Constraints?.IsRequired ?? false;
+
 		public static bool IsNumber(this TabularDataSchemaFieldDescription field) =>
 			field.Type == "number";
 
