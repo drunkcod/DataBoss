@@ -140,7 +140,7 @@ namespace DataBoss.Data
 					}
 
 					var thisNull = field.CanBeNull 
-						? new[] { new KeyValuePair<string, Expression>(item.Name, IsNull(o)) } 
+						? new[] { (item.Name, IsNull(o)) } 
 						: null;
 					reader = new MemberReader(field.Ordinal, item.Name, convertedField, thisNull);
 					return BindingResult.Ok;
@@ -193,7 +193,7 @@ namespace DataBoss.Data
 					if (TryMapParameters(map, p, pn)) {
 						var nullability = pn
 							.Where(x => x.Read.Type.IsValueType && x.IsDbNull != null)
-							.Select(x => new KeyValuePair<string, Expression>(x.Name, x.IsDbNull))
+							.Select(x => (x.Name, x.IsDbNull))
 							.ToArray();
 						return new MemberReader(
 							map.MinOrdinal,
@@ -262,11 +262,11 @@ namespace DataBoss.Data
 
 		readonly struct MemberReader
 		{
-			public MemberReader(int ordinal, string name, Expression reader, IReadOnlyCollection<KeyValuePair<string, Expression>> isDbNull) {
+			public MemberReader(int ordinal, string name, Expression reader, IReadOnlyCollection<(string Name, Expression IsDbNull)> isDbNull) {
 				this.Ordinal = ordinal;
 				this.Name = name;
 				this.Read = reader;
-				if(isDbNull != null && isDbNull.Any(x => x.Value == null))
+				if(isDbNull != null && isDbNull.Any(x => x.IsDbNull == null))
 					throw new InvalidOperationException("Null nullability check.");
 				this.NullableFields = isDbNull;
 			}
@@ -278,12 +278,11 @@ namespace DataBoss.Data
 				get {
 					if(NullableFields == null || NullableFields.Count == 0)
 						return null;
-					return AnyOf(NullableFields.Select(x => x.Value));
+					return AnyOf(NullableFields.Select(x => x.IsDbNull));
 				}
 			}
 
-			public readonly IReadOnlyCollection<KeyValuePair<string, Expression>> NullableFields;
-
+			public readonly IReadOnlyCollection<(string Name, Expression IsDbNull)> NullableFields;
 		}
 
 		static Expression ReadOrDefault(in MemberReader reader) =>
@@ -292,20 +291,7 @@ namespace DataBoss.Data
 		static Expression GuardedRead(in MemberReader reader) {
 			if(reader.IsDbNull == null)
 				return reader.Read;
-
-			return Expression.Condition(reader.IsDbNull,
-				Expression.Throw(
-					Expression.New(
-						typeof(DataRowNullCastException).GetConstructor(new[] { typeof(string[]) }),
-						Expression.NewArrayInit(
-							typeof(string),
-							reader.NullableFields.Select(x =>
-								Expression.Condition(x.Value,
-										Expression.Constant(x.Key),
-										Expression.Constant(null, typeof(string)))))),
-					reader.Read.Type),
-				reader.Read);
-
+			return GuardedExpression(reader.Read, reader.IsDbNull, reader.NullableFields);
 		}
 
 		static Expression GuardedInvoke(Expression body, MemberReader[] args) {
@@ -313,17 +299,27 @@ namespace DataBoss.Data
 			body = Expression.Invoke(body, Array.ConvertAll(args, x => x.Read));
 			if (isNull == null)
 				return body;
-			return Expression.Condition(isNull,
-				Expression.Throw(
-					Expression.New(
-						typeof(DataRowNullCastException).GetConstructor(new[] { typeof(string[]) }),
-						Expression.NewArrayInit(typeof(string),
-							args.Where(x => x.Read.Type.IsPrimitive && x.IsDbNull != null).Select(x =>
-								Expression.Condition(x.IsDbNull,
-									Expression.Constant(x.Name),
-									Expression.Constant(null, typeof(string)))))),
-					body.Type),
-				body);
+
+			return GuardedExpression(body, isNull, args
+				.Where(x => x.Read.Type.IsPrimitive && x.IsDbNull != null)
+				.Select(x => (x.Name, x.IsDbNull)));
+		}
+
+		static Expression GuardedExpression(Expression expr, Expression isNull, IEnumerable<(string Name, Expression IsDbNull)> fields) {
+			var nullFields = Expression.NewArrayInit(
+				typeof(string),
+				fields.Select(x =>
+					Expression.Condition(x.IsDbNull,
+						Expression.Constant(x.Name),
+						Expression.Constant(null, typeof(string)))));
+
+			var @throw = Expression.Throw(
+				Expression.New(
+					typeof(DataRowNullCastException).GetConstructor(new[] { typeof(string[]) }), 
+					nullFields),
+				expr.Type);
+
+			return Expression.Condition(isNull, @throw, expr);
 		}
 
 		class DataRowNullCastException : InvalidCastException
