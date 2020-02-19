@@ -8,7 +8,6 @@ namespace DataBoss.DataPackage
 {
 	public class CsvDataReader : IDataReader
 	{
-
 		readonly CsvReader csv;
 		readonly DataReaderSchemaTable schema;
 		readonly string[] primaryKey;

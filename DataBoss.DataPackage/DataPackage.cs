@@ -203,7 +203,39 @@ namespace DataBoss.DataPackage
 		static CsvWriter NewCsvWriter(Stream stream, Encoding encoding) => 
 			new CsvWriter(new StreamWriter(stream, encoding, 4096, leaveOpen: true));
 
+
+		static readonly ConcurrentDictionary<Type, Func<CsvFormatter, object, string>> ConversionCache = new ConcurrentDictionary<Type, Func<CsvFormatter, object, string>>();
+		static readonly Func<CsvFormatter, object, string> DefaultFormat = (Func<CsvFormatter, object, string>)Delegate.CreateDelegate(typeof(Func<CsvFormatter, object, string>), typeof(CsvFormatter).GetMethod("Format", new[] { typeof(object) }));
+
+		static Func<CsvFormatter, object, string> GetFormatFunc(Type fieldType) {
+			var formatBy = typeof(CsvFormatter).GetMethods(BindingFlags.Instance | BindingFlags.Public).SingleOrDefault(x => x.Name == "Format" && x.GetParameters().Single().ParameterType == fieldType);
+			if (formatBy == null)
+				return DefaultFormat;
+
+			var formatArg = Expression.Parameter(typeof(CsvFormatter), "format");
+			var xArg = Expression.Parameter(typeof(object), "x");
+			return Expression.Lambda<Func<CsvFormatter, object, string>>(
+					Expression.Call(formatArg, formatBy, Expression.Convert(xArg, fieldType)),
+					formatArg, xArg)
+				.Compile();
+		}
+
+		class BoundFormatter
+		{
+			public CsvFormatter CsvFormat;
+			public Func<CsvFormatter, object, string> ToCsvString;
+
+			public string Format(object value) => ToCsvString(CsvFormat, value);
+		}
+
 		static void WriteRecords(Stream output, IDataReader data, CsvFormatter[] format) {
+			var toString = new Func<object, string>[data.FieldCount];
+			for (var i = 0; i != data.FieldCount; ++i) {
+				toString[i] = new BoundFormatter {
+					CsvFormat = format[i],
+					ToCsvString  = ConversionCache.GetOrAdd(data.GetFieldType(i), GetFormatFunc),
+				}.Format;
+			}
 
 			using (var csv = NewCsvWriter(output, Encoding.UTF8)) {
 				for (var i = 0; i != data.FieldCount; ++i)
@@ -220,7 +252,7 @@ namespace DataBoss.DataPackage
 					DataReader = data,
 					Records = reader.GetConsumingEnumerable(),
 					Encoding = new UTF8Encoding(false),
-					Format = format,
+					FormatValue = toString,					
 				};
 				writer.Start();
 
@@ -260,7 +292,6 @@ namespace DataBoss.DataPackage
 
 		class RecordReader : WorkItem
 		{
-
 			public const int BufferRows = 128;
 
 			readonly BlockingCollection<(object[] Values, int Rows)> records = new BlockingCollection<(object[], int)>(1 << 10);
@@ -290,9 +321,8 @@ namespace DataBoss.DataPackage
 					records.Add((values, n));
 			}
 
-			protected override void Cleanup() {
+			protected override void Cleanup() =>
 				records.CompleteAdding();
-			}
 		}
 
 		class CsvFormatter
@@ -317,27 +347,11 @@ namespace DataBoss.DataPackage
 
 		class ChunkWriter : WorkItem
 		{
-			static readonly ConcurrentDictionary<Type, Func<CsvFormatter, object, string>> ConversionCache = new ConcurrentDictionary<Type, Func<CsvFormatter, object, string>>();
-			static readonly Func<CsvFormatter, object, string>  DefaultFormat = (Func<CsvFormatter, object, string>)Delegate.CreateDelegate(typeof(Func<CsvFormatter, object, string>), typeof(CsvFormatter).GetMethod("Format", new[]{ typeof(object)}));
-
-			static Func<CsvFormatter, object, string> GetFormatFunc(Type fieldType) {
-				var formatBy = typeof(CsvFormatter).GetMethods(BindingFlags.Instance | BindingFlags.Public).SingleOrDefault(x => x.Name == "Format" && x.GetParameters().Single().ParameterType == fieldType);
-				if(formatBy == null)
-					return DefaultFormat;
-
-				var formatArg = Expression.Parameter(typeof(CsvFormatter), "format");
-				var xArg = Expression.Parameter(typeof(object), "x");
-				return Expression.Lambda<Func<CsvFormatter, object, string>>(
-						Expression.Call(formatArg, formatBy, Expression.Convert(xArg, fieldType)),
-						formatArg, xArg)
-					.Compile();
-			}
-
 			readonly BlockingCollection<MemoryStream> chunks = new BlockingCollection<MemoryStream>(128);
 
 			public IDataReader DataReader;
 			public IEnumerable<(object[] Values, int Rows)> Records;
-			public CsvFormatter[] Format;
+			public Func<object, string>[] FormatValue;
 
 			public Encoding Encoding;
 
@@ -346,36 +360,32 @@ namespace DataBoss.DataPackage
 			public IEnumerable<MemoryStream> GetConsumingEnumerable() => chunks.GetConsumingEnumerable();
 
 			protected override void DoWork() {
-				var toString = new Func<CsvFormatter, object, string>[DataReader.FieldCount];
-				for (var i = 0; i != DataReader.FieldCount; ++i)
-					toString[i] = ConversionCache.GetOrAdd(DataReader.GetFieldType(i), GetFormatFunc);
 
 				var bom = Encoding.GetPreamble();
 				var bufferGuess = RecordReader.BufferRows * 128;
 				Records.ForEach(item => {
-						if (item.Rows == 0)
-							return;
-						var chunk = new MemoryStream(bufferGuess);
-						using (var fragment = NewCsvWriter(chunk, Encoding)) {
-							for (var n = 0; n != item.Rows; ++n) {
-								var first = RowOffset(n);
-								for (var i = 0; i != DataReader.FieldCount; ++i) {
-									var value = item.Values[first + i];
-									fragment.WriteField(value == null ? string.Empty : toString[i](Format[i], value));
-								}
-								fragment.NextRecord();
+					if (item.Rows == 0)
+						return;
+					var chunk = new MemoryStream(bufferGuess);
+					using (var fragment = NewCsvWriter(chunk, Encoding)) {
+						for (var n = 0; n != item.Rows; ++n) {
+							var first = RowOffset(n);
+							for (var i = 0; i != DataReader.FieldCount; ++i) {
+								var value = item.Values[first + i];
+								fragment.WriteField(value == null ? string.Empty : FormatValue[i](value));
 							}
-							fragment.Flush();
+							fragment.NextRecord();
 						}
-						bufferGuess = Math.Max(bufferGuess, (int)chunk.Position);
-						chunk.Position = bom.Length;
-						chunks.Add(chunk);
-					});
+						fragment.Flush();
+					}
+					bufferGuess = Math.Max(bufferGuess, (int)chunk.Position);
+					chunk.Position = bom.Length;
+					chunks.Add(chunk);
+				});
 			}
 
-			protected override void Cleanup() {
+			protected override void Cleanup() =>
 				chunks.CompleteAdding();
-			}
 		}
 	}
 }
