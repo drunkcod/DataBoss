@@ -144,7 +144,7 @@ namespace DataBoss.DataPackage
 				var resourcePath = $"{item.Name}.csv";
 				using (var output = createOutput(resourcePath))
 				using (var data = item.Read()) {
-					var format = Enumerable.Repeat(new CsvFormatter(culture ?? CultureInfo.CurrentCulture), data.FieldCount).ToArray();
+					var format = Enumerable.Repeat(culture ?? CultureInfo.CurrentCulture, data.FieldCount).Cast<IFormatProvider>().ToArray();
 
 					var fields = new List<TabularDataSchemaFieldDescription>(item.Schema.Fields.Count);
 					for(var i = 0; i != item.Schema.Fields.Count; ++i) {
@@ -157,7 +157,7 @@ namespace DataBoss.DataPackage
 								x.Type,
 								constraints: x.Constraints,
 								decimalChar: decimalCharOverride ?? x.DecimalChar);
-							format[i] = new CsvFormatter(customFormat.GetNumberFormat());
+							format[i] = customFormat.GetNumberFormat();
 							fields.Add(customFormat);
 						}
 					}
@@ -203,39 +203,35 @@ namespace DataBoss.DataPackage
 		static CsvWriter NewCsvWriter(Stream stream, Encoding encoding) => 
 			new CsvWriter(new StreamWriter(stream, encoding, 4096, leaveOpen: true));
 
+		static Func<IDataRecord, int, string> GetFormatter(Type type, IFormatProvider format) {
+			switch (Type.GetTypeCode(type)) {
+				default: return (r, i) => {
+					var obj = r.GetValue(i);
+					return obj is IFormattable x ? x.ToString(null, format) : obj?.ToString();
+				};
 
-		static readonly ConcurrentDictionary<Type, Func<CsvFormatter, object, string>> ConversionCache = new ConcurrentDictionary<Type, Func<CsvFormatter, object, string>>();
-		static readonly Func<CsvFormatter, object, string> DefaultFormat = (Func<CsvFormatter, object, string>)Delegate.CreateDelegate(typeof(Func<CsvFormatter, object, string>), typeof(CsvFormatter).GetMethod("Format", new[] { typeof(object) }));
+				case TypeCode.DateTime: return (r, i) => {
+					var value = r.GetDateTime(i);
+					if (value.Kind == DateTimeKind.Unspecified)
+						throw new InvalidOperationException("DateTimeKind.Unspecified not supported.");
+					return value.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ssK");
+				};
 
-		static Func<CsvFormatter, object, string> GetFormatFunc(Type fieldType) {
-			var formatBy = typeof(CsvFormatter).GetMethods(BindingFlags.Instance | BindingFlags.Public).SingleOrDefault(x => x.Name == "Format" && x.GetParameters().Single().ParameterType == fieldType);
-			if (formatBy == null)
-				return DefaultFormat;
+				case TypeCode.String: return (r, i) => r.GetString(i);
 
-			var formatArg = Expression.Parameter(typeof(CsvFormatter), "format");
-			var xArg = Expression.Parameter(typeof(object), "x");
-			return Expression.Lambda<Func<CsvFormatter, object, string>>(
-					Expression.Call(formatArg, formatBy, Expression.Convert(xArg, fieldType)),
-					formatArg, xArg)
-				.Compile();
-		}
+				case TypeCode.Int32: return (r, i) => r.GetInt32(i).ToString(format);
+				case TypeCode.Int64: return (r, i) => r.GetInt64(i).ToString(format);
 
-		class BoundFormatter
-		{
-			public CsvFormatter CsvFormat;
-			public Func<CsvFormatter, object, string> ToCsvString;
-
-			public string Format(object value) => ToCsvString(CsvFormat, value);
-		}
-
-		static void WriteRecords(Stream output, IDataReader data, CsvFormatter[] format) {
-			var toString = new Func<object, string>[data.FieldCount];
-			for (var i = 0; i != data.FieldCount; ++i) {
-				toString[i] = new BoundFormatter {
-					CsvFormat = format[i],
-					ToCsvString  = ConversionCache.GetOrAdd(data.GetFieldType(i), GetFormatFunc),
-				}.Format;
+				case TypeCode.Single: return (r, i) => r.GetFloat(i).ToString(format);
+				case TypeCode.Double: return (r, i) => r.GetDouble(i).ToString(format);
+				case TypeCode.Decimal: return (r, i) => r.GetDecimal(i).ToString(format);
 			}
+		}
+
+		static void WriteRecords(Stream output, IDataReader data, IReadOnlyList<IFormatProvider> format) {
+			var toString = new Func<IDataRecord, int, string>[data.FieldCount];
+			for (var i = 0; i != data.FieldCount; ++i)
+				toString[i] = GetFormatter(data.GetFieldType(i), format[i]);
 
 			using (var csv = NewCsvWriter(output, Encoding.UTF8)) {
 				for (var i = 0; i != data.FieldCount; ++i)
@@ -294,85 +290,145 @@ namespace DataBoss.DataPackage
 		{
 			public const int BufferRows = 128;
 
-			readonly BlockingCollection<(object[] Values, int Rows)> records = new BlockingCollection<(object[], int)>(1 << 10);
+			readonly BlockingCollection<IReadOnlyList<IDataRecord>> records = new BlockingCollection<IReadOnlyList<IDataRecord>>(1 << 10);
 			public IDataReader DataReader;
 
-			int RowOffset(int n) => DataReader.FieldCount * n;
-
-			public IEnumerable<(object[] Values, int Rows)> GetConsumingEnumerable() =>
+			public IEnumerable<IReadOnlyList<IDataRecord>> GetConsumingEnumerable() =>
 				records.GetConsumingEnumerable();
 
 			protected override void DoWork() {
-				var values = new object[DataReader.FieldCount * BufferRows];
+				var values = CreateBuffer();
 				var n = 0;
+
 				while (DataReader.Read()) {
-					var first = RowOffset(n);
-					for (var i = 0; i != DataReader.FieldCount; ++i)
-						values[first + i] = DataReader.IsDBNull(i) ? null : DataReader.GetValue(i);
+					values.Add(ObjectDataRecord.GetRecord(DataReader));
 
 					if (++n == BufferRows) {
-						records.Add((values, n));
+						records.Add(values);
 						n = 0;
-						values = new object[DataReader.FieldCount * BufferRows];
+						values = CreateBuffer();
 					}
 				}
 
 				if (n != 0)
-					records.Add((values, n));
+					records.Add(values);
 			}
+
+			List<IDataRecord> CreateBuffer() => new List<IDataRecord>(BufferRows);
 
 			protected override void Cleanup() =>
 				records.CompleteAdding();
 		}
 
-		class CsvFormatter
+		class ObjectDataRecord : IDataRecord
 		{
-			readonly IFormatProvider formatProvider;
+			readonly object[] values;
+			readonly bool[] isNull;
 
-			public CsvFormatter(IFormatProvider formatProvider) {
-				this.formatProvider = formatProvider;
+			public static ObjectDataRecord GetRecord(IDataReader reader) {
+				var fields = new object[reader.FieldCount];
+				var isNull = new bool[reader.FieldCount];
+
+				reader.GetValues(fields);
+				for (var i = 0; i != isNull.Length; ++i)
+					isNull[i] = reader.IsDBNull(i);
+
+				return new ObjectDataRecord(fields, isNull);
 			}
 
-			public string Format(string value) => value;
-
-			public string Format(DateTime value) {
-				if(value.Kind == DateTimeKind.Unspecified)
-					throw new InvalidOperationException("DateTimeKind.Unspecified not supported.");
-				return value.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ssK");
+			ObjectDataRecord(object[] fields, bool[] isNull) {
+				this.values = fields;
+				this.isNull = isNull;
 			}
 
-			public string Format(object obj) =>
-				obj is IFormattable x ? x.ToString(null, formatProvider) : obj?.ToString();
+			public bool IsDBNull(int i) => isNull[i];
+
+			public object GetValue(int i) =>  values[i];
+
+			public bool GetBoolean(int i) => (bool)values[i];
+			public DateTime GetDateTime(int i) => (DateTime)values[i];
+			public Guid GetGuid(int i) => (Guid)values[i];
+
+			public byte GetByte(int i) => (byte)values[i];
+			public char GetChar(int i) => (char)values[i];
+
+			public short GetInt16(int i) => (short)values[i];
+			public int GetInt32(int i) => (int)values[i];
+			public long GetInt64(int i) => (long)values[i];
+
+			public float GetFloat(int i) => (float)values[i];
+			public double GetDouble(int i) => (double)values[i];
+			public decimal GetDecimal(int i) => (decimal)values[i];
+
+			public string GetString(int i) => (string)values[i];
+
+			public object this[int i] => GetValue(i);
+
+			public object this[string name] => throw new NotImplementedException();
+
+			public int FieldCount => values.Length;
+
+			public long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) {
+				throw new NotImplementedException();
+			}
+
+			public long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) {
+				throw new NotImplementedException();
+			}
+
+			public IDataReader GetData(int i) {
+				throw new NotImplementedException();
+			}
+
+			public string GetDataTypeName(int i) {
+				throw new NotImplementedException();
+			}
+
+			public Type GetFieldType(int i) {
+				throw new NotImplementedException();
+			}
+
+			public string GetName(int i) {
+				throw new NotImplementedException();
+			}
+
+			public int GetOrdinal(string name) {
+				throw new NotImplementedException();
+			}
+
+			public int GetValues(object[] values) {
+				throw new NotImplementedException();
+			}
 		}
 
 		class ChunkWriter : WorkItem
 		{
-			readonly BlockingCollection<MemoryStream> chunks = new BlockingCollection<MemoryStream>(128);
+			readonly BlockingCollection<MemoryStream> chunks = new BlockingCollection<MemoryStream>(1 << 10);
 
 			public IDataReader DataReader;
-			public IEnumerable<(object[] Values, int Rows)> Records;
-			public Func<object, string>[] FormatValue;
+			public IEnumerable<IReadOnlyList<IDataRecord>> Records;
+			public Func<IDataRecord, int, string>[] FormatValue;
 
 			public Encoding Encoding;
-
-			int RowOffset(int n) => DataReader.FieldCount * n;
 
 			public IEnumerable<MemoryStream> GetConsumingEnumerable() => chunks.GetConsumingEnumerable();
 
 			protected override void DoWork() {
-
 				var bom = Encoding.GetPreamble();
 				var bufferGuess = RecordReader.BufferRows * 128;
+
 				Records.ForEach(item => {
-					if (item.Rows == 0)
+					if (item.Count == 0)
 						return;
 					var chunk = new MemoryStream(bufferGuess);
 					using (var fragment = NewCsvWriter(chunk, Encoding)) {
-						for (var n = 0; n != item.Rows; ++n) {
-							var first = RowOffset(n);
+						for (var n = 0; n != item.Count; ++n) {
+							var r = item[n];
 							for (var i = 0; i != DataReader.FieldCount; ++i) {
-								var value = item.Values[first + i];
-								fragment.WriteField(value == null ? string.Empty : FormatValue[i](value));
+								if(r.IsDBNull(i))
+									fragment.NextField();
+								else
+									fragment.WriteField(FormatValue[i](r, i));
 							}
 							fragment.NextRecord();
 						}

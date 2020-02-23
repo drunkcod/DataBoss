@@ -17,9 +17,8 @@ namespace DataBoss.Specs
 			return attributes.Where(attributeType.IsInstanceOfType).ToArray();
 		}
 
-		public bool IsDefined(Type attributeType, bool inherit) {
-			throw new NotImplementedException();
-		}
+		public bool IsDefined(Type attributeType, bool inherit) =>
+			GetCustomAttributes(attributeType, inherit).Length > 0;
 
 		public StubAttributeProvider Add(Attribute item) {
 			attributes.Add(item);

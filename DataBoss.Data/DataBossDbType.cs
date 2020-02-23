@@ -187,7 +187,7 @@ namespace DataBoss.Data
 			}
 		}
 
-		static DataBossDbType MapType(Type type, ICustomAttributeProvider attributes, bool canBeNull) {
+		internal static DataBossDbType MapType(Type type, ICustomAttributeProvider attributes, bool canBeNull) {
 			var column = attributes.SingleOrDefault<ColumnAttribute>();
 			if (column != null && !string.IsNullOrEmpty(column.TypeName))
 				return Create(column.TypeName, null, canBeNull);

@@ -31,15 +31,20 @@ namespace DataBoss.DataPackage
 			NextField();
 
 			if (ShouldQuote(value)) {
-				Writer.Write('"');				
-				Writer.Write(value.Replace("\"", "\"\""));
+				Writer.Write('"');
+				for(var i = 0; i != value.Length; ++i) {
+					var c = value[i];
+					Writer.Write(c);
+					if(c == '"')
+						Writer.Write('"');
+				}
 				Writer.Write('"');
 			} 
 			else
 				Writer.Write(value);
 		}
 
-		void NextField() {
+		public void NextField() {
 			if (state == WriterState.InRecord)
 				Writer.Write(Delimiter);
 			else

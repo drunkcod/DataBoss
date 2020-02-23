@@ -7,10 +7,9 @@ namespace DataBoss.Data
 	{
 		NullAttributeProvider() { }
 
-		public object[] GetCustomAttributes(bool inherit) => new object[0];
+		public object[] GetCustomAttributes(bool inherit) => Empty<object>.Array;
 
-		public object[] GetCustomAttributes(Type attributeType, bool inherit) =>
-			new object[0];
+		public object[] GetCustomAttributes(Type attributeType, bool inherit) => Empty<object>.Array;
 
 		public bool IsDefined(Type attributeType, bool inherit) => false;
 

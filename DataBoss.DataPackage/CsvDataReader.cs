@@ -1,6 +1,5 @@
 using System;
 using System.Data;
-using System.Globalization;
 using CsvHelper;
 using DataBoss.Data;
 
@@ -13,7 +12,8 @@ namespace DataBoss.DataPackage
 		readonly string[] primaryKey;
 		readonly DataBossDbType[] dbTypes;
 		readonly IFormatProvider[] fieldFormat;
-		readonly object[] currentRow;
+
+		readonly bool[] isNull;
 		int rowNumber;
 	
 		public event EventHandler Disposed;
@@ -32,7 +32,7 @@ namespace DataBoss.DataPackage
 				if(field.IsNumber())
 					fieldFormat[i] = field.GetNumberFormat();
 			}
-			this.currentRow = new object[FieldCount];
+			this.isNull = new bool[FieldCount];
 
 			if (hasHeaderRow)
 				ValidateHeaderRow();
@@ -80,20 +80,8 @@ namespace DataBoss.DataPackage
 			var ok = ReadRow();
 			if(!ok)
 				return false;
-			for (var i = 0; i != currentRow.Length; ++i) {
-				var value = csv.GetField(i);
-				var isNull = IsNull(value);
-				try {
-					if(isNull && !dbTypes[i].IsNullable)
-						throw new FormatException("Unexpected null value.");
-
-					currentRow[i] = isNull ? DBNull.Value : Convert.ChangeType(value, GetFieldType(i), fieldFormat[i]);
-
-				} catch (FormatException ex) {
-					var given = isNull ? "null" : $"'{value}'";
-					throw new InvalidOperationException($"Failed to parse {GetName(i)} of type {GetFieldType(i)} given {given} on line {rowNumber}", ex);
-				}
-			}
+			for (var i = 0; i != FieldCount; ++i)
+				isNull[i] = IsNull(csv.GetField(i));
 			return true;
 		}
 
@@ -101,7 +89,20 @@ namespace DataBoss.DataPackage
 
 		public bool NextResult() => false;
 
-		public object GetValue(int i) => currentRow[i];
+		public object GetValue(int i) {
+			try {
+				if (isNull[i]) 
+					return dbTypes[i].IsNullable ? DBNull.Value : throw new FormatException("Unexpected null value.");
+
+				return Convert.ChangeType(csv.GetField(i), GetFieldType(i), fieldFormat[i]);
+
+			}
+			catch (FormatException ex) {
+				var given = isNull[i] ? "null" : $"'{csv.GetField(i)}'";
+				throw new InvalidOperationException($"Failed to parse {GetName(i)} of type {GetFieldType(i)} given {given} on line {rowNumber}", ex);
+			}
+		}
+
 		public Type GetFieldType(int i) => schema[i].ColumnType;
 		public string GetDataTypeName(int i) => dbTypes[i].TypeName;
 		public string GetName(int i) => schema[i].ColumnName;
@@ -116,7 +117,7 @@ namespace DataBoss.DataPackage
 			Disposed?.Invoke(this, EventArgs.Empty);
 		}
 
-		public bool IsDBNull(int i) => GetValue(i) is DBNull;
+		public bool IsDBNull(int i) => isNull[i];
 
 		int IDataReader.Depth => throw new NotSupportedException();
 		bool IDataReader.IsClosed => throw new NotSupportedException();
@@ -124,9 +125,7 @@ namespace DataBoss.DataPackage
 
 		public bool GetBoolean(int i) => (bool)GetValue(i);
 		public byte GetByte(int i) => (byte)GetValue(i);
-		public long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
 		public char GetChar(int i) => (char)GetValue(i);
-		public long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
 		public Guid GetGuid(int i) => (Guid)GetValue(i);
 		public short GetInt16(int i) => (short)GetValue(i);
 		public int GetInt32(int i) => (int)GetValue(i);
@@ -144,5 +143,7 @@ namespace DataBoss.DataPackage
 		}
 
 		public IDataReader GetData(int i) => throw new NotSupportedException();
+		public long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
+		public long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
 	}
 }

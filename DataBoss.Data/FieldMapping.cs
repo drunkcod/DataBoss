@@ -51,10 +51,32 @@ namespace DataBoss.Data
 			return Map(column ?? memberInfo.Name, m.Type, DataBossDbType.ToDataBossDbType(m.Type, memberInfo), m);
 		}
 
-		public int Map<TField>(string name, Func<T, TField> selector) {
+		public int Map<TField>(string name, Func<T, TField> selector) =>
+			Map(name, selector, NullAttributeProvider.Instance);
+
+		public int Map<TField>(string name, Func<T, TField> selector, params Attribute[] attributes) =>
+			Map(name, selector, new SimpleAttributeProvider(attributes));
+
+		int Map<TField>(string name, Func<T, TField> selector, ICustomAttributeProvider attributes) {
 			var get = CoerceToDbType(Expression.Invoke(Expression.Constant(selector), source));
-			var dbType = DataBossDbType.ToDataBossDbType(get.Type, NullAttributeProvider.Instance);
-			return Map(name, get.Type, dbType, get); 
+			var dbType = DataBossDbType.ToDataBossDbType(get.Type, attributes);
+			return Map(name, get.Type, dbType, get);
+		}
+
+		class SimpleAttributeProvider : ICustomAttributeProvider
+		{
+			readonly Attribute[] attributes;
+
+			public SimpleAttributeProvider(Attribute[] attributes) {
+				this.attributes = attributes;
+			}
+
+			public object[] GetCustomAttributes(bool inherit) => attributes;
+
+			public object[] GetCustomAttributes(Type attributeType, bool inherit) =>
+				attributes.Where(x => attributeType.IsAssignableFrom(x.GetType())).ToArray();
+
+			public bool IsDefined(Type attributeType, bool inherit) => attributes.Any(x => attributeType.IsAssignableFrom(x.GetType()));
 		}
 
 		static Expression CoerceToDbType(Expression get) => 
