@@ -9,8 +9,10 @@ namespace DataBoss.Data
 
 		public DataReaderDecorator(IDataReader inner) {
 			this.inner = inner ?? throw new ArgumentNullException(nameof(inner));
+			this.GetName = inner.GetName;
 		}
 
+		public Func<int, string> GetName; 
 		public event Action<IDataRecord> RecordRead;
 		public event Action Closed;
 
@@ -51,7 +53,7 @@ namespace DataBoss.Data
 		public short GetInt16(int i) => inner.GetInt16(i);
 		public int GetInt32(int i) => inner.GetInt32(i);
 		public long GetInt64(int i) => inner.GetInt64(i);
-		public string GetName(int i) => inner.GetName(i);
+		string IDataRecord.GetName(int i) => GetName(i);
 		public int GetOrdinal(string name) => inner.GetOrdinal(name);
 		public DataTable GetSchemaTable() => inner.GetSchemaTable();
 		public string GetString(int i) => inner.GetString(i);

@@ -91,16 +91,21 @@ namespace DataBoss.DataPackage
 
 		public object GetValue(int i) {
 			try {
-				if (isNull[i]) 
-					return dbTypes[i].IsNullable ? DBNull.Value : throw new FormatException("Unexpected null value.");
+				if (CheckedIsNull(i))
+					return DBNull.Value;
 
 				return Convert.ChangeType(csv.GetField(i), GetFieldType(i), fieldFormat[i]);
-
 			}
 			catch (FormatException ex) {
 				var given = isNull[i] ? "null" : $"'{csv.GetField(i)}'";
 				throw new InvalidOperationException($"Failed to parse {GetName(i)} of type {GetFieldType(i)} given {given} on line {rowNumber}", ex);
 			}
+		}
+
+		bool CheckedIsNull(int i) {
+			if (isNull[i])
+				return dbTypes[i].IsNullable ? true : throw new InvalidOperationException($"Unexpected null value for {GetName(i)} on line {rowNumber}.");
+			return false;
 		}
 
 		public Type GetFieldType(int i) => schema[i].ColumnType;
@@ -127,14 +132,15 @@ namespace DataBoss.DataPackage
 		public byte GetByte(int i) => (byte)GetValue(i);
 		public char GetChar(int i) => (char)GetValue(i);
 		public Guid GetGuid(int i) => (Guid)GetValue(i);
-		public short GetInt16(int i) => (short)GetValue(i);
-		public int GetInt32(int i) => (int)GetValue(i);
-		public long GetInt64(int i) => (long)GetValue(i);
-		public float GetFloat(int i) => (float)GetValue(i);
-		public double GetDouble(int i) => (double)GetValue(i);
-		public string GetString(int i) => (string)GetValue(i);
-		public decimal GetDecimal(int i) => (decimal)GetValue(i);
+		public short GetInt16(int i) => CheckedIsNull(i) ? default : short.Parse(csv.GetField(i), fieldFormat[i]);
+		public int GetInt32(int i) => CheckedIsNull(i) ? default : int.Parse(csv.GetField(i), fieldFormat[i]);
+		public long GetInt64(int i) => CheckedIsNull(i) ? default : long.Parse(csv.GetField(i), fieldFormat[i]);
+		public float GetFloat(int i) => CheckedIsNull(i) ? default : float.Parse(csv.GetField(i), fieldFormat[i]);
+		public double GetDouble(int i) => CheckedIsNull(i) ? default : double.Parse(csv.GetField(i), fieldFormat[i]);
+		public string GetString(int i) => CheckedIsNull(i) ? default: csv.GetField(i);
+		public decimal GetDecimal(int i) => CheckedIsNull(i) ? default : decimal.Parse(csv.GetField(i), fieldFormat[i]);
 		public DateTime GetDateTime(int i) => (DateTime)GetValue(i);
+
 		public int GetValues(object[] values) {
 			var n = Math.Min(FieldCount, values.Length);
 			for(var i = 0; i != n; ++i)

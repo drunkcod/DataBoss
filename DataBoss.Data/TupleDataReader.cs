@@ -6,6 +6,11 @@ using System.Data;
 
 namespace DataBoss.Data
 {
+	public interface IRecordDataReader : IDataReader
+	{
+		IDataRecord GetCurrentRecord();
+	}
+
 	public class TupleDataReader
 	{
 		public static TupleDataReader<T> Create<T>(IEnumerable<T> items) {
@@ -130,7 +135,7 @@ namespace DataBoss.Data
 		}
 
 		public TValue GetValue<TValue>(int i) => ItemOf<TValue>.GetItem(Current, i);
-		public object GetValue(int i) => GetItem(Current, i);
+		public object GetValue(int i) => IsDBNull(i) ? DBNull.Value : GetItem(Current, i);
 
 		public int FieldCount => Schema.Count;
 		public object this[int i] => GetValue(i);
@@ -179,15 +184,17 @@ namespace DataBoss.Data
 		}
 	}
 
-	public class TupleDataReader<T> : IDataReader 
+	public class TupleDataReader<T> : IRecordDataReader 
 	{
 		readonly TupleDataRecord<T> record;
 		IEnumerator<T> items;
 
-		internal TupleDataReader(IEnumerator<T> items, DataReaderSchemaTable schema) {
+		public TupleDataReader(IEnumerator<T> items, DataReaderSchemaTable schema) {
 			this.items = items;
 			this.record = new TupleDataRecord<T>(schema);
 		}
+
+		public IDataRecord GetCurrentRecord() => new TupleDataRecord<T>(record.Schema) { Current = record.Current };
 
 		TValue GetValue<TValue>(int i) => record.GetValue<TValue>(i);
 
@@ -228,30 +235,20 @@ namespace DataBoss.Data
 		public object GetValue(int i) => record.GetValue(i);
 		public int GetValues(object[] values) => record.GetValues(values);
 
+		public long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) => record.GetBytes(i, fieldOffset, buffer, bufferoffset, length);
+		public long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) => record.GetChars(i, fieldoffset, buffer, bufferoffset, length);
+		public IDataReader GetData(int i) => record.GetData(i);
+		public string GetDataTypeName(int i) => record.GetDataTypeName(i);
+
 		public bool IsDBNull(int i) => record.IsDBNull(i);
 
 		public bool Read() {
 			var r = items.MoveNext();
-			record.Current = items.Current;
+			if(r)
+				record.Current = items.Current;
 			return r;
 		}
 
 		public bool NextResult() => false;
-
-		public long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) {
-			throw new NotImplementedException();
-		}
-
-		public long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) {
-			throw new NotImplementedException();
-		}
-
-		public IDataReader GetData(int i) {
-			throw new NotImplementedException();
-		}
-
-		public string GetDataTypeName(int i) {
-			throw new NotImplementedException();
-		}
 	}
 }

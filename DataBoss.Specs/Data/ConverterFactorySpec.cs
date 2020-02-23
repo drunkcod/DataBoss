@@ -14,7 +14,7 @@ namespace DataBoss.Specs.Data
 	public class ConverterFactorySpec
 	{
 		public void ctor_dbnull_reference_arg() {
-			var r = SequenceDataReader.Create(new { Value = (string)null });
+			var r = SequenceDataReader.Items(new { Value = (string)null });
 			var converter = ConverterFactory.Default.GetConverter<IDataReader, ValueRow<string>>(r);
 			r.Read();
 			Check.That(
@@ -23,7 +23,7 @@ namespace DataBoss.Specs.Data
 		}
 
 		public void ctor_dbnull_nullable_arg() {
-			var r = SequenceDataReader.Create(new { Value = (int?)null });
+			var r = SequenceDataReader.Items(new { Value = (int?)null });
 			var converter = ConverterFactory.Default.GetConverter<IDataReader, ValueRow<int?>>(r);
 			r.Read();
 			Check.That(
@@ -32,7 +32,7 @@ namespace DataBoss.Specs.Data
 		}
 
 		public void raise_error_on_missing_args() {
-			var r = SequenceDataReader.Create(new { Value = (int?)null });
+			var r = SequenceDataReader.Items(new { Value = (int?)null });
 			var converter = ConverterFactory.Default.GetConverter<IDataReader, ValueRow<int>>(r);
 			r.Read();
 			Check.Exception<InvalidCastException>(() => converter.Compiled(r));

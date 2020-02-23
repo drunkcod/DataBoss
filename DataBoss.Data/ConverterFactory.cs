@@ -122,7 +122,7 @@ namespace DataBoss.Data
 								Expression.New(item.Type),
 								Expression.Convert(childReader.Read, item.Type)), 
 							null);
-						return BindingResult.Ok;;
+						return BindingResult.Ok;
 					}
 					reader = default;
 					return r;
@@ -174,7 +174,7 @@ namespace DataBoss.Data
 				return MakeReader(map, item.Name, ctors, (ctor, ps) => 
 					Expression.MemberInit(
 						Expression.New(ctor, ps), 
-						GetMembers(map, itemType)));
+						GetMembers(map, itemType, new HashSet<string>(ctor.GetParameters().Select(x => x.Name), StringComparer.InvariantCultureIgnoreCase))));
 			}
 
 			MemberReader? GetFactoryFunction(FieldMap map, in ItemInfo item) {
@@ -195,6 +195,7 @@ namespace DataBoss.Data
 							.Where(x => x.Read.Type.IsValueType && x.IsDbNull != null)
 							.Select(x => (x.Name, x.IsDbNull))
 							.ToArray();
+
 						return new MemberReader(
 							map.MinOrdinal,
 							itemName,
@@ -214,10 +215,11 @@ namespace DataBoss.Data
 				return null;
 			}
 
-			ArraySegment<MemberAssignment> GetMembers(FieldMap map, Type targetType) {
+			ArraySegment<MemberAssignment> GetMembers(FieldMap map, Type targetType, HashSet<string> excludedMembers = null) {
 				var fields = targetType.GetFields().Where(x => !x.IsInitOnly).Select(x => (Item: new ItemInfo(x.Name, x.FieldType), Member: (MemberInfo)x));
 				var props = targetType.GetProperties().Where(x => x.CanWrite).Select(x => (Item: new ItemInfo(x.Name, x.PropertyType), Member: (MemberInfo)x));
-				var members = fields.Concat(props).ToArray();
+				var allMembers = fields.Concat(props);
+				var members = (excludedMembers == null ? allMembers : allMembers.Where(x => !excludedMembers.Contains(x.Item.Name))).ToArray();
 				var ordinals = new int[members.Length];
 				var bindings = new MemberAssignment[members.Length];
 				var found = 0;

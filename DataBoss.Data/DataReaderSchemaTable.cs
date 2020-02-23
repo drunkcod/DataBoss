@@ -1,10 +1,11 @@
-﻿using System;
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 
 namespace DataBoss.Data
 {
-	public class DataReaderSchemaTable
+	public class DataReaderSchemaTable : IEnumerable<DataReaderSchemaRow>
 	{		
 		readonly List<DataReaderSchemaRow> rows = new List<DataReaderSchemaRow>();
 
@@ -46,5 +47,8 @@ namespace DataBoss.Data
 
 			return schema;
 		}
+
+		public IEnumerator<DataReaderSchemaRow> GetEnumerator() => rows.GetEnumerator();
+		IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 	}
 }

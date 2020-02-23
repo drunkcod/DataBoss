@@ -62,8 +62,7 @@ namespace DataBoss.Specs.DataPackage
 				}, hasHeaderRow: false);
 
 			var schema = ObjectReader.For(csv.GetSchemaTable().CreateDataReader()).Read<DataReaderSchemaRow>().ToList();
-			Check.That(
-				() => schema.Single(x => x.ColumnName == "id").AllowDBNull == false);
+			Check.That(() => schema.Single(x => x.ColumnName == "id").AllowDBNull == false);
 		}
 
 		public void detect_missing_required_value() {
@@ -80,8 +79,7 @@ namespace DataBoss.Specs.DataPackage
 					}
 				}, hasHeaderRow: false);
 
-			var e = Check.Exception<InvalidOperationException>(() => ObjectReader.For(csv).Read<IdRow<int>>().ToList());
-			Check.That(() => e.InnerException.Message == "Unexpected null value.");
+			Check.Exception<InvalidOperationException>(() => ObjectReader.For(csv).Read<IdRow<int>>().ToList());
 		}
 
 		public void support_varying_decimal_separator() {
