@@ -19,15 +19,15 @@ namespace DataBoss.Data
 
 		public override string ToString() => Key;
 
-		public static ConverterCacheKey Create(IDataReader reader, Type result) =>
-			new ConverterCacheKey(result, FormatReader(reader, "⇒ ").ToString());
+		public static ConverterCacheKey Create(IDataReader reader, Type readerType, Type resultType) =>
+			new ConverterCacheKey(resultType, FormatReader(reader, readerType, "⇒ ").ToString());
 
-		public static ConverterCacheKey Into(IDataReader reader, Type result) =>
-			new ConverterCacheKey(result, FormatReader(reader, "↻ ").ToString());
+		public static ConverterCacheKey Into(IDataReader reader, Type readerType, Type result) =>
+			new ConverterCacheKey(result, FormatReader(reader, readerType, "↻ ").ToString());
 
-		static StringBuilder FormatReader(IDataReader reader, string prefix = null) {
+		static StringBuilder FormatReader(IDataReader reader, Type readerType, string prefix = null) {
 			var key = new StringBuilder(prefix, 128);
-			key.Append(reader.GetType()).Append('(');
+			key.Append(readerType).Append('(');
 			return FieldKey(key, reader).Append(")");
 		}
 

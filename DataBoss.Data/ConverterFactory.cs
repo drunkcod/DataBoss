@@ -423,12 +423,12 @@ namespace DataBoss.Data
 
 		public DataRecordConverter<TReader, T> GetConverter<TReader, T>(TReader reader) where TReader : IDataReader =>
 			converterCache.GetOrAdd(
-				reader, ConverterCacheKey.Create(reader, typeof(T)),
+				reader, ConverterCacheKey.Create(reader, typeof(TReader), typeof(T)),
 				x => recordConverterFactory.BuildConverter(typeof(TReader), x, typeof(T)))
 			.ToTyped<TReader, T>();
 		
 		public FillExisting<TReader, T> GetReadInto<TReader, T>(TReader reader) where TReader : IDataReader =>
-			(FillExisting<TReader, T>)readIntoCache.GetOrAdd(ConverterCacheKey.Into(reader, typeof(T)), delegate
+			(FillExisting<TReader, T>)readIntoCache.GetOrAdd(ConverterCacheKey.Into(reader, typeof(TReader), typeof(T)), delegate
 			{
 				var fields = FieldMap.Create(reader);
 				var context = ConverterContext.Create(typeof(TReader), typeof(T), null);
