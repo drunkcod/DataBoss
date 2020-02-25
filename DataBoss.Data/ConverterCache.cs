@@ -9,15 +9,15 @@ namespace DataBoss.Data
 {
 	public struct ConverterCacheKey : IEquatable<ConverterCacheKey>
 	{
-		readonly Type resultType;
-		readonly string key;
-
 		ConverterCacheKey(Type resultType, string key) {
-			this.resultType = resultType;
-			this.key = key; 
+			this.ResultType = resultType;
+			this.Key = key; 
 		}
 
-		public override string ToString() => $"{key} -> {resultType}";
+		public Type ResultType { get; private set; }
+		public string Key { get; private set; }
+
+		public override string ToString() => Key;
 
 		public static ConverterCacheKey Create(IDataReader reader, Type result) =>
 			new ConverterCacheKey(result, FormatReader(reader, "⇒ ").ToString());
@@ -88,8 +88,9 @@ namespace DataBoss.Data
 		static string ParameterKey(Delegate exemplar) =>
 			string.Join(", ", exemplar.Method.GetParameters().Select(x => $"{x.ParameterType} {x.Name}"));
 
-		public override int GetHashCode() => resultType.GetHashCode();
-		public bool Equals(ConverterCacheKey other) => other.key == this.key && other.resultType == this.resultType;
+		public override int GetHashCode() => ResultType.GetHashCode();
+		public override bool Equals(object obj) => Equals((ConverterCacheKey)obj);
+		public bool Equals(ConverterCacheKey other) => other.Key == this.Key && other.ResultType == this.ResultType;
 	}
 
 	public interface IConverterCache
@@ -109,12 +110,12 @@ namespace DataBoss.Data
 
 	public class ConcurrentConverterCache : IConverterCache
 	{
-		readonly ConcurrentDictionary<string, DataRecordConverter> converterCache = new ConcurrentDictionary<string, DataRecordConverter>(); 
+		readonly ConcurrentDictionary<ConverterCacheKey, DataRecordConverter> converterCache = new ConcurrentDictionary<ConverterCacheKey, DataRecordConverter>(); 
 
 		public DataRecordConverter GetOrAdd<TReader>(TReader reader, ConverterCacheKey key, Func<FieldMap, DataRecordConverter> createConverter) where TReader : IDataReader { 
-			if(!converterCache.TryGetValue(key.ToString(), out var found)) { 
-				found = NullConverterCache.Instance.GetOrAdd(reader, key, createConverter);
-				converterCache.TryAdd(key.ToString(), found);
+			if(!converterCache.TryGetValue(key, out var found)) { 
+				found = createConverter(FieldMap.Create(reader));
+				converterCache.TryAdd(key, found);
 			}
 			return found;
 		}

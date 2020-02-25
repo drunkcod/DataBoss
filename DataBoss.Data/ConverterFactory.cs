@@ -122,7 +122,7 @@ namespace DataBoss.Data
 							item.Name,
 							Expression.Condition(
 								childReader.IsDbNull ?? Expression.Constant(false),
-								Expression.New(item.Type),
+								Expression.Default(item.Type),
 								Expression.Convert(childReader.Read, item.Type)), 
 							null);
 						return BindingResult.Ok;
@@ -442,7 +442,21 @@ namespace DataBoss.Data
 					context.Arg0,
 					target).Compile();
 			});
-	
+
+		public LambdaExpression GetReadInto(IDataReader reader, Type targetType) {
+			var fields = FieldMap.Create(reader);
+			var context = ConverterContext.Create(typeof(IDataReader), targetType, null);
+			var members = context.GetMembers(fields, context.ResultType);
+
+			var target = Expression.Parameter(targetType.MakeByRefType(), "target");
+
+			return Expression.Lambda(
+				Expression.Block(
+					members.Select(x => Expression.Assign(Expression.MakeMemberAccess(target, x.Member), x.Expression))),
+				context.Arg0,
+				target);
+		}
+
 		public DataRecordConverter GetConverter<TReader>(TReader reader, LambdaExpression factory) where TReader : IDataReader {
 			if (ConverterCacheKey.TryCreate(reader, factory, out var key)) {
 				return converterCache.GetOrAdd(
