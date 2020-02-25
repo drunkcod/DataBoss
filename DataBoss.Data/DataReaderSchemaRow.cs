@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace DataBoss.Data
 {
@@ -9,5 +9,12 @@ namespace DataBoss.Data
 		public Type ColumnType;
 		public bool AllowDBNull;
 		public int? ColumnSize;
+		public string DataTypeName;
+
+		/// <summary>
+		/// If this was a field what would type be then? 
+		/// If nulls are allowed it's a Nullable<T> rather than T 
+		public Type GetFieldType() => 
+			ColumnType.IsPrimitive && AllowDBNull ? typeof(Nullable<>).MakeGenericType(ColumnType) : ColumnType;
 	}
 }

@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Data;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Text;
 
 namespace DataBoss.Data
 {
@@ -16,13 +17,22 @@ namespace DataBoss.Data
 			this.key = key; 
 		}
 
-		public override string ToString() => key ?? string.Empty;
+		public override string ToString() => $"{key} -> {resultType}";
 
-		public static ConverterCacheKey Create<T>(T reader, Type result) where T : IDataReader => 
-			new ConverterCacheKey(result, $"{typeof(T)}({FieldKey(reader)}) -> {result}");
+		public static ConverterCacheKey Create(IDataReader reader, Type result) =>
+			new ConverterCacheKey(result, FormatReader(reader, "⇒ ").ToString());
+
+		public static ConverterCacheKey Into(IDataReader reader, Type result) =>
+			new ConverterCacheKey(result, FormatReader(reader, "↻ ").ToString());
+
+		static StringBuilder FormatReader(IDataReader reader, string prefix = null) {
+			var key = new StringBuilder(prefix, 128);
+			key.Append(reader.GetType()).Append('(');
+			return FieldKey(key, reader).Append(")");
+		}
 
 		public static ConverterCacheKey Create<T>(T reader, Delegate exemplar) where T : IDataReader =>
-			new ConverterCacheKey(exemplar.Method.ReturnType, $"{typeof(T)}({FieldKey(reader)}) -> Invoke({ParameterKey(exemplar)})");
+			new ConverterCacheKey(exemplar.Method.ReturnType, $"{typeof(T)}({FieldKey(reader)})->Invoke({ParameterKey(exemplar)})");
 
 		public static bool TryCreate<T>(T reader, LambdaExpression e, out ConverterCacheKey key) where T : IDataReader { 
 			var b = e.Body;
@@ -30,7 +40,7 @@ namespace DataBoss.Data
 				var args = string.Join(", ", 
 					Enumerable.Range(0, c.Arguments.Count)
 					.Select(x => $"{c.Arguments[x].Type} _{e.Parameters.IndexOf(c.Arguments[0] as ParameterExpression)}"));
-				key = new ConverterCacheKey(e.Type, $"{typeof(T)}({FieldTypeKey(reader)}) -> .ctor({args})");
+				key = new ConverterCacheKey(e.Type, $"{typeof(T)}({FieldTypeKey(reader)})->.ctor({args})");
 				return true;
 			}
 			key = default(ConverterCacheKey);
@@ -38,7 +48,39 @@ namespace DataBoss.Data
 		}
 
 		static string FieldKey(IDataReader reader) =>
-			string.Join(", ", Enumerable.Range(0, reader.FieldCount).Select(ordinal => $"{reader.GetFieldType(ordinal)} [{reader.GetName(ordinal)}]"));
+			FieldKey(new StringBuilder(128), reader).ToString();
+
+		static StringBuilder FieldKey(StringBuilder sb, IDataReader reader) {
+			if (reader.FieldCount == 0)
+				return sb;
+			var nullable = GetNullability(reader);
+			FormatField(sb, reader.GetName(0), NullableT(reader.GetFieldType(0), nullable[0]));
+			for (var i = 1; i != reader.FieldCount; ++i)
+				FormatField(sb.Append(", "), reader.GetName(i), NullableT(reader.GetFieldType(i), nullable[i]));
+
+			return sb;
+		}
+
+		static bool[] GetNullability(IDataReader reader) {
+			if(reader.FieldCount == 0)
+				return Empty<bool>.Array;
+			var r = new bool[reader.FieldCount];
+			var schema = reader.GetSchemaTable();
+			var allowDBNull = schema.Columns["AllowDBNull"];
+
+			for (var i = 0; i != r.Length; ++i) {
+				var row = schema.Rows[i];
+				r[i] = (bool)row[allowDBNull];
+			}
+
+			return r;
+		}
+
+		static void FormatField(StringBuilder sb, string columnName, Type columnType) =>
+			sb.Append(columnType).Append(" [").Append(columnName).Append(']');
+
+		static Type NullableT(Type type, bool allowNull) =>
+			type.IsPrimitive && allowNull ? typeof(Nullable<>).MakeGenericType(type) : type;
 
 		static string FieldTypeKey(IDataReader reader) =>
 			string.Join(", ", Enumerable.Range(0, reader.FieldCount).Select(ordinal => $"{reader.GetFieldType(ordinal)}"));
@@ -46,7 +88,7 @@ namespace DataBoss.Data
 		static string ParameterKey(Delegate exemplar) =>
 			string.Join(", ", exemplar.Method.GetParameters().Select(x => $"{x.ParameterType} {x.Name}"));
 
-		public override int GetHashCode() => key.GetHashCode();
+		public override int GetHashCode() => resultType.GetHashCode();
 		public bool Equals(ConverterCacheKey other) => other.key == this.key && other.resultType == this.resultType;
 	}
 

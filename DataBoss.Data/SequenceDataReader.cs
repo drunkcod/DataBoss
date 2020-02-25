@@ -29,16 +29,19 @@ namespace DataBoss.Data
 		readonly object[] current;
 		readonly Action<T,object[]> accessor;
 		readonly IEnumerator<T> data;
-		readonly string[] fieldNames;
-		readonly Type[] fieldTypes;
-		readonly DataBossDbType[] dbTypes;
+		//readonly string[] fieldNames;
+		//readonly Type[] fieldTypes;
+		//readonly DataBossDbType[] dbTypes;
+		readonly DataReaderSchemaTable schema = new DataReaderSchemaTable();
 	
 		internal SequenceDataReader(IEnumerator<T> data, FieldMapping<T> fields) {
 			this.data = data ?? throw new ArgumentNullException(nameof(data));
-			this.fieldNames = fields.GetFieldNames();
-			this.fieldTypes = fields.GetFieldTypes();
 			this.accessor = fields.GetAccessor();
-			this.dbTypes = fields.GetDbTypes();
+			var fieldNames = fields.GetFieldNames();
+			var fieldTypes = fields.GetFieldTypes();
+			var dbTypes = fields.GetDbTypes();
+			for(var i = 0; i != fieldNames.Length; ++i) 
+				schema.Add(fieldNames[i], i, fieldTypes[i], dbTypes[i].IsNullable, columnSize: dbTypes[i].ColumnSize, dataTypeName: dbTypes[i].TypeName); 
 			this.current = new object[fieldNames.Length];
 		}
 
@@ -60,14 +63,14 @@ namespace DataBoss.Data
 
 		public void Dispose() => data.Dispose();
 
-		public string GetName(int i) => fieldNames[i];
-		public Type GetFieldType(int i) => fieldTypes[i];
-		public string GetDataTypeName(int i) => dbTypes[i].TypeName;
+		public string GetName(int i) => schema[i].ColumnName;
+		public Type GetFieldType(int i) => schema[i].ColumnType;
+		public string GetDataTypeName(int i) => schema[i].DataTypeName;
 		public int GetOrdinal(string name) {
-			for(var i = 0; i != fieldNames.Length; ++i)
-				if(fieldNames[i] == name)
-					return i;
-			throw new InvalidOperationException($"No field named '{name}' mapped");
+			var o = schema.GetOrdinal(name);
+			if(o < 0)
+				throw new InvalidOperationException($"No field named '{name}' mapped");
+			return o;
 		}
 
 		public object GetValue(int i) => current[i];
@@ -78,12 +81,8 @@ namespace DataBoss.Data
 			return n;
 		}
 
-		DataTable IDataReader.GetSchemaTable() {
-			var schema = new DataReaderSchemaTable();
-			for(var i = 0; i != FieldCount; ++i)
-				schema.Add(fieldNames[i], i, GetFieldType(i), dbTypes[i].IsNullable, dbTypes[i].ColumnSize);
-			return schema.ToDataTable();
-		}
+		DataTable IDataReader.GetSchemaTable() =>
+			schema.ToDataTable();
 
 		//SqlBulkCopy.EnableStreaming requires this
 		public bool IsDBNull(int i) {

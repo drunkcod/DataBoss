@@ -90,10 +90,10 @@ namespace DataBoss.DataPackage
 		public bool NextResult() => false;
 
 		public object GetValue(int i) {
+			if (CheckedIsNull(i))
+				return DBNull.Value;
+			
 			try {
-				if (CheckedIsNull(i))
-					return DBNull.Value;
-
 				return Convert.ChangeType(csv.GetField(i), GetFieldType(i), fieldFormat[i]);
 			}
 			catch (FormatException ex) {

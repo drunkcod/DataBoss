@@ -1,10 +1,5 @@
 using System;
-using System.Collections.Generic;
 using System.Data;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Cone;
 using DataBoss.Data;
 
@@ -36,6 +31,16 @@ namespace DataBoss.Specs.Data
 			var converter = ConverterFactory.Default.GetConverter<IDataReader, ValueRow<int>>(r);
 			r.Read();
 			Check.Exception<InvalidCastException>(() => converter.Compiled(r));
+		}
+
+		public void into_existing() {
+			var source = new { Item1 = 17 };
+			var r = SequenceDataReader.Items(source);
+			var into = ConverterFactory.Default.GetReadInto<IDataReader, ValueTuple<int>>(r);
+			r.Read();
+			var target = new ValueTuple<int>();
+			into(r, ref target);
+			Check.That(() => target.Item1 == source.Item1);
 		}
 
 		class ValueRow<T>

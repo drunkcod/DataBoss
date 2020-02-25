@@ -15,7 +15,32 @@ namespace DataBoss.Data
 	{
 		public static TupleDataReader<T> Create<T>(IEnumerable<T> items) {
 			var schema = GetSchema(typeof(T).GetGenericArguments());
-			return new TupleDataReader<T>(items.GetEnumerator(), schema);
+			return new TupleDataReader<T>(
+				new EnumeratorTupleSource<T>(items.GetEnumerator(), schema));
+		}
+
+		public static TupleDataReader<T> ReaderOfT<T>(IDataReader source, DataReaderSchemaTable schema) =>
+			new TupleDataReader<T>(new DataReaderTupleSource<T>(source, schema));
+
+		class EnumeratorTupleSource<T> : ITupleSource<T>
+		{
+			readonly IEnumerator<T> items;
+
+			public EnumeratorTupleSource(IEnumerator<T> items, DataReaderSchemaTable schema) {
+				this.items = items;
+				this.Current = new TupleDataRecord<T>(schema, default);
+			}
+
+			public TupleDataRecord<T> Current { get; private set; }
+
+			public bool Read() {
+				var r = items.MoveNext();
+				if(r)
+					Current.Current = items.Current;
+				return r;
+			}
+
+			void IDisposable.Dispose() => items.Dispose();
 		}
 
 		static DataReaderSchemaTable GetSchema(params Type[] fieldTypes) {
@@ -130,9 +155,12 @@ namespace DataBoss.Data
 		public readonly DataReaderSchemaTable Schema;
 		public T Current;
 
-		internal TupleDataRecord(DataReaderSchemaTable schema) {
+		internal TupleDataRecord(DataReaderSchemaTable schema, T current) {
 			this.Schema = schema;
+			this.Current = current;
 		}
+
+		public TupleDataRecord<T> Clone() => new TupleDataRecord<T>(Schema, Current);
 
 		public TValue GetValue<TValue>(int i) => ItemOf<TValue>.GetItem(Current, i);
 		public object GetValue(int i) => IsDBNull(i) ? DBNull.Value : GetItem(Current, i);
@@ -184,36 +212,63 @@ namespace DataBoss.Data
 		}
 	}
 
-	public class TupleDataReader<T> : IRecordDataReader 
+	public interface ITupleSource<T> : IDisposable
 	{
-		readonly TupleDataRecord<T> record;
-		IEnumerator<T> items;
+		bool Read();
+		TupleDataRecord<T> Current { get; }
+	}
 
-		public TupleDataReader(IEnumerator<T> items, DataReaderSchemaTable schema) {
-			this.items = items;
-			this.record = new TupleDataRecord<T>(schema);
+	class DataReaderTupleSource<T> : ITupleSource<T>
+	{
+		readonly IDataReader reader;
+		readonly FillExisting<IDataReader, T> fill;
+
+		public DataReaderTupleSource(IDataReader reader, DataReaderSchemaTable schema) {
+			this.Current = new TupleDataRecord<T>(schema, default);
+			this.reader = reader;
+			this.fill = ConverterFactory.Default.GetReadInto<IDataReader, T>(new DataReaderDecorator(reader) {
+				GetName = i => $"Item{i + 1}",
+			});
 		}
 
-		public IDataRecord GetCurrentRecord() => new TupleDataRecord<T>(record.Schema) { Current = record.Current };
+		public TupleDataRecord<T> Current { get; private set; }
 
-		TValue GetValue<TValue>(int i) => record.GetValue<TValue>(i);
+		public bool Read() {
+			var r = reader.Read();
+			if(r)
+				fill(reader, ref Current.Current);
+			return r;
+		}
+
+		void IDisposable.Dispose() => reader.Dispose();
+	}
+
+	public class TupleDataReader<T> : IRecordDataReader
+	{
+		readonly ITupleSource<T> source;
+
+		public TupleDataReader(ITupleSource<T> source) {
+			this.source = source;
+		}
+
+		TupleDataRecord<T> Current => source.Current;
+
+		public IDataRecord GetCurrentRecord() => Current.Clone();
+
+		TValue GetValue<TValue>(int i) => source.Current.GetValue<TValue>(i);
 
 		public object this[int i] => GetValue(i);
 		public object this[string name] => GetValue(GetOrdinal(name));
 
 		public int Depth => 0;
-		public bool IsClosed => items == null;
+		public bool IsClosed => source == null;
 		public int RecordsAffected => -1;
-		public int FieldCount => record.FieldCount;
+		public int FieldCount => source.Current.FieldCount;
 
-		public void Close() {
-			items.Dispose();
-			items = null;
-		}
+		public void Close() { }
+		public void Dispose() => source.Dispose();
 
-		public void Dispose() => items?.Dispose();
-
-		public DataTable GetSchemaTable() => record.Schema.ToDataTable();
+		public DataTable GetSchemaTable() => source.Current.Schema.ToDataTable();
 
 		public bool GetBoolean(int i) => GetValue<bool>(i);
 		public byte GetByte(int i) => GetValue<byte>(i);
@@ -228,27 +283,21 @@ namespace DataBoss.Data
 		public long GetInt64(int i) => GetValue<long>(i);
 		public string GetString(int i) => GetValue<string>(i);
 
-		public Type GetFieldType(int i) => record.GetFieldType(i);
-		public string GetName(int i) => record.GetName(i);
-		public int GetOrdinal(string name) => record.GetOrdinal(name);
+		public Type GetFieldType(int i) => Current.GetFieldType(i);
+		public string GetName(int i) => Current.GetName(i);
+		public int GetOrdinal(string name) => Current.GetOrdinal(name);
 
-		public object GetValue(int i) => record.GetValue(i);
-		public int GetValues(object[] values) => record.GetValues(values);
+		public object GetValue(int i) => Current.GetValue(i);
+		public int GetValues(object[] values) => Current.GetValues(values);
 
-		public long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) => record.GetBytes(i, fieldOffset, buffer, bufferoffset, length);
-		public long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) => record.GetChars(i, fieldoffset, buffer, bufferoffset, length);
-		public IDataReader GetData(int i) => record.GetData(i);
-		public string GetDataTypeName(int i) => record.GetDataTypeName(i);
+		public long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) => Current.GetBytes(i, fieldOffset, buffer, bufferoffset, length);
+		public long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) => Current.GetChars(i, fieldoffset, buffer, bufferoffset, length);
+		public IDataReader GetData(int i) => Current.GetData(i);
+		public string GetDataTypeName(int i) => Current.GetDataTypeName(i);
 
-		public bool IsDBNull(int i) => record.IsDBNull(i);
+		public bool IsDBNull(int i) => Current.IsDBNull(i);
 
-		public bool Read() {
-			var r = items.MoveNext();
-			if(r)
-				record.Current = items.Current;
-			return r;
-		}
-
+		public bool Read() => source.Read();
 		public bool NextResult() => false;
 	}
 }

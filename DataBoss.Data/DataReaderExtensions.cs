@@ -19,5 +19,28 @@ namespace DataBoss.Data
 			while (self.Read())
 				jump(self, target);
 		}
+
+		public static DataReaderSchemaTable GetDataReaderSchemaTable(this IDataReader self) {
+			var schema = new DataReaderSchemaTable();
+			var sourceSchema = self.GetSchemaTable();
+			var columns = (
+				ColumnName: sourceSchema.Columns["ColumnName"],
+				ColumnOrdinal: sourceSchema.Columns["ColumnOrdinal"],
+				ColumnSize: sourceSchema.Columns["ColumnSize"],
+				DataType: sourceSchema.Columns["DataType"],
+				AllowDBNull: sourceSchema.Columns["AllowDBNull"]);
+
+			for(var i = 0; i != sourceSchema.Rows.Count; ++i) {
+				var item = sourceSchema.Rows[i];
+				var row = (
+					 Name: (string)item[columns.ColumnName],
+					 Ordinal: (int)item[columns.ColumnOrdinal],
+					 DataType: (Type)item[columns.DataType],
+					 AllowDBNull: (bool)item[columns.AllowDBNull],
+					 Size: (int)item[columns.ColumnSize]);
+				schema.Add(row.Name, row.Ordinal, row.DataType, row.AllowDBNull, row.Size);
+			}
+			return schema;
+		}
 	}
 }

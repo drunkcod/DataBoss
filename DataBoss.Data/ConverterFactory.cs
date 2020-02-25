@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
@@ -9,6 +10,8 @@ using DataBoss.Data.SqlServer;
 
 namespace DataBoss.Data
 {
+	public delegate void FillExisting<TReader, T>(TReader reader, ref T target);
+
 	public class ConverterFactory
 	{
 		class ConverterContext
@@ -215,7 +218,7 @@ namespace DataBoss.Data
 				return null;
 			}
 
-			ArraySegment<MemberAssignment> GetMembers(FieldMap map, Type targetType, HashSet<string> excludedMembers = null) {
+			public ArraySegment<MemberAssignment> GetMembers(FieldMap map, Type targetType, HashSet<string> excludedMembers = null) {
 				var fields = targetType.GetFields().Where(x => !x.IsInitOnly).Select(x => (Item: new ItemInfo(x.Name, x.FieldType), Member: (MemberInfo)x));
 				var props = targetType.GetProperties().Where(x => x.CanWrite).Select(x => (Item: new ItemInfo(x.Name, x.PropertyType), Member: (MemberInfo)x));
 				var allMembers = fields.Concat(props);
@@ -385,6 +388,7 @@ namespace DataBoss.Data
 
 		readonly DataRecordConverterFactory recordConverterFactory;
 		readonly IConverterCache converterCache;
+		readonly ConcurrentDictionary<ConverterCacheKey, Delegate> readIntoCache = new ConcurrentDictionary<ConverterCacheKey, Delegate>();
 
 		public ConverterFactory(ConverterCollection customConversions) : this(customConversions, new ConcurrentConverterCache())
 		{ }
@@ -422,6 +426,22 @@ namespace DataBoss.Data
 				reader, ConverterCacheKey.Create(reader, typeof(T)),
 				x => recordConverterFactory.BuildConverter(typeof(TReader), x, typeof(T)))
 			.ToTyped<TReader, T>();
+		
+		public FillExisting<TReader, T> GetReadInto<TReader, T>(TReader reader) where TReader : IDataReader =>
+			(FillExisting<TReader, T>)readIntoCache.GetOrAdd(ConverterCacheKey.Into(reader, typeof(T)), delegate
+			{
+				var fields = FieldMap.Create(reader);
+				var context = ConverterContext.Create(typeof(TReader), typeof(T), null);
+				var members = context.GetMembers(fields, context.ResultType);
+
+				var target = Expression.Parameter(typeof(T).MakeByRefType(), "target");
+
+				return Expression.Lambda<FillExisting<TReader, T>>(
+					Expression.Block(
+						members.Select(x => Expression.Assign(Expression.MakeMemberAccess(target, x.Member), x.Expression))),
+					context.Arg0,
+					target).Compile();
+			});
 	
 		public DataRecordConverter GetConverter<TReader>(TReader reader, LambdaExpression factory) where TReader : IDataReader {
 			if (ConverterCacheKey.TryCreate(reader, factory, out var key)) {

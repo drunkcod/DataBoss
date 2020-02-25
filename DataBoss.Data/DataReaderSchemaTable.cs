@@ -13,13 +13,14 @@ namespace DataBoss.Data
 
 		public DataReaderSchemaRow this[int index] => rows[index];
 
-		public void Add(string name, int ordinal, Type columnType, bool allowDBNull, int? columnSize = null) {
+		public void Add(string name, int ordinal, Type columnType, bool allowDBNull, int? columnSize = null, string dataTypeName = null) {
 			rows.Add(new DataReaderSchemaRow {
 				ColumnName = name,
 				Ordinal = ordinal,
 				ColumnType = columnType,
 				AllowDBNull = allowDBNull,
 				ColumnSize = columnSize,
+				DataTypeName = dataTypeName,
 			});
 		}
 
@@ -35,6 +36,8 @@ namespace DataBoss.Data
 			var columnSize = schema.Columns.Add(DataReaderSchemaColumns.ColumnSize);
 			var allowDBNull = schema.Columns.Add(DataReaderSchemaColumns.AllowDBNull);
 			var dataType = schema.Columns.Add(DataReaderSchemaColumns.DataType);
+			var dataTypeName = schema.Columns.Add(DataReaderSchemaColumns.DataTypeName);
+
 			foreach(var item in rows) {
 				var r = schema.NewRow();
 				r[columnName] = item.ColumnName;
@@ -42,6 +45,7 @@ namespace DataBoss.Data
 				r[columnSize] = item.ColumnSize.HasValue ? (object)item.ColumnSize.Value : DBNull.Value;
 				r[allowDBNull] = item.AllowDBNull;
 				r[dataType] = item.ColumnType;
+				r[dataTypeName] = item.DataTypeName;
 				schema.Rows.Add(r);
 			}
 
