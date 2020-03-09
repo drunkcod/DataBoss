@@ -109,9 +109,10 @@ namespace DataBoss.DataPackage
 			switch(Type.GetTypeCode(type)) {
 				case TypeCode.DateTime:
 					var value = DateTime.Parse(input, format);
-					if(value.Kind == DateTimeKind.Unspecified);
-						value = DateTime.SpecifyKind(value, DateTimeKind.Utc);
-					return value;
+					return value.Kind == DateTimeKind.Unspecified
+						? DateTime.SpecifyKind(value, DateTimeKind.Utc)
+						: value;
+
 				case TypeCode.Object:
 					if (type == typeof(TimeSpan))
 						return TimeSpan.Parse(input, format);

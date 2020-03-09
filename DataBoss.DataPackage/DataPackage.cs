@@ -10,6 +10,7 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
 using System.Threading;
+using DataBoss.DataPackage.Types;
 using DataBoss.Linq;
 using Newtonsoft.Json;
 
@@ -173,7 +174,7 @@ namespace DataBoss.DataPackage
 						},
 					});
 					try {
-						WriteRecords(output, data, format);
+						WriteRecords(output, data, fields, format);
 					} catch(Exception ex) {
 						throw new Exception($"Failed writing {item.Name}.", ex);
 					}
@@ -203,7 +204,7 @@ namespace DataBoss.DataPackage
 		static CsvWriter NewCsvWriter(Stream stream, Encoding encoding) => 
 			new CsvWriter(new StreamWriter(stream, encoding, 4096, leaveOpen: true));
 
-		static Func<IDataRecord, int, string> GetFormatter(Type type, IFormatProvider format) {
+		static Func<IDataRecord, int, string> GetFormatter(Type type, TabularDataSchemaFieldDescription fieldDescription, IFormatProvider format) {
 			switch (Type.GetTypeCode(type)) {
 				default: 
 					if(type == typeof(TimeSpan))
@@ -221,7 +222,10 @@ namespace DataBoss.DataPackage
 					var value = r.GetDateTime(i);
 					if (value.Kind == DateTimeKind.Unspecified)
 						throw new InvalidOperationException("DateTimeKind.Unspecified not supported.");
-					return value.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ssK");
+					var utc = value.ToUniversalTime();
+					if(fieldDescription.Type == "date")
+						return ((DataPackageDate)utc).ToString();
+					return utc.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ssK");
 				};
 
 				case TypeCode.String: return (r, i) => r.GetString(i);
@@ -235,10 +239,10 @@ namespace DataBoss.DataPackage
 			}
 		}
 
-		static void WriteRecords(Stream output, IDataReader data, IReadOnlyList<IFormatProvider> format) {
+		static void WriteRecords(Stream output, IDataReader data, IReadOnlyList<TabularDataSchemaFieldDescription> fields, IReadOnlyList<IFormatProvider> format) {
 			var toString = new Func<IDataRecord, int, string>[data.FieldCount];
 			for (var i = 0; i != data.FieldCount; ++i)
-				toString[i] = GetFormatter(data.GetFieldType(i), format[i]);
+				toString[i] = GetFormatter(data.GetFieldType(i), fields[i], format[i]);
 
 			using (var csv = NewCsvWriter(output, Encoding.UTF8)) {
 				for (var i = 0; i != data.FieldCount; ++i)
