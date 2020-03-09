@@ -36,7 +36,7 @@ namespace DataBoss.Specs.Data
 		public void into_existing() {
 			var source = new { Item1 = 17 };
 			var r = SequenceDataReader.Items(source);
-			var into = ConverterFactory.Default.GetReadInto<IDataReader, ValueTuple<int>>(r);
+			var into = ConverterFactory.Default.GetReadInto<ValueTuple<int>>(r);
 			r.Read();
 			var target = new ValueTuple<int>();
 			into(r, ref target);

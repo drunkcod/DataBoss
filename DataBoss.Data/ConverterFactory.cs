@@ -10,7 +10,7 @@ using DataBoss.Data.SqlServer;
 
 namespace DataBoss.Data
 {
-	public delegate void FillExisting<TReader, T>(TReader reader, ref T target);
+	public delegate void Updater<TSource, T>(TSource reader, ref T target);
 
 	public class ConverterFactory
 	{
@@ -218,7 +218,7 @@ namespace DataBoss.Data
 				return null;
 			}
 
-			public ArraySegment<MemberAssignment> GetMembers(FieldMap map, Type targetType, HashSet<string> excludedMembers = null) {
+			public ArraySegment<MemberAssignment> GetMembers(FieldMap map, Type targetType, HashSet<string> excludedMembers = null, bool defaultOnNull = true) {
 				var fields = targetType.GetFields().Where(x => !x.IsInitOnly).Select(x => (Item: new ItemInfo(x.Name, x.FieldType), Member: (MemberInfo)x));
 				var props = targetType.GetProperties().Where(x => x.CanWrite).Select(x => (Item: new ItemInfo(x.Name, x.PropertyType), Member: (MemberInfo)x));
 				var allMembers = fields.Concat(props);
@@ -236,7 +236,7 @@ namespace DataBoss.Data
 
 						case BindingResult.Ok:
 							ordinals[found] = reader.Ordinal;
-							bindings[found] = Expression.Bind(x.Member, ReadOrDefault(reader));
+							bindings[found] = Expression.Bind(x.Member, defaultOnNull ? ReadOrDefault(reader) : reader.Read);
 							++found;
 							break;
 					}
@@ -427,30 +427,20 @@ namespace DataBoss.Data
 				x => recordConverterFactory.BuildConverter(typeof(TReader), x, typeof(T)))
 			.ToTyped<TReader, T>();
 		
-		public FillExisting<TReader, T> GetReadInto<TReader, T>(TReader reader) where TReader : IDataReader =>
-			(FillExisting<TReader, T>)readIntoCache.GetOrAdd(ConverterCacheKey.Into(reader, typeof(TReader), typeof(T)), delegate
-			{
-				var fields = FieldMap.Create(reader);
-				var context = ConverterContext.Create(typeof(TReader), typeof(T), null);
-				var members = context.GetMembers(fields, context.ResultType);
-
-				var target = Expression.Parameter(typeof(T).MakeByRefType(), "target");
-
-				return Expression.Lambda<FillExisting<TReader, T>>(
-					Expression.Block(
-						members.Select(x => Expression.Assign(Expression.MakeMemberAccess(target, x.Member), x.Expression))),
-					context.Arg0,
-					target).Compile();
+		public Updater<IDataReader, T> GetReadInto<T>(IDataReader reader) =>
+			(Updater<IDataReader, T>)readIntoCache.GetOrAdd(ConverterCacheKey.Into(reader, typeof(IDataReader), typeof(T)), delegate {
+				return (Updater<IDataReader, T>)GetReadInto(reader, typeof(IDataReader), typeof(T)).Compile();
 			});
 
-		public LambdaExpression GetReadInto(IDataReader reader, Type targetType) {
+		public LambdaExpression GetReadInto(IDataReader reader, Type readerType, Type targetType) {
 			var fields = FieldMap.Create(reader);
-			var context = ConverterContext.Create(typeof(IDataReader), targetType, null);
-			var members = context.GetMembers(fields, context.ResultType);
+			var context = ConverterContext.Create(readerType, targetType, null);
+			var members = context.GetMembers(fields, context.ResultType, defaultOnNull: false);
 
 			var target = Expression.Parameter(targetType.MakeByRefType(), "target");
 
 			return Expression.Lambda(
+				typeof(Updater<,>).MakeGenericType(readerType, targetType),
 				Expression.Block(
 					members.Select(x => Expression.Assign(Expression.MakeMemberAccess(target, x.Member), x.Expression))),
 				context.Arg0,

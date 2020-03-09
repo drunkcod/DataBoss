@@ -221,12 +221,12 @@ namespace DataBoss.Data
 	class DataReaderTupleSource<T> : ITupleSource<T>
 	{
 		readonly IDataReader reader;
-		readonly FillExisting<IDataReader, T> fill;
+		readonly Updater<IDataReader, T> fill;
 
 		public DataReaderTupleSource(IDataReader reader, DataReaderSchemaTable schema) {
 			this.Current = new TupleDataRecord<T>(schema, default);
 			this.reader = reader;
-			this.fill = ConverterFactory.Default.GetReadInto<IDataReader, T>(new DataReaderDecorator(reader) {
+			this.fill = ConverterFactory.Default.GetReadInto<T>(new DataReaderDecorator(reader) {
 				GetName = i => $"Item{i + 1}",
 			});
 		}
