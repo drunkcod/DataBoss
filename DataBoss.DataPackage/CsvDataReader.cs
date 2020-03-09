@@ -96,14 +96,29 @@ namespace DataBoss.DataPackage
 				return DBNull.Value;
 			
 			try {
-				if(GetFieldType(i) == typeof(TimeSpan))
-					return TimeSpan.Parse(csv.GetField(i), fieldFormat[i]);
-				return Convert.ChangeType(csv.GetField(i), GetFieldType(i), fieldFormat[i]);
+				return ChangeType(csv.GetField(i), GetFieldType(i), fieldFormat[i]);
 			}
 			catch (FormatException ex) {
 				var given = isNull[i] ? "null" : $"'{csv.GetField(i)}'";
 				throw new InvalidOperationException($"Failed to parse {GetName(i)} of type {GetFieldType(i)} given {given} on line {rowNumber}", ex);
 			}
+		}
+
+		object ChangeType(string input, Type type, IFormatProvider format) {
+
+			switch(Type.GetTypeCode(type)) {
+				case TypeCode.DateTime:
+					var value = DateTime.Parse(input, format);
+					if(value.Kind == DateTimeKind.Unspecified);
+						value = DateTime.SpecifyKind(value, DateTimeKind.Utc);
+					return value;
+				case TypeCode.Object:
+					if (type == typeof(TimeSpan))
+						return TimeSpan.Parse(input, format);
+					break;
+			}
+			
+			return Convert.ChangeType(input, type, format);
 		}
 
 		bool CheckedIsNull(int i) {
