@@ -197,12 +197,9 @@ namespace DataBoss.Data
 			if (column != null && !string.IsNullOrEmpty(column.TypeName))
 				return Create(column.TypeName, null, canBeNull);
 
-			var typeAttributes = (CustomAttributeProviderAttribute)type.GetCustomAttribute(typeof(CustomAttributeProviderAttribute));
-			if(typeAttributes != null) {
-				var c = typeAttributes.SingleOrDefault<ColumnAttribute>();
-				if (c != null && !string.IsNullOrEmpty(c.TypeName))
-					return Create(c.TypeName, null, canBeNull);
-			}
+			var typeMapping = type.SingleOrDefault<TypeMappingAttribute>();
+			if(typeMapping != null && !string.IsNullOrEmpty(typeMapping.TypeName))
+				return Create(typeMapping.TypeName, null, canBeNull);
 
 			switch (type.FullName) {
 				case "System.Byte": return new DataBossDbType(BossTypeTag.TinyInt, canBeNull);

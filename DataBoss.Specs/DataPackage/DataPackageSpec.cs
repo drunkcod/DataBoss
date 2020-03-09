@@ -42,7 +42,7 @@ namespace DataBoss.DataPackage.Specs
 				.AddResource("dates-and-time", () => new[]{
 					new {
 						datetime = DateTime.Now,
-						date = new DataPackageDate(DateTime.Now),
+						date = (DataPackageDate)DateTime.Now,
 						time = DateTime.Now.TimeOfDay,
 					}, 
 				})
@@ -67,7 +67,8 @@ namespace DataBoss.DataPackage.Specs
 				.AddResource("dates-and-time", () => new[]{
 					new {
 						datetime = timestamp,
-						date = new DataPackageDate(timestamp),
+						date = (DataPackageDate)timestamp,
+						dpDate = timestamp,
 					},
 				})
 				.Serialize();
@@ -75,7 +76,8 @@ namespace DataBoss.DataPackage.Specs
 			var r = dp.GetResource("dates-and-time").Read<DateTimeFormatRow>().Single();
 			Check.That(
 				() => r.datetime == timestamp,
-				() => r.date == timestamp.Date);
+				() => r.date == timestamp.Date,
+				() => (DateTime)r.dpDate == timestamp.Date);
 		}
 
 		[Fact]
@@ -102,6 +104,7 @@ namespace DataBoss.DataPackage.Specs
 		{
 			public DateTime datetime;
 			public DateTime date;
+			public DataPackageDate dpDate;
 			public TimeSpan time;
 		}
 

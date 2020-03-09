@@ -6,17 +6,20 @@ using DataBoss.Data;
 namespace DataBoss.DataPackage.Types
 {
 	[Field(SchemaType = "date")]
-	[CustomAttributeProvider(typeof(DataPackageDateAttributes))]
+	[TypeMapping(TypeName = "date")]
 	public struct DataPackageDate
 	{
-		readonly DateTime source;
+		public readonly DateTime Value;
 
-		public DataPackageDate(DateTime source) {
-			this.source = source;
+		DataPackageDate(DateTime value) {
+			this.Value = value.Date;
 		}
 
-		public override int GetHashCode() => source.Date.GetHashCode();
-		public override string ToString() => source.ToString("yyyy-MM-dd");
+		public override int GetHashCode() => Value.GetHashCode();
+		public override string ToString() => Value.ToString("yyyy-MM-dd");
+
+		public static explicit operator DateTime(DataPackageDate self) => self.Value;
+		public static explicit operator DataPackageDate(DateTime source) => new DataPackageDate(source);
 	}
 
 	[AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
