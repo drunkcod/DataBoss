@@ -205,10 +205,17 @@ namespace DataBoss.DataPackage
 
 		static Func<IDataRecord, int, string> GetFormatter(Type type, IFormatProvider format) {
 			switch (Type.GetTypeCode(type)) {
-				default: return (r, i) => {
-					var obj = r.GetValue(i);
-					return obj is IFormattable x ? x.ToString(null, format) : obj?.ToString();
-				};
+				default: 
+					if(type == typeof(TimeSpan))
+						return (r, i) => { 
+							if(r.IsDBNull(i))
+								return null;
+							return ((TimeSpan)r.GetValue(i)).ToString("hh\\:mm\\:ss");
+						};
+					return (r, i) => {
+						var obj = r.GetValue(i);
+						return obj is IFormattable x ? x.ToString(null, format) : obj?.ToString();
+					};
 
 				case TypeCode.DateTime: return (r, i) => {
 					var value = r.GetDateTime(i);

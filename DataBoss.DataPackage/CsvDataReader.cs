@@ -63,6 +63,8 @@ namespace DataBoss.DataPackage
 				default: throw new NotSupportedException($"Don't know how to map '{field.Type}'");
 				case "boolean": return GetDbTypePair(typeof(bool), required);
 				case "datetime": return GetDbTypePair(typeof(DateTime), required);
+				case "date": return GetDbTypePair(typeof(DateTime), required);
+				case "time": return GetDbTypePair(typeof(TimeSpan), required);
 				case "integer": return GetDbTypePair(typeof(int), required);
 				case "number": return GetDbTypePair(typeof(double), required);
 				case "string": return GetDbTypePair(typeof(string), required);
@@ -94,6 +96,8 @@ namespace DataBoss.DataPackage
 				return DBNull.Value;
 			
 			try {
+				if(GetFieldType(i) == typeof(TimeSpan))
+					return TimeSpan.Parse(csv.GetField(i), fieldFormat[i]);
 				return Convert.ChangeType(csv.GetField(i), GetFieldType(i), fieldFormat[i]);
 			}
 			catch (FormatException ex) {
@@ -140,6 +144,7 @@ namespace DataBoss.DataPackage
 		public string GetString(int i) => CheckedIsNull(i) ? default: csv.GetField(i);
 		public decimal GetDecimal(int i) => CheckedIsNull(i) ? default : decimal.Parse(csv.GetField(i), fieldFormat[i]);
 		public DateTime GetDateTime(int i) => (DateTime)GetValue(i);
+		public TimeSpan GetTimeSpan(int i) => CheckedIsNull(i) ? default : TimeSpan.Parse(csv.GetField(i), fieldFormat[i]);
 
 		public int GetValues(object[] values) {
 			var n = Math.Min(FieldCount, values.Length);

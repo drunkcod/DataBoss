@@ -20,6 +20,11 @@
     <PackageReference Include="System.ValueTuple" Version="4.5.0" />
     <PackageReference Include="Cone" Version="2019.8.14" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.2" />
+    <PackageReference Include="xunit" Version="2.4.1" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.4.1">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <DotNetCliToolReference Include="dotnet-conesole" Version="2019.8.14" /> 
   </ItemGroup>
 </Project>

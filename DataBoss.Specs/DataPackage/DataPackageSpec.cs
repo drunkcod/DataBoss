@@ -1,26 +1,30 @@
+using System;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using Cone;
 using DataBoss.Data;
+using DataBoss.DataPackage.Types;
+using Xunit;
 
 namespace DataBoss.DataPackage.Specs
 {
-	[Describe(typeof(DataPackage))]
 	public class DataPackageSpec
 	{
+		[Fact]
 		public void WithPrimaryKey_composite_key() {
 			var dp = new DataPackage()
 				.AddResource("my-resource", () => SequenceDataReader.Items(new { Id = 1, Value = "One" }))
 				.WithPrimaryKey("Id", "Value");
 		}
 
+		[Fact]
 		public void WithPrimaryKey_array_version() {
 			var dp = new DataPackage()
 				.AddResource("my-resource", () => SequenceDataReader.Items(new { Id = 1, Value = "One" }))
 				.WithPrimaryKey(new[]{ "Id", "Value" });
 		}
 
+		[Fact]
 		public void Save_normalizes_number_format() {
 			var dp = new DataPackage();
 			dp.AddResource("numbers", () => SequenceDataReader.Items(new { Value = 1.0 }));
@@ -30,6 +34,75 @@ namespace DataBoss.DataPackage.Specs
 				() => GetNumbersFormat(xs).NumberDecimalSeparator == ",",
 				() => GetNumbersFormat(xs.Serialize(CultureInfo.InvariantCulture)).NumberDecimalSeparator == ".",
 				() => GetNumbersFormat(xs.Serialize(null)).NumberDecimalSeparator == ",");
+		}
+
+		[Fact]
+		public void datetime_types() { 
+			var dp = new DataPackage()
+				.AddResource("dates-and-time", () => new[]{
+					new {
+						datetime = DateTime.Now,
+						date = new DataPackageDate(DateTime.Now),
+						time = DateTime.Now.TimeOfDay,
+					}, 
+				})
+				.Serialize();
+
+			var r = dp.GetResource("dates-and-time");
+			Check.That(
+				() => r.Schema.Fields[0].Name == "datetime",
+				() => r.Schema.Fields[0].Type == "datetime",
+				() => r.Schema.Fields[1].Name == "date",
+				() => r.Schema.Fields[1].Type == "date",
+				() => r.Schema.Fields[2].Name == "time",
+				() => r.Schema.Fields[2].Type == "time");
+		}
+
+		[Fact]
+		public void datetime_roundtrip() {
+			var timestamp = DateTime.Now;
+			//clamp to seconds precision
+			timestamp = new DateTime(timestamp.Year, timestamp.Month, timestamp.Day, timestamp.Hour, timestamp.Minute, timestamp.Second, timestamp.Kind );
+			var dp = new DataPackage()
+				.AddResource("dates-and-time", () => new[]{
+					new {
+						datetime = timestamp,
+						date = new DataPackageDate(timestamp),
+					},
+				})
+				.Serialize();
+
+			var r = dp.GetResource("dates-and-time").Read<DateTimeFormatRow>().Single();
+			Check.That(
+				() => r.datetime == timestamp,
+				() => r.date == timestamp.Date);
+		}
+
+		[Fact]
+		public void time() {
+			var t = DateTime.Now;
+			var dp = new DataPackage()
+				.AddResource("times", () => new[]{
+					new {
+						time = t.TimeOfDay,
+					},
+				})
+				.Serialize();
+
+			var rows = dp.GetResource("times").Read<DateTimeFormatRow>().Single();
+			var reader = dp.GetResource("times").Read();
+			reader.Read();
+			Check.That(
+				() => rows.time == new TimeSpan(t.TimeOfDay.Hours, t.TimeOfDay.Minutes, t.TimeOfDay.Seconds),
+				() => reader.GetValue(0) == (object)rows.time,
+				() => reader.GetString(0) == t.ToString("HH:mm:ss"));
+		}
+
+		class DateTimeFormatRow
+		{
+			public DateTime datetime;
+			public DateTime date;
+			public TimeSpan time;
 		}
 
 		NumberFormatInfo GetNumbersFormat(DataPackage data) => data.GetResource("numbers").Schema.Fields.Single().GetNumberFormat();

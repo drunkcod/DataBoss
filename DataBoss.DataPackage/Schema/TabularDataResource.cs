@@ -4,6 +4,8 @@ using System.Data;
 using System.Linq;
 using System.Text.RegularExpressions;
 using DataBoss.Data;
+using DataBoss.DataPackage.Types;
+using DataBoss.Linq;
 
 namespace DataBoss.DataPackage
 {
@@ -30,8 +32,8 @@ namespace DataBoss.DataPackage
 			return reader;
 		}
 
-		public IEnumerable<T> Read<T>() => 
-			ObjectReader.For(Read()).Read<T>();
+		public IEnumerable<T> Read<T>() =>
+			ObjectReader.Read<T>(Read());
 
 		public TabularDataResource Where(Func<IDataRecord, bool> predicate) =>
 			new TabularDataResource(Name, Schema, () => new WhereDataReader(getData(), predicate));
@@ -71,7 +73,8 @@ namespace DataBoss.DataPackage
 		static string ToTableSchemaType(Type type) {
 			switch (type.FullName) {
 				default:
-					throw new NotSupportedException($"Can't map {type}");
+					return type.SingleOrDefault<FieldAttribute>()?.SchemaType 
+					?? throw new NotSupportedException($"Can't map {type}");
 				case "System.Boolean": return "boolean";
 				case "System.DateTime": return "datetime";
 				case "System.Decimal":
@@ -82,6 +85,7 @@ namespace DataBoss.DataPackage
 				case "System.Int32": 
 				case "System.Int64": return "integer";
 				case "System.String": return "string";
+				case "System.TimeSpan": return "time";
 			}
 		}
 	}

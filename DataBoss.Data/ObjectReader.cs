@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq.Expressions;
+using System.Reflection;
 
 namespace DataBoss.Data
 {
@@ -21,6 +22,17 @@ namespace DataBoss.Data
 
 		public static Expression<Func<TReader, T>> MakeConverter<TReader, T>(TReader reader, ConverterCollection customConversions) where TReader : IDataReader =>
 			ConverterFactory(customConversions).GetConverter<TReader, T>(reader).Expression;
+
+
+		public static IEnumerable<T> Read<T>(IDataReader reader) {
+			var m = typeof(ObjectReader).GetMethod(nameof(ReadCore), BindingFlags.NonPublic | BindingFlags.Static);
+			return ((Func<IDataReader, IEnumerable<T>>)Delegate.CreateDelegate(
+				typeof(Func<IDataReader, IEnumerable<T>>), 
+				m.MakeGenericMethod(reader.GetType(), typeof(T))))(reader);	
+		}
+
+		static IEnumerable<T> ReadCore<TReader, T>(IDataReader reader) where TReader : IDataReader =>
+			For((TReader)reader).Read<T>();
 
 		static ConverterFactory ConverterFactory(ConverterCollection customConversions) => 
 			new ConverterFactory(customConversions, NullConverterCache.Instance);

@@ -26,6 +26,8 @@ namespace DataBoss.Data
 			Float = 6,
 			Bit = 7,
 			DateTime = 8,
+			Date = 9,
+			Time = 10,
 
 			Char = 16,
 			VarChar = 17,
@@ -52,6 +54,8 @@ namespace DataBoss.Data
 			("float", 8),
 			("bit", 0),
 			("datetime", 8),
+			("date", 3),
+			("time", 8),
 		};
 
 		static readonly (string TypeName, byte Width)[] VariableSizeTypes = new(string, byte)[] {
@@ -188,9 +192,17 @@ namespace DataBoss.Data
 		}
 
 		internal static DataBossDbType MapType(Type type, ICustomAttributeProvider attributes, bool canBeNull) {
+
 			var column = attributes.SingleOrDefault<ColumnAttribute>();
 			if (column != null && !string.IsNullOrEmpty(column.TypeName))
 				return Create(column.TypeName, null, canBeNull);
+
+			var typeAttributes = (CustomAttributeProviderAttribute)type.GetCustomAttribute(typeof(CustomAttributeProviderAttribute));
+			if(typeAttributes != null) {
+				var c = typeAttributes.SingleOrDefault<ColumnAttribute>();
+				if (c != null && !string.IsNullOrEmpty(c.TypeName))
+					return Create(c.TypeName, null, canBeNull);
+			}
 
 			switch (type.FullName) {
 				case "System.Byte": return new DataBossDbType(BossTypeTag.TinyInt, canBeNull);
@@ -206,6 +218,7 @@ namespace DataBoss.Data
 				case "System.Byte[]": 
 					return new DataBossDbType(BossTypeTag.VarBinary, canBeNull, MaxLength(attributes)?.Length ?? int.MaxValue);
 				case "System.DateTime": return Create("datetime", 8, canBeNull);
+				case "System.TimeSpan": return Create("time", 3, canBeNull);
 				case "System.Data.SqlTypes.SqlMoney": return Create("money", null, canBeNull);
 				case "DataBoss.Data.SqlServer.RowVersion": return new DataBossDbType(BossTypeTag.Rowversion, canBeNull, (int?)8);
 				default:
@@ -226,6 +239,7 @@ namespace DataBoss.Data
 				case "System.Double": return SqlDbType.Float;
 				case "System.Boolean": return SqlDbType.Bit;
 				case "System.DateTime": return SqlDbType.DateTime;
+				case "System.TimeSpan": return SqlDbType.Time;
 			}
 			return SqlDbType.NVarChar;
 		}
