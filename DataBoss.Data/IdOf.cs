@@ -17,7 +17,10 @@ namespace DataBoss.Data
 
 		public static bool operator==(IdOf<T> x, IdOf<T> y) => x.id == y.id;
 		public static bool operator!=(IdOf<T> x, IdOf<T> y) => x.id != y.id;
+
 		public static explicit operator IdOf<T>(int id) => new IdOf<T>(id);
+
+		[ToDbType]
 		public static explicit operator int(IdOf<T> id) => id.id;
 	}
 }

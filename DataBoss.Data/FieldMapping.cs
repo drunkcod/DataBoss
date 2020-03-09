@@ -8,6 +8,15 @@ using System.Reflection;
 
 namespace DataBoss.Data
 {
+	[AttributeUsage(AttributeTargets.Method)]
+	public class ToDbTypeAttribute : Attribute
+	{ }
+
+	[AttributeUsage(AttributeTargets.Method)]
+	public class ConsiderAsCtorAttribute : Attribute
+	{ }
+
+
 	public class FieldMapping<T>
 	{
 		struct FieldMappingItem
@@ -79,11 +88,18 @@ namespace DataBoss.Data
 			public bool IsDefined(Type attributeType, bool inherit) => attributes.Any(x => attributeType.IsAssignableFrom(x.GetType()));
 		}
 
-		static Expression CoerceToDbType(Expression get) => 
-			IsIdOf(get.Type) ? Expression.Convert(get, typeof(int)) : get;
+		static Expression CoerceToDbType(Expression get) =>
+			TryGetConvertible(get.Type, out var dbType) ? Expression.Convert(get, dbType) : get;
 
-		static bool IsIdOf(Type type) => type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IdOf<>);
-
+		static bool TryGetConvertible(Type type, out Type dbType) {
+			var opConvert = type.GetMethod("op_Explicit", new[]{ type });
+			if(opConvert != null && opConvert.IsDefined(typeof(ToDbTypeAttribute))) {
+				dbType = opConvert.ReturnType;
+				return true;
+			}
+			dbType = null;
+			return false;
+		}
 		public int Map(string name, LambdaExpression selector) {
 			if(selector.Parameters.Count != 1)
 				throw new InvalidOperationException($"{nameof(LambdaExpression)} must have exactly one parameter for field '{name}'");

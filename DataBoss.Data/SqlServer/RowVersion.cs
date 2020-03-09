@@ -4,10 +4,6 @@ using System.Net;
 
 namespace DataBoss.Data.SqlServer
 {
-	[AttributeUsage(AttributeTargets.Method)]
-	public class ConsiderAsCtorAttribute : Attribute
-	{ }
-
 	public struct RowVersion : IComparable<RowVersion>
 	{
 		public readonly SqlBinary Value;
@@ -31,6 +27,8 @@ namespace DataBoss.Data.SqlServer
 		public override string ToString() => ToInt64().ToString();
 		public override bool Equals(object obj) => CompareTo(((RowVersion)obj)) == 0;
 		public override int GetHashCode() => ToInt64().GetHashCode();
+
+		public static explicit operator long(RowVersion self) => self.ToInt64();
 
 		public static bool operator==(RowVersion x, RowVersion y) => x.CompareTo(y) == 0;
 		public static bool operator!=(RowVersion x, RowVersion y) => x.CompareTo(y) != 0;

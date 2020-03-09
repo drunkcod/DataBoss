@@ -78,7 +78,7 @@ namespace DataBoss.Data
 				if (converters.TryGetConverter(rawField, to, out converter))
 					return true;
 
-				if (IsByteArray(rawField, to) || IsIdOf(rawField, to) || IsEnum(rawField, to) || HasExplictCast(rawField, to)) {
+				if (IsByteArray(rawField, to) || IsEnum(rawField, to) || HasCast(rawField, to)) {
 					converter = Expression.Convert(rawField, to);
 					return true;
 				}
@@ -89,14 +89,12 @@ namespace DataBoss.Data
 			static bool IsByteArray(Expression rawField, Type to) =>
 				rawField.Type == typeof(object) && to == typeof(byte[]);
 
-			static bool IsIdOf(Expression rawField, Type to) =>
-				(to.IsGenericType && to.GetGenericTypeDefinition() == typeof(IdOf<>) && rawField.Type == typeof(int));
-
 			static bool IsEnum(Expression rawField, Type to) =>
 				to.IsEnum && Enum.GetUnderlyingType(to) == rawField.Type;
 
-			static bool HasExplictCast(Expression rawField, Type to) {
-				var cast = to.GetMethod("op_Explicit", new[] { rawField.Type });
+			static bool HasCast(Expression rawField, Type to) {
+				var t = new[] { rawField.Type };
+				var cast = to.GetMethod("op_Implicit", t) ?? to.GetMethod("op_Explicit", t);
 
 				return cast != null && to.IsAssignableFrom(cast.ReturnType);
 			}

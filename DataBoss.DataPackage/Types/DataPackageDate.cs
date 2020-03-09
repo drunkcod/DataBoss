@@ -15,7 +15,6 @@ namespace DataBoss.DataPackage.Types
 
 		public override int GetHashCode() => Value.GetHashCode();
 		public override string ToString() => Value.ToString("yyyy-MM-dd");
-
 		public static explicit operator DateTime(DataPackageDate self) => self.Value;
 		public static explicit operator DataPackageDate(DateTime source) => new DataPackageDate(source);
 	}

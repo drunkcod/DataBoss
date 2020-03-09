@@ -350,12 +350,21 @@ namespace DataBoss.Specs
 		{
 			public int Value;
 
-			public static explicit operator MyCastable(int value) => new MyCastable { Value = value };
+			public static implicit operator MyCastable(int value) => new MyCastable { Value = value };
+			public static explicit operator MyCastable(long value) => new MyCastable { Value = (int)value };
+		}
+
+		public void implicit_cast() {
+			var source = new SimpleDataReader(Col<int>("Value"));
+			source.Add(10);
+			Check
+				.With(() => ObjectReader.For(source).Read<MyRequiredValue<MyCastable>>().ToArray())
+				.That(x => x[0].Value.Value == 10);
 		}
 
 		public void explicit_cast() {
-			var source = new SimpleDataReader(Col<int>("Value"));
-			source.Add(10);
+			var source = new SimpleDataReader(Col<long>("Value"));
+			source.Add(10L);
 			Check
 				.With(() => ObjectReader.For(source).Read<MyRequiredValue<MyCastable>>().ToArray())
 				.That(x => x[0].Value.Value == 10);

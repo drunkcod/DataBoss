@@ -73,9 +73,6 @@ namespace DataBoss.Data
 			? VariableSizeTypes[(byte)(tag & BossTypeTag.TagMask) - (byte)BossTypeTag.Char]
 			: FixedTypes[(byte)(tag & BossTypeTag.TagMask)];
 
-		static Expression ReadRowversionValue(Expression x) => Expression.PropertyOrField(x, nameof(RowVersion.Value));
-		static Func<Expression, Expression> CoerceRowVersion = ReadRowversionValue;
-
 		readonly BossTypeTag tag;
 		readonly object extra;
 
@@ -96,7 +93,9 @@ namespace DataBoss.Data
 
 		public Func<Expression, Expression> Coerce => (tag & BossTypeTag.TagMask) != BossTypeTag.Rowversion 
 			? Lambdas.Id
-			: CoerceRowVersion;
+			: new Func<Expression, Expression>(ToInt64);
+
+		static Expression ToInt64(Expression x) => Expression.Convert(x, typeof(long));
 
 		public bool IsNullable => tag.HasFlag(BossTypeTag.IsNullable);
 
