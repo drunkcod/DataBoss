@@ -8,6 +8,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 using DataBoss.Data.SqlServer;
+using DataBoss.Linq;
 
 namespace DataBoss.Data
 {
@@ -110,13 +111,23 @@ namespace DataBoss.Data
 					initP = MakeParameterFromNullable(p, readMember);
 				else if(readMember.Type == typeof(RowVersion))
 					initP = MakeRowVersionParameter(p, readMember);
-				else if(readMember.Type.IsGenericType && readMember.Type.GetGenericTypeDefinition() == typeof(IdOf<>))
-					initP = MakeIdOfParameter(readMember);
+				else if(TryGetDbType(readMember, out var readAsDbType))
+					initP = MakeParameter(readAsDbType);
 				if(initP != null)
 					extractor.AddParameter(p, initP);
 				else
 					ExtractValues(extractor, name + "_", readMember);
 			}
+		}
+
+		static bool TryGetDbType(Expression readMember, out Expression readAsDbType) {
+			var dbType = readMember.Type.SingleOrDefault<DbTypeAttribute>();
+			if(dbType != null) {
+				readAsDbType = Expression.Convert(readMember, dbType.Type);
+				return true;
+			}
+			readAsDbType = null;
+			return false;
 		}
 
 		public static bool HasSqlTypeMapping(Type t) => t.IsPrimitive || mappedTypes.Contains(t) || t.IsEnum;
@@ -151,9 +162,6 @@ namespace DataBoss.Data
 
 			return Expression.Block(setType, setValue);
 		}
-
-		static Expression MakeIdOfParameter(Expression value) =>
-			MakeParameter(Expression.Convert(value, typeof(int)));
 
 		public static void AddTo<TCommand, T>(TCommand command, T args) where TCommand : IDbCommand => 
 			Extractor<TCommand,T>.CreateParameters(command, args);

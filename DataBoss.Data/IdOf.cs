@@ -2,6 +2,7 @@ using System;
 
 namespace DataBoss.Data
 {
+	[DbType(typeof(int))]
 	public struct IdOf<T> : IEquatable<IdOf<T>>, IComparable<IdOf<T>>
 	{
 		readonly int id;
@@ -19,8 +20,6 @@ namespace DataBoss.Data
 		public static bool operator!=(IdOf<T> x, IdOf<T> y) => x.id != y.id;
 
 		public static explicit operator IdOf<T>(int id) => new IdOf<T>(id);
-
-		[ToDbType]
 		public static explicit operator int(IdOf<T> id) => id.id;
 	}
 }

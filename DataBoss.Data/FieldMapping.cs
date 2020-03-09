@@ -8,9 +8,12 @@ using System.Reflection;
 
 namespace DataBoss.Data
 {
-	[AttributeUsage(AttributeTargets.Method)]
-	public class ToDbTypeAttribute : Attribute
-	{ }
+	[AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
+	public class DbTypeAttribute : Attribute
+	{
+		public readonly Type Type;
+		public DbTypeAttribute(Type type) { this.Type = type; }
+	}
 
 	[AttributeUsage(AttributeTargets.Method)]
 	public class ConsiderAsCtorAttribute : Attribute
@@ -92,11 +95,13 @@ namespace DataBoss.Data
 			TryGetConvertible(get.Type, out var dbType) ? Expression.Convert(get, dbType) : get;
 
 		static bool TryGetConvertible(Type type, out Type dbType) {
-			var opConvert = type.GetMethod("op_Explicit", new[]{ type });
-			if(opConvert != null && opConvert.IsDefined(typeof(ToDbTypeAttribute))) {
-				dbType = opConvert.ReturnType;
+			var found = type.SingleOrDefault<DbTypeAttribute>();
+
+			if(found != null) {
+				dbType = found.Type;
 				return true;
 			}
+			
 			dbType = null;
 			return false;
 		}
