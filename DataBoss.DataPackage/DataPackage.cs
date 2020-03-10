@@ -14,7 +14,6 @@ using Newtonsoft.Json;
 
 namespace DataBoss.DataPackage
 {
-
 	public class DataPackage : IDataPackageBuilder
 	{
 		public static string Delimiter = ";";
@@ -237,6 +236,7 @@ namespace DataBoss.DataPackage
 
 				case TypeCode.String: return (r, i) => r.GetString(i);
 
+				case TypeCode.Int16: return (r, i) => r.GetInt16(i).ToString(format);
 				case TypeCode.Int32: return (r, i) => r.GetInt32(i).ToString(format);
 				case TypeCode.Int64: return (r, i) => r.GetInt64(i).ToString(format);
 
