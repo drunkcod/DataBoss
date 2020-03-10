@@ -1,4 +1,6 @@
 using System;
+using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq.Expressions;
@@ -8,6 +10,8 @@ namespace DataBoss.Data
 {
 	public static class ObjectReader
 	{
+		static readonly ConcurrentDictionary<(Type Reader, Type T), Func<IDataReader, IEnumerable>> readerCache = new ConcurrentDictionary<(Type Reader, Type T), Func<IDataReader, IEnumerable>>();
+
 		public static ObjectReader<TReader> For<TReader>(TReader reader) where TReader : IDataReader =>
 			new ObjectReader<TReader>(reader);
 
@@ -23,15 +27,20 @@ namespace DataBoss.Data
 		public static Expression<Func<TReader, T>> MakeConverter<TReader, T>(TReader reader, ConverterCollection customConversions) where TReader : IDataReader =>
 			ConverterFactory(customConversions).GetConverter<TReader, T>(reader).Expression;
 
-
-		public static IEnumerable<T> Read<T>(IDataReader reader) {
-			var m = typeof(ObjectReader).GetMethod(nameof(ReadCore), BindingFlags.NonPublic | BindingFlags.Static);
-			return ((Func<IDataReader, IEnumerable<T>>)Delegate.CreateDelegate(
-				typeof(Func<IDataReader, IEnumerable<T>>), 
-				m.MakeGenericMethod(reader.GetType(), typeof(T))))(reader);	
+		public static IEnumerable<T> Read<T>(this IDataReader reader) {
+			var key = (reader.GetType(), typeof(T));
+			var read = readerCache.GetOrAdd(key, MakeReaderOfT);
+			return (IEnumerable<T>)read(reader);
 		}
 
-		static IEnumerable<T> ReadCore<TReader, T>(IDataReader reader) where TReader : IDataReader =>
+		static Func<IDataReader, IEnumerable> MakeReaderOfT((Type Reader, Type T) key) {
+			var m = typeof(ObjectReader).GetMethod(nameof(ReaderOfT), BindingFlags.NonPublic | BindingFlags.Static);
+			return (Func<IDataReader, IEnumerable>)Delegate.CreateDelegate(
+				typeof(Func<IDataReader, IEnumerable>),
+				m.MakeGenericMethod(key.Reader, key.T));
+		}
+
+		static IEnumerable ReaderOfT<TReader, T>(IDataReader reader) where TReader : IDataReader =>
 			For((TReader)reader).Read<T>();
 
 		static ConverterFactory ConverterFactory(ConverterCollection customConversions) => 
