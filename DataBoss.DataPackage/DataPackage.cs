@@ -6,8 +6,6 @@ using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Linq.Expressions;
-using System.Reflection;
 using System.Text;
 using System.Threading;
 using DataBoss.DataPackage.Types;
@@ -218,15 +216,16 @@ namespace DataBoss.DataPackage
 						return obj is IFormattable x ? x.ToString(null, format) : obj?.ToString();
 					};
 
-				case TypeCode.DateTime: return (r, i) => {
-					var value = r.GetDateTime(i);
-					if (value.Kind == DateTimeKind.Unspecified)
-						throw new InvalidOperationException("DateTimeKind.Unspecified not supported.");
-					var utc = value.ToUniversalTime();
+				case TypeCode.DateTime:
 					if(fieldDescription.Type == "date")
-						return ((DataPackageDate)utc).ToString();
-					return utc.ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ssK");
-				};
+						return (r, i) => ((DataPackageDate)r.GetDateTime(i)).ToString();
+
+					return (r, i) => {
+						var value = r.GetDateTime(i);
+						if (value.Kind == DateTimeKind.Unspecified)
+							throw new InvalidOperationException("DateTimeKind.Unspecified not supported.");
+						return value.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ssK");
+					};
 
 				case TypeCode.String: return (r, i) => r.GetString(i);
 

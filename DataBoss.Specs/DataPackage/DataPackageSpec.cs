@@ -100,6 +100,29 @@ namespace DataBoss.DataPackage.Specs
 				() => reader.GetString(0) == t.ToString("HH:mm:ss"));
 		}
 
+		[Fact]
+		public void date_roundtrippy() {
+			var today = DateTime.Today;
+			var utc = today.ToUniversalTime().Date;
+
+			var dp = new DataPackage()
+				.AddResource("dates-are-dates", () => SequenceDataReader.Items(
+					new {
+						Today = (DataPackageDate)today,
+						UtcToday = (DataPackageDate)utc,
+					}
+			))
+			.Serialize()
+			.Serialize();
+
+			var r = dp.Resources[0].Read();
+			r.Read();
+			Check.That(
+				() => today.Date != utc.Date,
+				() => r["Today"] == (object)today,
+				() => r["UtcToday"] == (object)utc);
+		}
+
 		class DateTimeFormatRow
 		{
 			public DateTime datetime;
