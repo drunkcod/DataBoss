@@ -60,15 +60,23 @@ namespace DataBoss.DataPackage
 			if(path.EndsWith(".zip")) 
 				return LoadZip(path);
 
-			var datapackagePath = path.EndsWith("datapackage.json") ? path : Path.Combine(path, "datapackage.json");
-			var description = JsonConvert.DeserializeObject<DataPackageDescription>(File.ReadAllText(datapackagePath));
-			var r = new DataPackage();
+			var datapackageRoot = path.EndsWith("datapackage.json") ? Path.GetDirectoryName(path) : path;
+			return Load(x => File.OpenRead(Path.Combine(datapackageRoot, x)));
+		}
 
-			var datapackageRoot = Path.GetDirectoryName(datapackagePath);
-			r.Resources.AddRange(description.Resources.Select(x => 
-				new TabularDataResource(x.Name, x.Schema, () => 
+		public static DataPackage Load(Func<string, Stream> openRead)
+		{
+			DataPackageDescription description;
+			using(var reader = new JsonTextReader(new StreamReader(openRead("datapackage.json")))) {
+				var json = new JsonSerializer();
+				description = json.Deserialize<DataPackageDescription>(reader);
+			}
+
+			var r = new DataPackage();
+			r.Resources.AddRange(description.Resources.Select(x =>
+				new TabularDataResource(x.Name, x.Schema, () =>
 					NewCsvDataReader(
-						File.OpenText(Path.Combine(datapackageRoot, x.Path)),
+						new StreamReader(openRead(x.Path)),
 						x.Delimiter,
 						x.Schema))));
 
