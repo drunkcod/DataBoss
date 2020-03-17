@@ -1,13 +1,5 @@
-#if MSSQLCLIENT
-namespace DataBoss.Data.MsSql
-{
-	using Microsoft.Data.SqlClient;
-#else
 namespace DataBoss.Data
 {
-	using System.Data.SqlClient;
-#endif
-
 	using System;
 	using System.Collections.Generic;
 	using System.Data;
