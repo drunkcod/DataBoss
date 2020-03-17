@@ -1,13 +1,20 @@
-using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Data.SqlClient;
-using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-
+#if MSSQLCLIENT
+namespace DataBoss.Data.MsSql
+{
+	using Microsoft.Data.SqlClient;
+#else
 namespace DataBoss.Data
 {
+	using System.Data.SqlClient;
+#endif
+
+	using System;
+	using System.Collections.Generic;
+	using System.Data;
+	using System.Linq;
+	using System.Text;
+	using System.Text.RegularExpressions;
+
 	public static class DbObjectReader
 	{
 		public static DbObjectReader<SqlCommand, SqlDataReader> Create(SqlConnection connection) => new DbObjectReader<SqlCommand, SqlDataReader>(connection.CreateCommand);

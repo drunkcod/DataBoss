@@ -25,6 +25,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss.DataPackage", "..\
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss.Cli", "..\DataBoss.Cli\DataBoss.Cli.csproj", "{78E2110C-5020-4635-B51A-4862A8A25322}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss.Data.MsSql", "..\DataBoss.Data.MsSql\DataBoss.Data.MsSql.csproj", "{970E6AE5-8D3E-4BD4-9444-BFC7B511017F}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss.Data.SqlClient", "..\DataBoss.Data.SqlClient\DataBoss.Data.SqlClient.csproj", "{EE5DD2E4-DC63-437C-AE24-BD0A02ECF212}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -55,6 +59,14 @@ Global
 		{78E2110C-5020-4635-B51A-4862A8A25322}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{78E2110C-5020-4635-B51A-4862A8A25322}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{78E2110C-5020-4635-B51A-4862A8A25322}.Release|Any CPU.Build.0 = Release|Any CPU
+		{970E6AE5-8D3E-4BD4-9444-BFC7B511017F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{970E6AE5-8D3E-4BD4-9444-BFC7B511017F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{970E6AE5-8D3E-4BD4-9444-BFC7B511017F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{970E6AE5-8D3E-4BD4-9444-BFC7B511017F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EE5DD2E4-DC63-437C-AE24-BD0A02ECF212}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EE5DD2E4-DC63-437C-AE24-BD0A02ECF212}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EE5DD2E4-DC63-437C-AE24-BD0A02ECF212}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EE5DD2E4-DC63-437C-AE24-BD0A02ECF212}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

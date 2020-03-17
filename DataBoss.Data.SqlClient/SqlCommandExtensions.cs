@@ -1,7 +1,13 @@
-using System.Data.SqlClient;
-
-namespace DataBoss.Data
+#if MSSQLCLIENT
+namespace DataBoss.Data.MsSql
 {
+	using Microsoft.Data.SqlClient;
+#else
+namespace DataBoss.Data 
+{
+	using System.Data.SqlClient;
+#endif
+
 	public static class SqlCommandExtensions
 	{
 		public static SqlDataReader ExecuteReader(this SqlCommand cmd, RetryStrategy retry) =>

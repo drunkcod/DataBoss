@@ -1,11 +1,17 @@
-using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Data.SqlClient;
-using DataBoss.Data.Scripting;
-
+#if MSSQLCLIENT
+namespace DataBoss.Data.MsSql
+{
+	using Microsoft.Data.SqlClient;
+#else
 namespace DataBoss.Data
 {
+	using System.Data.SqlClient;
+#endif
+	using System;
+	using System.Collections.Generic;
+	using System.Data;
+	using DataBoss.Data.Scripting;
+
 	public static class SqlConnectionExtensions
 	{
 		public static SqlCommand CreateCommand(this SqlConnection connection, string cmdText) => 

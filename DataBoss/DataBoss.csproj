@@ -12,6 +12,7 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\DataBoss.Data.SqlClient\DataBoss.Data.SqlClient.csproj" />
     <ProjectReference Condition="'$(DataBossPackageVersion)'==''" Include="..\DataBoss.Data\DataBoss.Data.csproj" />
     <PackageReference Condition="'$(DataBossPackageVersion)'!=''" Include="DataBoss.Data" Version="$(DataBossPackageVersion)" /> 
   </ItemGroup>

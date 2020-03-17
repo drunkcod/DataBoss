@@ -1,9 +1,16 @@
-﻿using System;
-using System.Data.Common;
-using System.Data.SqlClient;
-
+#if MSSQLCLIENT
+namespace DataBoss.Data.MsSql
+{
+	using Microsoft.Data.SqlClient;
+#else
 namespace DataBoss.Data
 {
+	using System.Data.SqlClient;
+#endif
+
+	using System;
+	using System.Data.Common;
+
 	public class ProfiledSqlDbProviderFactory : DbProviderFactory
 	{
 		public override DbConnection CreateConnection() {

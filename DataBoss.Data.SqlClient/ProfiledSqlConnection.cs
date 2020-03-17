@@ -1,15 +1,22 @@
-using System;
-using System.Collections;
-using System.Data;
-using System.Data.Common;
-using System.Data.SqlClient;
-using System.Diagnostics;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
-
+#if MSSQLCLIENT
+namespace DataBoss.Data.MsSql
+{
+	using Microsoft.Data.SqlClient;
+#else
 namespace DataBoss.Data
 {
+	using System.Data.SqlClient;
+#endif
+
+	using System;
+	using System.Collections;
+	using System.Data;
+	using System.Data.Common;
+	using System.Diagnostics;
+	using System.IO;
+	using System.Threading;
+	using System.Threading.Tasks;
+
 	public class ProfiledSqlConnection : DbConnection, IDataBossConnectionExtras
 	{
 		readonly SqlConnection inner;

@@ -2,7 +2,7 @@ using System;
 
 namespace DataBoss
 {
-	static class TypeExtensions
+	public static class TypeExtensions
 	{
 		public static bool IsNullable(this Type t) => t.IsGenericType && t.GetGenericTypeDefinition() == typeof(Nullable<>);
 

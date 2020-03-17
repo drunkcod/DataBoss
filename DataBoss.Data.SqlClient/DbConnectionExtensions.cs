@@ -1,18 +1,22 @@
-using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Data;
-using System.Data.Common;
-using System.Data.SqlClient;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Reflection;
-using DataBoss.Data;
-
-[assembly: RegisterConnectionExtras(typeof(SqlConnection), typeof(SqlConnectionExtras))]
-
+#if MSSQLCLIENT
+namespace DataBoss.Data.MsSql
+{
+	using Microsoft.Data.SqlClient;
+#else
 namespace DataBoss.Data
 {
+	using System.Data.SqlClient;
+#endif
+
+	using System;
+	using System.Collections.Concurrent;
+	using System.Collections.Generic;
+	using System.Data;
+	using System.Data.Common;
+	using System.Linq;
+	using System.Linq.Expressions;
+	using System.Reflection;
+
 	public class SqlConnectionExtras : IDataBossConnectionExtras
 	{
 		readonly SqlConnection connection;
@@ -24,18 +28,6 @@ namespace DataBoss.Data
 
 		public void Insert(string destinationTable, IDataReader rows, DataBossBulkCopySettings settings) =>
 			connection.Insert(destinationTable, rows, settings);
-	}
-
-	[AttributeUsage(AttributeTargets.Assembly)]
-	public class RegisterConnectionExtras : Attribute
-	{
-		public readonly Type ConnectionType;
-		public readonly Type ExtrasType;
-
-		public RegisterConnectionExtras(Type connectionType, Type extrasType) {
-			this.ConnectionType = connectionType;
-			this.ExtrasType = extrasType;
-		}
 	}
 
 	public static class DbConnectionExtensions

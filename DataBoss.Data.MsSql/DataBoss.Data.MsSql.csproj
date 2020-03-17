@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0</TargetFrameworks>
+    <LangVersion>7.3</LangVersion>
+    
+    <DefineConstants>$(DefineConstants);MSSQLCLIENT</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+      <Compile Include="..\DataBoss.Data.SqlClient\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="1.1.0" />
+    <PackageReference Include="System.ComponentModel.Annotations" Version="4.5.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DataBoss.Data\DataBoss.Data.csproj" />
+    <ProjectReference Include="..\DataBoss.Linq\DataBoss.Linq.csproj" />
+  </ItemGroup>
+</Project>

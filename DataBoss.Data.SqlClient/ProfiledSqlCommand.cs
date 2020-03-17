@@ -1,10 +1,16 @@
-using System;
-using System.Data;
-using System.Data.Common;
-using System.Data.SqlClient;
-
+#if MSSQLCLIENT
+namespace DataBoss.Data.MsSql
+{
+	using Microsoft.Data.SqlClient;
+#else
 namespace DataBoss.Data
 {
+	using System.Data.SqlClient;
+#endif
+
+	using System.Data;
+	using System.Data.Common;
+
 	public class ProfiledSqlCommand : DbCommand
 	{
 		readonly internal SqlCommand inner;

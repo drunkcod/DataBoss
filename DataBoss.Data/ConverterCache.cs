@@ -68,6 +68,9 @@ namespace DataBoss.Data
 			var schema = reader.GetSchemaTable();
 			var allowDBNull = schema.Columns["AllowDBNull"];
 
+			if(schema.Rows.Count != reader.FieldCount)
+				throw new InvalidOperationException("GetSchemaTable result doesn't match FieldCount.");
+
 			for (var i = 0; i != r.Length; ++i) {
 				var row = schema.Rows[i];
 				r[i] = (bool)row[allowDBNull];

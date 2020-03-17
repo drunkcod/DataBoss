@@ -1,25 +1,20 @@
-using System;
-using System.Collections.Generic;
-using System.Data;
-using System.Data.SqlClient;
-using System.Linq;
-using DataBoss.Data.Common;
-using DataBoss.Data.Scripting;
-
+#if MSSQLCLIENT
+namespace DataBoss.Data.MsSql
+{
+	using Microsoft.Data.SqlClient;
+#else
 namespace DataBoss.Data
 {
-	public struct DataBossBulkCopySettings
-	{
-		public int? BatchSize;
-		public int? CommandTimeout;
-		public SqlBulkCopyOptions? Options;
+	using System.Data.SqlClient;
+#endif
 
-		public DataBossBulkCopySettings WithCommandTimeout(int? value) {
-			var x = this;
-			x.CommandTimeout = value;
-			return x;
-		}
-	}
+
+	using System;
+	using System.Collections.Generic;
+	using System.Data;
+	using System.Linq;
+	using DataBoss.Data.Common;
+	using DataBoss.Data.Scripting;
 
 	public class DataBossBulkCopy
 	{
@@ -46,7 +41,7 @@ namespace DataBoss.Data
 			}
 
 			public void WriteToServer(IDataReader rows, string destinationTable, Action<SqlBulkCopyColumnMappingCollection> map) {
-				using(var bulkCopy = new SqlBulkCopy(connection, settings.Options ?? SqlBulkCopyOptions.TableLock, transaction) {
+				using(var bulkCopy = new SqlBulkCopy(connection, (SqlBulkCopyOptions)(settings.Options ?? DataBossBulkCopyOptions.TableLock), transaction) {
 					DestinationTableName = destinationTable,
 					EnableStreaming = true,
 				}) { 

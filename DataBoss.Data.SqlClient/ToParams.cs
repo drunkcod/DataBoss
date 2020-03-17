@@ -1,17 +1,24 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Data;
-using System.Data.SqlClient;
-using System.Data.SqlTypes;
-using System.Linq;
-using System.Linq.Expressions;
-using System.Reflection;
-using DataBoss.Data.SqlServer;
-using DataBoss.Linq;
-
+#if MSSQLCLIENT
+namespace DataBoss.Data.MsSql
+{
+	using Microsoft.Data.SqlClient;
+#else
 namespace DataBoss.Data
 {
+	using System.Data.SqlClient;
+#endif
+
+	using System;
+	using System.Collections;
+	using System.Collections.Generic;
+	using System.Data;
+	using System.Data.SqlTypes;
+	using System.Linq;
+	using System.Linq.Expressions;
+	using System.Reflection;
+	using DataBoss.Data.SqlServer;
+	using DataBoss.Linq;
+
 	public static class ToParams
 	{
 		static HashSet<Type> mappedTypes = new HashSet<Type> {

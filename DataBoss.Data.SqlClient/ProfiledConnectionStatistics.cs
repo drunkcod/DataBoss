@@ -1,10 +1,18 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-
+#if MSSQLCLIENT
+namespace DataBoss.Data.MsSql
+{
+	using Microsoft.Data.SqlClient;
+#else
 namespace DataBoss.Data
 {
+	using System.Data.SqlClient;
+#endif
+
+	using System;
+	using System.Collections;
+	using System.Collections.Generic;
+	using System.Linq;
+
 	public class ProfiledSqlConnectionStatistics : IEnumerable<ProfiledCommandStatistics>
 	{
 		readonly Dictionary<string, List<ProfiledCommandCall>> seenQueries = new Dictionary<string, List<ProfiledCommandCall>>();
