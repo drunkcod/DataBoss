@@ -81,7 +81,7 @@ namespace DataBoss.Data
 
 		public SqlCommand NewCommand<T>(string commandText, T args, CommandOptions options, CommandType commandType) {
 			var cmd = NewCommand(commandText, options, commandType);
-			ToParams.AddTo(cmd, args);
+			MsSqlDialect.AddTo(cmd, args);
 			return cmd;
 		}
 

@@ -77,7 +77,7 @@ namespace DataBoss.Data
 
 			static Action<IDbCommand, object> AddParameters(Type t, ISqlDialect dialect) =>
 				CommandFactory.GetOrAdd(t, 
-					type => (Action<IDbCommand, object>)ToParams.CreateObjectExtractor(typeof(IDbCommand), dialect, type).Compile());
+					type => (Action<IDbCommand, object>)ToParams.CreateExtractor(dialect, typeof(IDbCommand), type, typeof(object)).Compile());
 		}
 
 		public static IDbConnection WithCommandTimeout(this IDbConnection db, int commandTimeout) =>

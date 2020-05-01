@@ -13,7 +13,6 @@ namespace DataBoss.Data
 	using DataBoss.Data.Scripting;
 	using System.Linq.Expressions;
 	using DataBoss.Data.SqlServer;
-	using System.Reflection;
 
 	public class MsSqlDialect : ISqlDialect
 	{
@@ -33,6 +32,18 @@ namespace DataBoss.Data
 					Expression.Bind(
 						typeof(SqlParameter).GetProperty(nameof(SqlParameter.Value)),
 						Expression.Convert(Expression.Field(readMember, nameof(RowVersion.Value)), typeof(object))));
+
+
+
+		public static void AddTo<T>(SqlCommand command, T args) =>
+			Extractor<T>.CreateParameters(command, args);
+
+		static class Extractor<TArg>
+		{
+			internal static Action<SqlCommand, TArg> CreateParameters =
+				(Action<SqlCommand, TArg>)ToParams.CreateExtractor(Instance, typeof(SqlCommand), typeof(TArg), typeof(TArg))
+				.Compile();
+		}
 	}
 
 	public class DataBossSqlConnection : IDataBossConnection
@@ -54,7 +65,7 @@ namespace DataBoss.Data
 
 		public IDbCommand CreateCommand<T>(string cmdText, T args) {
 			var cmd = new SqlCommand(cmdText, connection);
-			ToParams.AddTo(cmd, args);
+			MsSqlDialect.AddTo(cmd, args);
 			return cmd;
 		}
 	}
@@ -66,7 +77,7 @@ namespace DataBoss.Data
 
 		public static SqlCommand CreateCommand<T>(this SqlConnection connection, string cmdText, T args) {
 			var cmd = CreateCommand(connection, cmdText);
-			ToParams.AddTo(cmd, args);
+			MsSqlDialect.AddTo(cmd, args);
 			return cmd;
 		}
 

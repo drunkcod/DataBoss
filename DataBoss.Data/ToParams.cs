@@ -1,13 +1,5 @@
-#if MSSQLCLIENT
-namespace DataBoss.Data.MsSql
-{
-	using Microsoft.Data.SqlClient;
-#else
 namespace DataBoss.Data
 {
-	using System.Data.SqlClient;
-#endif
-
 	using System;
 	using System.Collections;
 	using System.Collections.Generic;
@@ -33,29 +25,14 @@ namespace DataBoss.Data
 			typeof(SqlBinary),
 		};
 
-		static class Extractor<TCommand, TArg>
+		public static LambdaExpression CreateExtractor(ISqlDialect dialect, Type commandType, Type argType, Type parameterType)
 		{
-			internal static Action<TCommand, TArg> CreateParameters = 
-				(Action<TCommand, TArg>)CreateExtractor(typeof(TCommand), typeof(TArg))
-				.Compile();
-		}
-
-		public static LambdaExpression CreateObjectExtractor(Type commandType, ISqlDialect dialect, Type argType) {
 			var command = Expression.Parameter(commandType);
-			var values = Expression.Parameter(typeof(object));
+			var values = Expression.Parameter(parameterType);
 
 			var extractor = ExtractorContext.For(command);
 			ExtractValues(extractor, dialect, dialect.ParameterPrefix, Expression.Convert(values, argType));
 			return Expression.Lambda(extractor.GetResult(), command, values);
-		}
-
-		static LambdaExpression CreateExtractor(Type commandType, Type argType) {
-			var command = Expression.Parameter(commandType);
-			var args = Expression.Parameter(argType);
-
-			var extractor = ExtractorContext.For(command);
-			ExtractValues(extractor, MsSqlDialect.Instance, MsSqlDialect.Instance.ParameterPrefix, args);
-			return Expression.Lambda(extractor.GetResult(), command, args);
 		}
 
 		class ExtractorContext
@@ -170,22 +147,5 @@ namespace DataBoss.Data
 							Expression.MakeMemberAccess(p, typeof(IDataParameter).GetProperty(nameof(IDataParameter.DbType))), 
 								Expression.Constant(DataBossDbType.ToDbType(value.Type.GetGenericArguments()[0]))),
 						Expression.Constant(DBNull.Value, typeof(object))));
-
-		static Expression MakeRowVersionParameter(Expression p, Expression value) {
-			var setType = p.Type == typeof(SqlParameter)
-				? Expression.Assign(
-					Expression.MakeMemberAccess(p, typeof(SqlParameter).GetProperty(nameof(SqlParameter.SqlDbType))),
-					Expression.Constant(SqlDbType.Binary))
-				: Expression.Assign(
-					Expression.MakeMemberAccess(p, typeof(IDataParameter).GetProperty(nameof(IDataParameter.DbType))),
-					Expression.Constant(DbType.Binary));
-
-			var setValue = Expression.Convert(Expression.Field(value, nameof(RowVersion.Value)), typeof(object));
-
-			return Expression.Block(setType, setValue);
-		}
-
-		public static void AddTo<TCommand, T>(TCommand command, T args) where TCommand : IDbCommand => 
-			Extractor<TCommand,T>.CreateParameters(command, args);
 	}
 }

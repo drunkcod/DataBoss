@@ -58,7 +58,7 @@ namespace DataBoss.Data
 		static SqlCommand WithQuery<T>(this SqlCommand cmd, string cmdText, T args) {
 			cmd.CommandText = cmdText;
 			cmd.Parameters.Clear();
-			ToParams.AddTo(cmd, args);
+			MsSqlDialect.AddTo(cmd, args);
 			return cmd;
 		}
 	}
