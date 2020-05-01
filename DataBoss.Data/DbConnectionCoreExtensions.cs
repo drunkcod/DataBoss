@@ -33,9 +33,9 @@ namespace DataBoss.Data
 		public static int ExecuteNonQuery(this IDbConnection connection, string commandText) =>
 			CreateCommand(connection, commandText).Use(DbOps<IDbCommand, IDataReader>.ExecuteNonQuery);
 
-		static readonly ConcurrentBag<LambdaExpression> connectionWrapers = new ConcurrentBag<LambdaExpression>();
+		static readonly ConcurrentBag<Delegate> connectionWrapers = new ConcurrentBag<Delegate>();
 
-		public static void Register<T>(Expression<Func<T, IDataBossConnection>> wrap) =>
+		public static void Register<T>(Func<T, IDataBossConnection> wrap) =>
 			connectionWrapers.Add(wrap);
 
 		static Func<IDbConnection, IDataBossConnection> WrapConnection = _ => null;
@@ -52,16 +52,32 @@ namespace DataBoss.Data
 		{
 			var con = Expression.Parameter(typeof(IDbConnection), "c");
 
-			var sql = Type.GetType("DataBoss.Data.DataBossSqlConnection, DataBoss.Data.SqlClient");
-			var ctor = sql.GetConstructors().Single();
+			Expression body = Expression.Constant(null, typeof(IDataBossConnection));
+			foreach(var item in new[]{
+				"DataBoss.Data.MsSqlClient.DataBossSqlConnection, DataBoss.Data.MsSqlClient",
+				"DataBoss.Data.DataBossSqlConnection, DataBoss.Data.SqlClient", }) {
 
-			var asTarget = Expression.TypeAs(con, ctor.GetParameters()[0].ParameterType);
+				var type = Type.GetType(item);
+				if(type == null)
+					continue;
+				var ctor = type.GetConstructors().Single();
+				var asTarget = Expression.TypeAs(con, ctor.GetParameters()[0].ParameterType);
+				body = Expression.Condition(
+					Expression.ReferenceEqual(asTarget, Expression.Constant(null)), 
+					body,
+					Expression.Convert(Expression.New(ctor, asTarget), typeof(IDataBossConnection)));
+			}
 
-			WrapConnection = Expression.Lambda<Func<IDbConnection, IDataBossConnection>>(
-				Expression.Condition(
+			foreach(var item in connectionWrapers.Reverse()) {
+				var asTarget = Expression.TypeAs(con, item.Method.GetParameters().Single().ParameterType);
+				body = Expression.Condition(
 					Expression.ReferenceEqual(asTarget, Expression.Constant(null)),
-						Expression.Constant(null, typeof(IDataBossConnection)),
-						Expression.New(ctor, asTarget)), con)
+					body,
+					Expression.Convert(Expression.Call(
+						Expression.Constant(item.Target), item.Method, asTarget), typeof(IDataBossConnection)));
+			}
+
+			WrapConnection = Expression.Lambda<Func<IDbConnection, IDataBossConnection>>(body, con)
 				.Compile();
 
 		}
