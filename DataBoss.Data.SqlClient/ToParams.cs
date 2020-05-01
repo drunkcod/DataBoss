@@ -40,6 +40,15 @@ namespace DataBoss.Data
 				.Compile();
 		}
 
+		public static LambdaExpression CreateObjectExtractor(Type commandType, string prefix, Type argType) {
+			var command = Expression.Parameter(commandType);
+			var values = Expression.Parameter(typeof(object));
+
+			var extractor = ExtractorContext.For(command);
+			ExtractValues(extractor, prefix, Expression.Convert(values, argType));
+			return Expression.Lambda(extractor.GetResult(), command, values);
+		}
+
 		static LambdaExpression CreateExtractor(Type commandType, Type argType) {
 			var command = Expression.Parameter(commandType);
 			var args = Expression.Parameter(argType);

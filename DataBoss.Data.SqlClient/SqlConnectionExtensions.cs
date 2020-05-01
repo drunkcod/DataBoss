@@ -18,11 +18,16 @@ namespace DataBoss.Data
 
 		public DataBossSqlConnection(SqlConnection connection) { this.connection = connection; }
 
+		public string ParameterPrefix => "@";
+
 		public void CreateTable(string destinationTable, IDataReader data) =>
 			connection.CreateTable(destinationTable, data);
 
 		public void Insert(string destinationTable, IDataReader rows, DataBossBulkCopySettings settings) =>
 			connection.Insert(destinationTable, rows, settings);
+
+		public IDbCommand CreateCommand(string cmdText) =>
+			new SqlCommand(cmdText, connection);
 
 		public IDbCommand CreateCommand<T>(string cmdText, T args) {
 			var cmd = new SqlCommand(cmdText, connection);

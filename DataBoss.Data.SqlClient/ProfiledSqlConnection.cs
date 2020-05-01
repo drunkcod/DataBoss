@@ -25,6 +25,8 @@ namespace DataBoss.Data
 			this.inner = inner;
 		}
 
+		public string ParameterPrefix => "@";
+
 		public override string ConnectionString { 
 			get => inner.ConnectionString; 
 			set => inner.ConnectionString = value; 
@@ -52,6 +54,9 @@ namespace DataBoss.Data
 		}
 
 		protected override DbCommand CreateDbCommand() => new ProfiledSqlCommand(this, inner.CreateCommand());
+
+		IDbCommand IDataBossConnection.CreateCommand(string cmdText) =>
+			new ProfiledSqlCommand(this, inner.CreateCommand(cmdText));
 
 		IDbCommand IDataBossConnection.CreateCommand<T>(string cmdText, T args) =>
 			new ProfiledSqlCommand(this, inner.CreateCommand(cmdText, args));
