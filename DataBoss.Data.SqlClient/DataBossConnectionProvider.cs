@@ -87,6 +87,7 @@ namespace DataBoss.Data
 
 		public int ExecuteNonQuery(string commandText, CommandType commandType = CommandType.Text) =>
 			Execute(commandText, commandType, DbOps<SqlCommand, SqlDataReader>.ExecuteNonQuery);
+
 		public object ExecuteNonQuery<TArgs>(string commandText, TArgs args, CommandType commandType = CommandType.Text) =>
 			Execute(commandText, args, commandType, DbOps<SqlCommand, SqlDataReader>.ExecuteNonQuery);
 

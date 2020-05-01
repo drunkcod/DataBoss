@@ -38,7 +38,7 @@ namespace DataBoss.Data
 			Wrap(connection).CreateCommand(cmdText, args);
 
 		public static object ExecuteScalar<T>(this IDbConnection connection, string commandText, T args) =>
-		CreateCommand(connection, commandText, args).Use(DbOps<IDbCommand, IDataReader>.ExecuteScalar);
+			CreateCommand(connection, commandText, args).Use(DbOps<IDbCommand, IDataReader>.ExecuteScalar);
 
 		public static int ExecuteNonQuery<T>(this IDbConnection connection, string commandText, T args) =>
 			CreateCommand(connection, commandText, args).Use(DbOps<IDbCommand, IDataReader>.ExecuteNonQuery);
@@ -208,7 +208,7 @@ namespace DataBoss.Data
 				return db;
 
 			BuildWrapperFactory();
-			return WrapConnection(connection) ?? throw new NotSupportedException(connection.GetType().Name);
+			return WrapConnection(connection) ?? throw new NotSupportedException($"Failed to wrap {connection.GetType().FullName} missing NuGet reference to DataBoss.Data.SqlClient or DataBoss.Data.MsSql?");
 		}
 
 		static void BuildWrapperFactory()
@@ -217,7 +217,7 @@ namespace DataBoss.Data
 
 			Expression body = Expression.Constant(null, typeof(IDataBossConnection));
 			foreach(var item in new[]{
-				"DataBoss.Data.MsSqlClient.DataBossSqlConnection, DataBoss.Data.MsSqlClient",
+				"DataBoss.Data.MsSql.DataBossSqlConnection, DataBoss.Data.MsSql",
 				"DataBoss.Data.DataBossSqlConnection, DataBoss.Data.SqlClient", }) {
 
 				var type = Type.GetType(item);
