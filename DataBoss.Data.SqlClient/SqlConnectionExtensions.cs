@@ -12,6 +12,25 @@ namespace DataBoss.Data
 	using System.Data;
 	using DataBoss.Data.Scripting;
 
+	public class DataBossSqlConnection : IDataBossConnection
+	{
+		readonly SqlConnection connection;
+
+		public DataBossSqlConnection(SqlConnection connection) { this.connection = connection; }
+
+		public void CreateTable(string destinationTable, IDataReader data) =>
+			connection.CreateTable(destinationTable, data);
+
+		public void Insert(string destinationTable, IDataReader rows, DataBossBulkCopySettings settings) =>
+			connection.Insert(destinationTable, rows, settings);
+
+		public IDbCommand CreateCommand<T>(string cmdText, T args) {
+			var cmd = new SqlCommand(cmdText, connection);
+			ToParams.AddTo(cmd, args);
+			return cmd;
+		}
+	}
+
 	public static class SqlConnectionExtensions
 	{
 		public static SqlCommand CreateCommand(this SqlConnection connection, string cmdText) => 

@@ -29,9 +29,6 @@ namespace DataBoss.Data
 		readonly object[] current;
 		readonly Action<T,object[]> accessor;
 		readonly IEnumerator<T> data;
-		//readonly string[] fieldNames;
-		//readonly Type[] fieldTypes;
-		//readonly DataBossDbType[] dbTypes;
 		readonly DataReaderSchemaTable schema = new DataReaderSchemaTable();
 	
 		internal SequenceDataReader(IEnumerator<T> data, FieldMapping<T> fields) {

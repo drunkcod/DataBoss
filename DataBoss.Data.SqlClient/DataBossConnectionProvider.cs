@@ -8,18 +8,12 @@ namespace DataBoss.Data
 	using System.Data.SqlClient;
 #endif
 	using System;
-	using System.Collections;
 	using System.Collections.Concurrent;
 	using System.Collections.Generic;
 	using System.Data;
 	using System.Linq;
 	using System.Threading;
 	using DataBoss.Linq;
-
-	static class Ops
-	{
-		public static readonly Action<SqlConnection> Dispose = Lambdas.Action<SqlConnection>(nameof(SqlConnection.Dispose));
-	}
 
 	public class DataBossConnectionProvider : IDisposable
 	{
@@ -189,6 +183,8 @@ namespace DataBoss.Data
 		void IDisposable.Dispose() => Cleanup();
 
 		public void Cleanup() =>
-			connections.Values.ForEach(Ops.Dispose);
+			connections.Values.ForEach(DoDispose);
+
+		static void DoDispose(IDisposable x) => x.Dispose();
 	}
 }

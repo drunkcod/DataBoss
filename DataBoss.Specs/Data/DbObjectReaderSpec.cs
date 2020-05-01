@@ -19,7 +19,7 @@ namespace DataBoss.Specs.Data
 		public void given_a_object_reader() {
 			Db = new SqlConnection("Server=.;Integrated Security=SSPI");
 			Db.Open();
-			DbReader = DbObjectReader.Create(Db);
+			DbReader = SqlObjectReader.Create(Db);
 		}
 
 		public void multi_resultset_query() {

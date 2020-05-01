@@ -17,7 +17,7 @@ namespace DataBoss.Diagnostics
 
 	public static class SqlServerQuerySampler
 	{
-		public static ISqlServerQuerySampler Create(SqlConnection db) => Create(db.GetDatabaseInfo(), DbObjectReader.Create(db));
+		public static ISqlServerQuerySampler Create(SqlConnection db) => Create(db.GetDatabaseInfo(), SqlObjectReader.Create(db));
 
 		public static ISqlServerQuerySampler Create(DatabaseInfo db, DbObjectReader<SqlCommand, SqlDataReader> reader) {
 			if(db.CompatibilityLevel < 90)

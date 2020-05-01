@@ -17,7 +17,7 @@ namespace DataBoss.Data
 	using System.Threading;
 	using System.Threading.Tasks;
 
-	public class ProfiledSqlConnection : DbConnection, IDataBossConnectionExtras
+	public class ProfiledSqlConnection : DbConnection, IDataBossConnection
 	{
 		readonly SqlConnection inner;
 
@@ -52,6 +52,10 @@ namespace DataBoss.Data
 		}
 
 		protected override DbCommand CreateDbCommand() => new ProfiledSqlCommand(this, inner.CreateCommand());
+
+		IDbCommand IDataBossConnection.CreateCommand<T>(string cmdText, T args) =>
+			new ProfiledSqlCommand(this, inner.CreateCommand(cmdText, args));
+
 		protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel) => inner.BeginTransaction(isolationLevel);
 		public override void Close() => inner.Close();
 		public override void ChangeDatabase(string databaseName) => inner.ChangeDatabase(databaseName);
@@ -93,7 +97,7 @@ namespace DataBoss.Data
 		void OnExecuted(ProfiledSqlCommand command, TimeSpan elapsed, int rowCount, ProfiledDataReader reader) =>
 			CommandExecuted?.Invoke(this, new ProfiledSqlCommandExecutedEventArgs(command, elapsed, rowCount, reader));
 
-		void IDataBossConnectionExtras.CreateTable(string destinationTable, IDataReader data) =>
+		void IDataBossConnection.CreateTable(string destinationTable, IDataReader data) =>
 			inner.CreateTable(destinationTable, data);
 
 		public static explicit operator SqlConnection(ProfiledSqlConnection self) => self.inner;

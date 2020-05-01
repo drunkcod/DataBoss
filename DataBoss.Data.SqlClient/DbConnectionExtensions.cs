@@ -12,23 +12,9 @@ namespace DataBoss.Data
 	using System.Collections.Concurrent;
 	using System.Collections.Generic;
 	using System.Data;
-	using System.Data.Common;
 	using System.Linq;
 	using System.Linq.Expressions;
 	using System.Reflection;
-
-	public class SqlConnectionExtras : IDataBossConnectionExtras
-	{
-		readonly SqlConnection connection;
-
-		public SqlConnectionExtras(SqlConnection connection) { this.connection = connection; }
-
-		public void CreateTable(string destinationTable, IDataReader data) =>
-			connection.CreateTable(destinationTable, data);
-
-		public void Insert(string destinationTable, IDataReader rows, DataBossBulkCopySettings settings) =>
-			connection.Insert(destinationTable, rows, settings);
-	}
 
 	public static class DbConnectionExtensions
 	{
@@ -36,39 +22,14 @@ namespace DataBoss.Data
 
 		static ConcurrentDictionary<Type, Action<IDbCommand, object>> CommandFactory = new ConcurrentDictionary<Type, Action<IDbCommand, object>>();
 
-		public static IDbCommand CreateCommand(this IDbConnection connection, string commandText) {
-			var c = connection.CreateCommand();
-			c.CommandText = commandText;
-			return c;
-		}
-
-		public static IDbCommand CreateCommand<T>(this IDbConnection connection, string cmdText, T args) {
-			var cmd = CreateCommand(connection, cmdText);
-			ToParams.AddTo(cmd, args);
-			return cmd;
-		}
-
-		public static void DisposeOnClose(this DbConnection connection) {
-			connection.StateChange += DisposeOnClose;
-		}
-
-		static void DisposeOnClose(object obj, StateChangeEventArgs e)
-		{
-			if(e.CurrentState == ConnectionState.Closed) {
-				var c = (DbConnection)obj;
-				c.StateChange -= DisposeOnClose;
-				c.Dispose();
-			}
-		}
-
-		public static object ExecuteScalar(this IDbConnection connection, string commandText) =>
-			CreateCommand(connection, commandText).Use(DbOps<IDbCommand, IDataReader>.ExecuteScalar);
+		static IDataBossConnection GetExtras(IDbConnection connection) =>
+			DbConnectionCoreExtensions.GetExtras(connection);
+		
+		public static IDbCommand CreateCommand<T>(this IDbConnection connection, string cmdText, T args) =>
+			GetExtras(connection).CreateCommand(cmdText, args);
 
 		public static object ExecuteScalar<T>(this IDbConnection connection, string commandText, T args) =>
 			CreateCommand(connection, commandText, args).Use(DbOps<IDbCommand, IDataReader>.ExecuteScalar);
-
-		public static int ExecuteNonQuery(this IDbConnection connection, string commandText) =>
-			CreateCommand(connection, commandText).Use(DbOps<IDbCommand, IDataReader>.ExecuteNonQuery);
 
 		public static int ExecuteNonQuery<T>(this IDbConnection connection, string commandText, T args) =>
 			CreateCommand(connection, commandText, args).Use(DbOps<IDbCommand, IDataReader>.ExecuteNonQuery);
@@ -99,21 +60,6 @@ namespace DataBoss.Data
 
 		public static void CreateTable(this IDbConnection connection, string tableName, IDataReader data) =>
 			GetExtras(connection).CreateTable(tableName, data);
-
-		static readonly ConcurrentDictionary<Type, Delegate> extras = new ConcurrentDictionary<Type, Delegate>();
-
-		public static void RegisterExtras<T>(Func<T,IDataBossConnectionExtras> getExtras) =>
-			extras[typeof(T)] = getExtras;
-
-		static IDataBossConnectionExtras GetExtras(IDbConnection connection) {
-			switch (connection) {
-				case SqlConnection con: return new SqlConnectionExtras(con);
-				case IDataBossConnectionExtras con: return con;
-				default: return extras.TryGetValue(connection.GetType(), out var found) 
-						? (IDataBossConnectionExtras)found.DynamicInvoke(connection)
-						: throw new NotSupportedException();
-			}
-		}
 
 		public static IEnumerable<T> Query<T>(this IDbConnection db, string sql, object args = null, bool buffered = true) => Query<T>(db, sql, new DataBossQueryOptions { Parameters = args, Buffered = buffered });
 		public static IEnumerable<TResult> Query<T, TResult>(this IDbConnection db, Func<T, TResult> selector, string sql, object args = null, bool buffered = true) => Query(db, sql, args, buffered).Read(selector);
@@ -184,7 +130,7 @@ namespace DataBoss.Data
 		public static IDbConnection WithCommandTimeout(this IDbConnection db, int commandTimeout) =>
 			new DbConnectionDecorator(db) { CommandTimeout = commandTimeout };
 		
-		class DbConnectionDecorator : IDbConnection, IDataBossConnectionExtras
+		class DbConnectionDecorator : IDbConnection, IDataBossConnection
 		{
 			 readonly IDbConnection InnerConnection;
 
@@ -226,6 +172,9 @@ namespace DataBoss.Data
 
 			public void Insert(string destinationTable, IDataReader rows, DataBossBulkCopySettings settings) => 
 				InnerConnection.Insert(destinationTable, rows, settings.CommandTimeout.HasValue ? settings : settings.WithCommandTimeout(CommandTimeout));
+
+			public IDbCommand CreateCommand<T>(string cmdText, T args) =>
+				InnerConnection.CreateCommand(cmdText, args);
 		}
 	}
 }

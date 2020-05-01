@@ -1,13 +1,5 @@
-#if MSSQLCLIENT
-namespace DataBoss.Data.MsSql
-{
-	using Microsoft.Data.SqlClient;
-#else
 namespace DataBoss.Data
 {
-	using System.Data.SqlClient;
-#endif
-
 	using System;
 	using System.Collections;
 	using System.Data;
@@ -21,7 +13,7 @@ namespace DataBoss.Data
 		readonly Stopwatch stopwatch = Stopwatch.StartNew();
 		int rowCount = 0;
 
-		internal ProfiledDataReader(IDataReader inner) {
+		public ProfiledDataReader(IDataReader inner) {
 			this.inner = inner;
 		}
 
