@@ -25,7 +25,7 @@ namespace DataBoss.Data
 			this.inner = inner;
 		}
 
-		public string ParameterPrefix => "@";
+		public ISqlDialect Dialect => MsSqlDialect.Instance;
 
 		public override string ConnectionString { 
 			get => inner.ConnectionString; 

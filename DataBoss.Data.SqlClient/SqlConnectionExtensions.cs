@@ -11,6 +11,29 @@ namespace DataBoss.Data
 	using System.Collections.Generic;
 	using System.Data;
 	using DataBoss.Data.Scripting;
+	using System.Linq.Expressions;
+	using DataBoss.Data.SqlServer;
+	using System.Reflection;
+
+	public class MsSqlDialect : ISqlDialect
+	{
+		private MsSqlDialect()  { }
+
+		public static readonly MsSqlDialect Instance = new MsSqlDialect();
+		
+		public string ParameterPrefix => "@";
+
+		public Expression MakeRowVersionParameter(string name, Expression readMember)=> 
+			Expression.MemberInit(
+				Expression.New(
+					typeof(SqlParameter).GetConstructor(new []{ typeof(string), typeof(SqlDbType), typeof(int) }),
+					Expression.Constant(name),
+					Expression.Constant(SqlDbType.Binary),
+					Expression.Constant(8)), 
+					Expression.Bind(
+						typeof(SqlParameter).GetProperty(nameof(SqlParameter.Value)),
+						Expression.Convert(Expression.Field(readMember, nameof(RowVersion.Value)), typeof(object))));
+	}
 
 	public class DataBossSqlConnection : IDataBossConnection
 	{
@@ -18,7 +41,7 @@ namespace DataBoss.Data
 
 		public DataBossSqlConnection(SqlConnection connection) { this.connection = connection; }
 
-		public string ParameterPrefix => "@";
+		public ISqlDialect Dialect => MsSqlDialect.Instance;
 
 		public void CreateTable(string destinationTable, IDataReader data) =>
 			connection.CreateTable(destinationTable, data);

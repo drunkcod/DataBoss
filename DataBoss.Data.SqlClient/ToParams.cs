@@ -40,12 +40,12 @@ namespace DataBoss.Data
 				.Compile();
 		}
 
-		public static LambdaExpression CreateObjectExtractor(Type commandType, string prefix, Type argType) {
+		public static LambdaExpression CreateObjectExtractor(Type commandType, ISqlDialect dialect, Type argType) {
 			var command = Expression.Parameter(commandType);
 			var values = Expression.Parameter(typeof(object));
 
 			var extractor = ExtractorContext.For(command);
-			ExtractValues(extractor, prefix, Expression.Convert(values, argType));
+			ExtractValues(extractor, dialect, dialect.ParameterPrefix, Expression.Convert(values, argType));
 			return Expression.Lambda(extractor.GetResult(), command, values);
 		}
 
@@ -54,7 +54,7 @@ namespace DataBoss.Data
 			var args = Expression.Parameter(argType);
 
 			var extractor = ExtractorContext.For(command);
-			ExtractValues(extractor, "@", args);
+			ExtractValues(extractor, MsSqlDialect.Instance, MsSqlDialect.Instance.ParameterPrefix, args);
 			return Expression.Lambda(extractor.GetResult(), command, args);
 		}
 
@@ -103,21 +103,28 @@ namespace DataBoss.Data
 					Expression.MakeMemberAccess(p, parameterValue),
 					initP);
 
-				extractedValues.Add(Expression.Block(new[] { p }, setP, nameP, initP, AddParameter(p)));
+				extractedValues.Add(Expression.Block(new[] { p }, setP, nameP, initP, AddParameterItem(p)));
 			}
+
+			public void AddParameter(Expression createP) =>
+				extractedValues.Add(AddParameterItem(createP));
 
 			MethodCallExpression CreateParameter() => Expression.Call(Target, createParameter);
 			Expression GetParameterCollection() => Expression.MakeMemberAccess(Target, getParameters);
-			Expression AddParameter(Expression p) => Expression.Call(GetParameterCollection(), addParameter, p);
+			Expression AddParameterItem(Expression p) => Expression.Call(GetParameterCollection(), addParameter, p);
 		}
 
-		static void ExtractValues(ExtractorContext extractor, string prefix, Expression input) {
+		static void ExtractValues(ExtractorContext extractor, ISqlDialect dialect, string prefix, Expression input) {
 			foreach (var value in input.Type.GetProperties()
 				.Where(x => x.CanRead)
 				.Concat<MemberInfo>(input.Type.GetFields())
 			) {
 				var name = prefix + value.Name;
 				var readMember = Expression.MakeMemberAccess(input, value);
+				if(readMember.Type == typeof(RowVersion)) {
+					extractor.AddParameter(dialect.MakeRowVersionParameter(name, readMember));
+					continue;
+				}
 
 				var p = extractor.CreatParameter(name);
 				Expression initP = null;
@@ -125,14 +132,13 @@ namespace DataBoss.Data
 					initP = MakeParameter(readMember);
 				else if (readMember.Type.IsNullable())
 					initP = MakeParameterFromNullable(p, readMember);
-				else if(readMember.Type == typeof(RowVersion))
-					initP = MakeRowVersionParameter(p, readMember);
 				else if(TryGetDbType(readMember, out var readAsDbType))
 					initP = MakeParameter(readAsDbType);
+
 				if(initP != null)
 					extractor.AddParameter(p, initP);
 				else
-					ExtractValues(extractor, name + "_", readMember);
+					ExtractValues(extractor, dialect, name + "_", readMember);
 			}
 		}
 

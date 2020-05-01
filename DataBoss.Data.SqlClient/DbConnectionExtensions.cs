@@ -59,7 +59,7 @@ namespace DataBoss.Data
 				if (Options.CommandTimeout.HasValue)
 					cmd.CommandTimeout = Options.CommandTimeout.Value;
 				if (Options.Parameters != null)
-					AddParameters(Options.Parameters.GetType(), Connection.ParameterPrefix)(cmd, Options.Parameters);
+					AddParameters(Options.Parameters.GetType(), Connection.Dialect)(cmd, Options.Parameters);
 				return cmd;
 			}
 	
@@ -75,25 +75,25 @@ namespace DataBoss.Data
 
 			IEnumerable<T> BufferOrNot<T>(IEnumerable<T> xs) => Options.Buffered ? xs.ToList() : xs;
 
-			static Action<IDbCommand, object> AddParameters(Type t, string prefix) =>
+			static Action<IDbCommand, object> AddParameters(Type t, ISqlDialect dialect) =>
 				CommandFactory.GetOrAdd(t, 
-					type => (Action<IDbCommand, object>)ToParams.CreateObjectExtractor(typeof(IDbCommand), prefix, type).Compile());
+					type => (Action<IDbCommand, object>)ToParams.CreateObjectExtractor(typeof(IDbCommand), dialect, type).Compile());
 		}
 
 		public static IDbConnection WithCommandTimeout(this IDbConnection db, int commandTimeout) =>
-			new DbConnectionDecorator(db, Wrap(db).ParameterPrefix) { CommandTimeout = commandTimeout };
+			new DbConnectionDecorator(db, Wrap(db).Dialect) { CommandTimeout = commandTimeout };
 		
 		class DbConnectionDecorator : IDbConnection, IDataBossConnection
 		{
 			readonly IDbConnection InnerConnection;
 			
 
-			public DbConnectionDecorator(IDbConnection inner, string parameterPrefix) { 
+			public DbConnectionDecorator(IDbConnection inner, ISqlDialect dialect) { 
 				this.InnerConnection = inner;
-				this.ParameterPrefix = parameterPrefix;
+				this.Dialect = dialect;
 			}
 
-			public string ParameterPrefix { get; }
+			public ISqlDialect Dialect { get; }
 			public int? CommandTimeout;
 
 			public string ConnectionString { 
