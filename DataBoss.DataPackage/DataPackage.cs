@@ -8,6 +8,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Threading.Channels;
 using DataBoss.DataPackage.Types;
 using DataBoss.Linq;
 using Newtonsoft.Json;
@@ -193,14 +194,8 @@ namespace DataBoss.DataPackage
 		public DataPackage Serialize(CultureInfo culture = null) {
 			var bytes = new MemoryStream();
 			this.SaveZip(bytes, culture);
-#if NET452
-			var buffer = bytes.ToArray();
-			bytes = null;
-			return LoadZip(() => new MemoryStream(buffer, false));
-#else
 			bytes.TryGetBuffer(out var buffer);
 			return LoadZip(() => new MemoryStream(buffer.Array, buffer.Offset, buffer.Count, false));
-#endif
 		}
 
 		static List<T> NullIfEmpty<T>(List<T> values) =>
@@ -264,14 +259,16 @@ namespace DataBoss.DataPackage
 
 				var writer = new ChunkWriter {
 					DataReader = data,
-					Records = reader.GetConsumingEnumerable(),
+					Records = reader.Records,
 					Encoding = new UTF8Encoding(false),
 					FormatValue = toString,					
 				};
 				writer.Start();
 
-				foreach (var item in writer.GetConsumingEnumerable())
-					item.CopyTo(output);
+				do {
+					while(writer.Chunks.TryRead(out var item))
+						item.CopyTo(output);
+				} while (writer.Chunks.WaitToRead());
 
 				if (reader.Error != null)
 					throw new Exception("Failed to write csv", reader.Error);
@@ -282,60 +279,72 @@ namespace DataBoss.DataPackage
 
 		abstract class WorkItem
 		{
+			Thread thread;
 			public Exception Error { get; private set; }
 
 			protected abstract void DoWork();
 			protected virtual void Cleanup() { }
 
-			void Run() {
-				try {
-					DoWork();
-				} catch (Exception ex) {
-					Error = ex;
-				} finally {
-					Cleanup();
-				}
+			public void Start() {
+				if(thread != null)
+					throw new InvalidOperationException("WorkItem already started.");
+				thread = new Thread(RunWorkItem) {
+					IsBackground = true,
+					Name = GetType().Name,
+				};
+				thread.Start(this);
 			}
-
-			public void Start() =>
-				ThreadPool.QueueUserWorkItem(RunWorkItem, this);
 
 			static void RunWorkItem(object obj) =>
 				((WorkItem)obj).Run();
+
+			void Run() {
+				try {
+					DoWork();
+				}
+				catch (Exception ex) {
+					Error = ex;
+				}
+				finally {
+					Cleanup();
+					thread = null;
+				}
+			}
 		}
 
 		class RecordReader : WorkItem
 		{
 			public const int BufferRows = 128;
 
-			readonly BlockingCollection<IReadOnlyList<IDataRecord>> records = new BlockingCollection<IReadOnlyList<IDataRecord>>(1 << 10);
+			readonly Channel<IReadOnlyList<IDataRecord>> records = Channel.CreateBounded<IReadOnlyList<IDataRecord>>(new BoundedChannelOptions(1 << 10) {
+				SingleWriter = true,
+			});
 			public IDataReader DataReader;
 
-			public IEnumerable<IReadOnlyList<IDataRecord>> GetConsumingEnumerable() =>
-				records.GetConsumingEnumerable();
+			public ChannelReader<IReadOnlyList<IDataRecord>> Records => records.Reader;
 
 			protected override void DoWork() {
 				var values = CreateBuffer();
 				var n = 0;
-
+				var w = records.Writer;
 				while (DataReader.Read()) {
 					values.Add(ObjectDataRecord.GetRecord(DataReader));
 
 					if (++n == BufferRows) {
-						records.Add(values);
+						w.Write(values);
 						n = 0;
 						values = CreateBuffer();
 					}
 				}
 
 				if (n != 0)
-					records.Add(values);
+					w.Write(values);
 			}
 
 			List<IDataRecord> CreateBuffer() => new List<IDataRecord>(BufferRows);
 
 			protected override void Cleanup() =>
-				records.CompleteAdding();
+				records.Writer.Complete();
 		}
 
 		class ObjectDataRecord : IDataRecord
@@ -421,45 +430,69 @@ namespace DataBoss.DataPackage
 
 		class ChunkWriter : WorkItem
 		{
-			readonly BlockingCollection<MemoryStream> chunks = new BlockingCollection<MemoryStream>(1 << 10);
+			readonly Channel<MemoryStream> chunks = Channel.CreateBounded<MemoryStream>(new BoundedChannelOptions(1 << 10) {
+				SingleWriter = true,
+			});
 
 			public IDataReader DataReader;
-			public IEnumerable<IReadOnlyList<IDataRecord>> Records;
+			public ChannelReader<IReadOnlyList<IDataRecord>> Records;
 			public Func<IDataRecord, int, string>[] FormatValue;
 
 			public Encoding Encoding;
 
-			public IEnumerable<MemoryStream> GetConsumingEnumerable() => chunks.GetConsumingEnumerable();
+			public ChannelReader<MemoryStream> Chunks => chunks.Reader;
 
 			protected override void DoWork() {
 				var bom = Encoding.GetPreamble();
 				var bufferGuess = RecordReader.BufferRows * 128;
-
-				Records.ForEach(item => {
-					if (item.Count == 0)
-						return;
-					var chunk = new MemoryStream(bufferGuess);
-					using (var fragment = NewCsvWriter(chunk, Encoding)) {
-						for (var n = 0; n != item.Count; ++n) {
-							var r = item[n];
-							for (var i = 0; i != DataReader.FieldCount; ++i) {
-								if(r.IsDBNull(i))
-									fragment.NextField();
-								else
-									fragment.WriteField(FormatValue[i](r, i));
+				do {
+					while(Records.TryRead(out var item)) {
+						if (item.Count == 0)
+							return;
+						var chunk = new MemoryStream(bufferGuess);
+						using (var fragment = NewCsvWriter(chunk, Encoding)) {
+							for (var n = 0; n != item.Count; ++n) {
+								var r = item[n];
+								for (var i = 0; i != DataReader.FieldCount; ++i) {
+									if (r.IsDBNull(i))
+										fragment.NextField();
+									else
+										fragment.WriteField(FormatValue[i](r, i));
+								}
+								fragment.NextRecord();
 							}
-							fragment.NextRecord();
+							fragment.Flush();
 						}
-						fragment.Flush();
+						bufferGuess = Math.Max(bufferGuess, (int)chunk.Position);
+						chunk.Position = bom.Length;
+						chunks.Writer.Write(chunk);
 					}
-					bufferGuess = Math.Max(bufferGuess, (int)chunk.Position);
-					chunk.Position = bom.Length;
-					chunks.Add(chunk);
-				});
+				} while(Records.WaitToRead());
 			}
 
 			protected override void Cleanup() =>
-				chunks.CompleteAdding();
+				chunks.Writer.Complete();
 		}
+	}
+
+	static class ChannelExtensions
+	{
+		public static void Write<T>(this ChannelWriter<T> w, T item) {
+			do {
+				if (w.TryWrite(item))
+					return;
+			} while (WaitToWrite(w));
+		}
+
+		public static bool WaitToWrite<T>(this ChannelWriter<T> w) {
+			var x = w.WaitToWriteAsync();
+			return x.IsCompletedSuccessfully ? x.Result : x.AsTask().Result;
+		}
+
+		public static bool WaitToRead<T>(this ChannelReader<T> r) {
+			var x = r.WaitToReadAsync();
+			return x.IsCompletedSuccessfully ? x.Result : x.AsTask().Result;
+		}
+
 	}
 }

@@ -29,6 +29,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss.Data.MsSql", "..\D
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss.Data.SqlClient", "..\DataBoss.Data.SqlClient\DataBoss.Data.SqlClient.csproj", "{EE5DD2E4-DC63-437C-AE24-BD0A02ECF212}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataBoss.DataPackage.Specs", "..\DataBoss.DataPackage.Specs\DataBoss.DataPackage.Specs.csproj", "{0CF688CF-574F-4FF7-98AE-25940E27C47E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -67,6 +69,10 @@ Global
 		{EE5DD2E4-DC63-437C-AE24-BD0A02ECF212}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{EE5DD2E4-DC63-437C-AE24-BD0A02ECF212}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{EE5DD2E4-DC63-437C-AE24-BD0A02ECF212}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0CF688CF-574F-4FF7-98AE-25940E27C47E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0CF688CF-574F-4FF7-98AE-25940E27C47E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0CF688CF-574F-4FF7-98AE-25940E27C47E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0CF688CF-574F-4FF7-98AE-25940E27C47E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

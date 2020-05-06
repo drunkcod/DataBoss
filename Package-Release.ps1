@@ -15,6 +15,7 @@ dotnet msbuild ((Args DataBoss\DataBoss.sln /t:Restore /t:Clean /t:Build) + $Bui
 NuPack DataBoss.Linq
 NuPack DataBoss.Data 
 NuPack DataBoss.Data.MsSql 
+NuPack DataBoss.Data.SqlClient 
 NuPack DataBoss.DataPackage
 NuPack DataBoss
 
