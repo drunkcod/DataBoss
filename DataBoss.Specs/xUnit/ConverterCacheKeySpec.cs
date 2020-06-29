@@ -1,15 +1,16 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq.Expressions;
 using Cone;
 using DataBoss.Data;
+using Xunit;
 
 namespace DataBoss.Specs
 {
-	[Describe(typeof(ConverterCacheKey))]
 	public class ConverterCacheKeySpec
 	{
+		[Fact]
 		public void ctor_key() {
 			IDataReader r = SequenceDataReader.Create(new[] { new { x = 1 } });
 			var created = ConverterCacheKey.TryCreate(r, Expr<int, KeyValuePair<int, int>>(x => new KeyValuePair<int, int>(x, x)), out var key);
