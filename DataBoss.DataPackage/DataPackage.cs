@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
@@ -9,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Channels;
+using DataBoss.Data.Dataflow;
 using DataBoss.DataPackage.Types;
 using DataBoss.Linq;
 using Newtonsoft.Json;
@@ -246,34 +246,34 @@ namespace DataBoss.DataPackage
 			for (var i = 0; i != data.FieldCount; ++i)
 				toString[i] = GetFormatter(data.GetFieldType(i), fields[i], format[i]);
 
-			using (var csv = NewCsvWriter(output, Encoding.UTF8)) {
+			WriteHeaderRecord(output, Encoding.UTF8, data);
+
+			var reader = new RecordReader {
+				DataReader = data,
+			};
+			reader.Start();
+
+			var writer = new ChunkWriter {
+				Records = reader.Records,
+				Encoding = new UTF8Encoding(false),
+				FormatValue = toString,					
+			};
+			writer.Start();
+
+			writer.Chunks.ForEach(x => x.CopyTo(output));
+
+			if (reader.Error != null)
+				throw new Exception("Failed to write csv", reader.Error);
+			if (writer.Error != null)
+				throw new Exception("Failed to write csv", writer.Error);
+		}
+
+		static void WriteHeaderRecord(Stream output, Encoding encoding, IDataReader data) {
+			using (var csv = NewCsvWriter(output, encoding)) {
 				for (var i = 0; i != data.FieldCount; ++i)
 					csv.WriteField(data.GetName(i));
 				csv.NextRecord();
 				csv.Writer.Flush();
-
-				var reader = new RecordReader {
-					DataReader = data,
-				};
-				reader.Start();
-
-				var writer = new ChunkWriter {
-					DataReader = data,
-					Records = reader.Records,
-					Encoding = new UTF8Encoding(false),
-					FormatValue = toString,					
-				};
-				writer.Start();
-
-				do {
-					while(writer.Chunks.TryRead(out var item))
-						item.CopyTo(output);
-				} while (writer.Chunks.WaitToRead());
-
-				if (reader.Error != null)
-					throw new Exception("Failed to write csv", reader.Error);
-				if (writer.Error != null)
-					throw new Exception("Failed to write csv", writer.Error);
 			}
 		}
 
@@ -288,24 +288,19 @@ namespace DataBoss.DataPackage
 			public void Start() {
 				if(thread != null)
 					throw new InvalidOperationException("WorkItem already started.");
-				thread = new Thread(RunWorkItem) {
+				thread = new Thread(Run) {
 					IsBackground = true,
 					Name = GetType().Name,
 				};
-				thread.Start(this);
+				thread.Start();
 			}
-
-			static void RunWorkItem(object obj) =>
-				((WorkItem)obj).Run();
 
 			void Run() {
 				try {
 					DoWork();
-				}
-				catch (Exception ex) {
+				} catch (Exception ex) {
 					Error = ex;
-				}
-				finally {
+				} finally {
 					Cleanup();
 					thread = null;
 				}
@@ -316,12 +311,13 @@ namespace DataBoss.DataPackage
 		{
 			public const int BufferRows = 128;
 
-			readonly Channel<IReadOnlyList<IDataRecord>> records = Channel.CreateBounded<IReadOnlyList<IDataRecord>>(new BoundedChannelOptions(1 << 10) {
+			readonly Channel<IReadOnlyCollection<IDataRecord>> records = Channel.CreateBounded<IReadOnlyCollection<IDataRecord>>(new BoundedChannelOptions(1 << 10) {
 				SingleWriter = true,
 			});
+
 			public IDataReader DataReader;
 
-			public ChannelReader<IReadOnlyList<IDataRecord>> Records => records.Reader;
+			public ChannelReader<IReadOnlyCollection<IDataRecord>> Records => records.Reader;
 
 			protected override void DoWork() {
 				var values = CreateBuffer();
@@ -347,113 +343,33 @@ namespace DataBoss.DataPackage
 				records.Writer.Complete();
 		}
 
-		class ObjectDataRecord : IDataRecord
-		{
-			readonly object[] values;
-			readonly bool[] isNull;
-
-			public static ObjectDataRecord GetRecord(IDataReader reader) {
-				var fields = new object[reader.FieldCount];
-				var isNull = new bool[reader.FieldCount];
-
-				reader.GetValues(fields);
-				for (var i = 0; i != isNull.Length; ++i)
-					isNull[i] = reader.IsDBNull(i);
-
-				return new ObjectDataRecord(fields, isNull);
-			}
-
-			ObjectDataRecord(object[] fields, bool[] isNull) {
-				this.values = fields;
-				this.isNull = isNull;
-			}
-
-			public bool IsDBNull(int i) => isNull[i];
-
-			public object GetValue(int i) =>  values[i];
-
-			public bool GetBoolean(int i) => (bool)values[i];
-			public DateTime GetDateTime(int i) => (DateTime)values[i];
-			public Guid GetGuid(int i) => (Guid)values[i];
-
-			public byte GetByte(int i) => (byte)values[i];
-			public char GetChar(int i) => (char)values[i];
-
-			public short GetInt16(int i) => (short)values[i];
-			public int GetInt32(int i) => (int)values[i];
-			public long GetInt64(int i) => (long)values[i];
-
-			public float GetFloat(int i) => (float)values[i];
-			public double GetDouble(int i) => (double)values[i];
-			public decimal GetDecimal(int i) => (decimal)values[i];
-
-			public string GetString(int i) => (string)values[i];
-
-			public object this[int i] => GetValue(i);
-
-			public object this[string name] => throw new NotImplementedException();
-
-			public int FieldCount => values.Length;
-
-			public long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) {
-				throw new NotImplementedException();
-			}
-
-			public long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) {
-				throw new NotImplementedException();
-			}
-
-			public IDataReader GetData(int i) {
-				throw new NotImplementedException();
-			}
-
-			public string GetDataTypeName(int i) {
-				throw new NotImplementedException();
-			}
-
-			public Type GetFieldType(int i) {
-				throw new NotImplementedException();
-			}
-
-			public string GetName(int i) {
-				throw new NotImplementedException();
-			}
-
-			public int GetOrdinal(string name) {
-				throw new NotImplementedException();
-			}
-
-			public int GetValues(object[] values) {
-				throw new NotImplementedException();
-			}
-		}
-
 		class ChunkWriter : WorkItem
 		{
 			readonly Channel<MemoryStream> chunks = Channel.CreateBounded<MemoryStream>(new BoundedChannelOptions(1 << 10) {
 				SingleWriter = true,
 			});
 
-			public IDataReader DataReader;
-			public ChannelReader<IReadOnlyList<IDataRecord>> Records;
+			public ChannelReader<IReadOnlyCollection<IDataRecord>> Records;
 			public Func<IDataRecord, int, string>[] FormatValue;
 
 			public Encoding Encoding;
 
 			public ChannelReader<MemoryStream> Chunks => chunks.Reader;
 
+			const int BlockSize = 4096;
+			const int ChunkSize = 4 * BlockSize;
+
 			protected override void DoWork() {
 				var bom = Encoding.GetPreamble();
-				var bufferGuess = RecordReader.BufferRows * 128;
+				var chunk = new MemoryStream(ChunkSize + BlockSize);
+
 				do {
 					while(Records.TryRead(out var item)) {
 						if (item.Count == 0)
 							return;
-						var chunk = new MemoryStream(bufferGuess);
 						using (var fragment = NewCsvWriter(chunk, Encoding)) {
-							for (var n = 0; n != item.Count; ++n) {
-								var r = item[n];
-								for (var i = 0; i != DataReader.FieldCount; ++i) {
+							foreach(var r in item) {
+								for (var i = 0; i != r.FieldCount; ++i) {
 									if (r.IsDBNull(i))
 										fragment.NextField();
 									else
@@ -461,13 +377,21 @@ namespace DataBoss.DataPackage
 								}
 								fragment.NextRecord();
 							}
-							fragment.Flush();
 						}
-						bufferGuess = Math.Max(bufferGuess, (int)chunk.Position);
-						chunk.Position = bom.Length;
-						chunks.Writer.Write(chunk);
+
+						if (chunk.Position > ChunkSize) {
+							WriteChunk();
+							chunk = new MemoryStream(ChunkSize + BlockSize);
+						}
 					}
 				} while(Records.WaitToRead());
+				if(chunk.Position != 0)
+					WriteChunk();
+
+				void WriteChunk() {
+					chunk.Position = bom.Length;
+					chunks.Writer.Write(chunk);
+				}
 			}
 
 			protected override void Cleanup() =>
@@ -475,24 +399,84 @@ namespace DataBoss.DataPackage
 		}
 	}
 
-	static class ChannelExtensions
+	class ObjectDataRecord : IDataRecord
 	{
-		public static void Write<T>(this ChannelWriter<T> w, T item) {
-			do {
-				if (w.TryWrite(item))
-					return;
-			} while (WaitToWrite(w));
+		readonly object[] values;
+		readonly bool[] isNull;
+
+		public static ObjectDataRecord GetRecord(IDataReader reader) {
+			var fields = new object[reader.FieldCount];
+			var isNull = new bool[reader.FieldCount];
+
+			reader.GetValues(fields);
+			for (var i = 0; i != isNull.Length; ++i)
+				isNull[i] = reader.IsDBNull(i);
+
+			return new ObjectDataRecord(fields, isNull);
 		}
 
-		public static bool WaitToWrite<T>(this ChannelWriter<T> w) {
-			var x = w.WaitToWriteAsync();
-			return x.IsCompletedSuccessfully ? x.Result : x.AsTask().Result;
+		ObjectDataRecord(object[] fields, bool[] isNull) {
+			this.values = fields;
+			this.isNull = isNull;
 		}
 
-		public static bool WaitToRead<T>(this ChannelReader<T> r) {
-			var x = r.WaitToReadAsync();
-			return x.IsCompletedSuccessfully ? x.Result : x.AsTask().Result;
+		public bool IsDBNull(int i) => isNull[i];
+
+		public object GetValue(int i) => values[i];
+
+		public bool GetBoolean(int i) => (bool)values[i];
+		public DateTime GetDateTime(int i) => (DateTime)values[i];
+		public Guid GetGuid(int i) => (Guid)values[i];
+
+		public byte GetByte(int i) => (byte)values[i];
+		public char GetChar(int i) => (char)values[i];
+
+		public short GetInt16(int i) => (short)values[i];
+		public int GetInt32(int i) => (int)values[i];
+		public long GetInt64(int i) => (long)values[i];
+
+		public float GetFloat(int i) => (float)values[i];
+		public double GetDouble(int i) => (double)values[i];
+		public decimal GetDecimal(int i) => (decimal)values[i];
+
+		public string GetString(int i) => (string)values[i];
+
+		public object this[int i] => GetValue(i);
+
+		public object this[string name] => throw new NotImplementedException();
+
+		public int FieldCount => values.Length;
+
+		public long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) {
+			throw new NotImplementedException();
 		}
 
+		public long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) {
+			throw new NotImplementedException();
+		}
+
+		public IDataReader GetData(int i) {
+			throw new NotImplementedException();
+		}
+
+		public string GetDataTypeName(int i) {
+			throw new NotImplementedException();
+		}
+
+		public Type GetFieldType(int i) {
+			throw new NotImplementedException();
+		}
+
+		public string GetName(int i) {
+			throw new NotImplementedException();
+		}
+
+		public int GetOrdinal(string name) {
+			throw new NotImplementedException();
+		}
+
+		public int GetValues(object[] values) {
+			throw new NotImplementedException();
+		}
 	}
 }
