@@ -2,15 +2,19 @@ using System;
 using System.Data.SqlClient;
 using Cone;
 using DataBoss.Data;
+using Xunit;
 
 namespace DataBoss.Testing
 {
-	[Describe(typeof(DatabaseSetup))]
-	public class DatabaseSetupSpec
+	public class DatabaseAutoCleanupRegistration
 	{
-		[BeforeAll]
-		public void RegisterForAutoCleanup() => DatabaseSetup.RegisterForAutoCleanup();
+		public DatabaseAutoCleanupRegistration() =>
+			DatabaseSetup.RegisterForAutoCleanup();
+	}
 
+	public class DatabaseSetupSpec : IClassFixture<DatabaseAutoCleanupRegistration>
+	{
+		[Fact]
 		public void creates_instance_on_first_request() {
 			var name = Guid.NewGuid().ToString();
 
@@ -21,6 +25,7 @@ namespace DataBoss.Testing
 			Check.That(() => CountDatabasesByName(name) == 1);			
 		}
 
+		[Fact]
 		public void instance_is_created_only_once() {
 			var name = Guid.NewGuid().ToString();
 			Check.That(() => DatabaseSetup.GetTemporaryInstance(name) == DatabaseSetup.GetTemporaryInstance(name));
