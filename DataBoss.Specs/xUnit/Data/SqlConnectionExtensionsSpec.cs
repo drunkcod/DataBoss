@@ -2,12 +2,11 @@ using System;
 using System.Data.SqlClient;
 using System.Linq;
 using Cone;
-using DataBoss.Data;
 using DataBoss.Diagnostics;
 using DataBoss.Testing;
 using Xunit;
 
-namespace DataBoss.Specs
+namespace DataBoss.Data.Specs
 {
 	public class SqlConnectionExtensionsSpec : IDisposable
 	{
@@ -55,5 +54,11 @@ namespace DataBoss.Specs
 		public void db_info() => Check
 			.With(() => Connection.GetDatabaseInfo())
 			.That(db => db.DatabaseName == (string)Connection.ExecuteScalar("select db_name()"));
+
+		[Fact]
+		public void ExecuteNonQuery_flows_local_transaction() {
+			using (var t = Connection.BeginTransaction())
+				Connection.ExecuteNonQuery(t, "select 42");
+		}
 	}
 }
