@@ -1,16 +1,16 @@
-using Cone;
-using Cone.Core;
-using DataBoss.Data;
-using DataBoss.Data.SqlServer;
 using System;
 using System.Data;
 using System.Data.SqlClient;
 using System.Data.SqlTypes;
 using System.Linq;
+using Cone;
+using Cone.Core;
+using DataBoss.Data;
+using DataBoss.Data.SqlServer;
+using Xunit;
 
 namespace DataBoss.Specs
 {
-	[Describe(typeof(ToParams))]
 	public class ToParamsSpec
 	{
 		SqlParameter[] GetParams<T>(T args) {
@@ -19,6 +19,7 @@ namespace DataBoss.Specs
 			return cmd.Parameters.Cast<SqlParameter>().ToArray();
 		}
 
+		[Fact]
 		public void complext_type() =>
 			Check.With(() => GetParams(new { Args = new { Foo = 1, Bar = "Hello" } }))
 				.That(
@@ -26,28 +27,31 @@ namespace DataBoss.Specs
 					x => x.Any(p => p.ParameterName == "@Args_Foo"),
 					x => x.Any(p => p.ParameterName == "@Args_Bar"));
 
-		[Row(typeof(string))
-		,Row(typeof(Guid))
-		,Row(typeof(DateTime))
-		,Row(typeof(Decimal))
-		,Row(typeof(SqlMoney))
-		,Row(typeof(SqlDecimal))
-		,Row(typeof(byte[]))
-		,DisplayAs("{0}", Heading = "has sql type mapping for {0}")]
+		[Theory]
+		[InlineData(typeof(string))]
+		[InlineData(typeof(Guid))]
+		[InlineData(typeof(DateTime))]
+		[InlineData(typeof(Decimal))]
+		[InlineData(typeof(SqlMoney))]
+		[InlineData(typeof(SqlDecimal))]
+		[InlineData(typeof(byte[]))]
 		public void has_sql_type_mapping_for(Type clrType) => Check.That(() => ToParams.HasSqlTypeMapping(clrType));
 
+		[Fact]
 		public void object_is_not_considered_complext() {
 			var nullableInt = new int?();
 			Check.With(() => GetParams(new { Value = nullableInt.HasValue ? (object)nullableInt.Value : DBNull.Value }))
 				.That(x => x.Length == 1, x => x.Any(p => p.ParameterName == "@Value"));
 		}
 
+		[Fact]
 		public void null_string() => Check.With(() =>
 			GetParams(new { NullString = (string)null }))
 			.That(
 				xs => xs.Length == 1,
 				xs => xs[0].Value == DBNull.Value);
 
+		[Fact]
 		public void nullable_values() => Check.With(() => 
 			GetParams(new {
 				HasValue = new int?(1),
@@ -60,6 +64,7 @@ namespace DataBoss.Specs
 				xs => xs[1].Value == DBNull.Value,
 				xs => xs[1].SqlDbType == SqlDbType.Int);
 
+		[Fact]
 		public void RowVersion_as_SqlBinary_value() => Check
 			.With(() => GetParams(new { RowVersion = new RowVersion(new byte[8])}))
 			.That(
@@ -68,6 +73,8 @@ namespace DataBoss.Specs
 				paras => paras[0].SqlDbType == SqlDbType.Binary);
 
 		class MyRow { }
+
+		[Fact]
 		public void IdOf_as_int() {
 			var x = GetParams(new { Id = new IdOf<MyRow>(1) });
 			Check.That(() => x.Length == 1);

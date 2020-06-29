@@ -4,17 +4,19 @@ using DataBoss.Data;
 using DataBoss.Data.Scripting;
 using DataBoss.Migrations;
 using DataBoss.Schema;
+using Xunit;
 
 namespace DataBoss.Specs
 {
-	[Describe(typeof(DataBossScripter))]
 	public class DataBossScripterSpec
 	{
+		[Fact]
 		public void can_script_select() {
 			var scripter = new DataBossScripter();
 			Check.That(() => scripter.Select(typeof(DataBossMigrationInfo), typeof(DataBossHistory)) == "select Id, Context, Name from [dbo].[__DataBossHistory]");
 		}
 
+		[Fact]
 		public void can_script_reader_as_table() { 
 			var scripter = new DataBossScripter();
 			var data = SequenceDataReader.Create(new []{ new { Id = 1, Value = "Hello" } }, x => x.MapAll());
@@ -25,6 +27,7 @@ namespace DataBoss.Specs
 )");
 		}
 
+		[Fact]
 		public void script_reader_as_values_table() {
 			var scripter = new DataBossScripter();
 			var data = SequenceDataReader.Create(new[] { new { Id = 1, Value = "Hello" } }, x => x.MapAll());
@@ -33,6 +36,7 @@ namespace DataBoss.Specs
   (1, N'Hello')) Hello([Id], [Value])");
 		}
 
+		[Fact]
 		public void can_script_history_table() {
 			var scripter = new DataBossScripter();
 
@@ -46,6 +50,8 @@ namespace DataBoss.Specs
 	[User] varchar(max)
 )");
 		}
+
+		[Fact]
 		public void can_script_history_table_primary_key_constraint() {
 			var scripter = new DataBossScripter();
 
@@ -68,8 +74,9 @@ add constraint PK___DataBossHistory primary key(Id,Context)");
 				[Column]
 				public int Other;
 			}
-			#pragma warning restore CS0649
+#pragma warning restore CS0649
 
+			[Fact]
 			public void puts_ordered_columns_before_non_determined_ones() {
 				var scripter = new DataBossScripter();
 				Check.That(() => scripter.ScriptTable(typeof(HavingOrderedAndNotColumns)) ==
