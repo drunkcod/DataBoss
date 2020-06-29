@@ -1,12 +1,13 @@
 using System.Linq;
 using Cone;
 using DataBoss.Data.Common;
+using Xunit;
 
 namespace DataBoss.Data
 {
-	[Describe(typeof(MultiDataReader))]
 	public class MultiDataReaderSpec
 	{
+		[Fact]
 		public void reads_elements_in_round_robin_fashion() {
 			var reader = new MultiDataReader(
 				SequenceDataReader.Create(new[]{ 1, 3, 5 }.Select(x => new IdRow<int> { Id = x })),
@@ -18,6 +19,7 @@ namespace DataBoss.Data
 				xs => xs[1].Id == 2);
 		}
 
+		[Fact]
 		public void handle_jagged_readers() {
 			var reader = new MultiDataReader(
 				SequenceDataReader.Create(new[] { 1, 4 }.Select(x => new IdRow<int> { Id = x })),

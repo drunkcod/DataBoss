@@ -1,12 +1,14 @@
-using Cone;
-using DataBoss.Data;
+using System;
 using System.Data.SqlClient;
 using System.Linq;
+using Cone;
+using DataBoss.Data;
+using Xunit;
 
 namespace DataBoss.Specs.Data
 {
-	[Describe(typeof(DbObjectReader<,>), Category = "Database")]
-	public class DbObjectReaderSpec
+	[Trait("Category", "Database")]
+	public class DbObjectReaderSpec : IDisposable
 	{
 		SqlConnection Db;
 		DbObjectReader<SqlCommand, SqlDataReader> DbReader;
@@ -15,13 +17,17 @@ namespace DataBoss.Specs.Data
 		struct Row { public int Value; }
 		#pragma warning restore CS0649
 
-		[BeforeEach]
-		public void given_a_object_reader() {
+		public DbObjectReaderSpec() {
 			Db = new SqlConnection("Server=.;Integrated Security=SSPI");
 			Db.Open();
 			DbReader = SqlObjectReader.Create(Db);
 		}
 
+		void IDisposable.Dispose() {
+			Db.Dispose();
+		}
+
+		[Fact]
 		public void multi_resultset_query() {
 			Check.With(() => DbReader
 				.Query("select Value = @Value", new[] { 1, 2 }, x => new { Value = x })
@@ -32,6 +38,7 @@ namespace DataBoss.Specs.Data
 				rows => rows[1].Value == 2);
 		}
 
+		[Fact]
 		public void empty_input_gives_empty_output() {
 			Check.With(() => DbReader
 				.Query("select Value = @Value", new int[0], x => new { Value = x })
@@ -39,6 +46,7 @@ namespace DataBoss.Specs.Data
 			.That(rows => rows.Count == 0);
 		}
 
+		[Fact]
 		public void supports_retry() {
 			Db.ExecuteNonQuery("select Value = 1 into #Temp");
 
@@ -55,6 +63,7 @@ namespace DataBoss.Specs.Data
 				() => rows.Select(x => x.Value).SequenceEqual(new[] { 1, 2, 3 }));
 		}
 
+		[Fact]
 		public void stops_retry_on_null_timeout()
 		{
 			Db.ExecuteNonQuery("select Value = 1 into #Temp");
@@ -70,6 +79,7 @@ namespace DataBoss.Specs.Data
 			Check.That(() => (int)Db.ExecuteScalar("select count(*) from #Temp") == 2);
 		}
 
+		[Fact]
 		public void read_with_custom_converters() {
 			var conversions = new ConverterCollection();
 			conversions.Add((short x) => x + x);
@@ -78,6 +88,7 @@ namespace DataBoss.Specs.Data
 				.That(row => row.Value == 42);
 		}
 
+		[Fact]
 		public void read_with_retry_custom_converters() {
 			var conversions = new ConverterCollection();
 			conversions.Add((short x) => x * 3);

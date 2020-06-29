@@ -1,10 +1,10 @@
-using Cone;
 using System;
 using System.Linq.Expressions;
+using Cone;
+using Xunit;
 
 namespace DataBoss.Data
 {
-	[Describe(typeof(FieldMapping<>))]
 	public class FieldMappingSpec
 	{
 		class MyThing
@@ -12,11 +12,13 @@ namespace DataBoss.Data
 			public int Value;
 		}
 
+		[Fact]
 		public void untyped_lambda_mapping_must_have_correct_parameter_type() {
 			var fieldMapping = new FieldMapping<MyThing>();
 			Check.Exception<InvalidOperationException>(() => fieldMapping.Map("Borken", MakeLambda((string x) => x)));
 		}
 
+		[Fact]
 		public void untyped_lambda_mapping() {
 			var fieldMapping = new FieldMapping<MyThing>();
 			fieldMapping.Map("LambdaValue", MakeLambda((MyThing x) => x.Value));
@@ -26,6 +28,7 @@ namespace DataBoss.Data
 			Check.That(() => (int)result[0] == 1);
 		}
 
+		[Fact]
 		public void lambdas_not_wrapped_uncessarily() {
 			var fieldMapping = new FieldMapping<MyThing>();
 			Func<MyThing, int> failToGetValue = x => { throw new InvalidOperationException(); };
@@ -34,6 +37,7 @@ namespace DataBoss.Data
 			Check.That(() => fieldMapping.GetAccessorExpression().Body.ToString().StartsWith("(target[0] = Convert(Invoke(value("));
 		}
 
+		[Fact]
 		public void static_member_lambda_mapping() {
 			var fieldMapping = new FieldMapping<MyThing>();
 			fieldMapping.Map("Empty", MakeLambda((MyThing x) => string.Empty));
@@ -51,6 +55,7 @@ namespace DataBoss.Data
 		#pragma warning restore CS0649
 
 
+		[Fact]
 		public static void MapAll_ignores_static_fields() {
 			var mapping = new FieldMapping<MyThingWithStaticMember>();
 

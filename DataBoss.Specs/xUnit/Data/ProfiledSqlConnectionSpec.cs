@@ -5,23 +5,22 @@ using Cone;
 using Cone.Helpers;
 using DataBoss.Data;
 using DataBoss.Data.Common;
+using Xunit;
 
 namespace DataBoss.Specs.Data
 {
-	[Describe(typeof(ProfiledSqlConnection))]
-    public class ProfiledSqlConnectionSpec
+	public class ProfiledSqlConnectionSpec : IDisposable
     {
 		ProfiledSqlConnection con;
 
-		[BeforeEach]
-		public void given_a_profiled_connection() { 
+		public ProfiledSqlConnectionSpec() { 
 			con = new ProfiledSqlConnection(new SqlConnection("Server=.;Integrated Security=SSPI"));
 			con.Open();
 		}
 
-		[AfterEach]
-		public void cleanup() => con.Dispose();
+		void IDisposable.Dispose() => con.Dispose();
 
+		[Fact]
 		public void listens_to_ExecuteScalar() {
 			var commandExecuting = new EventSpy<ProfiledSqlCommandExecutingEventArgs>();
 			con.CommandExecuting += commandExecuting;
@@ -31,6 +30,7 @@ namespace DataBoss.Specs.Data
 			commandExecuting.Check((_, e) => e.Command.CommandText == expectedCommand);;
 		}
 
+		[Fact]
 		public void listens_to_ExecuteNonQuery() {
 			var commandExecuting = new EventSpy<ProfiledSqlCommandExecutingEventArgs>(				);
 			con.CommandExecuting += commandExecuting;
@@ -40,6 +40,7 @@ namespace DataBoss.Specs.Data
 			commandExecuting.Check((_, e) => e.Command.CommandText == expectedCommand);
 		}
 
+		[Fact]
 		public void listens_to_ExecuteReader() {
 			var commandExecuting = new EventSpy<ProfiledSqlCommandExecutingEventArgs>();
 			con.CommandExecuting += commandExecuting;
@@ -52,6 +53,7 @@ namespace DataBoss.Specs.Data
 			commandExecuting.Check((_, e) => e.Command.CommandText == expectedCommand);
 		}
 
+		[Fact]
 		public void counts_rows_read() {
 			var readerClosed = new EventSpy<ProfiledDataReaderClosedEventArgs>();
 			var commandExecuted = new EventSpy<ProfiledSqlCommandExecutedEventArgs>((_, e) => 
@@ -67,6 +69,7 @@ namespace DataBoss.Specs.Data
 			commandExecuted.Check((_, e) => e.RowCount == 0);
 		}
 
+		[Fact]
 		public void CommandExecuted_after_CommandExecuting() {
 			var commandExecuting = new EventSpy<ProfiledSqlCommandExecutingEventArgs>();
 			con.CommandExecuting += commandExecuting;
