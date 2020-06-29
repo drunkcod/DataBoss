@@ -2,12 +2,13 @@ using System;
 using System.Data;
 using Cone;
 using DataBoss.Data;
+using Xunit;
 
 namespace DataBoss.Specs.Data
 {
-	[Describe(typeof(ConverterFactory))]
 	public class ConverterFactorySpec
 	{
+		[Fact]
 		public void ctor_dbnull_reference_arg() {
 			var r = SequenceDataReader.Items(new { Value = (string)null });
 			var converter = ConverterFactory.Default.GetConverter<IDataReader, ValueRow<string>>(r);
@@ -17,6 +18,7 @@ namespace DataBoss.Specs.Data
 				() => converter.Compiled(r).Value == null);
 		}
 
+		[Fact]
 		public void ctor_dbnull_nullable_arg() {
 			var r = SequenceDataReader.Items(new { Value = (int?)null });
 			var converter = ConverterFactory.Default.GetConverter<IDataReader, ValueRow<int?>>(r);
@@ -26,6 +28,7 @@ namespace DataBoss.Specs.Data
 				() => converter.Compiled(r).Value == null);
 		}
 
+		[Fact]
 		public void raise_error_on_missing_args() {
 			var r = SequenceDataReader.Items(new { Value = (int?)null });
 			var converter = ConverterFactory.Default.GetConverter<IDataReader, ValueRow<int>>(r);
@@ -33,6 +36,7 @@ namespace DataBoss.Specs.Data
 			Check.Exception<InvalidCastException>(() => converter.Compiled(r));
 		}
 
+		[Fact]
 		public void into_existing() {
 			var source = new { Item1 = 17 };
 			var r = SequenceDataReader.Items(source);

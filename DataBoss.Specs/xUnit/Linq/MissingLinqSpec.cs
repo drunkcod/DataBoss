@@ -1,14 +1,15 @@
-using Cone;
-using DataBoss.Linq;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Cone;
+using DataBoss.Linq;
+using Xunit;
 
 namespace DataBoss.Specs.Linq
 {
-	[Describe(typeof(MissingLinq))]
 	public class MissingLinqSpec
 	{
+		[Fact]
 		public void AsReadonly_transform() => Check
 			.With(() => new[] { 1, 2, 3, }.AsReadOnly(x => x + x))
 			.That(
@@ -16,6 +17,7 @@ namespace DataBoss.Specs.Linq
 				xs => xs is ICollection<int>,
 				xs => xs.SequenceEqual(new[] { 2, 4, 6}));
 
+		[Fact]
 		public void AsReadonly_CopyTo_bounds_check() {
 			var xs = new[] { 1, 2, 3, }.AsReadOnly();
 			var ys = new int[1];
@@ -23,6 +25,7 @@ namespace DataBoss.Specs.Linq
 			Check.Exception<ArgumentException>(() => ((ICollection<int>)xs).CopyTo(ys, 0));
 		}
 
+		[Fact]
 		public void Batch() {
 			var batchSize = 3;
 			var items = new[] { 1, 2, 3, 4, 5 };
@@ -34,6 +37,7 @@ namespace DataBoss.Specs.Linq
 				xs => xs[1].SequenceEqual(items.Skip(batchSize)));
 		}
 
+		[Fact]
 		public void Batch_with_own_bucket() {
 			var items = new[] { "A", "B", "C", "D" };
 			var myBucket = new string[2];
@@ -45,6 +49,7 @@ namespace DataBoss.Specs.Linq
 				xs => myBucket.SequenceEqual(items.Take(myBucket.Length)));
 		}
 
+		[Fact]
 		public void ChunkBy() {
 			var items = new [] { 
 				new { id = 1, value = "A" },
@@ -65,6 +70,7 @@ namespace DataBoss.Specs.Linq
 				xs => xs[2].Single() == items[3]);
 		}
 
+		[Fact]
 		public void ChunkBy_with_element_selector() { 
 			var items = new [] { 
 				new { id = 1 },
@@ -76,10 +82,12 @@ namespace DataBoss.Specs.Linq
 				xs => xs[0].Key == 1,
 				xs => xs[0].ElementAt(0) == items[0].id.ToString());
 			}
-	
+
+		[Fact]
 		public void ChunkBy_grouping_is_collection() =>
 			Check.With(() => new[] { 1, }.ChunkBy(x => x)).That(chunks => chunks.First() is ICollection<int>);
 
+		[Fact]
 		public void Inspect() { 
 			var items = new [] { "First", "Second", "Third" };
 			var seen = new List<string>();
@@ -88,11 +96,13 @@ namespace DataBoss.Specs.Linq
 			Check.That(() => seen.SequenceEqual(items));
 		}
 
+		[Fact]
 		public void IsSorted() => Check.That(
 			() => new[] { 1, 2, 3}.IsSorted(),
 			() => new[] { 3, 2 }.IsSorted() == false,	
 			() => new[] { 1, 1, 3 }.IsSorted());
 
+		[Fact]
 		public void IsSortedBy() => Check
 			.With(() => new[] { 
 				new { Id = 1, Value = "Cat" }, 
@@ -101,9 +111,11 @@ namespace DataBoss.Specs.Linq
 				xs => xs.IsSortedBy(x => x.Id),
 				xs => !xs.IsSortedBy(x => x.Value));
 
+		[Fact]
 		public void SingleOrDefault_with_selector_no_element() =>
 			Check.Exception<InvalidOperationException>(() => new[] { 1, 2, 3}.SingleOrDefault(x => x > 1, x => x.ToString()));
 
+		[Fact]
 		public void SingleOrDefault_with_selector() =>
 			Check.That(() => new[] { "A", "BB", "CCC"}.SingleOrDefault(x => x.StartsWith("C"), x => x.Length) == 3);
 	}

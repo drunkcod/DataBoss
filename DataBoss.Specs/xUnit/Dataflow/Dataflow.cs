@@ -4,15 +4,17 @@ using System.Linq;
 using System.Threading;
 using Cone;
 using DataBoss.Data.Dataflow;
+using Xunit;
 
 namespace DataBoss.Specs.Dataflow
 {
-	[Feature("Dataflow")]
     public class DataflowFeature
     {
+		[Fact]
 		public void faulted_generator_raises_error_on_completion() =>
 			Check.Exception<Exception>(() => Block.Generator(FailWith(new Exception()), NullSink).Completion.Wait());
 
+		[Fact]
 		public void broadcast_channel() {
 			var postedItem = 42;
 		
@@ -34,6 +36,7 @@ namespace DataBoss.Specs.Dataflow
 				() => results.Contains($"Action:{postedItem}"));
 		}
 
+		[Fact]
 		public void faulted_consumer_back_propagates_error() {
 			var problem  = new Exception();
 			var consumer = Block.Item((int _) => throw problem, 1);
@@ -46,6 +49,7 @@ namespace DataBoss.Specs.Dataflow
 			Check.That(() => e.InnerException == problem);
 		}
 
+		[Fact]
 		public void faulting_while_stuck_on_post_is_propagated() {
 			var problem = new Exception();
 			var consumer = Block.Item((int _) => { }, 1);
