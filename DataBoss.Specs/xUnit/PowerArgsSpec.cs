@@ -4,10 +4,10 @@ using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using Cone;
+using Xunit;
 
 namespace DataBoss.Specs
 {
-	[Describe(typeof(PowerArgs))]
 	public class PowerArgsSpec
 	{
 		[Context("into parsing")]
@@ -22,6 +22,7 @@ namespace DataBoss.Specs
 			}
 			#pragma warning restore 0649
 
+			[Fact]
 			public void reports_Parse_errors() {
 				var e = Check.Exception<PowerArgsParseException>(() => PowerArgs
 					.Parse("-Int", "Hello", "-Bool", "World", "-Float", "3,14")
@@ -31,9 +32,11 @@ namespace DataBoss.Specs
 
 			public class MyArg<T> { public T Value; }
 
+			[Fact]
 			public void DateTime_parsing() => Check.That(
 				() => PowerArgs.Parse("-Value", "2016-02-29").Into<MyArg<DateTime>>().Value == new DateTime(2016, 02, 29));
 
+			[Fact]
 			public void reports_Enum_Parse_error() {
 				var e = Check.Exception<PowerArgsParseException>(() => PowerArgs
 					.Parse("-Value", "NoSuchValue")
@@ -45,6 +48,7 @@ namespace DataBoss.Specs
 					() => e.Errors[0].ArgumentType == typeof(MyEnum));
 			}
 
+			[Fact]
 			public void reports_list_item_parse_errors() {
 				var e = Check.Exception<PowerArgsParseException>(() => PowerArgs
 					.Parse("-Value", "1,Foo,2,Bar")
@@ -58,6 +62,7 @@ namespace DataBoss.Specs
 			}
 		}
 
+		[Fact]
 		public void uses_key_value_pairs() {
 			var args = PowerArgs.Parse("-Foo", "Bar");
 			Check.That(
@@ -65,6 +70,7 @@ namespace DataBoss.Specs
 				() => args["Foo"] == "Bar");
 		}
 
+		[Fact]
 		public void merges_comma_separated_values_to_one()
 		{
 			var args = PowerArgs.Parse(
@@ -81,10 +87,12 @@ namespace DataBoss.Specs
 				() => args["D"] == "A,B,C");
 		}
 
+		[Fact]
 		public void missing_args_yields_InvalidOperationException() {
 			Check.Exception<InvalidOperationException>(() => PowerArgs.Parse("-Foo"));
 		}
 
+		[Fact]
 		public void captures_non_options() {
 			Check.With(() => PowerArgs.Parse("Hello", "World"))
 			.That(
@@ -93,6 +101,7 @@ namespace DataBoss.Specs
 				args => args.Commands[1] == "World");
 		}
 
+		[Fact]
 		public void captures_numbers_as_options()
 		{
 			Check.With(() => PowerArgs.Parse("-Foo", "Bar", "1", "-1"))
@@ -103,6 +112,7 @@ namespace DataBoss.Specs
 
 		}
 
+		[Fact]
 		public void can_TryGetArg() {
 			var args = PowerArgs.Parse("-Foo", "Bar");
 			string value;
@@ -117,14 +127,17 @@ namespace DataBoss.Specs
 			public string MyProp { get; set; }
 		}
 
+		[Fact]
 		public void can_fill_field() {
 			Check.That(() => PowerArgs.Parse("-MyField", "Value").Into<MyArgs>().MyField == "Value");
 		}
 
+		[Fact]
 		public void can_fill_property() {
 			Check.That(() => PowerArgs.Parse("-MyProp", "Value").Into<MyArgs>().MyProp == "Value");
 		}
 
+		[Fact]
 		public void can_fill_existing_instance() {
 			Check.That(() => PowerArgs.Parse("-MyProp", "NewValue").Into(new MyArgs { MyProp = "Prop", MyField = "Field" }).MyProp == "NewValue");
 		}
@@ -137,6 +150,7 @@ namespace DataBoss.Specs
 		}
 		#pragma warning restore CS0649
 
+		[Fact]
 		public void uses_defaults_if_not_specified() {
 			Check.That(() => PowerArgs.Parse().Into<MyArgsWithDefaults>().TheAnswer == "42");
 		}
@@ -152,13 +166,16 @@ namespace DataBoss.Specs
 		}
 		#pragma warning restore CS0649
 
+		[Fact]
 		public void ignores_non_stringable_members() => Check.That(
 				() => PowerArgs.Parse("-NonStringable", "42").Into<MyArgsWithNonStrings>().MyList == null);
 
+		[Fact]
 		public void fills_list_like_with_members() => 
 			Check.That(
 				() => PowerArgs.Parse("-MyList", "1,2,3").Into<MyArgsWithNonStrings>().MyList.SequenceEqual(new [] { 1, 2, 3 }));
 
+		[Fact]
 		public void parses_nullables() {
 			Check.That(
 				() => PowerArgs.Parse("-MaybeDateTime", "2016-02-29").Into<MyArgsWithNonStrings>().MaybeDateTime == new DateTime(2016, 02, 29));
@@ -174,6 +191,7 @@ namespace DataBoss.Specs
 		}
 		#pragma warning restore CS0649
 
+		[Fact]
 		public void can_check_for_required_fields() {
 			var e = Check.Exception<PowerArgsValidationException>(() => PowerArgs.Validate(new RequiredPropAndField()));
 			Check.That(() => e.Errors.Count == 2);
@@ -186,11 +204,13 @@ namespace DataBoss.Specs
 		}
 		#pragma warning restore CS0649
 
+		[Fact]
 		public void flags() {
 			Check.That(
 				() => PowerArgs.Parse("-MyFlag", "true").Into<MyArgsWithFlags>().MyFlag == true);
 		}
 
+		[Fact]
 		public void numbers_are_not_parameter_names() {
 			var args = PowerArgs.Parse("-Value", "-1");
 			Check.That(
@@ -215,6 +235,7 @@ namespace DataBoss.Specs
 		}
 		#pragma warning restore CS0649
 
+		[Fact]
 		public void enums() => Check
 			.With(() => PowerArgs.Parse("-A", "Nothing", "-B", "Something", "-FromInt", $"{(int)MyEnum.Something}"))
 			.That(
@@ -225,6 +246,7 @@ namespace DataBoss.Specs
 				args => args.Into<MyArgsWithEnum>().FromInt == MyEnum.Something
 			);
 
+		[Fact]
 		public void describe_contains_props_and_fields() {
 			var args = PowerArgs.Describe(typeof(RequiredPropAndField));
 			Check.That(
@@ -246,6 +268,7 @@ namespace DataBoss.Specs
 		}
 		#pragma warning restore CS0649
 
+		[Fact]
 		public void describe_obeys_order() {
 			var args = PowerArgs.Describe(typeof(MyOrderedArgs));
 
