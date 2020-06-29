@@ -1,25 +1,24 @@
+using System;
 using System.Data.SqlClient;
 using System.Linq;
 using Cone;
 using DataBoss.Data;
 using DataBoss.Diagnostics;
 using DataBoss.Testing;
+using Xunit;
 
 namespace DataBoss.Specs
 {
-	[Feature("SqlConnection extensions")]
-	public class SqlConnectionExtensionsSpec
+	public class SqlConnectionExtensionsSpec : IDisposable
 	{
 		SqlConnection Connection;
 
-		[BeforeEach]
-		public void BeforeEach() { 
+		public SqlConnectionExtensionsSpec() { 
 			Connection = new SqlConnection(DatabaseSetup.GetTemporaryInstance("DataBoss").ToString());
 			Connection.Open();
 		}
 
-		[AfterAll]
-		public void AfterAll() { 
+		void IDisposable.Dispose() { 
 			Connection.Dispose();
 			Connection = null;	
 		}
@@ -32,6 +31,7 @@ namespace DataBoss.Specs
 		}
 		#pragma warning restore CS0649
 
+		[Fact]
 		public void insert_and_retreive_ids_is_zippable() { 
 			var destinationTableName = "#MyStuff";
 			Connection.ExecuteNonQuery($"create table {destinationTableName}(Id int identity, Value varchar(max) not null,)");
@@ -51,6 +51,7 @@ namespace DataBoss.Specs
 					zipped => zipped[2] == new { SequenceId = 3, Id = 3, Value = "Third" });
 		}
 
+		[Fact]
 		public void db_info() => Check
 			.With(() => Connection.GetDatabaseInfo())
 			.That(db => db.DatabaseName == (string)Connection.ExecuteScalar("select db_name()"));
