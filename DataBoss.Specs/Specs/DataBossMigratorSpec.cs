@@ -4,10 +4,10 @@ using System.IO;
 using System.Linq;
 using Cone;
 using DataBoss.Migrations;
+using Xunit;
 
 namespace DataBoss.Specs
 {
-	[Describe(typeof(DataBossMigrator))]
 	public class DataBossMigratorSpec
 	{
 		class TestableMigrationScope : IDataBossMigrationScope
@@ -38,6 +38,7 @@ namespace DataBoss.Specs
 			public void Done() { }
 		}
 
+		[Fact]
 		public void stops_application_when_migration_scope_is_faulted() {
 			var scope = new TestableMigrationScope();
 			var migrator = new DataBossMigrator(_ => scope);
@@ -53,6 +54,7 @@ namespace DataBoss.Specs
 				() => scope.ExecutedQueries.SequenceEqual(new[] { DataBossQueryBatch.Query("First!", string.Empty), }));
 		}
 
+		[Fact]
 		public void breaks_appliction_on_first_query_failure() {
 			var scope = new TestableMigrationScope();
 			var migrator = new DataBossMigrator(_ => scope);

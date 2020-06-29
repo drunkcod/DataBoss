@@ -2,23 +2,24 @@ using Cone;
 using System.IO;
 using System.Linq;
 using DataBoss.Migrations;
+using Xunit;
 
 namespace DataBoss.Specs
 {
-	[Describe(typeof(DataBossQueryMigration))]
 	public class DataBossQueryMigrationSpec
 	{
-		[DisplayAs("'{0}' has {1} batches", Heading = "supports GO as batch separator")
-		,Row("GO", 0)
-		,Row("select 1", 1)
-		,Row("select 1 go", 1)
-		,Row("select 1 go\\nselect 2", 2)
-		,Row("select 1\\nGO\\nselect 2", 2)]
+		[Theory]
+		[InlineData("GO", 0)]
+		[InlineData("select 1", 1)]
+		[InlineData("select 1 go", 1)]
+		[InlineData("select 1 go\\nselect 2", 2)]
+		[InlineData("select 1\\nGO\\nselect 2", 2)]
 		public void supports_GO_as_batch_separator(string input, int batchCount) {
 			input = input.Replace("\\n", "\n");
 			Check.That(() => new DataBossQueryMigration(string.Empty, () => new StringReader(input), new DataBossMigrationInfo()).GetQueryBatches().Count() == batchCount);
 		}
 
+		[Fact]
 		public void doesnt_add_extra_newlines() {
 			Check.That(() => new DataBossQueryMigration(string.Empty, () => new StringReader("select 42\nGO"), new DataBossMigrationInfo()).GetQueryBatches().Single().ToString() == "select 42");
 		}

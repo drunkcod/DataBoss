@@ -1,12 +1,19 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Text;
 
 namespace DataBoss
 {
 	public class DataBossShellExecute
 	{
 		public event DataReceivedEventHandler OutputDataReceived;
+
+		readonly Encoding OutputEncoding;
+
+		public DataBossShellExecute(Encoding outputEncoding = null) {
+			this.OutputEncoding = outputEncoding ?? Encoding.Default;
+		}
 
 		public bool Execute(string workingDir, string command, IEnumerable<KeyValuePair<string, string>> environmentVariables) {
 			var argPos = command.IndexOf(' ');
@@ -21,6 +28,7 @@ namespace DataBoss
 				FileName = Path.Combine(workingDir, command),
 				Arguments = args,
 				RedirectStandardOutput = true,
+				StandardOutputEncoding = OutputEncoding,
 				WorkingDirectory = workingDir,
 			};
 			foreach(var item in environmentVariables)
@@ -28,6 +36,7 @@ namespace DataBoss
 
 			var p = Process.Start(si);
 			p.EnableRaisingEvents = true;
+		
 			p.OutputDataReceived += (_ , e) => OutputDataReceived?.Invoke(this, e);
 			p.BeginOutputReadLine();
 			p.WaitForExit();

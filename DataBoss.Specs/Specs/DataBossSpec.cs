@@ -1,50 +1,52 @@
+using System;
+using System.Data.Linq;
+using System.Data.SqlClient;
+using System.Linq;
+using System.Text;
 using Cone;
 using DataBoss.Migrations;
 using DataBoss.Schema;
 using DataBoss.SqlServer;
 using DataBoss.Testing;
-using System;
-using System.Data.Linq;
-using System.Data.SqlClient;
-using System.Diagnostics;
-using System.Linq;
+using Xunit;
 
 namespace DataBoss.Specs
 {
-	[Feature("DataBoss")]
-	public class DataBossSpec
+	public class DataBossTestsFixture 
 	{
-		string DatabaseName;
+		public string DatabaseName;
+
+		public DataBossTestsFixture() {
+			DatabaseName = DatabaseSetup.GetTemporaryInstance("DataBoss Tests").InitialCatalog;
+			DatabaseSetup.RegisterForAutoCleanup();
+		}
+	}
+
+	[Feature("DataBoss")]
+	public class DataBossSpec : IClassFixture<DataBossTestsFixture>, IDisposable
+	{
 		SqlConnection Connection;
 		DataBossShellExecute ShellExecute;
 		string ShellExecuteOutput;
 		DataBoss DataBoss;
 		DataContext Context;
 
-		[BeforeAll]
-		public void EnsureTestInstance() {
-			DatabaseName = DatabaseSetup.GetTemporaryInstance("DataBoss Tests").InitialCatalog;
-			DatabaseSetup.RegisterForAutoCleanup();
-		}
-
-		[BeforeEach]
-		public void BeforeEach() {
+		public DataBossSpec(DataBossTestsFixture db) {
 			var config = new DataBossConfiguration {
 				ServerInstance = ".",
-				Database = DatabaseName,
+				Database = db.DatabaseName,
 			};
 			Connection = new SqlConnection(config.GetConnectionString());
 			Connection.Open();
 			ShellExecuteOutput = string.Empty;
-			ShellExecute = new DataBossShellExecute();
+			ShellExecute = new DataBossShellExecute(Encoding.Unicode);
 			ShellExecute.OutputDataReceived += (_, e) => ShellExecuteOutput += e.Data; 
 			DataBoss = DataBoss.Create(config, new NullDataBossLog());
 			Context = new DataContext(Connection, new DataBossMappingSource());
 			DataBoss.Initialize();
 		}
 
-		[AfterEach]
-		public void Cleanup() {
+		void IDisposable.Dispose() {
 			DataBoss = null;
 			Context.Dispose();
 			Context = null;
@@ -55,6 +57,7 @@ namespace DataBoss.Specs
 		IQueryable<SysObjects> SysObjects => Context.GetTable<SysObjects>();
 		IQueryable<DataBossHistory> Migrations => Context.GetTable<DataBossHistory>();
 
+		[Fact]
 		public void rollbacks_failed_migration() {
 			Assume.That(() => !SysObjects.Any(x => x.Name == "Foo"));
 				
@@ -74,6 +77,7 @@ namespace DataBoss.Specs
 				() => !SysObjects.Any(x => x.Name == "Foo"));
 		}
 
+		[Fact]
 		public void happy_path_is_happy() {
 			if(Context.GetTable<SysObjects>().Any(x => x.Name == "Bar"))
 				using(var cmd = new SqlCommand("drop table Bar", Connection))
@@ -91,13 +95,14 @@ namespace DataBoss.Specs
 			Check.That(() => SysObjects.Any(x => x.Name == "Bar"));
 		}
 
+		[Fact]
 		public void external_command_gets_connection_string_in_environment_variable() {
 			var migration = new DataBossMigrationInfo {
 				Id = Migrations.Max(x => (long?)x.Id).GetValueOrDefault() + 1,
 				Name = "External Command",
 			};
 			Apply(migration, migrator => {
-				migrator.Execute(DataBossQueryBatch.ExternalCommand("cmd /C echo %DATABOSS_CONNECTION%", string.Empty));
+				migrator.Execute(DataBossQueryBatch.ExternalCommand("cmd /U /C echo %DATABOSS_CONNECTION%", string.Empty));
 			});
 			Check.That(() => ShellExecuteOutput == Connection.ConnectionString);
 		}

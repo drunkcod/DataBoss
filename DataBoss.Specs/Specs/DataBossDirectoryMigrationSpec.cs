@@ -1,12 +1,13 @@
-﻿using System.Linq;
+using System.Linq;
 using Cone;
 using DataBoss.Migrations;
+using Xunit;
 
 namespace DataBoss.Specs
 {
-	[Describe(typeof(DataBossDirectoryMigration))]
 	public class DataBossDirectoryMigrationSpec
 	{
+		[Fact]
 		public void excludes_files_extension_from_name() {
 			var directory = new DataBossDirectoryMigration("MyDirectory", new DataBossMigrationInfo());
 			var migrations = directory.GetMigrations(new [] { "001 First File Migration.sql" }).ToArray();
@@ -19,6 +20,7 @@ namespace DataBoss.Specs
 			);
 		}
 
+		[Fact]
 		public void directory_migrations_use_path_minus_id_as_name() {
 			var directory = new DataBossDirectoryMigration("MyDirectory", new DataBossMigrationInfo());
 			var migrations = directory.GetMigrations(new [] { "001 First" }).ToArray();

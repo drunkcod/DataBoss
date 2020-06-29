@@ -52,6 +52,7 @@ namespace DataBoss.Data.Scripting
 
 			public string FullName => string.IsNullOrEmpty(Schema) ? $"[{Name}]" : $"[{Schema}].[{Name}]";
 			public IReadOnlyList<DataBossTableColumn> Columns => columns.AsReadOnly();
+			public int GetOrdinal(string name) => columns.FindIndex(x => x.Name == name);
 		}
 
 		public DataBossScripter(SqlDialect dialect) { 
@@ -169,8 +170,14 @@ namespace DataBoss.Data.Scripting
 
 		public string Select(Type rowType, Type tableType) {
 			var table = DataBossTable.From(tableType);
+
+			var columns = rowType.GetFields()
+				.Where(x => !x.IsInitOnly)
+				.Select(x => (x.Name, Ordinal: table.GetOrdinal(x.Name)))
+				.OrderBy(x => x.Ordinal);
+
 			var result = new StringBuilder()
-				.AppendFormat("select {0} from ", string.Join(", ", rowType.GetFields().Where(x => !x.IsInitOnly).Select(x => x.Name)));
+				.AppendFormat("select {0} from ", string.Join(", ", columns.Select(x => x.Name)));
 			return AppendTableName(result, table).ToString();
 		}
 
