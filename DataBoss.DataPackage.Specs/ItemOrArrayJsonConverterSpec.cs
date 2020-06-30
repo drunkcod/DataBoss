@@ -6,10 +6,10 @@ using System.Linq;
 using Cone;
 using DataBoss.DataPackage;
 using Newtonsoft.Json;
+using Xunit;
 
 namespace DataBoss.Specs.DataPackage
 {
-	[Describe(typeof(ItemOrArrayJsonConverter))]
 	public class ItemOrArrayJsonConverterSpec
 	{
 		class WithItemOrArrayValue<T>
@@ -19,20 +19,25 @@ namespace DataBoss.Specs.DataPackage
 			public T Value { get; set; }
 		}
 
+		[Fact]
 		public void single_item() => Check.That(
 			() => ToItemOrArray("hello") == ToJson("hello"),
 			() => FromJson<List<int>>(ToItemOrArray(42)).SequenceEqual(new[]{ 42 }));
 
+		[Fact]
 		public void multi_item() => Check.That(
 			() => ToItemOrArray("hello", "world") == ToJson(new[]{ "hello", "world" }),
 			() => FromJson<List<int>>(ToItemOrArray(1, 2, 3)).SequenceEqual(new[] { 1, 2, 3 }));
 
+		[Fact]
 		public void ICollection_of_T() => Check.That(
 			() => FromJson<ICollection<int>>(ToItemOrArray(321)).SequenceEqual(new[] { 321 }));
 
+		[Fact]
 		public void Array_of_T() => Check.That(
 			() => FromJson<int[]>(ToItemOrArray(321)).SequenceEqual(new[] { 321 }));
 
+		[Fact]
 		public void dispose_enumerators() {
 			var items = new MyCollection<string> { "Hello World!" };
 			var enumeratorCreated = false;

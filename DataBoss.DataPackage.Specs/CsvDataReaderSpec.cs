@@ -6,12 +6,13 @@ using Cone;
 using DataBoss.Data;
 using DataBoss.Data.Common;
 using DataBoss.DataPackage;
+using Xunit;
 
 namespace DataBoss.Specs.DataPackage
 {
-	[Describe(typeof(CsvDataReader))]
 	public class CsvDataReaderSpec
 	{
+		[Fact]
 		public void field_nullability_defaults_to_true() {
 			var csv = new CsvDataReader(
 				new CsvHelper.CsvReader(TextReader.Null),
@@ -32,6 +33,7 @@ namespace DataBoss.Specs.DataPackage
 				() => schema.Single(x => x.ColumnName == "number").AllowDBNull == true);
 		}
 
+		[Fact]
 		public void required_field() {
 			var csv = new CsvDataReader(
 				new CsvHelper.CsvReader(TextReader.Null),
@@ -51,6 +53,7 @@ namespace DataBoss.Specs.DataPackage
 				() => schema.Single(x => x.ColumnName == "integer").AllowDBNull == false);
 		}
 
+		[Fact]
 		public void identity_column_is_required() {
 			var csv = new CsvDataReader(
 				new CsvHelper.CsvReader(TextReader.Null),
@@ -65,6 +68,7 @@ namespace DataBoss.Specs.DataPackage
 			Check.That(() => schema.Single(x => x.ColumnName == "id").AllowDBNull == false);
 		}
 
+		[Fact]
 		public void detect_missing_required_value() {
 			var csv = new CsvDataReader(
 				new CsvHelper.CsvReader(new StringReader("1,\n,\n")),
@@ -82,6 +86,7 @@ namespace DataBoss.Specs.DataPackage
 			Check.Exception<InvalidOperationException>(() => ObjectReader.For(csv).Read<IdRow<int>>().ToList());
 		}
 
+		[Fact]
 		public void support_varying_decimal_separator() {
 			var csv = new CsvDataReader(
 				new CsvHelper.CsvReader(new StringReader("3·1415")),

@@ -1,4 +1,3 @@
 @echo off
-pushd DataBoss.Specs
-dotnet test
-popd
+dotnet test DataBoss.Specs 
+dotnet test DataBoss.DataPackage.Specs
