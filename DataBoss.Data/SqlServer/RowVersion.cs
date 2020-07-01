@@ -29,6 +29,7 @@ namespace DataBoss.Data.SqlServer
 		public override int GetHashCode() => ToInt64().GetHashCode();
 
 		public static explicit operator long(RowVersion self) => self.ToInt64();
+		public static explicit operator byte[](RowVersion self) => self.Value.Value;
 
 		public static bool operator==(RowVersion x, RowVersion y) => x.CompareTo(y) == 0;
 		public static bool operator!=(RowVersion x, RowVersion y) => x.CompareTo(y) != 0;

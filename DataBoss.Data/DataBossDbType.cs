@@ -1,15 +1,14 @@
-using DataBoss.Data.Scripting;
-using DataBoss.Data.SqlServer;
-using DataBoss.Linq;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Data;
 using System.Globalization;
-using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
+using DataBoss.Data.Scripting;
+using DataBoss.Data.SqlServer;
+using DataBoss.Linq;
 
 namespace DataBoss.Data
 {
@@ -35,7 +34,7 @@ namespace DataBoss.Data
 			NVarChar = 19,
 			Binary = 20,
 			VarBinary = 21,
-			Rowversion = 22,
+			RowVersion = 22,
 			
 			TagMask = 31,
 
@@ -91,11 +90,7 @@ namespace DataBoss.Data
 
 		(string TypeName, int? Width) CustomInfo => (ValueTuple<string, int?>)extra;
 
-		public Func<Expression, Expression> Coerce => (tag & BossTypeTag.TagMask) != BossTypeTag.Rowversion 
-			? Lambdas.Id
-			: new Func<Expression, Expression>(ToInt64);
-
-		static Expression ToInt64(Expression x) => Expression.Convert(x, typeof(long));
+		public bool IsRowVersion => (tag & BossTypeTag.TagMask) == BossTypeTag.RowVersion;
 
 		public bool IsNullable => tag.HasFlag(BossTypeTag.IsNullable);
 
@@ -158,7 +153,7 @@ namespace DataBoss.Data
 				case BossTypeTag.DateTime: return ChangeType<DateTime>(value).ToString("s");
 				case BossTypeTag.VarChar: return $"'{Escape(value.ToString())}'";
 				case BossTypeTag.NVarChar: return $"N'{Escape(value.ToString())}'";
-				case BossTypeTag.Rowversion:
+				case BossTypeTag.RowVersion:
 					value = ((RowVersion)value).Value.Value;
 					goto case BossTypeTag.VarBinary;
 				case BossTypeTag.Binary:
@@ -216,7 +211,7 @@ namespace DataBoss.Data
 				case "System.DateTime": return Create("datetime", 8, canBeNull);
 				case "System.TimeSpan": return Create("time", 3, canBeNull);
 				case "System.Data.SqlTypes.SqlMoney": return Create("money", null, canBeNull);
-				case "DataBoss.Data.SqlServer.RowVersion": return new DataBossDbType(BossTypeTag.Rowversion, canBeNull, (int?)8);
+				case "DataBoss.Data.SqlServer.RowVersion": return new DataBossDbType(BossTypeTag.RowVersion, canBeNull, (int?)8);
 				default:
 					throw new NotSupportedException("Don't know how to map " + type.FullName + " to a db type.\nTry providing a TypeName using System.ComponentModel.DataAnnotations.Schema.ColumnAttribute.");
 			}
@@ -224,21 +219,6 @@ namespace DataBoss.Data
 
 		static MaxLengthAttribute MaxLength(ICustomAttributeProvider attributes) =>
 			attributes.SingleOrDefault<MaxLengthAttribute>();
-
-		public static SqlDbType ToSqlDbType(Type type) {
-			switch(type.FullName) {
-				case "System.Byte": return SqlDbType.TinyInt;
-				case "System.Int16": return SqlDbType.SmallInt;
-				case "System.Int32": return SqlDbType.Int;
-				case "System.Int64": return SqlDbType.BigInt;
-				case "System.Single": return SqlDbType.Real;;
-				case "System.Double": return SqlDbType.Float;
-				case "System.Boolean": return SqlDbType.Bit;
-				case "System.DateTime": return SqlDbType.DateTime;
-				case "System.TimeSpan": return SqlDbType.Time;
-			}
-			return SqlDbType.NVarChar;
-		}
 
 		public static DbType ToDbType(Type type) {
 			switch (type.FullName) {

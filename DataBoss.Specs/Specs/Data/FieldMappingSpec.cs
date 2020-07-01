@@ -54,7 +54,6 @@ namespace DataBoss.Data
 		}
 		#pragma warning restore CS0649
 
-
 		[Fact]
 		public static void MapAll_ignores_static_fields() {
 			var mapping = new FieldMapping<MyThingWithStaticMember>();

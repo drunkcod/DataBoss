@@ -19,7 +19,6 @@ namespace DataBoss.Data
 	public class ConsiderAsCtorAttribute : Attribute
 	{ }
 
-
 	public class FieldMapping<T>
 	{
 		struct FieldMappingItem
@@ -145,11 +144,13 @@ namespace DataBoss.Data
 				FieldType = type,
 				Selector = Expression.Assign(
 					Expression.ArrayAccess(target, Expression.Constant(ordinal)),
-					dbType.Coerce(selector).Box()),
+					Coerce(dbType, selector).Box()),
 				DbType = dbType,
 			});
 			return ordinal;
 		}
+
+		static Expression Coerce(DataBossDbType dbType, Expression expr) => dbType.IsRowVersion ? Expression.Convert(expr, typeof(byte[])) : expr;
 
 		public string[] GetFieldNames() => MissingLinq.ConvertAll(mappings, x => x.Name);
 		public Type[] GetFieldTypes() => MissingLinq.ConvertAll(mappings, x => x.FieldType);
