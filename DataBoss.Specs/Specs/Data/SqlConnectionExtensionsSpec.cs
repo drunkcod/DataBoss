@@ -3,7 +3,7 @@ using System.Data.SqlClient;
 using System.Linq;
 using Cone;
 using DataBoss.Diagnostics;
-using DataBoss.Testing;
+using DataBoss.Testing.SqlServer;
 using Xunit;
 
 namespace DataBoss.Data.Specs
@@ -13,7 +13,7 @@ namespace DataBoss.Data.Specs
 		SqlConnection Connection;
 
 		public SqlConnectionExtensionsSpec() { 
-			Connection = new SqlConnection(DatabaseSetup.GetTemporaryInstance("DataBoss").ToString());
+			Connection = new SqlConnection(SqlServerTestDb.GetOrCreate("DataBoss").ConnectionString);
 			Connection.Open();
 		}
 

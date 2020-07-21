@@ -19,8 +19,8 @@ namespace DataBoss.Data.Specs
 				id => id == (IdOf<MyClass>)SomeValue);
 
 		[Fact]
-		public void is_sortable() =>
-			Check.With(() => new[] { (IdOf<MyClass>)3, (IdOf<MyClass>)1, (IdOf<MyClass>)2, }.OrderBy(x => x).ToArray())
+		public void is_sortable() => Check
+			.With(() => new[] { (IdOf<MyClass>)3, (IdOf<MyClass>)1, (IdOf<MyClass>)2, }.OrderBy(x => x).ToArray())
 			.That(xs => (int)xs[0] == 1);
 	}
 }

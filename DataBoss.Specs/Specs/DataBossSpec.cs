@@ -7,7 +7,7 @@ using Cone;
 using DataBoss.Migrations;
 using DataBoss.Schema;
 using DataBoss.SqlServer;
-using DataBoss.Testing;
+using DataBoss.Testing.SqlServer;
 using Xunit;
 
 namespace DataBoss.Specs
@@ -17,8 +17,8 @@ namespace DataBoss.Specs
 		public string DatabaseName;
 
 		public DataBossTestsFixture() {
-			DatabaseName = DatabaseSetup.GetTemporaryInstance("DataBoss Tests").InitialCatalog;
-			DatabaseSetup.RegisterForAutoCleanup();
+			DatabaseName = SqlServerTestDb.GetOrCreate("DataBoss Tests").Name;
+			SqlServerTestDb.RegisterForAutoCleanup();
 		}
 	}
 

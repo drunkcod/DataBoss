@@ -15,6 +15,7 @@ namespace DataBoss.Specs.Specs.Data.SqlServer
 			{
 				db.Open();
 				db.Into("#Temp", SequenceDataReader.Items(new { Version = RowVersion.From(1L) }));
+				Check.That(() => (int)db.ExecuteScalar("select count(*) from #Temp") == 1);
 			}
 		}
 	}

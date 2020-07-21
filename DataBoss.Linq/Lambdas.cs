@@ -18,5 +18,6 @@ namespace DataBoss
 
 		public static T Id<T>(T id) => id;
 		public static T Default<T>() => default(T);
+		public static void Nop<T>(T _) {}
 	}
 }

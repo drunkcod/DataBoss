@@ -8,9 +8,9 @@
         <Authors>Torbjörn Gyllebring</Authors>
         <Description>Your data. Like a Boss.</Description>
         <RepositoryUrl>https://github.com/drunkcod/DataBoss</RepositoryUrl>
-        <VersionPrefix>0.0.79</VersionPrefix>
-        <AssemblyVersion>0.0.0.79</AssemblyVersion>
+        <VersionPrefix>0.0.80</VersionPrefix>
+        <AssemblyVersion>0.0.0.80</AssemblyVersion>
         <AssemblyInformationalVersion>$(VersionPrefix)</AssemblyInformationalVersion>
-        <AssemblyFileVersion>2020.07.01</AssemblyFileVersion>
+        <AssemblyFileVersion>2020.07.21</AssemblyFileVersion>
     </PropertyGroup>
 </Project>

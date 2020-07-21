@@ -16,6 +16,7 @@
     <ProjectReference Include="..\DataBoss.Data.SqlClient\DataBoss.Data.SqlClient.csproj" />
     <ProjectReference Include="..\DataBoss.Data\DataBoss.Data.csproj" />
     <ProjectReference Include="..\DataBoss\DataBoss.csproj" />
+    <ProjectReference Include="..\Source\DataBoss.Testing.SqlServer\DataBoss.Testing.SqlServer.csproj" />
     <PackageReference Include="System.ComponentModel.Annotations" Version="4.6.0" />
     <PackageReference Include="System.ValueTuple" Version="4.5.0" />
     <PackageReference Include="Cone" Version="2019.8.14" />

@@ -1,17 +1,17 @@
-using Cone;
-using DataBoss.Testing;
 using System.Data.SqlClient;
+using Cone;
+using DataBoss.Testing.SqlServer;
 using Xunit;
 
 namespace DataBoss.Data.Specs
 {
 	public class TemporaryDatabaseFixture
 	{
-		public SqlConnectionStringBuilder ConnectionString;
+		public readonly string ConnectionString;
 
 		public TemporaryDatabaseFixture() {
-			ConnectionString = DatabaseSetup.GetTemporaryInstance(nameof(DataBossConnectionProvider) + " Tests");
-			DatabaseSetup.RegisterForAutoCleanup();
+			ConnectionString = SqlServerTestDb.GetOrCreate(nameof(DataBossConnectionProvider) + " Tests").ConnectionString;
+			SqlServerTestDb.RegisterForAutoCleanup();
 		}
 	}
 
