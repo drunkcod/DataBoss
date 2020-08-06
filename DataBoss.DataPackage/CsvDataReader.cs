@@ -61,6 +61,7 @@ namespace DataBoss.DataPackage
 			var required = field.Constraints?.IsRequired ?? Array.IndexOf(primaryKey, field.Name) != -1;
 			switch(field.Type) {
 				default: throw new NotSupportedException($"Don't know how to map '{field.Type}'");
+				case "binary": return GetDbTypePair(typeof(byte[]), required);
 				case "boolean": return GetDbTypePair(typeof(bool), required);
 				case "datetime": return GetDbTypePair(typeof(DateTime), required);
 				case "date": return GetDbTypePair(typeof(DateTime), required);
@@ -105,7 +106,6 @@ namespace DataBoss.DataPackage
 		}
 
 		object ChangeType(string input, Type type, IFormatProvider format) {
-
 			switch(Type.GetTypeCode(type)) {
 				case TypeCode.DateTime:
 					return DateTime.Parse(input, format);
@@ -113,6 +113,8 @@ namespace DataBoss.DataPackage
 				case TypeCode.Object:
 					if (type == typeof(TimeSpan))
 						return TimeSpan.Parse(input, format);
+					else if(type == typeof(byte[]))
+						return Convert.FromBase64String(input);
 					break;
 			}
 			

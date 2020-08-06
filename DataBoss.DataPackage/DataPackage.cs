@@ -5,10 +5,10 @@ using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading;
 using System.Threading.Channels;
-using DataBoss.Data.Dataflow;
 using DataBoss.DataPackage.Types;
 using DataBoss.Linq;
 using Newtonsoft.Json;
@@ -208,11 +208,9 @@ namespace DataBoss.DataPackage
 			switch (Type.GetTypeCode(type)) {
 				default: 
 					if(type == typeof(TimeSpan))
-						return (r, i) => { 
-							if(r.IsDBNull(i))
-								return null;
-							return ((TimeSpan)r.GetValue(i)).ToString("hh\\:mm\\:ss");
-						};
+						return FormatTimeSpan;
+					if(type == typeof(byte[]))
+						return FormatBinary;
 					return (r, i) => {
 						var obj = r.GetValue(i);
 						return obj is IFormattable x ? x.ToString(null, format) : obj?.ToString();
@@ -220,16 +218,10 @@ namespace DataBoss.DataPackage
 
 				case TypeCode.DateTime:
 					if(fieldDescription.Type == "date")
-						return (r, i) => ((DataPackageDate)r.GetDateTime(i)).ToString();
+						return FormatDate;
+					return FormatDateTime;
 
-					return (r, i) => {
-						var value = r.GetDateTime(i);
-						if (value.Kind == DateTimeKind.Unspecified)
-							throw new InvalidOperationException("DateTimeKind.Unspecified not supported.");
-						return value.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ssK");
-					};
-
-				case TypeCode.String: return (r, i) => r.GetString(i);
+				case TypeCode.String: return FormatString;
 
 				case TypeCode.Int16: return (r, i) => r.GetInt16(i).ToString(format);
 				case TypeCode.Int32: return (r, i) => r.GetInt32(i).ToString(format);
@@ -240,6 +232,17 @@ namespace DataBoss.DataPackage
 				case TypeCode.Decimal: return (r, i) => r.GetDecimal(i).ToString(format);
 			}
 		}
+
+		static string FormatDate(IDataRecord r, int i) => ((DataPackageDate)r.GetDateTime(i)).ToString();
+		static string FormatDateTime(IDataRecord r, int i) {
+			var value = r.GetDateTime(i);
+			if (value.Kind == DateTimeKind.Unspecified)
+				throw new InvalidOperationException("DateTimeKind.Unspecified not supported.");
+			return value.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ssK");
+		}
+		static string FormatTimeSpan(IDataRecord r, int i) => r.IsDBNull(i) ? null : ((TimeSpan)r.GetValue(i)).ToString("hh\\:mm\\:ss");
+		static string FormatBinary(IDataRecord r, int i) => r.IsDBNull(i) ? null : Convert.ToBase64String((byte[])r.GetValue(i));
+		static string FormatString(IDataRecord r, int i) => r.GetString(i);
 
 		static void WriteRecords(Stream output, IDataReader data, IReadOnlyList<TabularDataSchemaFieldDescription> fields, IReadOnlyList<IFormatProvider> format) {
 			var toString = new Func<IDataRecord, int, string>[data.FieldCount];

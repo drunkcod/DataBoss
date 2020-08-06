@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using Cone;
 using DataBoss.Data;
 using DataBoss.DataPackage.Types;
@@ -121,6 +122,23 @@ namespace DataBoss.DataPackage.Specs
 				() => today.Date != utc.Date,
 				() => r["Today"] == (object)today,
 				() => r["UtcToday"] == (object)utc);
+		}
+
+		[Fact]
+		public void bytes_are_binary() {
+			var bytes = Encoding.UTF8.GetBytes("Hello World!");
+			var dp = new DataPackage()
+				.AddResource("bytes", new[] {
+					new { bytes, }
+				}).Serialize();
+
+			var r = dp.Resources.Single();
+			var rows = r.Read();
+			rows.Read();
+			Check.That(
+				() => r.Schema.Fields[0].Name == "bytes",
+				() => r.Schema.Fields[0].Type == "binary",
+				() => ((byte[])rows["bytes"]).SequenceEqual(bytes));
 		}
 
 		class DateTimeFormatRow

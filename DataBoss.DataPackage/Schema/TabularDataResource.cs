@@ -86,6 +86,7 @@ namespace DataBoss.DataPackage
 				case "System.Int64": return "integer";
 				case "System.String": return "string";
 				case "System.TimeSpan": return "time";
+				case "System.Byte[]": return "binary";
 			}
 		}
 	}
