@@ -137,7 +137,9 @@ namespace DataBoss.DataPackage.Specs
 			rows.Read();
 			Check.That(
 				() => r.Schema.Fields[0].Name == "bytes",
-				() => r.Schema.Fields[0].Type == "binary",
+				() => r.Schema.Fields[0].Type == "string",
+				() => r.Schema.Fields[0].Format == "binary",
+				() => rows.GetFieldType(0) == typeof(byte[]),
 				() => ((byte[])rows["bytes"]).SequenceEqual(bytes));
 		}
 

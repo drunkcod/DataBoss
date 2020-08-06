@@ -61,14 +61,16 @@ namespace DataBoss.DataPackage
 			var required = field.Constraints?.IsRequired ?? Array.IndexOf(primaryKey, field.Name) != -1;
 			switch(field.Type) {
 				default: throw new NotSupportedException($"Don't know how to map '{field.Type}'");
-				case "binary": return GetDbTypePair(typeof(byte[]), required);
 				case "boolean": return GetDbTypePair(typeof(bool), required);
 				case "datetime": return GetDbTypePair(typeof(DateTime), required);
 				case "date": return GetDbTypePair(typeof(DateTime), required);
 				case "time": return GetDbTypePair(typeof(TimeSpan), required);
 				case "integer": return GetDbTypePair(typeof(int), required);
 				case "number": return GetDbTypePair(typeof(double), required);
-				case "string": return GetDbTypePair(typeof(string), required);
+				case "string": 
+					if(field.Format == "binary")
+						return GetDbTypePair(typeof(byte[]), required);
+					return GetDbTypePair(typeof(string), required);
 			}
 		}
 

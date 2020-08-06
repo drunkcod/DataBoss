@@ -60,9 +60,10 @@ namespace DataBoss.DataPackage
 				if (schema.TryGetValue(reader.GetName(i), out var found) && !found.AllowDBNull)
 					constraints = new TabularDataSchemaFieldConstraints { IsRequired = true };
 
+				var (type, format) = ToTableSchemaType(reader.GetFieldType(i));
 				var field = new TabularDataSchemaFieldDescription(
 					reader.GetName(i),
-					ToTableSchemaType(reader.GetFieldType(i)),
+					type, format,
 					constraints);
 
 				r.Add(field);
@@ -70,23 +71,22 @@ namespace DataBoss.DataPackage
 			return r;
 		}
 
-		static string ToTableSchemaType(Type type) {
+		static (string Type, string Format) ToTableSchemaType(Type type) {
 			switch (type.FullName) {
 				default:
-					return type.SingleOrDefault<FieldAttribute>()?.SchemaType 
-					?? throw new NotSupportedException($"Can't map {type}");
-				case "System.Boolean": return "boolean";
-				case "System.DateTime": return "datetime";
+					return (type.SingleOrDefault<FieldAttribute>()?.SchemaType ?? throw new NotSupportedException($"Can't map {type}"), null);
+				case "System.Boolean": return ("boolean", null);
+				case "System.DateTime": return ("datetime", null);
 				case "System.Decimal":
 				case "System.Single":
-				case "System.Double": return "number";
+				case "System.Double": return ("number", null);
 				case "System.Byte":
 				case "System.Int16":
 				case "System.Int32": 
-				case "System.Int64": return "integer";
-				case "System.String": return "string";
-				case "System.TimeSpan": return "time";
-				case "System.Byte[]": return "binary";
+				case "System.Int64": return ("integer", null);
+				case "System.String": return ("string", null);
+				case "System.TimeSpan": return ("time", null);
+				case "System.Byte[]": return ("string", "binary");
 			}
 		}
 	}

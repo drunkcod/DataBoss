@@ -10,11 +10,13 @@ namespace DataBoss.DataPackage
 		public TabularDataSchemaFieldDescription(
 			string name, 
 			string type,
+			string format = null,
 			TabularDataSchemaFieldConstraints constraints = null,
 			string decimalChar = null) { 
 			
 			this.Name = name;
 			this.Type = type;
+			this.Format = format;
 			this.Constraints = constraints;
 			this.DecimalChar = decimalChar;
 		}
@@ -23,6 +25,8 @@ namespace DataBoss.DataPackage
 		public readonly string Name;
 		[JsonProperty("type")]
 		public readonly string Type;
+		[JsonProperty("format", NullValueHandling = NullValueHandling.Ignore)]
+		public readonly string Format;
 
 		[DefaultValue("."), JsonProperty("decimalChar", DefaultValueHandling = DefaultValueHandling.Ignore, NullValueHandling = NullValueHandling.Ignore)]
 		public readonly string DecimalChar;

@@ -42,7 +42,7 @@ namespace DataBoss.Specs.DataPackage
 						new TabularDataSchemaFieldDescription(
 							"integer", 
 							"integer", 
-							new TabularDataSchemaFieldConstraints  {
+							constraints: new TabularDataSchemaFieldConstraints  {
 								IsRequired = true,
 							}),
 					}
@@ -77,7 +77,7 @@ namespace DataBoss.Specs.DataPackage
 						new TabularDataSchemaFieldDescription(
 							"Id",
 							"integer",
-							new TabularDataSchemaFieldConstraints  {
+							constraints: new TabularDataSchemaFieldConstraints  {
 								IsRequired = true,
 							}),
 					}
