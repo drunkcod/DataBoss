@@ -3,7 +3,7 @@ using System.Data.Linq;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Text;
-using Cone;
+using CheckThat;
 using DataBoss.Migrations;
 using DataBoss.Schema;
 using DataBoss.SqlServer;
@@ -22,7 +22,6 @@ namespace DataBoss.Specs
 		}
 	}
 
-	[Feature("DataBoss")]
 	public class DataBossSpec : IClassFixture<DataBossTestsFixture>, IDisposable
 	{
 		SqlConnection Connection;
@@ -59,7 +58,7 @@ namespace DataBoss.Specs
 
 		[Fact]
 		public void rollbacks_failed_migration() {
-			Assume.That(() => !SysObjects.Any(x => x.Name == "Foo"));
+			Check.That(() => !SysObjects.Any(x => x.Name == "Foo"));
 				
 			var failingMigration = new DataBossMigrationInfo {
 				Id = Migrations.Max(x => (long?)x.Id).GetValueOrDefault() + 1,

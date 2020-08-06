@@ -1,5 +1,5 @@
 using System.Linq;
-using Cone;
+using CheckThat;
 using DataBoss.Migrations;
 using Xunit;
 

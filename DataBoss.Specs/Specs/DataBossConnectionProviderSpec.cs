@@ -1,5 +1,4 @@
-using System.Data.SqlClient;
-using Cone;
+using CheckThat;
 using DataBoss.Testing.SqlServer;
 using Xunit;
 
@@ -82,7 +81,7 @@ namespace DataBoss.Data.Specs
 		[Fact]
 		public void command_owning_connection() {
 			var c = Connections.NewCommand(CommandOptions.DisposeConnection);
-			Assume.That(() => Connections.LiveConnections == 1);
+			Check.That(() => Connections.LiveConnections == 1);
 
 			c.Dispose();
 			Check.That(() => Connections.LiveConnections == 0);

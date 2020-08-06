@@ -1,7 +1,7 @@
 using System;
 using System.Data.SqlClient;
 using System.Linq;
-using Cone;
+using CheckThat;
 using DataBoss.Diagnostics;
 using DataBoss.Testing.SqlServer;
 using Xunit;

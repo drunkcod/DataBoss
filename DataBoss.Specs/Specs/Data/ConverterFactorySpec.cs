@@ -1,6 +1,6 @@
 using System;
 using System.Data;
-using Cone;
+using CheckThat;
 using DataBoss.Data;
 using Xunit;
 

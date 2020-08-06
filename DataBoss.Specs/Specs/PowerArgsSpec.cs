@@ -3,14 +3,13 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
-using Cone;
+using CheckThat;
 using Xunit;
 
 namespace DataBoss.Specs
 {
 	public class PowerArgsSpec
 	{
-		[Context("into parsing")]
 		public class PowerArgsIntoSpec
 		{
 			#pragma warning disable 0649

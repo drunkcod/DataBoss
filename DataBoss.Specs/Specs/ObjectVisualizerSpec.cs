@@ -1,6 +1,6 @@
 using System;
 using System.IO;
-using Cone;
+using CheckThat;
 using DataBoss.Data;
 using Xunit;
 
@@ -8,7 +8,6 @@ namespace DataBoss.Specs
 {
 	public class ObjectVisualizerSpec
 	{
-		[Context("Dump")]
 		public class ObjectVisualizer_Dump
 		{
 			StringWriter Output;

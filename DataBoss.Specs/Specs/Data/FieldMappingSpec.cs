@@ -1,6 +1,6 @@
 using System;
 using System.Linq.Expressions;
-using Cone;
+using CheckThat;
 using Xunit;
 
 namespace DataBoss.Data

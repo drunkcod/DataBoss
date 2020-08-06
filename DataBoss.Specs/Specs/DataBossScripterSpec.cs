@@ -1,5 +1,5 @@
 using System.ComponentModel.DataAnnotations.Schema;
-using Cone;
+using CheckThat;
 using DataBoss.Data;
 using DataBoss.Data.Scripting;
 using DataBoss.Migrations;
@@ -62,7 +62,6 @@ alter table [dbo].[__DataBossHistory]
 add constraint PK___DataBossHistory primary key(Id,Context)");
 		}
 
-		[Context("Type to table")]
 		public class DataBossScripterTypeToTableSpec
 		{
 			#pragma warning disable CS0649

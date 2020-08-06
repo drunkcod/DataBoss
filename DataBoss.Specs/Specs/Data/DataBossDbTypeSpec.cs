@@ -8,6 +8,7 @@ using System.Data.SqlClient;
 using System.Data.SqlTypes;
 using System.Globalization;
 using System.Linq;
+using CheckThat;
 using Cone;
 using DataBoss.Data.SqlServer;
 using DataBoss.Specs;
@@ -77,10 +78,11 @@ namespace DataBoss.Data.Specs
 		public void MaxLengthAttribute_controls_string_column_widht()=>
 			Check.That(() => DataBossDbType.ToDataBossDbType(typeof(string), new StubAttributeProvider().Add(new MaxLengthAttribute(31))) == DataBossDbType.Create("nvarchar", 31, true));
 
-		void from_DbParameter(DbParameter parameter, string expected) =>
+		[Theory, MemberData(nameof(DbParameterRows))]
+		public void from_DbParameter(DbParameter parameter, string expected) =>
 			Check.That(() => DataBossDbType.ToDataBossDbType(parameter).ToString() == expected);
 
-		public IEnumerable<IRowTestData> DbParameterRows() => 
+		public static IEnumerable<object[]> DbParameterRows() => 
 			new[] {
 				(Parameter(SqlDbType.Int, isNullable: false), "int"),
 				(Parameter(SqlDbType.Int, isNullable: true), "int"),
@@ -90,9 +92,7 @@ namespace DataBoss.Data.Specs
 				(Parameter(false), "bit"),
 				(Parameter("Hello"), "nvarchar(5)"),
 				(Parameter(new byte[]{ 1, 2, 3, 4 }), "binary(4)")
-			}.Select(x =>
-				new RowTestData(new Cone.Core.Invokable(GetType().GetMethod(nameof(from_DbParameter))), 
-				new object[]{ x.Item1, x.Item2 }));
+			}.Select(x => new object[]{ x.Item1, x.Item2 });
 
 		[Theory, MemberData(nameof(FormatValueRows))]
 		public void format_value(DataBossDbType dbType, object value, string expected) =>

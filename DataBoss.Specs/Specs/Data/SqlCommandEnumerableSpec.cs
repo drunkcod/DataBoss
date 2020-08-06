@@ -1,6 +1,6 @@
 using System;
 using System.Data.SqlClient;
-using Cone;
+using CheckThat;
 using DataBoss.Data;
 using Xunit;
 

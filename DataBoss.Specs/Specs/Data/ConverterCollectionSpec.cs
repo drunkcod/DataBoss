@@ -1,6 +1,6 @@
 using System;
 using System.Linq.Expressions;
-using Cone;
+using CheckThat;
 using Xunit;
 
 namespace DataBoss.Data
@@ -34,7 +34,7 @@ namespace DataBoss.Data
 			var value = Expression.Parameter(from);
 			var output = Convert.ChangeType(input, to);
 			Expression converter = null;
-			Assume.That(() => ConverterCollection.StandardConversions.TryGetConverter(value, to, out converter));
+			Check.That(() => ConverterCollection.StandardConversions.TryGetConverter(value, to, out converter));
 
 			Check.That(() => Expression.Lambda(converter, value).Compile().DynamicInvoke(input).Equals(output));
 		}
@@ -45,7 +45,7 @@ namespace DataBoss.Data
 			converters.Add(new Func<int, string>(x => x.ToString()));
 			var input = Expression.Parameter(typeof(byte));
 			Expression converter = null;
-			Assume.That(() => converters.TryGetConverter(input, typeof(string), out converter));
+			Check.That(() => converters.TryGetConverter(input, typeof(string), out converter));
 
 			Check.That(() => Expression.Lambda(converter, input).Compile().DynamicInvoke((byte)7).Equals("7"));
 		}

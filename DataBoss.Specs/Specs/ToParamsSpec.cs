@@ -3,8 +3,7 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Data.SqlTypes;
 using System.Linq;
-using Cone;
-using Cone.Core;
+using CheckThat;
 using DataBoss.Data;
 using DataBoss.Data.SqlServer;
 using Xunit;
@@ -20,12 +19,12 @@ namespace DataBoss.Specs
 		}
 
 		[Fact]
-		public void complext_type() =>
-			Check.With(() => GetParams(new { Args = new { Foo = 1, Bar = "Hello" } }))
-				.That(
-					x => x.Length == 2,
-					x => x.Any(p => p.ParameterName == "@Args_Foo"),
-					x => x.Any(p => p.ParameterName == "@Args_Bar"));
+		public void complext_type() => Check
+			.With(() => GetParams(new { Args = new { Foo = 1, Bar = "Hello" } }))
+			.That(
+				x => x.Length == 2,
+				x => x.Any(p => p.ParameterName == "@Args_Foo"),
+				x => x.Any(p => p.ParameterName == "@Args_Bar"));
 
 		[Theory]
 		[InlineData(typeof(string))]

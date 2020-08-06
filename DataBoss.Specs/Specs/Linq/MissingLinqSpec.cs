@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using CheckThat;
 using Cone;
 using DataBoss.Linq;
 using Xunit;
@@ -84,8 +85,9 @@ namespace DataBoss.Specs.Linq
 			}
 
 		[Fact]
-		public void ChunkBy_grouping_is_collection() =>
-			Check.With(() => new[] { 1, }.ChunkBy(x => x)).That(chunks => chunks.First() is ICollection<int>);
+		public void ChunkBy_grouping_is_collection() => Check
+			.With(() => new[] { 1, }.ChunkBy(x => x))
+			.That(chunks => chunks.First() is ICollection<int>);
 
 		[Fact]
 		public void Inspect() { 

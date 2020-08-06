@@ -1,6 +1,6 @@
-using Cone;
 using System.IO;
 using System.Linq;
+using CheckThat;
 using DataBoss.Migrations;
 using Xunit;
 

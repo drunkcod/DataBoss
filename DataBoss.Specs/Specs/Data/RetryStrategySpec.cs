@@ -1,10 +1,10 @@
 using System;
-using Cone;
+using CheckThat;
 using Xunit;
 
 namespace DataBoss.Data.Specs
 {
-    public class RetryStrategySpec
+	public class RetryStrategySpec
     {
 		[Fact]
 		public void happy_path_doesnt_consider_to_retry() {

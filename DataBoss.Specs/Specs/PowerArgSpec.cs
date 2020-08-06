@@ -1,7 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
-using Cone;
+using CheckThat;
 using Xunit;
 
 namespace DataBoss.Specs

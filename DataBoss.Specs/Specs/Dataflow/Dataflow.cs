@@ -1,14 +1,12 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using Cone;
+using CheckThat;
 using DataBoss.Data.Dataflow;
 using Xunit;
 
 namespace DataBoss.Specs.Dataflow
 {
-    public class DataflowFeature
+	public class DataflowFeature
     {
 		[Fact]
 		public void faulted_generator_raises_error_on_completion() =>
@@ -43,7 +41,7 @@ namespace DataBoss.Specs.Dataflow
 			
 			consumer.Post(1);
 			consumer.Completion.ContinueWith(_ => { }).Wait();
-			Assume.That(() => consumer.Completion.IsFaulted);
+			Check.That(() => consumer.Completion.IsFaulted);
 
 			var e = Check.Exception<InvalidOperationException>(() => consumer.Post(2));
 			Check.That(() => e.InnerException == problem);

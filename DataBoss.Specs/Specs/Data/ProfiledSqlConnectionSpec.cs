@@ -1,8 +1,8 @@
 using System;
 using System.Data.SqlClient;
 using System.Linq;
-using Cone;
-using Cone.Helpers;
+using CheckThat;
+using CheckThat.Helpers;
 using DataBoss.Data;
 using DataBoss.Data.Common;
 using Xunit;

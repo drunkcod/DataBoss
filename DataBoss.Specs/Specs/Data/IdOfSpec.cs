@@ -1,5 +1,5 @@
 using System.Linq;
-using Cone;
+using CheckThat;
 using Xunit;
 
 namespace DataBoss.Data.Specs
