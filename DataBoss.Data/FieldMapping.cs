@@ -59,7 +59,7 @@ namespace DataBoss.Data
 		public int Map(MemberInfo memberInfo) {
 			var m = CoerceToDbType(Expression.MakeMemberAccess(source, memberInfo));
 			var column = memberInfo.SingleOrDefault<ColumnAttribute>()?.Name;
-			return Map(column ?? memberInfo.Name, m.Type, DataBossDbType.ToDataBossDbType(m.Type, memberInfo), m);
+			return Map(column ?? memberInfo.Name, m.Type, DataBossDbType.From(m.Type, memberInfo), m);
 		}
 
 		public int Map<TField>(string name, Func<T, TField> selector) =>
@@ -70,7 +70,7 @@ namespace DataBoss.Data
 
 		int Map<TField>(string name, Func<T, TField> selector, ICustomAttributeProvider attributes) {
 			var get = CoerceToDbType(Expression.Invoke(Expression.Constant(selector), source));
-			var dbType = DataBossDbType.ToDataBossDbType(get.Type, attributes);
+			var dbType = DataBossDbType.From(get.Type, attributes);
 			return Map(name, get.Type, dbType, get);
 		}
 
@@ -113,7 +113,7 @@ namespace DataBoss.Data
 			replacer.AddReplacement(selector.Parameters[0], source);
 			return Map(name, 
 				selector.ReturnType, 
-				DataBossDbType.ToDataBossDbType(selector.ReturnType, NullAttributeProvider.Instance), 
+				DataBossDbType.From(selector.ReturnType, NullAttributeProvider.Instance), 
 				replacer.Visit(selector.Body));
 		}
 

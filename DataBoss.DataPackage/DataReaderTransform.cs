@@ -170,13 +170,13 @@ namespace DataBoss.DataPackage
 			var schema = new DataReaderSchemaTable();
 			for (var i = 0; i != FieldCount; ++i) {
 				var fieldType = GetFieldType(i);
-				var dbType = DataBossDbType.ToDataBossDbType(fieldType);
+				var dbType = DataBossDbType.From(fieldType);
 				schema.Add(GetName(i), i, fieldType, dbType.IsNullable, dbType.ColumnSize);
 			}
 			return schema.ToDataTable();
 		}
 
-		public string GetDataTypeName(int i) => DataBossDbType.ToDataBossDbType(GetFieldType(i)).TypeName;
+		public string GetDataTypeName(int i) => DataBossDbType.From(GetFieldType(i)).TypeName;
 
 		public bool IsDBNull(int i) => GetValue(i) is DBNull;
 		public bool NextResult() => inner.NextResult();

@@ -123,9 +123,9 @@ namespace DataBoss.Data
 			this.extra = extra;
 		}
 
-		public static DataBossDbType ToDataBossDbType(Type type) => ToDataBossDbType(type, type);
+		public static DataBossDbType From(Type type) => From(type, type);
 
-		public static DataBossDbType ToDataBossDbType(Type type, ICustomAttributeProvider attributes) {
+		public static DataBossDbType From(Type type, ICustomAttributeProvider attributes) {
 			var canBeNull = !type.IsValueType && !attributes.Any<RequiredAttribute>();
 			if (type.TryGetNullableTargetType(out var newTargetType)) {
 				canBeNull = true;

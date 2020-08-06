@@ -75,7 +75,7 @@ namespace DataBoss.DataPackage
 		}
 
 		static (Type, DataBossDbType) GetDbTypePair(Type type, bool required = false) =>
-			(type, DataBossDbType.ToDataBossDbType(!type.IsValueType || required ? type : typeof(Nullable<>).MakeGenericType(type)));
+			(type, DataBossDbType.From(!type.IsValueType || required ? type : typeof(Nullable<>).MakeGenericType(type)));
 
 		public int FieldCount => schema.Count;
 
