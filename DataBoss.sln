@@ -1,0 +1,95 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29102.190
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{6C61E09D-69AC-474F-8A80-18863A9662E8}"
+	ProjectSection(SolutionItems) = preProject
+		..\.editorconfig = ..\.editorconfig
+		..\DataBoss.props = ..\DataBoss.props
+		..\Tools\DataBoss.targets = ..\Tools\DataBoss.targets
+		..\Directory.Build.props = ..\Directory.Build.props
+		..\Package-Release.ps1 = ..\Package-Release.ps1
+		..\README.md = ..\README.md
+	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss", "Source\DataBoss\DataBoss.csproj", "{C4DBFE8D-3981-4F82-9B8B-E698B8CAF39A}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss.Cli", "Source\DataBoss.Cli\DataBoss.Cli.csproj", "{CB0CF2E4-62C9-49A6-8FB6-541AC177D135}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss.Data", "Source\DataBoss.Data\DataBoss.Data.csproj", "{75F51A03-B613-4AAA-86FA-5815F42D2F74}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss.Data.MsSql", "Source\DataBoss.Data.MsSql\DataBoss.Data.MsSql.csproj", "{544F1B76-FF56-4A28-B7C8-220DB6E75F3F}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss.Data.SqlClient", "Source\DataBoss.Data.SqlClient\DataBoss.Data.SqlClient.csproj", "{E2F09843-3BB9-42DB-A5ED-00C5E11D8684}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss.DataPackage", "Source\DataBoss.DataPackage\DataBoss.DataPackage.csproj", "{49538066-F150-442E-8772-ADE3FD1A96F5}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss.Linq", "Source\DataBoss.Linq\DataBoss.Linq.csproj", "{19091137-987D-4128-A45A-23977CFE1DD3}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss.DataPackage.Specs", "Source\DataBoss.DataPackage.Specs\DataBoss.DataPackage.Specs.csproj", "{D3B9AC42-CE39-499F-BD18-9AE5E2481748}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss.Specs", "Source\DataBoss.Specs\DataBoss.Specs.csproj", "{13AD5FF7-C1CA-440A-88B7-A4B8AC5D9C3E}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss.Testing.SqlServer", "Source\DataBoss.Testing.SqlServer\DataBoss.Testing.SqlServer.csproj", "{A073C05F-7AF1-47E2-A85C-5C69F9E5E4A1}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{F8C97939-E25C-4531-8AA9-4E86C34CA8CB}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C4DBFE8D-3981-4F82-9B8B-E698B8CAF39A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C4DBFE8D-3981-4F82-9B8B-E698B8CAF39A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C4DBFE8D-3981-4F82-9B8B-E698B8CAF39A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C4DBFE8D-3981-4F82-9B8B-E698B8CAF39A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CB0CF2E4-62C9-49A6-8FB6-541AC177D135}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CB0CF2E4-62C9-49A6-8FB6-541AC177D135}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CB0CF2E4-62C9-49A6-8FB6-541AC177D135}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CB0CF2E4-62C9-49A6-8FB6-541AC177D135}.Release|Any CPU.Build.0 = Release|Any CPU
+		{75F51A03-B613-4AAA-86FA-5815F42D2F74}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{75F51A03-B613-4AAA-86FA-5815F42D2F74}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{75F51A03-B613-4AAA-86FA-5815F42D2F74}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{75F51A03-B613-4AAA-86FA-5815F42D2F74}.Release|Any CPU.Build.0 = Release|Any CPU
+		{544F1B76-FF56-4A28-B7C8-220DB6E75F3F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{544F1B76-FF56-4A28-B7C8-220DB6E75F3F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{544F1B76-FF56-4A28-B7C8-220DB6E75F3F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{544F1B76-FF56-4A28-B7C8-220DB6E75F3F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E2F09843-3BB9-42DB-A5ED-00C5E11D8684}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E2F09843-3BB9-42DB-A5ED-00C5E11D8684}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E2F09843-3BB9-42DB-A5ED-00C5E11D8684}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E2F09843-3BB9-42DB-A5ED-00C5E11D8684}.Release|Any CPU.Build.0 = Release|Any CPU
+		{49538066-F150-442E-8772-ADE3FD1A96F5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{49538066-F150-442E-8772-ADE3FD1A96F5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{49538066-F150-442E-8772-ADE3FD1A96F5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{49538066-F150-442E-8772-ADE3FD1A96F5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{19091137-987D-4128-A45A-23977CFE1DD3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{19091137-987D-4128-A45A-23977CFE1DD3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{19091137-987D-4128-A45A-23977CFE1DD3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{19091137-987D-4128-A45A-23977CFE1DD3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D3B9AC42-CE39-499F-BD18-9AE5E2481748}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D3B9AC42-CE39-499F-BD18-9AE5E2481748}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D3B9AC42-CE39-499F-BD18-9AE5E2481748}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D3B9AC42-CE39-499F-BD18-9AE5E2481748}.Release|Any CPU.Build.0 = Release|Any CPU
+		{13AD5FF7-C1CA-440A-88B7-A4B8AC5D9C3E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{13AD5FF7-C1CA-440A-88B7-A4B8AC5D9C3E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{13AD5FF7-C1CA-440A-88B7-A4B8AC5D9C3E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{13AD5FF7-C1CA-440A-88B7-A4B8AC5D9C3E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A073C05F-7AF1-47E2-A85C-5C69F9E5E4A1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A073C05F-7AF1-47E2-A85C-5C69F9E5E4A1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A073C05F-7AF1-47E2-A85C-5C69F9E5E4A1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A073C05F-7AF1-47E2-A85C-5C69F9E5E4A1}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{D3B9AC42-CE39-499F-BD18-9AE5E2481748} = {F8C97939-E25C-4531-8AA9-4E86C34CA8CB}
+		{13AD5FF7-C1CA-440A-88B7-A4B8AC5D9C3E} = {F8C97939-E25C-4531-8AA9-4E86C34CA8CB}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {5004119A-9CE1-487E-8201-5F7F75808141}
+	EndGlobalSection
+EndGlobal

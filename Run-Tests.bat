@@ -1,3 +1,3 @@
 @echo off
-dotnet test DataBoss.Specs 
-dotnet test DataBoss.DataPackage.Specs
+dotnet test Source\DataBoss.Specs 
+dotnet test Source\DataBoss.DataPackage.Specs

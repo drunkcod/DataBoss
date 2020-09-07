@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using CheckThat;
@@ -15,7 +16,7 @@ namespace DataBoss.Specs.DataPackage
 		[Fact]
 		public void field_nullability_defaults_to_true() {
 			var csv = new CsvDataReader(
-				new CsvHelper.CsvReader(TextReader.Null),
+				new CsvHelper.CsvReader(TextReader.Null, CultureInfo.CurrentCulture),
 				new TabularDataSchema {
 					Fields = new List<TabularDataSchemaFieldDescription> {
 						new TabularDataSchemaFieldDescription("boolean", "boolean"),
@@ -36,7 +37,7 @@ namespace DataBoss.Specs.DataPackage
 		[Fact]
 		public void required_field() {
 			var csv = new CsvDataReader(
-				new CsvHelper.CsvReader(TextReader.Null),
+				new CsvHelper.CsvReader(TextReader.Null, CultureInfo.CurrentCulture),
 				new TabularDataSchema {
 					Fields = new List<TabularDataSchemaFieldDescription> {
 						new TabularDataSchemaFieldDescription(
@@ -56,7 +57,7 @@ namespace DataBoss.Specs.DataPackage
 		[Fact]
 		public void identity_column_is_required() {
 			var csv = new CsvDataReader(
-				new CsvHelper.CsvReader(TextReader.Null),
+				new CsvHelper.CsvReader(TextReader.Null, CultureInfo.CurrentCulture),
 				new TabularDataSchema {
 					Fields = new List<TabularDataSchemaFieldDescription> {
 						new TabularDataSchemaFieldDescription("id", "integer"),
@@ -71,7 +72,7 @@ namespace DataBoss.Specs.DataPackage
 		[Fact]
 		public void detect_missing_required_value() {
 			var csv = new CsvDataReader(
-				new CsvHelper.CsvReader(new StringReader("1,\n,\n")),
+				new CsvHelper.CsvReader(new StringReader("1,\n,\n"), CultureInfo.CurrentCulture),
 				new TabularDataSchema {
 					Fields = new List<TabularDataSchemaFieldDescription> {
 						new TabularDataSchemaFieldDescription(
@@ -89,7 +90,7 @@ namespace DataBoss.Specs.DataPackage
 		[Fact]
 		public void support_varying_decimal_separator() {
 			var csv = new CsvDataReader(
-				new CsvHelper.CsvReader(new StringReader("3·1415")),
+				new CsvHelper.CsvReader(new StringReader("3·1415"), CultureInfo.CurrentCulture),
 				new TabularDataSchema {
 					Fields = new List<TabularDataSchemaFieldDescription> {
 						new TabularDataSchemaFieldDescription(

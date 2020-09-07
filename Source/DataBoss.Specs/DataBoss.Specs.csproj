@@ -16,16 +16,15 @@
     <ProjectReference Include="..\DataBoss.Data.SqlClient\DataBoss.Data.SqlClient.csproj" />
     <ProjectReference Include="..\DataBoss.Data\DataBoss.Data.csproj" />
     <ProjectReference Include="..\DataBoss\DataBoss.csproj" />
-    <ProjectReference Include="..\Source\DataBoss.Testing.SqlServer\DataBoss.Testing.SqlServer.csproj" />
-    <PackageReference Include="System.ComponentModel.Annotations" Version="4.6.0" />
+    <ProjectReference Include="..\DataBoss.Testing.SqlServer\DataBoss.Testing.SqlServer.csproj" />
+    <PackageReference Include="System.ComponentModel.Annotations" Version="4.7.0" />
     <PackageReference Include="System.ValueTuple" Version="4.5.0" />
     <PackageReference Include="Check.That" Version="0.0.2" />
-    <PackageReference Include="Newtonsoft.Json" Version="12.0.2" />
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
     <PackageReference Include="xunit" Version="2.4.1" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.4.1">
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.4.3">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <DotNetCliToolReference Include="dotnet-conesole" Version="2019.8.14" /> 
   </ItemGroup>
 </Project>

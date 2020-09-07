@@ -32,7 +32,6 @@ namespace DataBoss.Testing.SqlServer
 			else cs.IntegratedSecurity = true;
 			return cs;
 		}
-
 	}
 
 	public class SqlServerTestDb : IDisposable
@@ -40,7 +39,8 @@ namespace DataBoss.Testing.SqlServer
 		const string CreateInstanceQuery = 
 			  "create database [{0}];\n"
 			+ "alter database [{0}] set recovery simple;\n"
-			+ "exec [{0}]..sp_addextendedproperty @name='is_test_db', @value=1;\n";
+			+ "declare @now datetime = getdate();\n"
+			+ "exec [{0}]..sp_addextendedproperty @name='testdb_created_at', @value=@now;\n";
 
 		const string DropInstanceQuery = 
 			  "alter database [{0}] set single_user with rollback immediate;\n"

@@ -1,7 +1,7 @@
 <Project>
     <PropertyGroup>
-        <BaseIntermediateOutputPath>$(SolutionDir)..\Build\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
-        <OutputPath>$(SolutionDir)..\Build\$(MSBuildProjectName)\$(Configuration)</OutputPath>
+        <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)\Build\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
+        <OutputPath>$(MSBuildThisFileDirectory)\Build\$(MSBuildProjectName)\$(Configuration)</OutputPath>
     </PropertyGroup>
     
     <PropertyGroup>
@@ -11,6 +11,6 @@
         <VersionPrefix>0.0.80</VersionPrefix>
         <AssemblyVersion>0.0.0.80</AssemblyVersion>
         <AssemblyInformationalVersion>$(VersionPrefix)</AssemblyInformationalVersion>
-        <AssemblyFileVersion>2020.07.21</AssemblyFileVersion>
+        <AssemblyFileVersion>2020.09.07</AssemblyFileVersion>
     </PropertyGroup>
 </Project>

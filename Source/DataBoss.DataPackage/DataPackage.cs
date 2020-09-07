@@ -116,7 +116,7 @@ namespace DataBoss.DataPackage
 			new CsvDataReader(
 				new CsvHelper.CsvReader(
 					reader,
-					new CsvHelper.Configuration.Configuration { Delimiter = delimiter }),
+					new CsvHelper.Configuration.CsvConfiguration(CultureInfo.CurrentCulture) { Delimiter = delimiter }),
 				schema);
 
 		public IDataPackageResourceBuilder AddResource(string name, Func<IDataReader> getData)
