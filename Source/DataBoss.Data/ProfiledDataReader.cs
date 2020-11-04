@@ -10,17 +10,19 @@ namespace DataBoss.Data
 	public class ProfiledDataReader : DbDataReader
 	{
 		readonly IDataReader inner;
+		readonly DataBossScripter scripter;
 		readonly Stopwatch stopwatch = Stopwatch.StartNew();
 		int rowCount = 0;
 
-		public ProfiledDataReader(IDataReader inner) {
+		public ProfiledDataReader(IDataReader inner, DataBossScripter scripter) {
 			this.inner = inner;
+			this.scripter = scripter;
 		}
 
 		public event EventHandler RowRead;
 		public event EventHandler<ProfiledDataReaderClosedEventArgs> Closed;
 
-		public DataBossTableColumn[] GetColumns() => new DataBossScripter().GetColumns(this);
+		public DataBossTableColumn[] GetColumns() => scripter.GetColumns(this);
 		
 		public override void Close() {
 			if(!stopwatch.IsRunning)

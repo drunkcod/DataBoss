@@ -9,15 +9,9 @@ using DataBoss.Linq;
 
 namespace DataBoss.Data.Scripting
 {
-	public class SqlDialect
-	{
-		public virtual string GetTypeName(DataBossDbType dbType) => dbType.ToString();
-		public virtual string GetParameterName(string name) => $"@{name}";
-	}
-	
 	public class DataBossScripter
 	{
-		readonly SqlDialect dialect;
+		readonly ISqlDialect dialect;
 
 		class DataBossTable
 		{
@@ -55,11 +49,9 @@ namespace DataBoss.Data.Scripting
 			public int GetOrdinal(string name) => columns.FindIndex(x => x.Name == name);
 		}
 
-		public DataBossScripter(SqlDialect dialect) { 
+		public DataBossScripter(ISqlDialect dialect) { 
 			this.dialect = dialect;	
 		}
-
-		public DataBossScripter() : this(new SqlDialect()) { }
 
 		public string CreateMissing(Type tableType) {
 			var table = DataBossTable.From(tableType);

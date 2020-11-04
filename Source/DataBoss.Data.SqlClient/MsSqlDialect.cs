@@ -21,6 +21,8 @@ namespace DataBoss.Data
 		
 		public string ParameterPrefix => "@";
 
+		public string GetTypeName(DataBossDbType dbType) => dbType.ToString();
+
 		public Expression MakeRowVersionParameter(string name, Expression readMember)=> 
 			Expression.MemberInit(
 				Expression.New(

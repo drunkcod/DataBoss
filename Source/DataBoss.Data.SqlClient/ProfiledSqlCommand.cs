@@ -82,7 +82,7 @@ namespace DataBoss.Data
 			return r;
 		}
 
-		public new ProfiledDataReader ExecuteReader(CommandBehavior behavior) => new ProfiledDataReader(inner.ExecuteReader(behavior));
+		public new ProfiledDataReader ExecuteReader(CommandBehavior behavior) => new ProfiledDataReader(inner.ExecuteReader(behavior), inner.Connection.GetScripter());
 
 		protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior) {
 			var s = Connection.OnExecuting(this);

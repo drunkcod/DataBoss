@@ -18,12 +18,13 @@ namespace DataBoss
 		readonly IDataBossConfiguration config;
 		readonly IDataBossLog log;
 		readonly SqlConnection db;
-		readonly DataBossScripter scripter = new DataBossScripter();
+		readonly DataBossScripter scripter;
 
 		DataBoss(IDataBossConfiguration config, IDataBossLog log, SqlConnection db) {
 			this.config = config;
 			this.log = log;
 			this.db = db;
+			this.scripter = db.GetScripter();
 		}
 
 		void IDisposable.Dispose() => db.Dispose();

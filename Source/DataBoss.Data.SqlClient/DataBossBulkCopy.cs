@@ -82,7 +82,7 @@ namespace DataBoss.Data
 				x.MapAll();
 			});
 
-			var scripter = new DataBossScripter();
+			var scripter = new DataBossScripter(MsSqlDialect.Instance);
 			using(var cmd = context.CreateCommand()) {
 				cmd.CommandText =$@"
 					{scripter.ScriptTable(TempTableName, toInsert)}

@@ -7,6 +7,7 @@ namespace DataBoss.Data
 	{
 		string ParameterPrefix { get; }
 
+		string GetTypeName(DataBossDbType dbType);
 		Expression MakeRowVersionParameter(string name, Expression readMember);
 	}
 

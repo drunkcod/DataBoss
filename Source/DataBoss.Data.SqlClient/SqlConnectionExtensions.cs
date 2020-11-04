@@ -49,9 +49,10 @@ namespace DataBoss.Data
 			return cmd;
 		}
 
+		public static DataBossScripter GetScripter(this SqlConnection _) => new DataBossScripter(MsSqlDialect.Instance);
+
 		public static void CreateTable(this SqlConnection connection, string tableName, IDataReader data) {
-			var scripter = new DataBossScripter();
-			connection.ExecuteNonQuery(scripter.ScriptTable(tableName, data));
+			connection.ExecuteNonQuery(connection.GetScripter().ScriptTable(tableName, data));
 		}
 
 		public static object ExecuteScalar(this SqlConnection connection, string cmdText) {
