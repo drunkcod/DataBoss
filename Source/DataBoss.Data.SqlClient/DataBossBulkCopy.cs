@@ -66,7 +66,7 @@ namespace DataBoss.Data
 		}
 
 		public void Insert(string destinationTable, IDataReader toInsert) {
-			context.WriteToServer(toInsert, destinationTable, columns => {
+			context.WriteToServer(toInsert, $"[{destinationTable}]", columns => {
 				for (int i = 0, fieldCount = toInsert.FieldCount; i != fieldCount; ++i)
 					columns.Add(i, toInsert.GetName(i));
 			});
