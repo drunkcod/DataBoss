@@ -312,7 +312,7 @@ namespace DataBoss.DataPackage
 
 		class RecordReader : WorkItem
 		{
-			public const int BufferRows = 128;
+			public const int BufferRows = 10000;
 
 			readonly Channel<IReadOnlyCollection<IDataRecord>> records = Channel.CreateBounded<IReadOnlyCollection<IDataRecord>>(new BoundedChannelOptions(1 << 10) {
 				SingleWriter = true,
@@ -349,7 +349,7 @@ namespace DataBoss.DataPackage
 		class ChunkWriter : WorkItem
 		{
 			readonly Channel<MemoryStream> chunks = Channel.CreateBounded<MemoryStream>(new BoundedChannelOptions(1 << 10) {
-				SingleWriter = true,
+				SingleWriter = false,
 			});
 
 			public ChannelReader<IReadOnlyCollection<IDataRecord>> Records;
@@ -359,42 +359,42 @@ namespace DataBoss.DataPackage
 
 			public ChannelReader<MemoryStream> Chunks => chunks.Reader;
 
-			const int BlockSize = 4096;
-			const int ChunkSize = 4 * BlockSize;
-
 			protected override void DoWork() {
 				var bom = Encoding.GetPreamble();
-				var chunk = new MemoryStream(ChunkSize + BlockSize);
 
-				do {
-					while(Records.TryRead(out var item)) {
-						if (item.Count == 0)
-							return;
-						using (var fragment = NewCsvWriter(chunk, Encoding)) {
-							foreach(var r in item) {
-								for (var i = 0; i != r.FieldCount; ++i) {
-									if (r.IsDBNull(i))
-										fragment.NextField();
-									else
-										fragment.WriteField(FormatValue[i](r, i));
-								}
-								fragment.NextRecord();
-							}
-						}
-
-						if (chunk.Position > ChunkSize) {
-							WriteChunk();
-							chunk = new MemoryStream(ChunkSize + BlockSize);
-						}
-					}
-				} while(Records.WaitToRead());
-				if(chunk.Position != 0)
-					WriteChunk();
-
-				void WriteChunk() {
+				void WriteChunk(MemoryStream chunk) {
 					chunk.Position = bom.Length;
 					chunks.Writer.Write(chunk);
 				}
+
+				EnumerateRecords().AsParallel().WithDegreeOfParallelism(Environment.ProcessorCount).ForAll(item => {
+					var chunk = new MemoryStream(4 * 4096);
+					if (item.Count == 0)
+						return;
+					using (var fragment = NewCsvWriter(chunk, Encoding)) {
+						foreach (var r in item) {
+							for (var i = 0; i != r.FieldCount; ++i) {
+								if (r.IsDBNull(i))
+									fragment.NextField();
+								else
+									fragment.WriteField(FormatValue[i](r, i));
+							}
+							fragment.NextRecord();
+						}
+					}
+					if (chunk.Position != 0)
+						WriteChunk(chunk);
+				});
+			}
+
+			IEnumerable<IReadOnlyCollection<IDataRecord>> EnumerateRecords() {
+				do {
+					while (Records.TryRead(out var item)) {
+						if (item.Count == 0)
+							yield break;
+						yield return item;
+					}
+				} while (Records.WaitToRead());
 			}
 
 			protected override void Cleanup() =>
