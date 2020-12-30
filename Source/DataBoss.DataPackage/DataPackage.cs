@@ -175,10 +175,11 @@ namespace DataBoss.DataPackage
 						}
 					}
 
+					var delimiter = item.Delimiter ?? DefaultDelimiter;
 					description.Resources.Add(new DataPackageResourceDescription {
 						Name = item.Name, 
 						Path = Path.GetFileName(resourcePath),
-						Delimiter = item.Delimiter ?? DefaultDelimiter,
+						Delimiter = delimiter,
 						Schema = new TabularDataSchema { 
 							Fields = fields,
 							PrimaryKey = NullIfEmpty(item.Schema.PrimaryKey),
@@ -186,7 +187,7 @@ namespace DataBoss.DataPackage
 						},
 					});
 					try {
-						WriteRecords(output, data, fields, format);
+						WriteRecords(output, delimiter, data, fields, format);
 					} catch(Exception ex) {
 						throw new Exception($"Failed writing {item.Name}.", ex);
 					}
@@ -207,8 +208,8 @@ namespace DataBoss.DataPackage
 		static List<T> NullIfEmpty<T>(List<T> values) =>
 			values == null ? null : values.Count == 0 ? null : values;
 
-		static CsvWriter NewCsvWriter(Stream stream, Encoding encoding) => 
-			new CsvWriter(new StreamWriter(stream, encoding, 4096, leaveOpen: true));
+		static CsvWriter NewCsvWriter(Stream stream, Encoding encoding, string delimter) => 
+			new CsvWriter(new StreamWriter(stream, encoding, 4096, leaveOpen: true)) { Delimiter = delimter };
 
 		static Func<IDataRecord, int, string> GetFormatter(Type type, TabularDataSchemaFieldDescription fieldDescription, IFormatProvider format) {
 			switch (Type.GetTypeCode(type)) {
@@ -250,12 +251,12 @@ namespace DataBoss.DataPackage
 		static string FormatBinary(IDataRecord r, int i) => r.IsDBNull(i) ? null : Convert.ToBase64String((byte[])r.GetValue(i));
 		static string FormatString(IDataRecord r, int i) => r.GetString(i);
 
-		static void WriteRecords(Stream output, IDataReader data, IReadOnlyList<TabularDataSchemaFieldDescription> fields, IReadOnlyList<IFormatProvider> format) {
+		static void WriteRecords(Stream output, string delimiter, IDataReader data, IReadOnlyList<TabularDataSchemaFieldDescription> fields, IReadOnlyList<IFormatProvider> format) {
 			var toString = new Func<IDataRecord, int, string>[data.FieldCount];
 			for (var i = 0; i != data.FieldCount; ++i)
 				toString[i] = GetFormatter(data.GetFieldType(i), fields[i], format[i]);
 
-			WriteHeaderRecord(output, Encoding.UTF8, data);
+			WriteHeaderRecord(output, Encoding.UTF8, delimiter, data);
 
 			var reader = new RecordReader {
 				DataReader = data,
@@ -265,6 +266,7 @@ namespace DataBoss.DataPackage
 			var writer = new ChunkWriter {
 				Records = reader.Records,
 				Encoding = new UTF8Encoding(false),
+				Delimiter = delimiter,
 				FormatValue = toString,					
 			};
 			writer.Start();
@@ -277,8 +279,8 @@ namespace DataBoss.DataPackage
 				throw new Exception("Failed to write csv", writer.Error);
 		}
 
-		static void WriteHeaderRecord(Stream output, Encoding encoding, IDataReader data) {
-			using (var csv = NewCsvWriter(output, encoding)) {
+		static void WriteHeaderRecord(Stream output, Encoding encoding, string delimiter, IDataReader data) {
+			using (var csv = NewCsvWriter(output, encoding, delimiter)) {
 				for (var i = 0; i != data.FieldCount; ++i)
 					csv.WriteField(data.GetName(i));
 				csv.NextRecord();
@@ -362,6 +364,7 @@ namespace DataBoss.DataPackage
 			public Func<IDataRecord, int, string>[] FormatValue;
 
 			public Encoding Encoding;
+			public string Delimiter;
 
 			public ChannelReader<MemoryStream> Chunks => chunks.Reader;
 
@@ -377,7 +380,7 @@ namespace DataBoss.DataPackage
 					var chunk = new MemoryStream(4 * 4096);
 					if (item.Count == 0)
 						return;
-					using (var fragment = NewCsvWriter(chunk, Encoding)) {
+					using (var fragment = NewCsvWriter(chunk, Encoding, Delimiter)) {
 						foreach (var r in item) {
 							for (var i = 0; i != r.FieldCount; ++i) {
 								if (r.IsDBNull(i))
