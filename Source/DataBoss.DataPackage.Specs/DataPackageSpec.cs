@@ -1,10 +1,12 @@
 using System;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Text;
 using CheckThat;
 using DataBoss.Data;
 using DataBoss.DataPackage.Types;
+using Newtonsoft.Json;
 using Xunit;
 
 namespace DataBoss.DataPackage.Specs
@@ -141,6 +143,25 @@ namespace DataBoss.DataPackage.Specs
 				() => r.Schema.Fields[0].Format == "binary",
 				() => rows.GetFieldType(0) == typeof(byte[]),
 				() => ((byte[])rows["bytes"]).SequenceEqual(bytes));
+		}
+
+		[Fact]
+		public void custom_resource_delimiter() {
+			var dp = new DataPackage()
+				.AddResource("stuff", () => new[] { new { Id = 1, Message = "Hello World." } })
+				.WithDelimiter("|");
+
+			var bytes = new MemoryStream();
+			dp.Save(x => x switch {
+				"datapackage.json" => bytes,
+				_ => Stream.Null,
+			});
+
+			var description = JsonConvert.DeserializeObject<DataPackageDescription>(Encoding.UTF8.GetString(bytes.ToArray()));
+			var dp2 = dp.Serialize();
+			Check.That(
+				() => description.Resources[0].Delimiter == "|",
+				() => dp2.Resources[0].Delimiter == "|");
 		}
 
 		class DateTimeFormatRow

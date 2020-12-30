@@ -20,6 +20,7 @@ namespace DataBoss.DataPackage
 	{
 		IDataPackageResourceBuilder WithForeignKey(DataPackageForeignKey fk);
 		IDataPackageResourceBuilder WithPrimaryKey(params string[] parts);
+		IDataPackageResourceBuilder WithDelimiter(string delimiter);
 	}
 
 	public static class DataPackageBuilderExtensions

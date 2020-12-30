@@ -4,7 +4,6 @@ using System.Data;
 using System.Linq;
 using System.Text.RegularExpressions;
 using DataBoss.Data;
-using DataBoss.DataPackage.Types;
 using DataBoss.Linq;
 
 namespace DataBoss.DataPackage
@@ -14,14 +13,18 @@ namespace DataBoss.DataPackage
 		readonly Func<IDataReader> getData;
 		public readonly string Name;
 		public readonly TabularDataSchema Schema;
+		public string Delimiter;
 
-		public TabularDataResource(string name, TabularDataSchema schema, Func<IDataReader> getData) {
+		TabularDataResource(string name, TabularDataSchema schema, Func<IDataReader> getData) {
 			if(!Regex.IsMatch(name, @"^[a-z0-9-._]+$"))
 				throw new NotSupportedException($"name MUST consist only of lowercase alphanumeric characters plus '.', '-' and '_' was '{name}'");
 			this.Name = name;
 			this.Schema = schema;
 			this.getData = getData;
 		}
+
+		public static TabularDataResource From(DataPackageResourceDescription desc, Func<IDataReader> getData) =>
+			new TabularDataResource(desc.Name, desc.Schema, getData) { Delimiter = desc.Delimiter };
 
 		public int GetOrdinal(string name) => Schema.Fields.FindIndex(x => x.Name == name);
 

@@ -5,7 +5,6 @@ using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Net.NetworkInformation;
 using System.Text;
 using System.Threading;
 using System.Threading.Channels;
@@ -17,7 +16,7 @@ namespace DataBoss.DataPackage
 {
 	public class DataPackage : IDataPackageBuilder
 	{
-		public static string Delimiter = ";";
+		public static string DefaultDelimiter = ";";
 
 		public readonly List<TabularDataResource> Resources = new List<TabularDataResource>();
 
@@ -53,6 +52,11 @@ namespace DataBoss.DataPackage
 				return this;
 			}
 
+			public IDataPackageResourceBuilder WithDelimiter(string delimiter) {
+				resource.Delimiter = delimiter;
+				return this;
+			}
+
 			public DataPackage Done() => package;
 		}
 
@@ -74,7 +78,7 @@ namespace DataBoss.DataPackage
 
 			var r = new DataPackage();
 			r.Resources.AddRange(description.Resources.Select(x =>
-				new TabularDataResource(x.Name, x.Schema, () =>
+				TabularDataResource.From(x, () =>
 					NewCsvDataReader(
 						new StreamReader(openRead(x.Path)),
 						x.Delimiter,
@@ -89,8 +93,8 @@ namespace DataBoss.DataPackage
 		public static DataPackage LoadZip(Func<Stream> openZip) {
 			var r = new DataPackage();
 			var description = LoadZipPackageDescription(openZip);
-			r.Resources.AddRange(description.Resources.Select(x => {
-				return new TabularDataResource(x.Name, x.Schema,
+			r.Resources.AddRange(description.Resources.Select(x => 
+				TabularDataResource.From(x,
 					() => {
 						var source = new ZipArchive(openZip(), ZipArchiveMode.Read);
 						var csv = NewCsvDataReader(
@@ -99,8 +103,7 @@ namespace DataBoss.DataPackage
 							x.Schema);
 						csv.Disposed += delegate { source.Dispose(); };
 						return csv;
-					});
-			}));
+					})));
 
 			return r;
 		}
@@ -121,15 +124,18 @@ namespace DataBoss.DataPackage
 
 		public IDataPackageResourceBuilder AddResource(string name, Func<IDataReader> getData)
 		{
-			var resource = new TabularDataResource(name, 
-				new TabularDataSchema {
-					PrimaryKey = new List<string>(),
-					ForeignKeys = new List<DataPackageForeignKey>(),
-				}, 
-				getData);
+			var resource = TabularDataResource.From(
+				new DataPackageResourceDescription {
+					Name = name,
+					Schema = new TabularDataSchema {
+						PrimaryKey = new List<string>(),
+						ForeignKeys = new List<DataPackageForeignKey>(),
+					},
+				}, getData);
 			Resources.Add(resource);
 			return new DataPackageResourceBuilder(this, resource);
 		}
+
 		DataPackage IDataPackageBuilder.Done() => this;
 
 		public void UpdateResource(string name, Func<TabularDataResource, TabularDataResource> doUpdate) {
@@ -172,7 +178,7 @@ namespace DataBoss.DataPackage
 					description.Resources.Add(new DataPackageResourceDescription {
 						Name = item.Name, 
 						Path = Path.GetFileName(resourcePath),
-						Delimiter = Delimiter,
+						Delimiter = item.Delimiter ?? DefaultDelimiter,
 						Schema = new TabularDataSchema { 
 							Fields = fields,
 							PrimaryKey = NullIfEmpty(item.Schema.PrimaryKey),
