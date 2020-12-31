@@ -75,19 +75,23 @@ namespace DataBoss.DataPackage
 		}
 
 		static (string Type, string Format) ToTableSchemaType(Type type) {
+
+			switch(Type.GetTypeCode(type)) {
+				case TypeCode.Boolean: return ("boolean", null);
+				case TypeCode.DateTime: return ("datetime", null);
+				case TypeCode.Decimal:
+				case TypeCode.Single:
+				case TypeCode.Double: return ("number", null);
+				case TypeCode.Byte:
+				case TypeCode.Int16:
+				case TypeCode.Int32:
+				case TypeCode.Int64: return ("integer", null);
+				case TypeCode.String: return ("string", null);
+			}
+
 			switch (type.FullName) {
 				default:
 					return (type.SingleOrDefault<FieldAttribute>()?.SchemaType ?? throw new NotSupportedException($"Can't map {type}"), null);
-				case "System.Boolean": return ("boolean", null);
-				case "System.DateTime": return ("datetime", null);
-				case "System.Decimal":
-				case "System.Single":
-				case "System.Double": return ("number", null);
-				case "System.Byte":
-				case "System.Int16":
-				case "System.Int32": 
-				case "System.Int64": return ("integer", null);
-				case "System.String": return ("string", null);
 				case "System.TimeSpan": return ("time", null);
 				case "System.Byte[]": return ("string", "binary");
 			}

@@ -208,8 +208,8 @@ namespace DataBoss.DataPackage
 		static List<T> NullIfEmpty<T>(List<T> values) =>
 			values == null ? null : values.Count == 0 ? null : values;
 
-		static CsvWriter NewCsvWriter(Stream stream, Encoding encoding, string delimter) => 
-			new CsvWriter(new StreamWriter(stream, encoding, 4096, leaveOpen: true)) { Delimiter = delimter };
+		static CsvWriter NewCsvWriter(Stream stream, Encoding encoding, string delimiter) => 
+			new CsvWriter(new StreamWriter(stream, encoding, 4096, leaveOpen: true), delimiter);
 
 		static Func<IDataRecord, int, string> GetFormatter(Type type, TabularDataSchemaFieldDescription fieldDescription, IFormatProvider format) {
 			switch (Type.GetTypeCode(type)) {

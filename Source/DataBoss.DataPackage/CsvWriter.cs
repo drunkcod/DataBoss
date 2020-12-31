@@ -18,13 +18,14 @@ namespace DataBoss.DataPackage
 		WriterState state;
 		bool leaveOpen;
 		
-		public string Delimiter = DefaultDelimiter;
+		public readonly string Delimiter;
 
 		public TextWriter Writer { get; }
 
-		public CsvWriter(TextWriter output, bool leaveOpen = false) {
+		public CsvWriter(TextWriter output, string delimiter = null, bool leaveOpen = false) {
 			this.Writer = output;
 			this.leaveOpen = leaveOpen;
+			this.Delimiter = delimiter ?? DefaultDelimiter;
 		}
 
 		public void WriteField(string value) {
