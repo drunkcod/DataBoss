@@ -11,6 +11,6 @@
         <VersionPrefix>0.0.81</VersionPrefix>
         <AssemblyVersion>0.0.0.81</AssemblyVersion>
         <AssemblyInformationalVersion>$(VersionPrefix)</AssemblyInformationalVersion>
-        <AssemblyFileVersion>2020.11.04</AssemblyFileVersion>
+        <AssemblyFileVersion>2021.01.04</AssemblyFileVersion>
     </PropertyGroup>
 </Project>

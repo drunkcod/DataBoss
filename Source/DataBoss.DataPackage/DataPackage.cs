@@ -16,7 +16,7 @@ namespace DataBoss.DataPackage
 {
 	public class DataPackage : IDataPackageBuilder
 	{
-		public static string DefaultDelimiter = ";";
+		public const string DefaultDelimiter = ";";
 
 		public readonly List<TabularDataResource> Resources = new List<TabularDataResource>();
 
@@ -258,20 +258,26 @@ namespace DataBoss.DataPackage
 
 			WriteHeaderRecord(output, Encoding.UTF8, delimiter, data);
 
-			var reader = new RecordReader {
-				DataReader = data,
-			};
-			reader.Start();
+			var records = Channel.CreateBounded<IReadOnlyCollection<ObjectDataRecord>>(new BoundedChannelOptions(1024) {
+				SingleWriter = true,
+			});
 
-			var writer = new ChunkWriter {
-				Records = reader.Records,
+			var chunks = Channel.CreateBounded<MemoryStream>(new BoundedChannelOptions(1024) {
+				SingleWriter = false,
+				SingleReader = true,
+			});
+
+			var reader = new RecordReader(data, records);
+			var writer = new ChunkWriter(records, chunks) {
 				Encoding = new UTF8Encoding(false),
 				Delimiter = delimiter,
 				FormatValue = toString,					
 			};
+
+			reader.Start();
 			writer.Start();
 
-			writer.Chunks.ForEach(x => x.CopyTo(output));
+			chunks.Reader.ForEach(x => x.CopyTo(output));
 
 			if (reader.Error != null)
 				throw new Exception("Failed to write csv", reader.Error);
@@ -320,66 +326,67 @@ namespace DataBoss.DataPackage
 
 		class RecordReader : WorkItem
 		{
-			public const int BufferRows = 10000;
+			public const int BufferRows = 8192;
 
-			readonly Channel<IReadOnlyCollection<IDataRecord>> records = Channel.CreateBounded<IReadOnlyCollection<IDataRecord>>(new BoundedChannelOptions(1 << 10) {
-				SingleWriter = true,
-			});
-
-			public IDataReader DataReader;
-
-			public ChannelReader<IReadOnlyCollection<IDataRecord>> Records => records.Reader;
+			readonly IDataReader reader;
+			readonly ChannelWriter<IReadOnlyCollection<ObjectDataRecord>> writer;
+ 
+			public RecordReader(IDataReader reader, ChannelWriter<IReadOnlyCollection<ObjectDataRecord>> writer) {
+				this.reader = reader;
+				this.writer = writer;
+			}
 
 			protected override void DoWork() {
 				var values = CreateBuffer();
 				var n = 0;
-				var w = records.Writer;
-				while (DataReader.Read()) {
-					values.Add(ObjectDataRecord.GetRecord(DataReader));
+				while (reader.Read()) {
+					values.Add(ObjectDataRecord.GetRecord(reader));
 
 					if (++n == BufferRows) {
-						w.Write(values);
+						writer.Write(values);
 						n = 0;
 						values = CreateBuffer();
 					}
 				}
 
 				if (n != 0)
-					w.Write(values);
+					writer.Write(values);
 			}
 
-			List<IDataRecord> CreateBuffer() => new List<IDataRecord>(BufferRows);
+			List<ObjectDataRecord> CreateBuffer() => new List<ObjectDataRecord>(BufferRows);
 
 			protected override void Cleanup() =>
-				records.Writer.Complete();
+				writer.Complete();
 		}
 
 		class ChunkWriter : WorkItem
 		{
-			readonly Channel<MemoryStream> chunks = Channel.CreateBounded<MemoryStream>(new BoundedChannelOptions(1 << 10) {
-				SingleWriter = false,
-			});
+			readonly ChannelReader<IReadOnlyCollection<ObjectDataRecord>> records;
+			readonly ChannelWriter<MemoryStream> chunks;
 
-			public ChannelReader<IReadOnlyCollection<IDataRecord>> Records;
+			public ChunkWriter(ChannelReader<IReadOnlyCollection<ObjectDataRecord>> records, ChannelWriter<MemoryStream> chunks) {
+				this.records = records;
+				this.chunks = chunks;
+			}
+
 			public Func<IDataRecord, int, string>[] FormatValue;
-
 			public Encoding Encoding;
 			public string Delimiter;
-
-			public ChannelReader<MemoryStream> Chunks => chunks.Reader;
 
 			protected override void DoWork() {
 				var bom = Encoding.GetPreamble();
 
 				void WriteChunk(MemoryStream chunk) {
 					chunk.Position = bom.Length;
-					chunks.Writer.Write(chunk);
+					chunks.Write(chunk);
 				}
 
-				EnumerateRecords().AsParallel().WithDegreeOfParallelism(Environment.ProcessorCount).ForAll(item => {
-					var chunk = new MemoryStream(4 * 4096);
+				records.ForEach(item => {
 					if (item.Count == 0)
 						return;
+
+					var chunk = new MemoryStream(4 * 4096);
+
 					using (var fragment = NewCsvWriter(chunk, Encoding, Delimiter)) {
 						foreach (var r in item) {
 							for (var i = 0; i != r.FieldCount; ++i) {
@@ -396,43 +403,32 @@ namespace DataBoss.DataPackage
 				});
 			}
 
-			IEnumerable<IReadOnlyCollection<IDataRecord>> EnumerateRecords() {
-				do {
-					while (Records.TryRead(out var item)) {
-						if (item.Count == 0)
-							yield break;
-						yield return item;
-					}
-				} while (Records.WaitToRead());
-			}
-
 			protected override void Cleanup() =>
-				chunks.Writer.Complete();
+				chunks.Complete();
 		}
 	}
 
 	class ObjectDataRecord : IDataRecord
 	{
 		readonly object[] values;
-		readonly bool[] isNull;
+		readonly int fieldCount;
 
 		public static ObjectDataRecord GetRecord(IDataReader reader) {
-			var fields = new object[reader.FieldCount];
-			var isNull = new bool[reader.FieldCount];
+			var fieldCount = reader.FieldCount;
+			var fields = new object[fieldCount];
+			
+			for (var i = 0; i != fieldCount; ++i)
+				fields[i] = reader.IsDBNull(i) ? DBNull.Value : reader.GetValue(i);
 
-			reader.GetValues(fields);
-			for (var i = 0; i != isNull.Length; ++i)
-				isNull[i] = reader.IsDBNull(i);
-
-			return new ObjectDataRecord(fields, isNull);
+			return new ObjectDataRecord(fields, fieldCount);
 		}
 
-		ObjectDataRecord(object[] fields, bool[] isNull) {
+		ObjectDataRecord(object[] fields, int fieldCount) {
 			this.values = fields;
-			this.isNull = isNull;
+			this.fieldCount = fieldCount;
 		}
 
-		public bool IsDBNull(int i) => isNull[i];
+		public bool IsDBNull(int i) => DBNull.Value == values[i];
 
 		public object GetValue(int i) => values[i];
 
@@ -457,7 +453,7 @@ namespace DataBoss.DataPackage
 
 		public object this[string name] => throw new NotImplementedException();
 
-		public int FieldCount => values.Length;
+		public int FieldCount => fieldCount;
 
 		public long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) {
 			throw new NotImplementedException();

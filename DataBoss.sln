@@ -3,16 +3,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.29102.190
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{6C61E09D-69AC-474F-8A80-18863A9662E8}"
-	ProjectSection(SolutionItems) = preProject
-		..\.editorconfig = ..\.editorconfig
-		..\DataBoss.props = ..\DataBoss.props
-		..\Tools\DataBoss.targets = ..\Tools\DataBoss.targets
-		..\Directory.Build.props = ..\Directory.Build.props
-		..\Package-Release.ps1 = ..\Package-Release.ps1
-		..\README.md = ..\README.md
-	EndProjectSection
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss", "Source\DataBoss\DataBoss.csproj", "{C4DBFE8D-3981-4F82-9B8B-E698B8CAF39A}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss.Cli", "Source\DataBoss.Cli\DataBoss.Cli.csproj", "{CB0CF2E4-62C9-49A6-8FB6-541AC177D135}"
@@ -34,6 +24,12 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss.Testing.SqlServer", "Source\DataBoss.Testing.SqlServer\DataBoss.Testing.SqlServer.csproj", "{A073C05F-7AF1-47E2-A85C-5C69F9E5E4A1}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{F8C97939-E25C-4531-8AA9-4E86C34CA8CB}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{AEDFA0C2-21B7-4411-BBB5-E38D813CD4CE}"
+	ProjectSection(SolutionItems) = preProject
+		DataBoss.props = DataBoss.props
+		Directory.Build.props = Directory.Build.props
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

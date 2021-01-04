@@ -4,9 +4,19 @@ namespace DataBoss.Data
 {
 	public class DataReaderSchemaRow
 	{
+		Type columnType;
+
 		public string ColumnName;
 		public int Ordinal;
-		public Type ColumnType;
+		public Type ColumnType 
+		{
+			get => columnType;
+			set {
+				this.columnType = value;
+				this.IsValueType = value.IsValueType;
+			}
+		}
+		public bool IsValueType { get; private set; }
 		public bool AllowDBNull;
 		public int? ColumnSize;
 		public string DataTypeName;
