@@ -24,7 +24,7 @@ namespace DataBoss.DataPackage
 		}
 
 		public static TabularDataResource From(DataPackageResourceDescription desc, Func<IDataReader> getData) =>
-			new TabularDataResource(desc.Name, desc.Schema, getData) { Delimiter = desc.Delimiter };
+			new TabularDataResource(desc.Name, desc.Schema, getData) { Delimiter = desc.Dialect?.Delimiter };
 
 		public int GetOrdinal(string name) => Schema.Fields.FindIndex(x => x.Name == name);
 

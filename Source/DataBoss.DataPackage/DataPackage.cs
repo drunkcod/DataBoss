@@ -81,7 +81,7 @@ namespace DataBoss.DataPackage
 				TabularDataResource.From(x, () =>
 					NewCsvDataReader(
 						new StreamReader(openRead(x.Path)),
-						x.Delimiter,
+						x.Dialect?.Delimiter,
 						x.Schema))));
 
 			return r;
@@ -99,7 +99,7 @@ namespace DataBoss.DataPackage
 						var source = new ZipArchive(openZip(), ZipArchiveMode.Read);
 						var csv = NewCsvDataReader(
 							new StreamReader(source.GetEntry(x.Path).Open()),
-							x.Delimiter,
+							x.Dialect?.Delimiter,
 							x.Schema);
 						csv.Disposed += delegate { source.Dispose(); };
 						return csv;
@@ -179,7 +179,7 @@ namespace DataBoss.DataPackage
 					description.Resources.Add(new DataPackageResourceDescription {
 						Name = item.Name, 
 						Path = Path.GetFileName(resourcePath),
-						Delimiter = delimiter,
+						Dialect = new CsvDialectDescription { Delimiter = delimiter },
 						Schema = new TabularDataSchema { 
 							Fields = fields,
 							PrimaryKey = NullIfEmpty(item.Schema.PrimaryKey),

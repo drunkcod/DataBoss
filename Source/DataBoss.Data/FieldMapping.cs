@@ -8,17 +8,6 @@ using System.Reflection;
 
 namespace DataBoss.Data
 {
-	[AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct)]
-	public class DbTypeAttribute : Attribute
-	{
-		public readonly Type Type;
-		public DbTypeAttribute(Type type) { this.Type = type; }
-	}
-
-	[AttributeUsage(AttributeTargets.Method)]
-	public class ConsiderAsCtorAttribute : Attribute
-	{ }
-
 	public class FieldMapping<T>
 	{
 		struct FieldMappingItem
@@ -31,7 +20,6 @@ namespace DataBoss.Data
 
 		readonly ParameterExpression source = Expression.Parameter(typeof(T), "source");
 		readonly ParameterExpression target = Expression.Parameter(typeof(object[]), "target");
-
 		readonly List<FieldMappingItem> mappings = new List<FieldMappingItem>();
 
 		public void MapAll() {

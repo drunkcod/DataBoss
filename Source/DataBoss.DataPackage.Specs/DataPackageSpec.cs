@@ -160,7 +160,7 @@ namespace DataBoss.DataPackage.Specs
 			var description = JsonConvert.DeserializeObject<DataPackageDescription>(Encoding.UTF8.GetString(bytes.ToArray()));
 			var dp2 = dp.Serialize();
 			Check.That(
-				() => description.Resources[0].Delimiter == "|",
+				() => description.Resources[0].Dialect.Delimiter == "|",
 				() => dp2.Resources[0].Delimiter == "|");
 		}
 
