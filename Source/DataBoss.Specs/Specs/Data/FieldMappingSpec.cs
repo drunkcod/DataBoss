@@ -45,6 +45,15 @@ namespace DataBoss.Data
 			Check.That(() => fieldMapping.GetAccessorExpression().Body.ToString() == "(target[0] = Convert(String.Empty))");
 		}
 
+		[Fact]
+		public void nullable_without_value_is_DBNull() {
+			var item = new { Value = (int?)null };
+			var fieldMapping = new FieldMapping(item.GetType());
+			fieldMapping.MapAll();
+
+			Check.That(() => fieldMapping.GetSelector(0).ToString() == "(source.Value ?? )");
+		}
+
 		#pragma warning disable CS0649
 		class MyThingWithStaticMember
 		{
