@@ -55,7 +55,7 @@ namespace DataBoss.Data
 			fieldMapping.MapAll();
 
 			Check.That(
-				() => fieldMapping.GetSelector(0).ToString() == "(source.Value ?? )",
+				() => fieldMapping.GetSelector(0).ToString() == "IIF(source.Value.HasValue, Convert(source.Value.Value), )",
 				() => fieldMapping.Invoke(nullItem).Single() == DBNull.Value,
 				() => fieldMapping.Invoke(item1).Single() == (object)item1.Value);
 		}

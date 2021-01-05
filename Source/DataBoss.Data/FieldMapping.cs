@@ -8,23 +8,27 @@ using System.Reflection;
 
 namespace DataBoss.Data
 {
+	readonly struct FieldMappingItem
+	{
+		public readonly string Name;
+		public readonly Type FieldType;
+		public readonly Expression HasValue;
+		public readonly Expression GetValue;
+		public readonly Expression Selector;
+		public readonly DataBossDbType DbType;
+
+		public FieldMappingItem(string name, Type fieldType, Expression hasValue, Expression getValue, Expression selector, DataBossDbType dbType) {
+			this.Name = name;
+			this.FieldType = fieldType;
+			this.HasValue = hasValue;
+			this.GetValue = getValue;
+			this.Selector = selector;
+			this.DbType = dbType;
+		}
+	}
+
 	public class FieldMapping
 	{
-		readonly struct FieldMappingItem
-		{
-			public readonly string Name;
-			public readonly Type FieldType;
-			public readonly Expression Selector;
-			public readonly DataBossDbType DbType;
-
-			public FieldMappingItem(string name, Type fieldType, Expression selector, DataBossDbType dbType) {
-				this.Name = name;
-				this.FieldType = fieldType;
-				this.Selector = selector;
-				this.DbType = dbType;
-			}
-		}
-
 		class NodeReplacementVisitor : ExpressionVisitor
 		{
 			readonly Dictionary<Expression, Expression> theReplacements = new Dictionary<Expression, Expression>();
@@ -55,6 +59,8 @@ namespace DataBoss.Data
 
 		public int Count => mappings.Count;
 
+		internal FieldMappingItem this[int index] => mappings[index];
+
 		public string[] GetFieldNames() => MissingLinq.ConvertAll(mappings, x => x.Name);
 		public Type[] GetFieldTypes() => MissingLinq.ConvertAll(mappings, x => x.FieldType);
 		public DataBossDbType[] GetDbTypes() => MissingLinq.ConvertAll(mappings, x => x.DbType);
@@ -78,17 +84,24 @@ namespace DataBoss.Data
 		}
 
 		protected int Map(string name, Type type, DataBossDbType dbType, Expression selector) {
+			Expression hasValue = null;
+			Expression getValue = null;
 			if (type.TryGetNullableTargetType(out var newTargetType)) {
+				hasValue = Expression.MakeMemberAccess(selector, type.GetProperty("HasValue"));
+				getValue = Expression.MakeMemberAccess(selector, type.GetProperty("Value"));
+				selector = Expression.Condition(
+					hasValue,
+					getValue.Box(),
+					Expression.Constant(DBNull.Value, typeof(object)));
 				type = newTargetType;
-				var xarg = Expression.Parameter(selector.Type, "x");
-				selector = Expression.Coalesce(selector, Expression.Constant(DBNull.Value, typeof(object)), 
-					Expression.Lambda(Expression.Convert(xarg, typeof(object)), xarg));
 			}
 
 			var ordinal = mappings.Count;
 			mappings.Add(new FieldMappingItem(
 				name,
 				type,
+				hasValue,
+				getValue,
 				Coerce(dbType, selector),
 				dbType));
 
