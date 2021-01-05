@@ -230,6 +230,7 @@ namespace DataBoss.DataPackage
 					return FormatDateTime;
 
 				case TypeCode.String: return FormatString;
+				case TypeCode.Boolean: return FormatBoolean;
 
 				case TypeCode.Int16: return (r, i) => r.GetInt16(i).ToString(format);
 				case TypeCode.Int32: return (r, i) => r.GetInt32(i).ToString(format);
@@ -251,6 +252,7 @@ namespace DataBoss.DataPackage
 		static string FormatTimeSpan(IDataRecord r, int i) => r.IsDBNull(i) ? null : ((TimeSpan)r.GetValue(i)).ToString("hh\\:mm\\:ss");
 		static string FormatBinary(IDataRecord r, int i) => r.IsDBNull(i) ? null : Convert.ToBase64String((byte[])r.GetValue(i));
 		static string FormatString(IDataRecord r, int i) => r.GetString(i);
+		static string FormatBoolean(IDataRecord r, int i) => r.GetBoolean(i).ToString();
 
 		static void WriteRecords(Stream output, string delimiter, IDataReader data, IReadOnlyList<TabularDataSchemaFieldDescription> fields, IReadOnlyList<IFormatProvider> format) {
 			var toString = new Func<IDataRecord, int, string>[data.FieldCount];
@@ -269,8 +271,7 @@ namespace DataBoss.DataPackage
 			});
 
 			var reader = new RecordReader(data, records);
-			var writer = new ChunkWriter(records, chunks) {
-				Encoding = new UTF8Encoding(false),
+			var writer = new ChunkWriter(records, chunks, new UTF8Encoding(false)) {
 				Delimiter = delimiter,
 				FormatValue = toString,					
 			};
@@ -364,44 +365,55 @@ namespace DataBoss.DataPackage
 		{
 			readonly ChannelReader<IReadOnlyCollection<IDataRecord>> records;
 			readonly ChannelWriter<MemoryStream> chunks;
+			readonly Encoding encoding;
+			readonly int bomLength;
+			int chunkCapacity = 4 * 4096; 
 
-			public ChunkWriter(ChannelReader<IReadOnlyCollection<IDataRecord>> records, ChannelWriter<MemoryStream> chunks) {
+			public ChunkWriter(ChannelReader<IReadOnlyCollection<IDataRecord>> records, ChannelWriter<MemoryStream> chunks, Encoding encoding) {
 				this.records = records;
 				this.chunks = chunks;
+				this.encoding = encoding;
+				this.bomLength = encoding.GetPreamble().Length;
 			}
 
 			public Func<IDataRecord, int, string>[] FormatValue;
-			public Encoding Encoding;
 			public string Delimiter;
+			public int MaxWorkers = 1;
 
 			protected override void DoWork() {
-				var bom = Encoding.GetPreamble();
+				if (MaxWorkers == 1)
+					records.ForEach(WriteRecords);
+				else 
+					records.GetConsumingEnumerable().AsParallel()
+						.WithDegreeOfParallelism(MaxWorkers)
+						.ForAll(WriteRecords);
+			}
 
-				void WriteChunk(MemoryStream chunk) {
-					chunk.Position = bom.Length;
-					chunks.Write(chunk);
-				}
+			void WriteRecords(IReadOnlyCollection<IDataRecord> item) {
+				if (item.Count == 0)
+					return;
 
-				records.ForEach(item => {
-					if (item.Count == 0)
-						return;
-
-					var chunk = new MemoryStream(4 * 4096);
-
-					using (var fragment = NewCsvWriter(chunk, Encoding, Delimiter)) {
-						foreach (var r in item) {
-							for (var i = 0; i != r.FieldCount; ++i) {
-								if (r.IsDBNull(i))
-									fragment.NextField();
-								else
-									fragment.WriteField(FormatValue[i](r, i));
-							}
-							fragment.NextRecord();
+				var chunk = new MemoryStream(chunkCapacity);
+				using (var fragment = NewCsvWriter(chunk, encoding, Delimiter)) {
+					foreach (var r in item) {
+						for (var i = 0; i != r.FieldCount; ++i) {
+							if (r.IsDBNull(i))
+								fragment.NextField();
+							else
+								fragment.WriteField(FormatValue[i](r, i));
 						}
+						fragment.NextRecord();
 					}
-					if (chunk.Position != 0)
-						WriteChunk(chunk);
-				});
+				}
+				if (chunk.Position != 0) {
+					chunkCapacity = Math.Max(chunkCapacity, chunk.Capacity);
+					WriteChunk(chunk);
+				}
+			}
+
+			void WriteChunk(MemoryStream chunk) {
+				chunk.Position = bomLength;
+				chunks.Write(chunk);
 			}
 
 			protected override void Cleanup() =>
