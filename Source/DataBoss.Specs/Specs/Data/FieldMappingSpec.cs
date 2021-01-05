@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Linq.Expressions;
 using CheckThat;
 using Xunit;
@@ -9,7 +10,8 @@ namespace DataBoss.Data
 	{
 		class MyThing
 		{
-			public int Value;
+			public int Field;
+			public double Prop { get; set; }
 		}
 
 		[Fact]
@@ -21,10 +23,10 @@ namespace DataBoss.Data
 		[Fact]
 		public void untyped_lambda_mapping() {
 			var fieldMapping = new FieldMapping<MyThing>();
-			fieldMapping.Map("LambdaValue", MakeLambda((MyThing x) => x.Value));
+			fieldMapping.Map("LambdaValue", MakeLambda((MyThing x) => x.Field));
 			var accessor = fieldMapping.GetAccessor();
 			var result = new object[1];
-			accessor(new MyThing { Value = 1 }, result);
+			accessor(new MyThing { Field = 1 }, result);
 			Check.That(() => (int)result[0] == 1);
 		}
 
@@ -46,12 +48,29 @@ namespace DataBoss.Data
 		}
 
 		[Fact]
-		public void nullable_without_value_is_DBNull() {
-			var item = new { Value = (int?)null };
-			var fieldMapping = new FieldMapping(item.GetType());
+		public void nullable() {
+			var nullItem = new { Value = (int?)null };
+			var item1 = new { Value = (int?)1 };
+			var fieldMapping = new FieldMapping(nullItem.GetType());
 			fieldMapping.MapAll();
 
-			Check.That(() => fieldMapping.GetSelector(0).ToString() == "(source.Value ?? )");
+			Check.That(
+				() => fieldMapping.GetSelector(0).ToString() == "(source.Value ?? )",
+				() => fieldMapping.Invoke(nullItem).Single() == DBNull.Value,
+				() => fieldMapping.Invoke(item1).Single() == (object)item1.Value);
+		}
+
+		[Fact]
+		public void primitive_types_selector_retains_type() {
+			var fieldMapping = new FieldMapping<MyThing>();
+			var field = fieldMapping.Map(x => x.Field);
+			var prop = fieldMapping.Map(x => x.Prop);
+			var str = fieldMapping.Map("Hello", x => "Hello");
+
+			Check.That(
+				() => fieldMapping.GetSelector(field).Type == typeof(int),
+				() => fieldMapping.GetSelector(prop).Type == typeof(double),
+				() => fieldMapping.GetSelector(str).Type == typeof(string));
 		}
 
 		#pragma warning disable CS0649

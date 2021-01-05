@@ -10,12 +10,19 @@ namespace DataBoss.Data
 {
 	public class FieldMapping
 	{
-		struct FieldMappingItem
+		readonly struct FieldMappingItem
 		{
-			public string Name;
-			public Type FieldType;
-			public Expression Selector;
-			public DataBossDbType DbType;
+			public readonly string Name;
+			public readonly Type FieldType;
+			public readonly Expression Selector;
+			public readonly DataBossDbType DbType;
+
+			public FieldMappingItem(string name, Type fieldType, Expression selector, DataBossDbType dbType) {
+				this.Name = name;
+				this.FieldType = fieldType;
+				this.Selector = selector;
+				this.DbType = dbType;
+			}
 		}
 
 		class NodeReplacementVisitor : ExpressionVisitor
@@ -44,8 +51,9 @@ namespace DataBoss.Data
 			this.Source = Expression.Parameter(sourceType, "source");
 			this.Target = Expression.Parameter(typeof(object[]), "target");
 			this.mappings = new List<FieldMappingItem>();
-
 		}
+
+		public int Count => mappings.Count;
 
 		public string[] GetFieldNames() => MissingLinq.ConvertAll(mappings, x => x.Name);
 		public Type[] GetFieldTypes() => MissingLinq.ConvertAll(mappings, x => x.FieldType);
@@ -58,12 +66,10 @@ namespace DataBoss.Data
 				Map(item);
 		}
 
-		public int Map(string memberName) {
-			var memberInfo = SourceType.GetField(memberName) as MemberInfo ?? SourceType.GetProperty(memberName);
-			if (memberInfo == null)
-				throw new InvalidOperationException($"Can't find public field or property '{memberName}'");
-			return Map(memberInfo);
-		}
+		public int Map(string memberName) =>
+			Map(SourceType.GetField(memberName) as MemberInfo 
+				?? SourceType.GetProperty(memberName)
+				?? throw new InvalidOperationException($"Can't find public field or property '{memberName}'"));
 
 		public int Map(MemberInfo memberInfo) {
 			var m = CoerceToDbType(Expression.MakeMemberAccess(Source, memberInfo));
@@ -78,21 +84,24 @@ namespace DataBoss.Data
 				selector = Expression.Coalesce(selector, Expression.Constant(DBNull.Value, typeof(object)), 
 					Expression.Lambda(Expression.Convert(xarg, typeof(object)), xarg));
 			}
+
 			var ordinal = mappings.Count;
-			mappings.Add(new FieldMappingItem {
-				Name = name,
-				FieldType = type,
-				Selector = Coerce(dbType, selector),
-				DbType = dbType,
-			});
+			mappings.Add(new FieldMappingItem(
+				name,
+				type,
+				Coerce(dbType, selector),
+				dbType));
+
 			return ordinal;
 		}
 
 		public int Map(string name, LambdaExpression selector) {
 			if (selector.Parameters.Count != 1)
 				throw new InvalidOperationException($"{nameof(LambdaExpression)} must have exactly one parameter for field '{name}'");
+			
 			if (selector.Parameters[0].Type != SourceType)
 				throw new InvalidOperationException($"Wrong paramter type, expected {SourceType}");
+			
 			var replacer = new NodeReplacementVisitor();
 			replacer.AddReplacement(selector.Parameters[0], Source);
 			return Map(name,
@@ -107,6 +116,7 @@ namespace DataBoss.Data
 		public Expression GetAccessorBody() {
 			if(mappings.Count == 1)
 				return AssignTarget(0, mappings[0].Selector);
+			
 			var assignments = new Expression[mappings.Count];
 			for (var i = 0; i != mappings.Count; ++i)
 				assignments[i] = AssignTarget(i, mappings[i].Selector);
@@ -135,6 +145,12 @@ namespace DataBoss.Data
 			dbType = null;
 			return false;
 		}
+
+		public object[] Invoke(object obj) {
+			var r = new object[Count];
+			Expression.Lambda(GetAccessorBody(), Source, Target).Compile().DynamicInvoke(obj, r);
+			return r;
+		}
 	}
 
 	public class FieldMapping<T> : FieldMapping
@@ -160,6 +176,7 @@ namespace DataBoss.Data
 		public int Map<TMember>(Expression<Func<T,TMember>> selector) {
 			if(selector.Body.NodeType != ExpressionType.MemberAccess)
 				throw new NotSupportedException();
+			
 			var m = (MemberExpression)selector.Body;
 			return Map(m.Member);
 		}
