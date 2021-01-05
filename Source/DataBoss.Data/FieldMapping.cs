@@ -41,8 +41,8 @@ namespace DataBoss.Data
 			}
 		}
 
-		protected readonly ParameterExpression Source;
-		protected ParameterExpression Target;
+		public readonly ParameterExpression Source;
+		protected readonly ParameterExpression Target;
 		protected Type SourceType => Source.Type;
 
 		readonly List<FieldMappingItem> mappings;

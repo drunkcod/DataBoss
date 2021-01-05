@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Channels;
+using DataBoss.Data;
 using DataBoss.DataPackage.Types;
 using DataBoss.Linq;
 using Newtonsoft.Json;
@@ -258,7 +259,7 @@ namespace DataBoss.DataPackage
 
 			WriteHeaderRecord(output, Encoding.UTF8, delimiter, data);
 
-			var records = Channel.CreateBounded<IReadOnlyCollection<ObjectDataRecord>>(new BoundedChannelOptions(1024) {
+			var records = Channel.CreateBounded<IReadOnlyCollection<IDataRecord>>(new BoundedChannelOptions(1024) {
 				SingleWriter = true,
 			});
 
@@ -328,11 +329,11 @@ namespace DataBoss.DataPackage
 		{
 			public const int BufferRows = 8192;
 
-			readonly IDataReader reader;
-			readonly ChannelWriter<IReadOnlyCollection<ObjectDataRecord>> writer;
+			readonly IDataRecordReader reader;
+			readonly ChannelWriter<IReadOnlyCollection<IDataRecord>> writer;
  
-			public RecordReader(IDataReader reader, ChannelWriter<IReadOnlyCollection<ObjectDataRecord>> writer) {
-				this.reader = reader;
+			public RecordReader(IDataReader reader, ChannelWriter<IReadOnlyCollection<IDataRecord>> writer) {
+				this.reader = reader as IDataRecordReader ?? new ObjectDataRecordReader(reader);
 				this.writer = writer;
 			}
 
@@ -340,7 +341,7 @@ namespace DataBoss.DataPackage
 				var values = CreateBuffer();
 				var n = 0;
 				while (reader.Read()) {
-					values.Add(ObjectDataRecord.GetRecord(reader));
+					values.Add(reader.GetRecord());
 
 					if (++n == BufferRows) {
 						writer.Write(values);
@@ -353,7 +354,7 @@ namespace DataBoss.DataPackage
 					writer.Write(values);
 			}
 
-			List<ObjectDataRecord> CreateBuffer() => new List<ObjectDataRecord>(BufferRows);
+			List<IDataRecord> CreateBuffer() => new List<IDataRecord>(BufferRows);
 
 			protected override void Cleanup() =>
 				writer.Complete();
@@ -361,10 +362,10 @@ namespace DataBoss.DataPackage
 
 		class ChunkWriter : WorkItem
 		{
-			readonly ChannelReader<IReadOnlyCollection<ObjectDataRecord>> records;
+			readonly ChannelReader<IReadOnlyCollection<IDataRecord>> records;
 			readonly ChannelWriter<MemoryStream> chunks;
 
-			public ChunkWriter(ChannelReader<IReadOnlyCollection<ObjectDataRecord>> records, ChannelWriter<MemoryStream> chunks) {
+			public ChunkWriter(ChannelReader<IReadOnlyCollection<IDataRecord>> records, ChannelWriter<MemoryStream> chunks) {
 				this.records = records;
 				this.chunks = chunks;
 			}
@@ -406,6 +407,19 @@ namespace DataBoss.DataPackage
 			protected override void Cleanup() =>
 				chunks.Complete();
 		}
+	}
+
+	class ObjectDataRecordReader : IDataRecordReader
+	{
+		readonly IDataReader reader;
+
+		public ObjectDataRecordReader(IDataReader reader) {
+			this.reader = reader;
+		}
+
+		public IDataRecord GetRecord() => ObjectDataRecord.GetRecord(reader);
+
+		public bool Read() => reader.Read();
 	}
 
 	class ObjectDataRecord : IDataRecord
