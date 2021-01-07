@@ -9,7 +9,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Channels;
 using DataBoss.Data;
-using DataBoss.DataPackage.Types;
 using DataBoss.Linq;
 using Newtonsoft.Json;
 
@@ -95,18 +94,30 @@ namespace DataBoss.DataPackage
 			var r = new DataPackage();
 			var description = LoadZipPackageDescription(openZip);
 			r.Resources.AddRange(description.Resources.Select(x => 
-				TabularDataResource.From(x,
-					() => {
-						var source = new ZipArchive(openZip(), ZipArchiveMode.Read);
-						var csv = NewCsvDataReader(
-							new StreamReader(source.GetEntry(x.Path).Open()),
-							x.Dialect?.Delimiter,
-							x.Schema);
-						csv.Disposed += delegate { source.Dispose(); };
-						return csv;
-					})));
+				TabularDataResource.From(x, new ZipResource(openZip, x).GetData)));
 
 			return r;
+		}
+
+		class ZipResource
+		{
+			readonly Func<Stream> openZip;
+			readonly DataPackageResourceDescription resource;
+
+			public ZipResource(Func<Stream> openZip, DataPackageResourceDescription resource) {
+				this.openZip = openZip;
+				this.resource = resource;
+			}
+
+			public IDataReader GetData() {
+				var source = new ZipArchive(openZip(), ZipArchiveMode.Read);
+				var csv = NewCsvDataReader(
+					new StreamReader(new BufferedStream(source.GetEntry(resource.Path).Open(), 81920)),
+					resource.Dialect?.Delimiter,
+					resource.Schema);
+				csv.Disposed += delegate { source.Dispose(); };
+				return csv;
+			}
 		}
 
 		static DataPackageDescription LoadZipPackageDescription(Func<Stream> openZip) {
@@ -120,7 +131,7 @@ namespace DataBoss.DataPackage
 			new CsvDataReader(
 				new CsvHelper.CsvReader(
 					reader,
-					new CsvHelper.Configuration.CsvConfiguration(CultureInfo.CurrentCulture) { Delimiter = delimiter }),
+					new CsvHelper.Configuration.CsvConfiguration(CultureInfo.InvariantCulture) { Delimiter = delimiter }),
 				schema);
 
 		public IDataPackageResourceBuilder AddResource(string name, Func<IDataReader> getData)
@@ -229,7 +240,7 @@ namespace DataBoss.DataPackage
 				SingleReader = true,
 			});
 
-			var reader = new RecordReader(data, records);
+			var reader = new RecordReader(data.AsDataRecordReader(), records);
 			var writer = new ChunkWriter(records, chunks, new UTF8Encoding(false)) {
 				Delimiter = delimiter,
 				FormatValue = toString,					
@@ -292,8 +303,8 @@ namespace DataBoss.DataPackage
 			readonly IDataRecordReader reader;
 			readonly ChannelWriter<IReadOnlyCollection<IDataRecord>> writer;
  
-			public RecordReader(IDataReader reader, ChannelWriter<IReadOnlyCollection<IDataRecord>> writer) {
-				this.reader = reader as IDataRecordReader ?? new ObjectDataRecordReader(reader);
+			public RecordReader(IDataRecordReader reader, ChannelWriter<IReadOnlyCollection<IDataRecord>> writer) {
+				this.reader = reader;
 				this.writer = writer;
 			}
 
@@ -377,99 +388,6 @@ namespace DataBoss.DataPackage
 
 			protected override void Cleanup() =>
 				chunks.Complete();
-		}
-	}
-
-	class ObjectDataRecordReader : IDataRecordReader
-	{
-		readonly IDataReader reader;
-
-		public ObjectDataRecordReader(IDataReader reader) {
-			this.reader = reader;
-		}
-
-		public IDataRecord GetRecord() => ObjectDataRecord.GetRecord(reader);
-
-		public bool Read() => reader.Read();
-	}
-
-	class ObjectDataRecord : IDataRecord
-	{
-		readonly object[] values;
-		readonly int fieldCount;
-
-		public static ObjectDataRecord GetRecord(IDataReader reader) {
-			var fieldCount = reader.FieldCount;
-			var fields = new object[fieldCount];
-			
-			for (var i = 0; i != fieldCount; ++i)
-				fields[i] = reader.IsDBNull(i) ? DBNull.Value : reader.GetValue(i);
-
-			return new ObjectDataRecord(fields, fieldCount);
-		}
-
-		ObjectDataRecord(object[] fields, int fieldCount) {
-			this.values = fields;
-			this.fieldCount = fieldCount;
-		}
-
-		public bool IsDBNull(int i) => DBNull.Value == values[i];
-
-		public object GetValue(int i) => values[i];
-
-		public bool GetBoolean(int i) => (bool)values[i];
-		public DateTime GetDateTime(int i) => (DateTime)values[i];
-		public Guid GetGuid(int i) => (Guid)values[i];
-
-		public byte GetByte(int i) => (byte)values[i];
-		public char GetChar(int i) => (char)values[i];
-
-		public short GetInt16(int i) => (short)values[i];
-		public int GetInt32(int i) => (int)values[i];
-		public long GetInt64(int i) => (long)values[i];
-
-		public float GetFloat(int i) => (float)values[i];
-		public double GetDouble(int i) => (double)values[i];
-		public decimal GetDecimal(int i) => (decimal)values[i];
-
-		public string GetString(int i) => (string)values[i];
-
-		public object this[int i] => GetValue(i);
-
-		public object this[string name] => throw new NotImplementedException();
-
-		public int FieldCount => fieldCount;
-
-		public long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) {
-			throw new NotImplementedException();
-		}
-
-		public long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) {
-			throw new NotImplementedException();
-		}
-
-		public IDataReader GetData(int i) {
-			throw new NotImplementedException();
-		}
-
-		public string GetDataTypeName(int i) {
-			throw new NotImplementedException();
-		}
-
-		public Type GetFieldType(int i) {
-			throw new NotImplementedException();
-		}
-
-		public string GetName(int i) {
-			throw new NotImplementedException();
-		}
-
-		public int GetOrdinal(string name) {
-			throw new NotImplementedException();
-		}
-
-		public int GetValues(object[] values) {
-			throw new NotImplementedException();
 		}
 	}
 }

@@ -5,16 +5,98 @@ using DataBoss.Data;
 
 namespace DataBoss.DataPackage
 {
-	public class CsvDataReader : IDataReader
+
+	public class CsvDataReader : IDataReader, IDataRecordReader
 	{
+		class CsvDataRecord : IDataRecord
+		{
+			readonly string[] fieldValue;
+			readonly bool[] isNull;
+			readonly CsvDataReader parent;
+			int rowNumber;
+
+			public CsvDataRecord(CsvDataReader parent, int rowNumber, bool[] isNull, string[] fieldValue) {
+				this.isNull = isNull;
+				this.fieldValue = fieldValue;
+				this.parent = parent;
+				this.rowNumber = rowNumber;
+			}
+
+			public CsvDataRecord Clone() => new CsvDataRecord(parent, rowNumber, (bool[])isNull.Clone(), (string[])fieldValue.Clone());
+
+			public void Fill(int rowNumber, CsvReader csv) {
+				this.rowNumber = rowNumber;
+				for (var i = 0; i != FieldCount; ++i) {
+					var value = fieldValue[i] = csv.GetField(i);
+					isNull[i] = IsNull(value);
+				}
+			}
+
+			public object this[int i] => GetValue(i);
+			public object this[string name] => GetValue(GetOrdinal(name));
+
+			public int FieldCount => fieldValue.Length;
+
+			public object GetValue(int i) {
+				if (CheckedIsNull(i))
+					return DBNull.Value;
+
+				try {
+					return ChangeType(fieldValue[i], parent.GetFieldType(i), parent.fieldFormat[i]);
+				}
+				catch (FormatException ex) {
+					var given = isNull[i] ? "null" : $"'{fieldValue[i]}'";
+					throw new InvalidOperationException($"Failed to parse {parent.GetName(i)} of type {parent.GetFieldType(i)} given {given} on line {rowNumber}", ex);
+				}
+			}
+			
+			bool CheckedIsNull(int i) {
+				if (isNull[i])
+					return parent.IsNullable(i) ? true : throw new InvalidOperationException($"Unexpected null value for {parent.GetName(i)} on line {rowNumber}.");
+				return false;
+			}
+
+			public bool IsDBNull(int i) => isNull[i];
+
+			public bool GetBoolean(int i) => (bool)GetValue(i);
+			public byte GetByte(int i) => (byte)GetValue(i);
+			public char GetChar(int i) => (char)GetValue(i);
+			public Guid GetGuid(int i) => (Guid)GetValue(i);
+			public short GetInt16(int i) => CheckedIsNull(i) ? default : short.Parse(fieldValue[i], parent.fieldFormat[i]);
+			public int GetInt32(int i) => CheckedIsNull(i) ? default : int.Parse(fieldValue[i], parent.fieldFormat[i]);
+			public long GetInt64(int i) => CheckedIsNull(i) ? default : long.Parse(fieldValue[i], parent.fieldFormat[i]);
+			public float GetFloat(int i) => CheckedIsNull(i) ? default : float.Parse(fieldValue[i], parent.fieldFormat[i]);
+			public double GetDouble(int i) => CheckedIsNull(i) ? default : double.Parse(fieldValue[i], parent.fieldFormat[i]);
+			public string GetString(int i) => CheckedIsNull(i) ? default : fieldValue[i];
+			public decimal GetDecimal(int i) => CheckedIsNull(i) ? default : decimal.Parse(fieldValue[i], parent.fieldFormat[i]);
+			public DateTime GetDateTime(int i) => (DateTime)GetValue(i);
+			public TimeSpan GetTimeSpan(int i) => CheckedIsNull(i) ? default : TimeSpan.Parse(fieldValue[i], parent.fieldFormat[i]);
+
+			public int GetValues(object[] values) {
+				var n = Math.Min(FieldCount, values.Length);
+				for (var i = 0; i != n; ++i)
+					values[i] = GetValue(i);
+				return n;
+			}
+
+			public IDataReader GetData(int i) => throw new NotSupportedException();
+			public long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
+			public long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
+
+			public string GetDataTypeName(int i) => parent.GetDataTypeName(i);
+			public Type GetFieldType(int i) => parent.GetFieldType(i);
+			public string GetName(int i) => parent.GetName(i);
+			public int GetOrdinal(string name) => parent.GetOrdinal(name);
+		}
+
+		readonly IFormatProvider[] fieldFormat;
+		int rowNumber;
+		readonly CsvDataRecord current;
+
 		readonly CsvReader csv;
 		readonly DataReaderSchemaTable schema;
 		readonly string[] primaryKey;
 		readonly DataBossDbType[] dbTypes;
-		readonly IFormatProvider[] fieldFormat;
-
-		readonly bool[] isNull;
-		int rowNumber;
 	
 		public event EventHandler Disposed;
 
@@ -32,7 +114,8 @@ namespace DataBoss.DataPackage
 				if(field.IsNumber())
 					fieldFormat[i] = field.GetNumberFormat();
 			}
-			this.isNull = new bool[FieldCount];
+
+			this.current = new CsvDataRecord(this, 0, new bool[FieldCount], new string[FieldCount]);
 
 			if (hasHeaderRow)
 				ValidateHeaderRow();
@@ -85,29 +168,18 @@ namespace DataBoss.DataPackage
 			var ok = ReadRow();
 			if(!ok)
 				return false;
-			for (var i = 0; i != FieldCount; ++i)
-				isNull[i] = IsNull(csv.GetField(i));
+			current.Fill(rowNumber, csv);
 			return true;
 		}
 
 		static bool IsNull(string input) => string.IsNullOrEmpty(input);
 
+		bool IsNullable(int i) => dbTypes[i].IsNullable;
+
 		public bool NextResult() => false;
 
-		public object GetValue(int i) {
-			if (CheckedIsNull(i))
-				return DBNull.Value;
-			
-			try {
-				return ChangeType(csv.GetField(i), GetFieldType(i), fieldFormat[i]);
-			}
-			catch (FormatException ex) {
-				var given = isNull[i] ? "null" : $"'{csv.GetField(i)}'";
-				throw new InvalidOperationException($"Failed to parse {GetName(i)} of type {GetFieldType(i)} given {given} on line {rowNumber}", ex);
-			}
-		}
 
-		object ChangeType(string input, Type type, IFormatProvider format) {
+		static object ChangeType(string input, Type type, IFormatProvider format) {
 			switch(Type.GetTypeCode(type)) {
 				case TypeCode.DateTime:
 					return DateTime.Parse(input, format);
@@ -121,12 +193,6 @@ namespace DataBoss.DataPackage
 			}
 			
 			return Convert.ChangeType(input, type, format);
-		}
-
-		bool CheckedIsNull(int i) {
-			if (isNull[i])
-				return dbTypes[i].IsNullable ? true : throw new InvalidOperationException($"Unexpected null value for {GetName(i)} on line {rowNumber}.");
-			return false;
 		}
 
 		public Type GetFieldType(int i) => schema[i].ColumnType;
@@ -143,25 +209,26 @@ namespace DataBoss.DataPackage
 			Disposed?.Invoke(this, EventArgs.Empty);
 		}
 
-		public bool IsDBNull(int i) => isNull[i];
+		public object GetValue(int i) => current.GetValue(i);
+		public bool IsDBNull(int i) => current.IsDBNull(i);
 
 		int IDataReader.Depth => throw new NotSupportedException();
 		bool IDataReader.IsClosed => throw new NotSupportedException();
 		int IDataReader.RecordsAffected => throw new NotSupportedException();
 
-		public bool GetBoolean(int i) => (bool)GetValue(i);
-		public byte GetByte(int i) => (byte)GetValue(i);
-		public char GetChar(int i) => (char)GetValue(i);
-		public Guid GetGuid(int i) => (Guid)GetValue(i);
-		public short GetInt16(int i) => CheckedIsNull(i) ? default : short.Parse(csv.GetField(i), fieldFormat[i]);
-		public int GetInt32(int i) => CheckedIsNull(i) ? default : int.Parse(csv.GetField(i), fieldFormat[i]);
-		public long GetInt64(int i) => CheckedIsNull(i) ? default : long.Parse(csv.GetField(i), fieldFormat[i]);
-		public float GetFloat(int i) => CheckedIsNull(i) ? default : float.Parse(csv.GetField(i), fieldFormat[i]);
-		public double GetDouble(int i) => CheckedIsNull(i) ? default : double.Parse(csv.GetField(i), fieldFormat[i]);
-		public string GetString(int i) => CheckedIsNull(i) ? default: csv.GetField(i);
-		public decimal GetDecimal(int i) => CheckedIsNull(i) ? default : decimal.Parse(csv.GetField(i), fieldFormat[i]);
-		public DateTime GetDateTime(int i) => (DateTime)GetValue(i);
-		public TimeSpan GetTimeSpan(int i) => CheckedIsNull(i) ? default : TimeSpan.Parse(csv.GetField(i), fieldFormat[i]);
+		public bool GetBoolean(int i) => current.GetBoolean(i);
+		public byte GetByte(int i) => current.GetByte(i);
+		public char GetChar(int i) => current.GetChar(i);
+		public Guid GetGuid(int i) => current.GetGuid(i);
+		public short GetInt16(int i) => current.GetInt16(i);
+		public int GetInt32(int i) => current.GetInt32(i);
+		public long GetInt64(int i) => current.GetInt64(i);
+		public float GetFloat(int i) => current.GetFloat(i);
+		public double GetDouble(int i) => current.GetDouble(i);
+		public string GetString(int i) => current.GetString(i);
+		public decimal GetDecimal(int i) => current.GetDecimal(i);
+		public DateTime GetDateTime(int i) => current.GetDateTime(i);
+		public TimeSpan GetTimeSpan(int i) => current.GetTimeSpan(i);
 
 		public int GetValues(object[] values) {
 			var n = Math.Min(FieldCount, values.Length);
@@ -173,5 +240,7 @@ namespace DataBoss.DataPackage
 		public IDataReader GetData(int i) => throw new NotSupportedException();
 		public long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
 		public long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
+
+		public IDataRecord GetRecord() => current.Clone();
 	}
 }

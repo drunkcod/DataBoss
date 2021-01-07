@@ -25,12 +25,6 @@ namespace DataBoss.Data
 		public static IDataReader ToDataReader<T>(this IEnumerable<T> data) => Create(data); 
 	}
 
-	public interface IDataRecordReader
-	{
-		bool Read();
-		IDataRecord GetRecord();
-	}
-
 	public class SequenceDataReader<T> : IDataReader, IDataRecordReader
 	{
 		abstract class ColumnAccessor
@@ -312,7 +306,6 @@ namespace DataBoss.Data
 				return false;
 			var x = accessors[i].GetValue(item);
 			return (field.IsValueType == false && x == null) || (DBNull.Value == x);
-
 		}
 
 		int IDataReader.Depth => throw new NotSupportedException();
