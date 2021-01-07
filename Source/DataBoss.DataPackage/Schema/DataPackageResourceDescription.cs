@@ -1,3 +1,4 @@
+using System;
 using Newtonsoft.Json;
 
 namespace DataBoss.DataPackage
@@ -8,6 +9,11 @@ namespace DataBoss.DataPackage
 		public string Name;
 		[JsonProperty("path")]
 		public string Path;
+
+		[Obsolete("Use Dialect.Delimiter instead."), JsonProperty("delimiter")]
+		public string Delimiter {
+			set => (Dialect ??= new CsvDialectDescription()).Delimiter = value;
+		}
 
 		[JsonProperty("dialect")]
 		public CsvDialectDescription Dialect;
@@ -20,6 +26,5 @@ namespace DataBoss.DataPackage
 	{
 		[JsonProperty("delimiter")]
 		public string Delimiter;
-
 	}
 }
