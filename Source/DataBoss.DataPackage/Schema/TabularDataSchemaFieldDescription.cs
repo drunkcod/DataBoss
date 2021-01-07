@@ -57,9 +57,7 @@ namespace DataBoss.DataPackage
 
 		public static NumberFormatInfo GetNumberFormat(this TabularDataSchemaFieldDescription field) => 
 			string.IsNullOrEmpty(field.DecimalChar)
-				? DefaultNumberFormat
-				: new NumberFormatInfo {
-					NumberDecimalSeparator = field.DecimalChar,
-				};
+			? DefaultNumberFormat
+			: new NumberFormatInfo { NumberDecimalSeparator = field.DecimalChar };
 	}
 }

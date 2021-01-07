@@ -15,7 +15,7 @@ using Newtonsoft.Json;
 
 namespace DataBoss.DataPackage
 {
-	public class DataPackage : IDataPackageBuilder
+	public partial class DataPackage : IDataPackageBuilder
 	{
 		public const string DefaultDelimiter = ";";
 
@@ -154,26 +154,30 @@ namespace DataBoss.DataPackage
 		public void Save(Func<string, Stream> createOutput, CultureInfo culture = null) {
 			var description = new DataPackageDescription();
 			var decimalCharOverride = culture != null ? culture.NumberFormat.NumberDecimalSeparator : null;
+			var defaultFormatter = new RecordFormatter(culture ?? CultureInfo.InvariantCulture);
+
 			foreach (var item in Resources) {
 				var resourcePath = $"{item.Name}.csv";
 				using (var output = createOutput(resourcePath))
 				using (var data = item.Read()) {
-					var format = Enumerable.Repeat(culture ?? CultureInfo.CurrentCulture, data.FieldCount).Cast<IFormatProvider>().ToArray();
+					var fieldCount = item.Schema.Fields.Count;
+					var fields = new List<TabularDataSchemaFieldDescription>(fieldCount);
+					var toString = new Func<IDataRecord, int, string>[fieldCount];
 
-					var fields = new List<TabularDataSchemaFieldDescription>(item.Schema.Fields.Count);
-					for(var i = 0; i != item.Schema.Fields.Count; ++i) {
-						var x = item.Schema.Fields[i];
-						if (!x.IsNumber())
-							fields.Add(x);
-						else {
-							var customFormat = new TabularDataSchemaFieldDescription(
-								x.Name,
-								x.Type,
-								constraints: x.Constraints,
-								decimalChar: decimalCharOverride ?? x.DecimalChar);
-							format[i] = customFormat.GetNumberFormat();
-							fields.Add(customFormat);
+					for (var i = 0; i != fieldCount; ++i) {
+						var field = item.Schema.Fields[i];
+						var fieldFormatter = defaultFormatter;
+						if (field.IsNumber()) {
+							field = new TabularDataSchemaFieldDescription(
+								field.Name,
+								field.Type,
+								constraints: field.Constraints,
+								decimalChar: decimalCharOverride ?? field.DecimalChar);
+							fieldFormatter = new RecordFormatter(field.GetNumberFormat());
 						}
+
+						fields.Add(field);
+						toString[i] = fieldFormatter.GetFormatter(data.GetFieldType(i), field);
 					}
 
 					var delimiter = item.Delimiter ?? DefaultDelimiter;
@@ -188,7 +192,7 @@ namespace DataBoss.DataPackage
 						},
 					});
 					try {
-						WriteRecords(output, delimiter, data, fields, format);
+						WriteRecords(output, delimiter, data, toString);
 					} catch(Exception ex) {
 						throw new Exception($"Failed writing {item.Name}.", ex);
 					}
@@ -212,52 +216,7 @@ namespace DataBoss.DataPackage
 		static CsvWriter NewCsvWriter(Stream stream, Encoding encoding, string delimiter) => 
 			new CsvWriter(new StreamWriter(stream, encoding, 4096, leaveOpen: true), delimiter);
 
-		static Func<IDataRecord, int, string> GetFormatter(Type type, TabularDataSchemaFieldDescription fieldDescription, IFormatProvider format) {
-			switch (Type.GetTypeCode(type)) {
-				default: 
-					if(type == typeof(TimeSpan))
-						return FormatTimeSpan;
-					if(type == typeof(byte[]))
-						return FormatBinary;
-					return (r, i) => {
-						var obj = r.GetValue(i);
-						return obj is IFormattable x ? x.ToString(null, format) : obj?.ToString();
-					};
-
-				case TypeCode.DateTime:
-					if(fieldDescription.Type == "date")
-						return FormatDate;
-					return FormatDateTime;
-
-				case TypeCode.String: return FormatString;
-				case TypeCode.Boolean: return FormatBoolean;
-
-				case TypeCode.Int16: return (r, i) => r.GetInt16(i).ToString(format);
-				case TypeCode.Int32: return (r, i) => r.GetInt32(i).ToString(format);
-				case TypeCode.Int64: return (r, i) => r.GetInt64(i).ToString(format);
-
-				case TypeCode.Single: return (r, i) => r.GetFloat(i).ToString(format);
-				case TypeCode.Double: return (r, i) => r.GetDouble(i).ToString(format);
-				case TypeCode.Decimal: return (r, i) => r.GetDecimal(i).ToString(format);
-			}
-		}
-
-		static string FormatDate(IDataRecord r, int i) => ((DataPackageDate)r.GetDateTime(i)).ToString();
-		static string FormatDateTime(IDataRecord r, int i) {
-			var value = r.GetDateTime(i);
-			if (value.Kind == DateTimeKind.Unspecified)
-				throw new InvalidOperationException("DateTimeKind.Unspecified not supported.");
-			return value.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ssK");
-		}
-		static string FormatTimeSpan(IDataRecord r, int i) => r.IsDBNull(i) ? null : ((TimeSpan)r.GetValue(i)).ToString("hh\\:mm\\:ss");
-		static string FormatBinary(IDataRecord r, int i) => r.IsDBNull(i) ? null : Convert.ToBase64String((byte[])r.GetValue(i));
-		static string FormatString(IDataRecord r, int i) => r.GetString(i);
-		static string FormatBoolean(IDataRecord r, int i) => r.GetBoolean(i).ToString();
-
-		static void WriteRecords(Stream output, string delimiter, IDataReader data, IReadOnlyList<TabularDataSchemaFieldDescription> fields, IReadOnlyList<IFormatProvider> format) {
-			var toString = new Func<IDataRecord, int, string>[data.FieldCount];
-			for (var i = 0; i != data.FieldCount; ++i)
-				toString[i] = GetFormatter(data.GetFieldType(i), fields[i], format[i]);
+		static void WriteRecords(Stream output, string delimiter, IDataReader data, Func<IDataRecord, int, string>[] toString) {
 
 			WriteHeaderRecord(output, Encoding.UTF8, delimiter, data);
 
