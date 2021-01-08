@@ -1,9 +1,8 @@
 using System.IO;
 using CheckThat;
-using DataBoss.DataPackage;
 using Xunit;
 
-namespace DataBoss.Specs
+namespace DataBoss.DataPackage
 {
 	public class CsvWriterSpec
 	{

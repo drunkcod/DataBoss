@@ -1,10 +1,10 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
-using System.Runtime.ExceptionServices;
 using System.Threading;
+using System.Threading.Channels;
+using DataBoss.Threading.Channels;
 
 namespace DataBoss.Data
 {
@@ -12,10 +12,12 @@ namespace DataBoss.Data
 	{
 		readonly IDataReader reader;
 		readonly IDataRecordReader records;
-		readonly BlockingCollection<IReadOnlyCollection<IDataRecord>> buffer = new BlockingCollection<IReadOnlyCollection<IDataRecord>>();
-		IEnumerator<IDataRecord> items;
+		readonly Channel<IEnumerable<IDataRecord>> buffer = Channel.CreateUnbounded<IEnumerable<IDataRecord>>(new UnboundedChannelOptions {
+			SingleReader = true,
+			SingleWriter = true,
+		});
+		IEnumerator <IDataRecord> items;
 		readonly Thread recordReader;
-		ExceptionDispatchInfo readError;
 
 		public BufferedDataReader(IDataReader reader) {
 			this.reader = reader;
@@ -29,21 +31,22 @@ namespace DataBoss.Data
 		}
 
 		void ReadRecords() {
+			var w = buffer.Writer;
 			try {
 				var chunk = NewChunk();
 				while (records.Read()) {
 					chunk.Add(records.GetRecord());
 					if (chunk.Count == chunk.Capacity) {
-						buffer.Add(chunk);
+						w.Write(chunk);
 						chunk = NewChunk();
 					}
 				}
 				if (chunk.Count != 0)
-					buffer.Add(chunk);
+					w.Write(chunk);
 			} catch(Exception e) {
-				Interlocked.Exchange(ref readError, ExceptionDispatchInfo.Capture(e));
+				w.Write(new ErrorEnumerable<IDataRecord>(e));
 			} finally {
-				buffer.CompleteAdding();
+				w.Complete();
 			}
 		}
 
@@ -60,22 +63,20 @@ namespace DataBoss.Data
 		public int FieldCount => reader.FieldCount;
 
 		public bool NextResult() => false;
-		public bool Read() {
-			try {
-				for (; ; ) {
-					if (items.MoveNext())
-						return true;
-					items.Dispose();
 
-					if (!buffer.TryTake(out var next, -1))
-						return false;
+		public bool Read() {
+			while (!items.MoveNext()) {
+				var r = buffer.Reader;
+				if (!r.WaitToRead() || !r.TryRead(out var next))
+					return false;
+				else {
+					items.Dispose();
 					items = next.GetEnumerator();
 				}
-			} finally {
-				if (readError != null)
-					readError.Throw();
 			}
+			return true;
 		}
+
 		public void Close() => reader.Close();
 		public void Dispose() => reader.Dispose();
 
@@ -103,5 +104,10 @@ namespace DataBoss.Data
 		public string GetString(int i) => Current.GetString(i);
 		public object GetValue(int i) => Current.GetValue(i);
 		public int GetValues(object[] values) => Current.GetValues(values);
+	}
+
+	public static class DataReaderBufferingExtensions
+	{
+		public static IDataReader AsBuffered(this IDataReader reader) => new BufferedDataReader(reader);
 	}
 }

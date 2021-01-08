@@ -1,9 +1,5 @@
 using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Data;
-using System.Linq;
-using System.Threading;
 
 namespace DataBoss.Data
 {
@@ -17,9 +13,6 @@ namespace DataBoss.Data
 	{
 		public static IDataRecordReader AsDataRecordReader(this IDataReader reader) =>
 			reader is IDataRecordReader records ? records : new ObjectDataRecordReader(reader);
-
-		public static IDataReader AsBuffered(this IDataReader reader) => new BufferedDataReader(reader);
-
 	}
 
 	class ObjectDataRecordReader : IDataRecordReader

@@ -4,11 +4,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using CheckThat;
-using DataBoss.DataPackage;
 using Newtonsoft.Json;
 using Xunit;
 
-namespace DataBoss.Specs.DataPackage
+namespace DataBoss.DataPackage
 {
 	public class ItemOrArrayJsonConverterSpec
 	{

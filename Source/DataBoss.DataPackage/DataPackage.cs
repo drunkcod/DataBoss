@@ -10,6 +10,7 @@ using System.Threading;
 using System.Threading.Channels;
 using DataBoss.Data;
 using DataBoss.Linq;
+using DataBoss.Threading.Channels;
 using Newtonsoft.Json;
 
 namespace DataBoss.DataPackage

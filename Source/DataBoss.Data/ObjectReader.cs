@@ -62,16 +62,41 @@ namespace DataBoss.Data
 
 		public IEnumerable<T> Read<T>() => Read<T>((ConverterCollection)null);
 		
-		public IEnumerable<T> Read<T>(ConverterCollection converters) {
-			 var converter = GetConverter<T>(converters);
-			while(reader.Read())
-				yield return converter(reader);
-		}
+		public IEnumerable<T> Read<T>(ConverterCollection converters) => 
+			new ConvertingEnumerable<T>(reader, GetConverter<T>(converters));
 
-		public IEnumerable<T> Read<T>(ConverterFactory converters) {
-			var converter = converters.GetConverter<TReader, T>(reader).Compiled;
-			while(reader.Read())
-				yield return converter(reader);
+		public IEnumerable<T> Read<T>(ConverterFactory converters) =>
+			new ConvertingEnumerable<T>(reader, converters.GetConverter<TReader, T>(reader).Compiled);
+
+		class ConvertingEnumerable<T> : IEnumerable<T>, IEnumerator<T>
+		{
+			readonly TReader reader;
+			readonly Func<TReader, T> convert;
+
+			public ConvertingEnumerable(TReader reader, Func<TReader, T> convert) {
+				this.reader = reader;
+				this.convert = convert;
+			}
+				 
+			public T Current { get; private set; }
+			object IEnumerator.Current => Current;
+
+			public IEnumerator<T> GetEnumerator() => this;
+			IEnumerator IEnumerable.GetEnumerator() => this;
+
+			public void Dispose() { }
+
+			public bool MoveNext() {
+				if(reader.Read()) {
+					Current = convert(reader);
+					return true;
+				} else {
+					Current = default;
+					return false;
+				}
+			}
+
+			public void Reset() => throw new NotSupportedException();
 		}
 
 		public void Read<T>(Action<T> handleItem) => Read(null, handleItem);

@@ -6,10 +6,9 @@ using System.Linq;
 using CheckThat;
 using DataBoss.Data;
 using DataBoss.Data.Common;
-using DataBoss.DataPackage;
 using Xunit;
 
-namespace DataBoss.Specs.DataPackage
+namespace DataBoss.DataPackage
 {
 	public class CsvDataReaderSpec
 	{

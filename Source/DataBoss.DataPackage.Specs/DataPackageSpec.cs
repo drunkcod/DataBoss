@@ -9,7 +9,7 @@ using DataBoss.DataPackage.Types;
 using Newtonsoft.Json;
 using Xunit;
 
-namespace DataBoss.DataPackage.Specs
+namespace DataBoss.DataPackage
 {
 	public class DataPackageSpec
 	{
