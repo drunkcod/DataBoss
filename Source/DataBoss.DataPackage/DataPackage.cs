@@ -5,7 +5,9 @@ using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Net;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Channels;
 using DataBoss.Data;
@@ -54,7 +56,7 @@ namespace DataBoss.DataPackage
 			}
 
 			public IDataPackageResourceBuilder WithDelimiter(string delimiter) {
-				resource.Delimiter = delimiter;
+				(resource as CsvDataResource).Delimiter = delimiter;
 				return this;
 			}
 
@@ -62,6 +64,8 @@ namespace DataBoss.DataPackage
 		}
 
 		public static DataPackage Load(string path) {
+			if (Regex.IsMatch(path, "http(s?)://"))
+				return LoadUrl(path);
 			if(path.EndsWith(".zip")) 
 				return LoadZip(path);
 
@@ -69,8 +73,63 @@ namespace DataBoss.DataPackage
 			return Load(x => File.OpenRead(Path.Combine(datapackageRoot, x)));
 		}
 
-		public static DataPackage Load(Func<string, Stream> openRead)
+		static DataPackage LoadUrl(string url) {
+			DataPackageDescription description;
+			using (var reader = new JsonTextReader(new StreamReader(WebResponseStream.Get(url)))) {
+				var json = new JsonSerializer();
+				description = json.Deserialize<DataPackageDescription>(reader);
+			}
+
+			var r = new DataPackage();
+			r.Resources.AddRange(description.Resources.Select(x =>
+				TabularDataResource.From(x, () =>
+					NewCsvDataReader(
+						new StreamReader(WebResponseStream.Get(x.Path)),
+						x.Dialect?.Delimiter,
+						x.Schema))));
+
+			return r;
+		}
+
+		class WebResponseStream : Stream
 		{
+			readonly WebResponse source;
+			readonly Stream stream;
+
+			public static WebResponseStream Get(string url) {
+				var http = WebRequest.Create(url);
+				http.Method = "GET";
+				return new WebResponseStream(http.GetResponse());
+			}
+
+			WebResponseStream(WebResponse source) {
+				this.source = source;
+				this.stream = source.GetResponseStream();
+			}
+
+			protected override void Dispose(bool disposing) {
+				if (!disposing)
+					return;
+				source.Dispose();
+				stream.Dispose();
+			}
+
+			public override bool CanRead => stream.CanRead;
+			public override bool CanSeek => stream.CanSeek;
+			public override bool CanWrite => stream.CanWrite;
+
+			public override long Length => stream.Length;
+			public override long Position { get => stream.Position; set => stream.Position = value; }
+
+			public override void Flush() => stream.Flush();
+
+			public override int Read(byte[] buffer, int offset, int count) => stream.Read(buffer, offset, count);
+			public override long Seek(long offset, SeekOrigin origin) => stream.Seek(offset, origin);
+			public override void SetLength(long value) => stream.SetLength(value);
+			public override void Write(byte[] buffer, int offset, int count) => stream.Write(buffer, offset, count);
+		}
+
+		public static DataPackage Load(Func<string, Stream> openRead) {
 			DataPackageDescription description;
 			using(var reader = new JsonTextReader(new StreamReader(openRead("datapackage.json")))) {
 				var json = new JsonSerializer();
@@ -132,13 +191,14 @@ namespace DataBoss.DataPackage
 			new CsvDataReader(
 				new CsvHelper.CsvReader(
 					reader,
-					new CsvHelper.Configuration.CsvConfiguration(CultureInfo.InvariantCulture) { Delimiter = delimiter }),
+					new CsvHelper.Configuration.CsvConfiguration(CultureInfo.InvariantCulture) { Delimiter = delimiter ?? "," }),
 				schema);
 
 		public IDataPackageResourceBuilder AddResource(string name, Func<IDataReader> getData)
 		{
 			var resource = TabularDataResource.From(
 				new DataPackageResourceDescription {
+					Format = "csv",
 					Name = name,
 					Schema = new TabularDataSchema {
 						PrimaryKey = new List<string>(),
@@ -172,37 +232,27 @@ namespace DataBoss.DataPackage
 				var resourcePath = $"{item.Name}.csv";
 				using (var output = createOutput(resourcePath))
 				using (var data = item.Read()) {
+					var desc = item.GetDescription();
+					desc.Path = Path.GetFileName(resourcePath);
 					var fieldCount = item.Schema.Fields.Count;
-					var fields = new List<TabularDataSchemaFieldDescription>(fieldCount);
 					var toString = new Func<IDataRecord, int, string>[fieldCount];
 
 					for (var i = 0; i != fieldCount; ++i) {
-						var field = item.Schema.Fields[i];
+						var field = desc.Schema.Fields[i];
 						var fieldFormatter = defaultFormatter;
 						if (field.IsNumber()) {
-							field = new TabularDataSchemaFieldDescription(
+							field = desc.Schema.Fields[i] = new TabularDataSchemaFieldDescription(
 								field.Name,
 								field.Type,
 								constraints: field.Constraints,
 								decimalChar: decimalCharOverride ?? field.DecimalChar);
 							fieldFormatter = new RecordFormatter(field.GetNumberFormat());
 						}
-
-						fields.Add(field);
 						toString[i] = fieldFormatter.GetFormatter(data.GetFieldType(i), field);
 					}
 
-					var delimiter = item.Delimiter ?? DefaultDelimiter;
-					description.Resources.Add(new DataPackageResourceDescription {
-						Name = item.Name, 
-						Path = Path.GetFileName(resourcePath),
-						Dialect = new CsvDialectDescription { Delimiter = delimiter },
-						Schema = new TabularDataSchema { 
-							Fields = fields,
-							PrimaryKey = NullIfEmpty(item.Schema.PrimaryKey),
-							ForeignKeys = NullIfEmpty(item.Schema.ForeignKeys),
-						},
-					});
+					var delimiter = desc.Dialect.Delimiter ??= DefaultDelimiter;
+					description.Resources.Add(desc);
 					try {
 						WriteRecords(output, delimiter, data, toString);
 					} catch(Exception ex) {
@@ -221,9 +271,6 @@ namespace DataBoss.DataPackage
 			bytes.TryGetBuffer(out var buffer);
 			return LoadZip(() => new MemoryStream(buffer.Array, buffer.Offset, buffer.Count, false));
 		}
-
-		static List<T> NullIfEmpty<T>(List<T> values) =>
-			values == null ? null : values.Count == 0 ? null : values;
 
 		static CsvWriter NewCsvWriter(Stream stream, Encoding encoding, string delimiter) => 
 			new CsvWriter(new StreamWriter(stream, encoding, 4096, leaveOpen: true), delimiter);

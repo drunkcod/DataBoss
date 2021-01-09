@@ -9,6 +9,8 @@ namespace DataBoss.DataPackage
 		public string Name;
 		[JsonProperty("path")]
 		public string Path;
+		[JsonProperty("format")]
+		public string Format;
 
 		[Obsolete("Use Dialect.Delimiter instead."), JsonProperty("delimiter")]
 		public string Delimiter {

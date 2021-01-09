@@ -161,7 +161,7 @@ namespace DataBoss.DataPackage
 			var dp2 = dp.Serialize();
 			Check.That(
 				() => description.Resources[0].Dialect.Delimiter == "|",
-				() => dp2.Resources[0].Delimiter == "|");
+				() => (dp2.Resources[0] as CsvDataResource).Delimiter == "|");
 		}
 
 		class DateTimeFormatRow
