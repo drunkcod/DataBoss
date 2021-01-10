@@ -1,10 +1,8 @@
 using System.Data.SqlClient;
 using CheckThat;
-using DataBoss.Data;
-using DataBoss.Data.SqlServer;
 using Xunit;
 
-namespace DataBoss.Specs.Specs.Data.SqlServer
+namespace DataBoss.Data.SqlServer
 {
 	[Trait("Category", "Database")]
 	public class RowVersionSpec

@@ -1,10 +1,9 @@
 using System;
 using System.Collections.Generic;
 using CheckThat;
-using DataBoss.Data.Dataflow;
 using Xunit;
 
-namespace DataBoss.Specs.Dataflow
+namespace DataBoss.Data.Dataflow
 {
 	public class DataflowFeature
     {

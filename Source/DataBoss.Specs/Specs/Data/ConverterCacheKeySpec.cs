@@ -3,10 +3,9 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq.Expressions;
 using CheckThat;
-using DataBoss.Data;
 using Xunit;
 
-namespace DataBoss.Specs
+namespace DataBoss.Data
 {
 	public class ConverterCacheKeySpec
 	{

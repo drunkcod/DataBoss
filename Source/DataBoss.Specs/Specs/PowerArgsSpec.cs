@@ -6,7 +6,7 @@ using System.Linq;
 using CheckThat;
 using Xunit;
 
-namespace DataBoss.Specs
+namespace DataBoss
 {
 	public class PowerArgsSpec
 	{

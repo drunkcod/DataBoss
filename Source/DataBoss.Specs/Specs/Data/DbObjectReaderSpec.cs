@@ -2,10 +2,9 @@ using System;
 using System.Data.SqlClient;
 using System.Linq;
 using CheckThat;
-using DataBoss.Data;
 using Xunit;
 
-namespace DataBoss.Specs.Data
+namespace DataBoss.Data
 {
 	[Trait("Category", "Database")]
 	public class DbObjectReaderSpec : IDisposable

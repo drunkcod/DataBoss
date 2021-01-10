@@ -6,11 +6,12 @@ using System.Text;
 using CheckThat;
 using DataBoss.Migrations;
 using DataBoss.Schema;
+using DataBoss.Specs;
 using DataBoss.SqlServer;
 using DataBoss.Testing.SqlServer;
 using Xunit;
 
-namespace DataBoss.Specs
+namespace DataBoss
 {
 	public class DataBossTestsFixture 
 	{

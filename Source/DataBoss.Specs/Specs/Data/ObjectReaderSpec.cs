@@ -7,12 +7,12 @@ using System.Reflection;
 using System.Text;
 using CheckThat;
 using CheckThat.Formatting;
-using DataBoss.Data;
 using DataBoss.Data.SqlServer;
 using DataBoss.Migrations;
+using DataBoss.Specs;
 using Xunit;
 
-namespace DataBoss.Specs
+namespace DataBoss.Data
 {
 	public class ObjectReaderSpec
 	{

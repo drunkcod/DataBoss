@@ -6,7 +6,7 @@ using DataBoss.Migrations;
 using DataBoss.Schema;
 using Xunit;
 
-namespace DataBoss.Specs
+namespace DataBoss
 {
 	public class DataBossScripterSpec
 	{

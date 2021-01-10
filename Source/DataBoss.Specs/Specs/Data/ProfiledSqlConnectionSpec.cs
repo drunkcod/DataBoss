@@ -3,11 +3,10 @@ using System.Data.SqlClient;
 using System.Linq;
 using CheckThat;
 using CheckThat.Helpers;
-using DataBoss.Data;
 using DataBoss.Data.Common;
 using Xunit;
 
-namespace DataBoss.Specs.Data
+namespace DataBoss.Data
 {
 	public class ProfiledSqlConnectionSpec : IDisposable
     {

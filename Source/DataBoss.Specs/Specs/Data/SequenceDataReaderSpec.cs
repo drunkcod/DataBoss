@@ -2,10 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using CheckThat;
-using DataBoss.Data;
 using Xunit;
 
-namespace DataBoss.Specs.Data
+namespace DataBoss.Data
 {
 	public class SequenceDataReaderSpec
 	{

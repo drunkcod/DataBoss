@@ -8,7 +8,7 @@ using DataBoss.Data;
 using DataBoss.Data.SqlServer;
 using Xunit;
 
-namespace DataBoss.Specs
+namespace DataBoss
 {
 	public class ToParamsSpec
 	{

@@ -6,7 +6,7 @@ using DataBoss.Diagnostics;
 using DataBoss.Testing.SqlServer;
 using Xunit;
 
-namespace DataBoss.Data.Specs
+namespace DataBoss.Data
 {
 	public class SqlConnectionExtensionsSpec : IDisposable
 	{

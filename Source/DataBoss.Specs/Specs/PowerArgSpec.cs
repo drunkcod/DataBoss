@@ -4,7 +4,7 @@ using System.ComponentModel.DataAnnotations;
 using CheckThat;
 using Xunit;
 
-namespace DataBoss.Specs
+namespace DataBoss
 {
 	public class PowerArgSpec
 	{

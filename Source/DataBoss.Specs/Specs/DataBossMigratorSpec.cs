@@ -6,7 +6,7 @@ using CheckThat;
 using DataBoss.Migrations;
 using Xunit;
 
-namespace DataBoss.Specs
+namespace DataBoss
 {
 	public class DataBossMigratorSpec
 	{

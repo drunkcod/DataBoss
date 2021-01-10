@@ -4,7 +4,7 @@ using CheckThat;
 using DataBoss.Data;
 using Xunit;
 
-namespace DataBoss.Specs
+namespace DataBoss
 {
 	public class ObjectVisualizerSpec
 	{

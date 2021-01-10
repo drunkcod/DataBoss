@@ -2,7 +2,7 @@ using System;
 using CheckThat;
 using Xunit;
 
-namespace DataBoss.Data.Specs
+namespace DataBoss.Data
 {
 	public class RetryStrategySpec
     {

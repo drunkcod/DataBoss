@@ -9,12 +9,11 @@ using System.Data.SqlTypes;
 using System.Globalization;
 using System.Linq;
 using CheckThat;
-using Cone;
 using DataBoss.Data.SqlServer;
 using DataBoss.Specs;
 using Xunit;
 
-namespace DataBoss.Data.Specs
+namespace DataBoss.Data
 {
 	public class DataBossDbTypeSpec
 	{

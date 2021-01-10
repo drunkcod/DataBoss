@@ -1,9 +1,8 @@
 using System.Collections.Generic;
 using CheckThat;
-using DataBoss.Collections;
 using Xunit;
 
-namespace DataBoss.Specs
+namespace DataBoss.Collections
 {
 	public class BlockCollectionSpec
 	{

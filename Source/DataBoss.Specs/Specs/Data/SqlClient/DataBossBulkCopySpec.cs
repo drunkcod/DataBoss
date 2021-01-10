@@ -1,14 +1,9 @@
 using System;
-using System.Collections.Generic;
 using System.Data.SqlClient;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using DataBoss.Data;
 using DataBoss.Testing.SqlServer;
 using Xunit;
 
-namespace DataBoss.Specs.Specs.Data.SqlClient
+namespace DataBoss.Data.SqlClient
 {
 	public class SqlServerFixture : IDisposable
 	{
