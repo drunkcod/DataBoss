@@ -61,18 +61,21 @@ namespace DataBoss.DataPackage
 			ObjectReader.Read<T>(Read());
 
 		public TabularDataResource Where(Func<IDataRecord, bool> predicate) =>
-			new TabularDataResource(Name, Schema, () => new WhereDataReader(getData(), predicate), Format);
+			Rebind(Name, Schema, () => new WhereDataReader(getData(), predicate));
 
 		public TabularDataResource Transform(Action<DataReaderTransform> defineTransform) {
 			var schema = new TabularDataSchema();
 			schema.PrimaryKey = Schema.PrimaryKey?.ToList();
 			schema.ForeignKeys = Schema.ForeignKeys?.ToList();
-			return new TabularDataResource(Name, schema, () => {
+			return Rebind(Name, schema, () => {
 				var data = new DataReaderTransform(getData());
 				defineTransform(data);
 				return data;
-			}, Format);
+			});
 		}
+
+		protected virtual TabularDataResource Rebind(string name, TabularDataSchema schema, Func<IDataReader> getData) =>
+			new TabularDataResource(name, schema, getData, Format);
 
 		static List<TabularDataSchemaFieldDescription> GetFieldInfo(IDataReader reader) {
 			var r = new List<TabularDataSchemaFieldDescription>(reader.FieldCount);
@@ -125,6 +128,9 @@ namespace DataBoss.DataPackage
 		public string Delimiter;
 
 		public CsvDataResource(string name, TabularDataSchema schema, Func<IDataReader> getData) : base(name, schema, getData, "csv") { }
+
+		protected override TabularDataResource Rebind(string name, TabularDataSchema schema, Func<IDataReader> getData) =>
+			new CsvDataResource(name, schema, getData) { Delimiter = Delimiter };
 
 		protected override void UpdateDescription(DataPackageResourceDescription description) {
 			description.Dialect = new CsvDialectDescription { Delimiter = Delimiter };

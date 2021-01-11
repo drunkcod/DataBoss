@@ -164,6 +164,29 @@ namespace DataBoss.DataPackage
 				() => (dp2.Resources[0] as CsvDataResource).Delimiter == "|");
 		}
 
+		[Fact]
+		public void transform_keeps_delimiter() {
+			var dp = new DataPackage()
+				.AddResource("stuff", () => new[] { new { Id = 1, Message = "Hello World." } })
+				.WithDelimiter("|")
+				.Done();
+
+			dp.TransformResource("stuff", xs => xs.Transform("Id", x => x["Id"].ToString()));
+
+			var bytes = new MemoryStream();
+			dp.Save(x => x switch {
+				"datapackage.json" => bytes,
+				_ => Stream.Null,
+			});
+
+			var description = JsonConvert.DeserializeObject<DataPackageDescription>(Encoding.UTF8.GetString(bytes.ToArray()));
+			var dp2 = dp.Serialize();
+			Check.That(
+				() => description.Resources[0].Dialect.Delimiter == "|",
+				() => (dp2.Resources[0] as CsvDataResource).Delimiter == "|");
+
+		}
+
 		class DateTimeFormatRow
 		{
 			public DateTime datetime;
