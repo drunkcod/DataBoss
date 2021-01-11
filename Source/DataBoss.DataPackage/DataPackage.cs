@@ -19,6 +19,7 @@ namespace DataBoss.DataPackage
 {
 	public partial class DataPackage : IDataPackageBuilder
 	{
+		const int StreamBufferSize = 81920;
 		public const string DefaultDelimiter = ";";
 
 		public readonly List<TabularDataResource> Resources = new List<TabularDataResource>();
@@ -172,7 +173,7 @@ namespace DataBoss.DataPackage
 			public IDataReader GetData() {
 				var source = new ZipArchive(openZip(), ZipArchiveMode.Read);
 				var csv = NewCsvDataReader(
-					new StreamReader(new BufferedStream(source.GetEntry(resource.Path).Open(), 81920)),
+					new StreamReader(source.GetEntry(resource.Path).Open(), Encoding.UTF8, true, StreamBufferSize),
 					resource.Dialect?.Delimiter,
 					resource.Schema);
 				csv.Disposed += delegate { source.Dispose(); };
@@ -273,7 +274,7 @@ namespace DataBoss.DataPackage
 		}
 
 		static CsvWriter NewCsvWriter(Stream stream, Encoding encoding, string delimiter) => 
-			new CsvWriter(new StreamWriter(stream, encoding, 4096, leaveOpen: true), delimiter);
+			new CsvWriter(new StreamWriter(stream, encoding, StreamBufferSize, leaveOpen: true), delimiter);
 
 		static void WriteRecords(Stream output, string delimiter, IDataReader data, Func<IDataRecord, int, string>[] toString) {
 

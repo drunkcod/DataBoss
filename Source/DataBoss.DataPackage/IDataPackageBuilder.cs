@@ -4,6 +4,7 @@ using System.Data;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
+using System.Linq.Expressions;
 using DataBoss.Data;
 
 namespace DataBoss.DataPackage
@@ -52,8 +53,31 @@ namespace DataBoss.DataPackage
 			if(!stream.CanSeek)//work around for ZipArchive Create mode reading Position.
 				stream = new ZipOutputStream(stream);
 			using (var zip = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: leaveOpen))
-				self.Save(x => zip.CreateEntry(x).Open(), culture);
+				self.Save(x => {
+					var e = zip.CreateEntry(x);
+					SetExternalAttributes(e);
+					return e.Open();
+				}, culture);
 		}
+
+		static Action<ZipArchiveEntry> SetExternalAttributes = DetectExternalAttributeSupport;
+
+		static void DetectExternalAttributeSupport(ZipArchiveEntry e) => (SetExternalAttributes = GetExternalAttributeSetter())(e);
+
+
+		static Action<ZipArchiveEntry> GetExternalAttributeSetter() {
+			var externalAttributes = typeof(ZipArchiveEntry).GetProperty("ExternalAttributes");
+			if (externalAttributes == null)
+				return DoNothing;
+
+			var isFile = Convert.ToInt32("100000", 8);
+			var chmod = Convert.ToInt32("664", 8);
+			var p0 = Expression.Parameter(typeof(ZipArchiveEntry), "e");
+			return Expression.Lambda<Action<ZipArchiveEntry>>(Expression.Assign(
+					Expression.MakeMemberAccess(p0, externalAttributes), Expression.Constant((isFile | chmod) << 16)), p0).Compile();
+		}
+
+		static void DoNothing(ZipArchiveEntry _) { }
 	}
 
 	class ZipOutputStream : Stream
