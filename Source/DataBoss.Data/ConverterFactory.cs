@@ -6,7 +6,6 @@ using System.Data;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
-using DataBoss.Data.SqlServer;
 
 namespace DataBoss.Data
 {
@@ -17,12 +16,14 @@ namespace DataBoss.Data
 		class ConverterContext
 		{
 			readonly ConverterCollection converters;
+			readonly MethodInfo getFieldValueT;
 
 			ConverterContext(ParameterExpression arg0, MethodInfo isDBNull, Type resultType, ConverterCollection converters) {
 				this.Arg0 = arg0;
 				this.IsDBNull = isDBNull;
 				this.ResultType = resultType;
 				this.converters = converters;
+				this.getFieldValueT = arg0.Type.GetMethod("GetFieldValue");
 			}
 
 			public readonly Type ResultType;
@@ -56,10 +57,17 @@ namespace DataBoss.Data
 			}
 
 			bool TryGetGetMethod(Type fieldType, out MethodInfo getter) {
-				var getterName = "Get" + MapFieldType(fieldType);
-				getter = Arg0.Type.GetMethod(getterName) ?? typeof(IDataRecord).GetMethod(getterName);
+				getter = GetGetMethod(Arg0.Type, "Get" + fieldType.Name);
+				if (getter == null && getFieldValueT != null)
+					getter = getFieldValueT.MakeGenericMethod(fieldType);
+				if (getter == null)
+					getter = GetGetMethod(Arg0.Type, "Get" + MapFieldType(fieldType));
+
 				return getter != null;
 			}
+
+			static MethodInfo GetGetMethod(Type arg0, string name) =>
+				arg0.GetMethod(name) ?? typeof(IDataRecord).GetMethod(name);
 
 			bool TryConvertField(Expression rawField, Type to, out Expression convertedField) {
 				var from = rawField.Type;
@@ -78,7 +86,7 @@ namespace DataBoss.Data
 				if (converters.TryGetConverter(rawField, to, out converter))
 					return true;
 
-				if (IsByteArray(rawField, to) || IsEnum(rawField, to) || HasCast(rawField, to)) {
+				if (IsByteArray(rawField, to) || IsEnum(rawField, to) || IsTimeSpan(rawField, to) || HasCast(rawField, to)) {
 					converter = Expression.Convert(rawField, to);
 					return true;
 				}
@@ -88,6 +96,9 @@ namespace DataBoss.Data
 
 			static bool IsByteArray(Expression rawField, Type to) =>
 				rawField.Type == typeof(object) && to == typeof(byte[]);
+
+			static bool IsTimeSpan(Expression rawField, Type to) =>
+				rawField.Type == typeof(object) && to == typeof(TimeSpan);
 
 			static bool IsEnum(Expression rawField, Type to) =>
 				to.IsEnum && Enum.GetUnderlyingType(to) == rawField.Type;
@@ -477,8 +488,9 @@ namespace DataBoss.Data
 		static string MapFieldType(Type fieldType) {
 			switch(fieldType.FullName) {
 				case "System.Single": return "Float";
+				case "System.Byte[]":
+				case "System.TimeSpan":
 				case "System.Object": return "Value";
-				case "System.Byte[]": return "Value";
 				case "System.Data.SqlTypes.SqlByte": return "Byte";
 			}
 			if(fieldType.IsEnum)

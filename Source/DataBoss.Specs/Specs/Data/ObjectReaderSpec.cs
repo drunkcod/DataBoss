@@ -91,6 +91,16 @@ namespace DataBoss.Data
 				rows => rows[0].Value == expected.Value);
 		}
 
+		[Fact]
+		public void supports_timespan() {
+			var expected = new ValueRow<TimeSpan> { Value = TimeSpan.FromSeconds(42) };
+			var source = new SimpleDataReader(Col<TimeSpan>("Value")) { expected.Value };
+			Check.With(() => ObjectReader.For(source).Read<ValueRow<TimeSpan>>().ToArray())
+			.That(
+				rows => rows.Length == 1,
+				rows => rows[0].Value == expected.Value);
+		}
+
 		enum MyEnum32 : int { Something = 1 }
 
 		[Fact]

@@ -84,7 +84,9 @@ namespace DataBoss.Data
 			public IEnumerator<T> GetEnumerator() => this;
 			IEnumerator IEnumerable.GetEnumerator() => this;
 
-			public void Dispose() { }
+			public void Dispose() {
+				reader.Dispose();
+			}
 
 			public bool MoveNext() {
 				if(reader.Read()) {
