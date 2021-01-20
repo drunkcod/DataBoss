@@ -187,12 +187,15 @@ namespace DataBoss.DataPackage
 
 		}
 
+
 		class DateTimeFormatRow
 		{
+			#pragma warning disable CS0649//never assigned.
 			public DateTime datetime;
 			public DateTime date;
 			public DataPackageDate dpDate;
 			public TimeSpan time;
+			#pragma warning restore CS0649
 		}
 
 		NumberFormatInfo GetNumbersFormat(DataPackage data) => data.GetResource("numbers").Schema.Fields.Single().GetNumberFormat();

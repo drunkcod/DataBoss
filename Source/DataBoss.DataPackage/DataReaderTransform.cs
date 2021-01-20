@@ -83,7 +83,7 @@ namespace DataBoss.DataPackage
 		}
 
 		readonly List<(string Name, int Ordinal, Func<IDataRecord, object> GetValue)> fields = new List<(string, int, Func<IDataRecord, object>)>();
-		Func<IDataRecord, object>[] transforms;
+		readonly Func<IDataRecord, object>[] transforms;
 
 		public DataReaderTransform(IDataReader inner) {
 			this.inner = inner;

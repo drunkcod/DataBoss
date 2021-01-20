@@ -183,9 +183,10 @@ namespace DataBoss.DataPackage
 
 		static DataPackageDescription LoadZipPackageDescription(Func<Stream> openZip) {
 			var json = new JsonSerializer();
-			using (var zip = new ZipArchive(openZip(), ZipArchiveMode.Read))
-			using(var reader = new JsonTextReader(new StreamReader(zip.GetEntry("datapackage.json").Open())))
-				return json.Deserialize<DataPackageDescription>(reader);
+			using var zip = new ZipArchive(openZip(), ZipArchiveMode.Read);
+			using var reader = new JsonTextReader(new StreamReader(zip.GetEntry("datapackage.json").Open()));
+				
+			return json.Deserialize<DataPackageDescription>(reader);
 		}
 
 		static CsvDataReader NewCsvDataReader(TextReader reader, string delimiter, TabularDataSchema schema) =>
@@ -226,44 +227,45 @@ namespace DataBoss.DataPackage
 
 		public void Save(Func<string, Stream> createOutput, CultureInfo culture = null) {
 			var description = new DataPackageDescription();
-			var decimalCharOverride = culture != null ? culture.NumberFormat.NumberDecimalSeparator : null;
+			var decimalCharOverride = culture?.NumberFormat.NumberDecimalSeparator;
 			var defaultFormatter = new RecordFormatter(culture ?? CultureInfo.InvariantCulture);
 
 			foreach (var item in Resources) {
 				var resourcePath = $"{item.Name}.csv";
-				using (var output = createOutput(resourcePath))
-				using (var data = item.Read()) {
-					var desc = item.GetDescription();
-					desc.Path = Path.GetFileName(resourcePath);
-					var fieldCount = item.Schema.Fields.Count;
-					var toString = new Func<IDataRecord, int, string>[fieldCount];
+				using var output = createOutput(resourcePath);
+				using var data = item.Read();
 
-					for (var i = 0; i != fieldCount; ++i) {
-						var field = desc.Schema.Fields[i];
-						var fieldFormatter = defaultFormatter;
-						if (field.IsNumber()) {
-							field = desc.Schema.Fields[i] = new TabularDataSchemaFieldDescription(
-								field.Name,
-								field.Type,
-								constraints: field.Constraints,
-								decimalChar: decimalCharOverride ?? field.DecimalChar);
-							fieldFormatter = new RecordFormatter(field.GetNumberFormat());
-						}
-						toString[i] = fieldFormatter.GetFormatter(data.GetFieldType(i), field);
-					}
+				var desc = item.GetDescription();
+				desc.Path = Path.GetFileName(resourcePath);
+				var fieldCount = item.Schema.Fields.Count;
+				var toString = new Func<IDataRecord, int, string>[fieldCount];
 
-					var delimiter = desc.Dialect.Delimiter ??= DefaultDelimiter;
-					description.Resources.Add(desc);
-					try {
-						WriteRecords(output, delimiter, data, toString);
-					} catch(Exception ex) {
-						throw new Exception($"Failed writing {item.Name}.", ex);
+				for (var i = 0; i != fieldCount; ++i) {
+					var field = desc.Schema.Fields[i];
+					var fieldFormatter = defaultFormatter;
+					if (field.IsNumber()) {
+						field = desc.Schema.Fields[i] = new TabularDataSchemaFieldDescription(
+							field.Name,
+							field.Type,
+							constraints: field.Constraints,
+							decimalChar: decimalCharOverride ?? field.DecimalChar);
+						fieldFormatter = new RecordFormatter(field.GetNumberFormat());
 					}
+					toString[i] = fieldFormatter.GetFormatter(data.GetFieldType(i), field);
+				}
+
+				var delimiter = desc.Dialect.Delimiter ??= DefaultDelimiter;
+				description.Resources.Add(desc);
+				try {
+					WriteRecords(output, delimiter, data, toString);
+				}
+				catch (Exception ex) {
+					throw new Exception($"Failed writing {item.Name}.", ex);
 				}
 			};
 
-			using (var meta = new StreamWriter(createOutput("datapackage.json")))
-				meta.Write(JsonConvert.SerializeObject(description, Formatting.Indented));
+			using var meta = new StreamWriter(createOutput("datapackage.json"));
+			meta.Write(JsonConvert.SerializeObject(description, Formatting.Indented));
 		}
 
 		public DataPackage Serialize(CultureInfo culture = null) {
@@ -307,12 +309,11 @@ namespace DataBoss.DataPackage
 		}
 
 		static void WriteHeaderRecord(Stream output, Encoding encoding, string delimiter, IDataReader data) {
-			using (var csv = NewCsvWriter(output, encoding, delimiter)) {
-				for (var i = 0; i != data.FieldCount; ++i)
-					csv.WriteField(data.GetName(i));
-				csv.NextRecord();
-				csv.Writer.Flush();
-			}
+			using var csv = NewCsvWriter(output, encoding, delimiter);
+			for (var i = 0; i != data.FieldCount; ++i)
+				csv.WriteField(data.GetName(i));
+			csv.NextRecord();
+			csv.Writer.Flush();
 		}
 
 		abstract class WorkItem

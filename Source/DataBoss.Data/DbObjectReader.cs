@@ -11,7 +11,7 @@ namespace DataBoss.Data
 		where TCommand : IDbCommand
 		where TReader : IDataReader
 	{
-		static Regex FormatEx = new Regex(@"(@[A-Za-z_]+)");
+		static readonly Regex FormatEx = new Regex(@"(@[A-Za-z_]+)");
 
 		readonly Func<TCommand> newCommand;
 

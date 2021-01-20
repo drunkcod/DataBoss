@@ -308,8 +308,7 @@ namespace DataBoss.Specs
 			public override Type ProviderType => typeof(Sql2005Provider);
 
 			public override MetaTable GetTable(Type rowType) {
-				MetaTable cached;
-				if(knownTables.TryGetValue(rowType, out cached))
+				if(knownTables.TryGetValue(rowType, out var cached))
 					return cached;
 				return knownTables[rowType] = new DataBossTable(this, rowType);
 			}

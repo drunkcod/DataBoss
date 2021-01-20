@@ -16,7 +16,7 @@ namespace DataBoss.DataPackage
 		const string RecordDelimiter = "\r\n";
 
 		WriterState state;
-		bool leaveOpen;
+		readonly bool leaveOpen;
 		
 		public readonly string Delimiter;
 

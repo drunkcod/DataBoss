@@ -52,12 +52,13 @@ namespace DataBoss.DataPackage
 		public static void SaveZip(this IDataPackageBuilder self, Stream stream, CultureInfo culture, bool leaveOpen) {
 			if(!stream.CanSeek)//work around for ZipArchive Create mode reading Position.
 				stream = new ZipOutputStream(stream);
-			using (var zip = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: leaveOpen))
-				self.Save(x => {
-					var e = zip.CreateEntry(x);
-					SetExternalAttributes(e);
-					return e.Open();
-				}, culture);
+
+			using var zip = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: leaveOpen);
+			self.Save(x => {
+				var e = zip.CreateEntry(x);
+				SetExternalAttributes(e);
+				return e.Open();
+			}, culture);
 		}
 
 		static Action<ZipArchiveEntry> SetExternalAttributes = DetectExternalAttributeSupport;

@@ -6,7 +6,10 @@ namespace DataBoss.Data
 {
 	public class BufferedDataReaderSpec
 	{
-		class MyThing { public int Value; }
+		class MyThing 
+		{ 
+			public int Value { get; set; }
+		}
 
 		[Fact]
 		public void forwards_read_failure() {
