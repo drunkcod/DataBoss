@@ -13,6 +13,8 @@ namespace DataBoss.Specs
 		readonly DataTable schema = new DataTable();
 		int currentRecord;
 
+		public event EventHandler Closed;
+
 		public SimpleDataReader(params KeyValuePair<string, Type>[] fields) {
 			this.fields = fields;
 			var ordinal = schema.Columns.Add(DataReaderSchemaColumns.ColumnOrdinal);
@@ -49,6 +51,7 @@ namespace DataBoss.Specs
 		public Type GetFieldType(int i) => fields[i].Value;
 		public object GetValue(int i) => records[currentRecord - 1][i];
 
+		public void Close() { Closed?.Invoke(this, EventArgs.Empty);  }
 		public void Dispose() { }
 
 		public string GetDataTypeName(int i) { throw new NotImplementedException(); }
@@ -76,7 +79,6 @@ namespace DataBoss.Specs
 		object IDataRecord.this[int i] => records[i];
 		object IDataRecord.this[string name] => GetValue(GetOrdinal(name));
 
-		public void Close() { }
 
 		public DataTable GetSchemaTable() => schema;
 
