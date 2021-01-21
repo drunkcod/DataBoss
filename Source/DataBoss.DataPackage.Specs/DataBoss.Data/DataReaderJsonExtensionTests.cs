@@ -32,6 +32,17 @@ namespace DataBoss.DataBoss.Data
 			Check.That(() => JsonSerializer.Serialize(SequenceDataReader.Create(rows).ToJsonObject(), null) == NewtonsoftSerialize(rows));
 		}
 
+		[Fact]
+		public void columnar() {
+			var rows = new[] { new { Id = 1, Value = "Hello" }, new { Id = 2, Value = "World." } };
+			var expected = new { 
+				Id = new[] { 1, 2 },
+				Value = new[] { "Hello", "World." },
+			};
+			Check.That(() => JsonSerializer.Serialize(SequenceDataReader.Create(rows).ToJsonColumns(), null) == NewtonsoftSerialize(expected));
+
+		}
+
 		static string NewtonsoftSerialize(object value) => Newtonsoft.Json.JsonConvert.SerializeObject(value);
 
 		[Fact]
