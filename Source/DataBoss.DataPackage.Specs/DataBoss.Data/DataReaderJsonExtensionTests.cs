@@ -34,12 +34,14 @@ namespace DataBoss.DataBoss.Data
 
 		[Fact]
 		public void columnar() {
-			var rows = new[] { new { Id = 1, Value = "Hello" }, new { Id = 2, Value = "World." } };
+			var rows = new[] { new { Id = (int?)1, Value = "Hello" }, new { Id = (int?)null, Value = "World." } };
 			var expected = new { 
-				Id = new[] { 1, 2 },
+				Id = new[] { (int?)1, null },
 				Value = new[] { "Hello", "World." },
 			};
-			Check.That(() => JsonSerializer.Serialize(SequenceDataReader.Create(rows).ToJsonColumns(), null) == NewtonsoftSerialize(expected));
+			Check.That(
+				() => JsonSerializer.Serialize(SequenceDataReader.Create(rows).ToJsonColumns(), null) == NewtonsoftSerialize(expected),
+				() => NewtonsoftSerialize(SequenceDataReader.Create(rows).ToJsonColumns()) == NewtonsoftSerialize(expected));
 
 		}
 
