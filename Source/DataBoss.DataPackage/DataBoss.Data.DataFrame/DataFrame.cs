@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using System.Reflection;
+using DataBoss.Linq;
 
 namespace DataBoss.Data.DataFrames
 {
@@ -83,10 +84,20 @@ namespace DataBoss.Data.DataFrames
 
 		public DataFrame this[DataFrameColumn<bool> bs] {
 			get {
+				var includedRows = GetPickList(bs);
 				var df = new DataFrame();
-				df.columns = Array.ConvertAll(columns, x => x.Filter(bs));
+				df.columns = Array.ConvertAll(columns, x => x.Pick(includedRows));
 				return df;
 			}
+		}
+
+		static IReadOnlyList<int> GetPickList(IEnumerable<bool> bs) {
+			var toPick = new List<int>();
+			using var include = bs.GetEnumerator();
+			for (var i = 0; include.MoveNext(); ++i)
+				if (include.Current)
+					toPick.Add(i);
+			return toPick;
 		}
 
 		interface IDataFrameColumnBuilder
@@ -119,6 +130,7 @@ namespace DataBoss.Data.DataFrames
 		string Name { get; }
 
 		IDataFrameColumn Filter(IEnumerable<bool> include);
+		IDataFrameColumn Pick(IReadOnlyCollection<int> rows);
 	}
 
 	public class DataFrameColumn<T> : IDataFrameColumn, IEnumerable<T>
@@ -134,21 +146,34 @@ namespace DataBoss.Data.DataFrames
 		public int Count => items.Length;
 		public string Name => name;
 
-		public static DataFrameColumn<bool> operator >(DataFrameColumn<T> xs, T value) {
-			var c = Comparer<T>.Default;
-			return new DataFrameColumn<bool>(Array.ConvertAll(xs.items, x => c.Compare(x, value) > 0));
-		}
+		public static DataFrameColumn<bool> operator ==(DataFrameColumn<T> xs, T value) =>
+			new DataFrameColumn<bool>(Array.ConvertAll(xs.items, x => Comparer<T>.Default.Compare(x, value) == 0));
 
-		public static DataFrameColumn<bool> operator <(DataFrameColumn<T> xs, T value) {
-			var c = Comparer<T>.Default;
-			return new DataFrameColumn<bool>(Array.ConvertAll(xs.items, x => c.Compare(x, value) < 0));
-		}
+		public static DataFrameColumn<bool> operator !=(DataFrameColumn<T> xs, T value) =>
+			new DataFrameColumn<bool>(Array.ConvertAll(xs.items, x => Comparer<T>.Default.Compare(x, value) != 0));
+
+		public static DataFrameColumn<bool> operator >(DataFrameColumn<T> xs, T value) =>
+			new DataFrameColumn<bool>(Array.ConvertAll(xs.items, x => Comparer<T>.Default.Compare(x, value) > 0));
+
+		public static DataFrameColumn<bool> operator <(DataFrameColumn<T> xs, T value) => 
+			new DataFrameColumn<bool>(Array.ConvertAll(xs.items, x => Comparer<T>.Default.Compare(x, value) < 0));
+
+		public static DataFrameColumn<bool> operator >=(DataFrameColumn<T> xs, T value) =>
+			new DataFrameColumn<bool>(Array.ConvertAll(xs.items, x => Comparer<T>.Default.Compare(x, value) >= 0));
+
+		public static DataFrameColumn<bool> operator <=(DataFrameColumn<T> xs, T value) =>
+			new DataFrameColumn<bool>(Array.ConvertAll(xs.items, x => Comparer<T>.Default.Compare(x, value) <= 0));
 
 		public IDataFrameColumn Filter(IEnumerable<bool> include) =>
-			new DataFrameColumn<T>(items
-				.Zip(include, (x, include) => (x, include))
-				.Where(x => x.include)
-				.Select(x => x.x));
+			new DataFrameColumn<T>(items.Filter(include));
+
+		public IDataFrameColumn Pick(IReadOnlyCollection<int> rows) {
+			var picked = new T[rows.Count];
+			var i = 0;
+			foreach (var n in rows)
+				picked[i++] = items[n];
+			return new DataFrameColumn<T>(picked, name);
+		}
 
 		public IEnumerator<T> GetEnumerator() => ((IEnumerable<T>)items).GetEnumerator();
 

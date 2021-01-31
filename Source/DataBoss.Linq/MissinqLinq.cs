@@ -31,7 +31,6 @@ namespace DataBoss.Linq
 		internal EmptyCollection() { }
 	}
 
-
 	public static class Collection
 	{
 		public static EmptyCollection<T> Empty<T>() => new EmptyCollection<T>();
@@ -163,13 +162,20 @@ namespace DataBoss.Linq
 				action(item);
 		}
 
+		public static IEnumerable<T> Filter<T>(this IEnumerable<T> self, IEnumerable<bool> bs) {
+			using var items = self.GetEnumerator();
+			using var include = bs.GetEnumerator();
+			while (items.MoveNext() && include.MoveNext())
+				if (include.Current)
+					yield return items.Current;
+		}
+
 		public static IEnumerable<T> Inspect<T>(this IEnumerable<T> items, Action<T> inspectElement) {
 			foreach(var item in items) {
 				inspectElement(item);
 				yield return item;
 			}
 		}
-
 
 		public static bool IsEmpty<T>(this IEnumerable<T> self) => !self.Any();
 		public static bool IsEmpty<T>(this IReadOnlyCollection<T> self) => self.Count == 0;
