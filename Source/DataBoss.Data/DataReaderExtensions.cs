@@ -1,5 +1,6 @@
 using System;
 using System.Data;
+using System.Runtime.CompilerServices;
 
 namespace DataBoss.Data
 {
@@ -41,6 +42,36 @@ namespace DataBoss.Data
 				schema.Add(row.Name, row.Ordinal, row.DataType, row.AllowDBNull, row.Size);
 			}
 			return schema;
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static T GetFieldValue<T>(this IDataRecord record, int i) {
+			if (typeof(T) == typeof(short))
+				return (T)(object)record.GetInt16(i);
+			else if (typeof(T) == typeof(int))
+				return (T)(object)record.GetInt32(i);
+			else if (typeof(T) == typeof(long))
+				return (T)(object)record.GetInt64(i);
+			else if (typeof(T) == typeof(float))
+				return (T)(object)record.GetFloat(i);
+			else if (typeof(T) == typeof(double))
+				return (T)(object)record.GetDouble(i);
+			else if (typeof(T) == typeof(decimal))
+				return (T)(object)record.GetDecimal(i);
+			else if (typeof(T) == typeof(bool))
+				return (T)(object)record.GetBoolean(i);
+			else if (typeof(T) == typeof(byte))
+				return (T)(object)record.GetByte(i);
+			else if (typeof(T) == typeof(char))
+				return (T)(object)record.GetChar(i);
+			else if (typeof(T) == typeof(DateTime))
+				return (T)(object)record.GetDateTime(i);
+			else if (typeof(T) == typeof(Guid))
+				return (T)(object)record.GetGuid(i);
+			else if (typeof(T) == typeof(string))
+				return (T)(object)record.GetString(i);
+			else
+				return (T)record.GetValue(i);
 		}
 	}
 }

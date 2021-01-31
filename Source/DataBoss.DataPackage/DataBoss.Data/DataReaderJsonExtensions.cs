@@ -1,20 +1,19 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using DataBoss.Data.DataFrames;
 
 namespace DataBoss.Data
 {
 	using NewtonsoftJsonConverter = Newtonsoft.Json.JsonConverter;
 	using NewtonsoftJsonConverterAttribute = Newtonsoft.Json.JsonConverterAttribute;
 	using NewtonsoftJsonReader = Newtonsoft.Json.JsonReader;
-	using NewtonsoftJsonWriter = Newtonsoft.Json.JsonWriter;
 	using NewtonsoftJsonSerializer = Newtonsoft.Json.JsonSerializer;
+	using NewtonsoftJsonWriter = Newtonsoft.Json.JsonWriter;
 
 	public static class DataReaderJsonExtensions
 	{
@@ -191,126 +190,25 @@ namespace DataBoss.Data
 			}
 
 			public void WriteRecords(NewtonsoftJsonWriter json, NewtonsoftJsonSerializer serializer) {
-				var columns = ReadColumns();
+				var df = DataFrame.Create(reader);
 				json.WriteStartObject();
-				for (var i = 0; i != reader.FieldCount; ++i) {
-					json.WritePropertyName(reader.GetName(i));
-					columns[i].WriteArray(json);
+				foreach(var c in df.Columns) {
+					json.WritePropertyName(c.Name);
+					serializer.Serialize(json, c);
 				}
 				json.WriteEndObject();
 				reader.Close();
 			}
 
 			public void WriteRecords(Utf8JsonWriter json, JsonSerializerOptions options = null) {
-				var columns = ReadColumns();
+				var df = DataFrame.Create(reader);
 				json.WriteStartObject();
-				for (var i = 0; i != reader.FieldCount; ++i) {
-					json.WritePropertyName(reader.GetName(i));
-					columns[i].WriteArray(json, options);
+				foreach(var c in df.Columns) {
+					json.WritePropertyName(c.Name);
+					JsonSerializer.Serialize(json, c, c.GetType(), options);
 				}
 				json.WriteEndObject();
 				reader.Close();
-			}
-
-			IDataReaderColumn[] ReadColumns() {
-				var columns = new IDataReaderColumn[reader.FieldCount];
-				for (var i = 0; i != columns.Length; ++i)
-					columns[i] = (IDataReaderColumn)Activator.CreateInstance(typeof(DataReaderColumn<>).MakeGenericType(reader.GetFieldType(i)), i);
-				while (reader.Read())
-					for (var i = 0; i != columns.Length; ++i)
-						columns[i].Add(reader);
-				return columns;
-			}
-		
-
-			interface IDataReaderColumn
-			{
-				void Add(IDataRecord record);
-				void WriteArray(NewtonsoftJsonWriter json);
-				void WriteArray(Utf8JsonWriter json, JsonSerializerOptions options);
-			}
-
-			class DataReaderColumn<T> : IDataReaderColumn
-			{
-				readonly List<T> values;
-				readonly List<bool> hasValue;
-				readonly int ordinal;
-
-				public DataReaderColumn(int ordinal) {
-					this.values = new();
-					this.hasValue = new();
-					this.ordinal = ordinal;
-				}
-
-				public int Count => values.Count;
-
-				public void Add(IDataRecord record) {
-					var hasValue = !record.IsDBNull(ordinal);
-					if (hasValue)
-						values.Add(GetValue(record));
-					else values.Add(default);
-					this.hasValue.Add(hasValue);
-				}
-
-				public void WriteArray(NewtonsoftJsonWriter json) {
-					json.WriteStartArray();
-					for (var i = 0; i != values.Count; ++i)
-						if (hasValue[i])
-							json.WriteValue(values[i]);
-						else json.WriteNull();
-					json.WriteEndArray();
-				}
-
-				public void WriteArray(Utf8JsonWriter json, JsonSerializerOptions options) {
-					json.WriteStartArray();
-					for (var i = 0; i != values.Count; ++i)
-						if (hasValue[i])
-							WriteValue(json, values[i], options);
-						else json.WriteNullValue();
-					json.WriteEndArray();
-				}
-
-				static void WriteValue(Utf8JsonWriter json, T value, JsonSerializerOptions options) {
-					if (typeof(T) == typeof(short))
-						json.WriteNumberValue((short)(object)value);
-					else if (typeof(T) == typeof(int))
-						json.WriteNumberValue((int)(object)value);
-					else if (typeof(T) == typeof(long))
-						json.WriteNumberValue((long)(object)value);
-					else if (typeof(T) == typeof(float))
-						json.WriteNumberValue((float)(object)value);
-					else if (typeof(T) == typeof(double))
-						json.WriteNumberValue((double)(object)value);
-					else if (typeof(T) == typeof(decimal))
-						json.WriteNumberValue((decimal)(object)value);
-					else if (typeof(T) == typeof(bool))
-						json.WriteBooleanValue((bool)(object)value);
-					else if (typeof(T) == typeof(string))
-						json.WriteStringValue((string)(object)value);
-					else
-						JsonSerializer.Serialize(json, value, typeof(T), options);
-				}
-
-				T GetValue(IDataRecord record) {
-					if (typeof(T) == typeof(short))
-						return (T)(object)record.GetInt16(ordinal);
-					else if (typeof(T) == typeof(int))
-						return (T)(object)record.GetInt32(ordinal);
-					else if (typeof(T) == typeof(long))
-						return (T)(object)record.GetInt64(ordinal);
-					else if (typeof(T) == typeof(float))
-						return (T)(object)record.GetFloat(ordinal);
-					else if (typeof(T) == typeof(double))
-						return (T)(object)record.GetDouble(ordinal);
-					else if (typeof(T) == typeof(decimal))
-						return (T)(object)record.GetDecimal(ordinal);
-					else if (typeof(T) == typeof(bool))
-						return (T)(object)record.GetBoolean(ordinal);
-					else if (typeof(T) == typeof(string))
-						return (T)(object)record.GetString(ordinal);
-					else
-						return (T)record.GetValue(ordinal);
-				}
 			}
 		}
 
