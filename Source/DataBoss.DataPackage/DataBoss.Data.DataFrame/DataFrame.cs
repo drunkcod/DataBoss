@@ -138,8 +138,11 @@ namespace DataBoss.Data.DataFrames
 		readonly T[] items;
 		readonly string name;
 
-		public DataFrameColumn(IEnumerable<T> items, string name = null) {
-			this.items = items.ToArray();
+		public DataFrameColumn(IEnumerable<T> items, string name = null) : this(items.ToArray(), name) 
+		{ }
+
+		public DataFrameColumn(T[] items, string name = null) {
+			this.items = items;
 			this.name = name ?? string.Empty;
 		}
 

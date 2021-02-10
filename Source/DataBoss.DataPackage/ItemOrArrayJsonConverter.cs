@@ -9,6 +9,8 @@ namespace DataBoss.DataPackage
 {
 	public class ItemOrArrayJsonConverter : JsonConverter
 	{
+		delegate object ObjectReader(JsonReader reader, object existingValue, JsonSerializer serializer);
+
 		public override bool CanConvert(Type objectType) => typeof(IEnumerable<>).IsAssignableFrom(objectType);
 
 		public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer) {
@@ -24,15 +26,13 @@ namespace DataBoss.DataPackage
 			(collectionType.GetInterface(typeof(IEnumerable<>).Name) ?? collectionType).GetGenericArguments()[0];
 
 		static object ReadArray(Type itemType, JsonReader reader, JsonSerializer serializer) =>
-			GetGenericMethod(nameof(DoReadArray), itemType)
-			.Invoke(null, new object[]{ reader, serializer });
+			GetObectReader(nameof(DoReadArray), itemType)(reader, null, serializer);
 
-		static T[] DoReadArray<T>(JsonReader reader,JsonSerializer serializer) =>
-			DoReadCollection<T>(reader, null, serializer).ToArray();
+		static T[] DoReadArray<T>(JsonReader reader, object existingValue, JsonSerializer serializer) =>
+			DoReadCollection<T>(reader, existingValue, serializer).ToArray();
 
 		static object ReadCollection(Type itemType, JsonReader reader, object existingValue, JsonSerializer serializer) =>
-			GetGenericMethod(nameof(DoReadCollection), itemType)
-			.Invoke(null, new[] { reader, existingValue, serializer });
+			GetObectReader(nameof(DoReadCollection), itemType)(reader, existingValue, serializer);
 
 		static IEnumerable<T> DoReadCollection<T>(JsonReader reader, object existingValue, JsonSerializer serializer) {
 			var target = (existingValue as ICollection<T>) ?? new List<T>();
@@ -48,6 +48,9 @@ namespace DataBoss.DataPackage
 			
 			return target;
 		}
+
+		static ObjectReader GetObectReader(string name, Type type) =>
+			(ObjectReader)Delegate.CreateDelegate(typeof(ObjectReader), GetGenericMethod(name, type));
 
 		static MethodInfo GetGenericMethod(string name, Type type) => 
 			typeof(ItemOrArrayJsonConverter).GetMethod(name, BindingFlags.Static | BindingFlags.NonPublic)
