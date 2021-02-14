@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Channels;
 using DataBoss.Data;
+using DataBoss.IO;
 using DataBoss.Linq;
 using DataBoss.Threading.Channels;
 using Newtonsoft.Json;
@@ -98,7 +99,7 @@ namespace DataBoss.DataPackage
 			r.Resources.AddRange(description.Resources.Select(x =>
 				TabularDataResource.From(x, () =>
 					NewCsvDataReader(
-						new StreamReader(WebResponseStream.Get(x.Path[0])),
+						new StreamReader(OpenResourceStream(x.Path, WebResponseStream.Get)),
 						x.Dialect,
 						x.Schema))));
 
@@ -154,7 +155,7 @@ namespace DataBoss.DataPackage
 			r.Resources.AddRange(description.Resources.Select(x =>
 				TabularDataResource.From(x, () =>
 					NewCsvDataReader(
-						new StreamReader(openRead(x.Path[0])),
+						new StreamReader(OpenResourceStream(x.Path, openRead)),
 						x.Dialect,
 						x.Schema))));
 
@@ -186,7 +187,7 @@ namespace DataBoss.DataPackage
 			public IDataReader GetData() {
 				var source = new ZipArchive(openZip(), ZipArchiveMode.Read);
 				var csv = NewCsvDataReader(
-					new StreamReader(OpenPath(resource.Path, x => source.GetEntry(x).Open()), Encoding.UTF8, true, StreamBufferSize),
+					new StreamReader(OpenResourceStream(resource.Path, x => source.GetEntry(x).Open()), Encoding.UTF8, true, StreamBufferSize),
 					resource.Dialect,
 					resource.Schema);
 				csv.Disposed += delegate { source.Dispose(); };
@@ -194,13 +195,10 @@ namespace DataBoss.DataPackage
 			}
 		}
 
-		static Stream OpenPath(IReadOnlyList<string> path, Func<string, Stream> open) {
+		static Stream OpenResourceStream(IReadOnlyList<string> path, Func<string, Stream> open) {
 			if (path.Count == 1)
 				return open(path[0]);
-			var parts = new Stream[path.Count];
-			for (var i = 0; i != parts.Length; ++i)
-				parts[i] = open(path[i]);
-			return new ConcatStream(parts);
+			return new ConcatStream(path.Select(open).GetEnumerator());
 		}
 
 		static DataPackageDescription LoadZipPackageDescription(Func<Stream> openZip) {

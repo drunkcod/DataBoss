@@ -117,42 +117,4 @@ namespace DataBoss.DataPackage
 		}
 	}
 
-	class ConcatStream : Stream
-	{
-		readonly Stream[] streams;
-		int activeStream;
-
-		public ConcatStream(Stream[] streams) {
-			this.streams = streams;
-			this.activeStream = 0;
-		}
-
-		public override bool CanRead => true;
-		public override bool CanSeek => false;
-		public override bool CanWrite => false;
-
-		public override long Length => streams.Sum(x => x.Length);
-
-		public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
-
-		public override void Flush() { }
-
-		public override int Read(byte[] buffer, int offset, int count) {
-			var n = streams[activeStream].Read(buffer, offset, count);
-			if (n == count || (activeStream +1) == streams.Length)
-				return n;
-			++activeStream;
-			return n + Read(buffer, offset + n, count - n);
-		}
-
-		protected override void Dispose(bool disposing) {
-			if (disposing)
-				Array.ForEach(streams, x => x.Dispose());
-		}
-
-		public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
-		public override void SetLength(long value) => throw new NotSupportedException();
-		public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
-	}
-
 }
