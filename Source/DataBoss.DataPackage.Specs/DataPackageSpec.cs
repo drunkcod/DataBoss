@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -13,6 +14,79 @@ namespace DataBoss.DataPackage
 {
 	public class DataPackageSpec
 	{
+		struct IdValueRow
+		{
+			public int Id;
+			public string Value;
+		}
+
+		[Fact]
+		public void AddResource_with_non_default_path() {
+			var dp = new DataPackage()
+				.AddResource(new DataPackageResourceOptions {
+					Name = "my-resource",
+					Path = "some/path.csv",
+				}, () => SequenceDataReader.Items(new { Id = 1, Value = "One" }));
+
+			var r = dp.Serialize();
+
+			Check.That(() => r.Resources[0].Path.Single() == "some/path.csv");
+		}
+
+		[Fact]
+		public void multi_part_resource() {
+			var dp = new DataPackage();
+			dp.AddResource(new DataPackageResourceOptions {
+				Name = "1",
+				Path = "parts/1.csv",
+			}, () => SequenceDataReader.Items(new { Id = 1, Value = "One" }));
+			
+			dp.AddResource(new DataPackageResourceOptions {
+				Name = "2",
+				Path = "parts/2.csv",
+				HasHeaderRow = false,
+			}, () => SequenceDataReader.Items(new { Id = 2, Value = "Two" }));
+
+			dp.AddResource(new DataPackageResourceOptions {
+				Name = "all-parts",
+				Paths = new[] {
+					"parts/1.csv",
+					"parts/2.csv",
+				},
+			});
+
+			var r = dp.Serialize();
+
+			var allRows = r.GetResource("1").Read<IdValueRow>().Concat(r.GetResource("2").Read<IdValueRow>()).ToList();
+			Check.That(
+				() => allRows.Count == 2,
+				() => r.GetResource("all-parts").Read<IdValueRow>().Count() == allRows.Count);
+		}
+
+		[Fact]
+		public void resource_without_header() {
+			var dp = new DataPackage();
+			dp.AddResource(new DataPackageResourceOptions {
+				Name = "stuff",
+				HasHeaderRow = false,
+			}, () => SequenceDataReader.Items(new { Id = 1, Value = "Stuff" }));
+
+			var outputs = new Dictionary<string, MemoryStream>();
+			dp.Save(path => outputs[path] = new MemoryStream());
+
+
+			Check.That(() => Encoding.UTF8.GetString(outputs["stuff.csv"].ToArray()).TrimEnd() == "1;Stuff");
+		}
+
+		[Fact]
+		public void update_schema_fields_on_read_when_not_set() {
+			var dp = new DataPackage()
+				.AddResource("my-resource", () => SequenceDataReader.Items(new { Id = 1, Value = "One" }))
+				.Done();
+
+			Check.Exception<InvalidOperationException>(() => dp.GetResource("my-resource").GetDescription());
+		}
+
 		[Fact]
 		public void WithPrimaryKey_composite_key() {
 			var dp = new DataPackage()

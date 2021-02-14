@@ -178,6 +178,15 @@ namespace DataBoss.Data.DataFrames
 			return new DataFrameColumn<T>(picked, name);
 		}
 
+		//To silenece warnings... don't know how to handle this yet.
+		public override int GetHashCode() {
+			return base.GetHashCode();
+		}
+
+		public override bool Equals(object obj) {
+			return base.Equals(obj);
+		}
+
 		public IEnumerator<T> GetEnumerator() => ((IEnumerable<T>)items).GetEnumerator();
 
 		IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();

@@ -17,6 +17,19 @@ using Newtonsoft.Json;
 
 namespace DataBoss.DataPackage
 {
+	public class DataPackageResourceOptions
+	{
+		public string Name;
+		public string Path {
+			get => (Paths != null && Paths.Count != 0) ? Paths[0] : null;
+			set => Paths = new[] { value };
+		}
+
+		public IReadOnlyList<string> Paths;
+
+		public bool HasHeaderRow = true;
+	}
+
 	public partial class DataPackage : IDataPackageBuilder
 	{
 		const int StreamBufferSize = 81920;
@@ -85,8 +98,8 @@ namespace DataBoss.DataPackage
 			r.Resources.AddRange(description.Resources.Select(x =>
 				TabularDataResource.From(x, () =>
 					NewCsvDataReader(
-						new StreamReader(WebResponseStream.Get(x.Path)),
-						x.Dialect?.Delimiter,
+						new StreamReader(WebResponseStream.Get(x.Path[0])),
+						x.Dialect,
 						x.Schema))));
 
 			return r;
@@ -141,8 +154,8 @@ namespace DataBoss.DataPackage
 			r.Resources.AddRange(description.Resources.Select(x =>
 				TabularDataResource.From(x, () =>
 					NewCsvDataReader(
-						new StreamReader(openRead(x.Path)),
-						x.Dialect?.Delimiter,
+						new StreamReader(openRead(x.Path[0])),
+						x.Dialect,
 						x.Schema))));
 
 			return r;
@@ -173,12 +186,21 @@ namespace DataBoss.DataPackage
 			public IDataReader GetData() {
 				var source = new ZipArchive(openZip(), ZipArchiveMode.Read);
 				var csv = NewCsvDataReader(
-					new StreamReader(source.GetEntry(resource.Path).Open(), Encoding.UTF8, true, StreamBufferSize),
-					resource.Dialect?.Delimiter,
+					new StreamReader(OpenPath(resource.Path, x => source.GetEntry(x).Open()), Encoding.UTF8, true, StreamBufferSize),
+					resource.Dialect,
 					resource.Schema);
 				csv.Disposed += delegate { source.Dispose(); };
 				return csv;
 			}
+		}
+
+		static Stream OpenPath(IReadOnlyList<string> path, Func<string, Stream> open) {
+			if (path.Count == 1)
+				return open(path[0]);
+			var parts = new Stream[path.Count];
+			for (var i = 0; i != parts.Length; ++i)
+				parts[i] = open(path[i]);
+			return new ConcatStream(parts);
 		}
 
 		static DataPackageDescription LoadZipPackageDescription(Func<Stream> openZip) {
@@ -189,27 +211,46 @@ namespace DataBoss.DataPackage
 			return json.Deserialize<DataPackageDescription>(reader);
 		}
 
-		static CsvDataReader NewCsvDataReader(TextReader reader, string delimiter, TabularDataSchema schema) =>
+		static CsvDataReader NewCsvDataReader(TextReader reader, CsvDialectDescription csvDialect, TabularDataSchema schema) =>
 			new CsvDataReader(
 				new CsvHelper.CsvReader(
 					reader,
-					new CsvHelper.Configuration.CsvConfiguration(CultureInfo.InvariantCulture) { Delimiter = delimiter ?? "," }),
-				schema);
+					new CsvHelper.Configuration.CsvConfiguration(CultureInfo.InvariantCulture) { Delimiter = csvDialect.Delimiter ?? "," }),
+				schema, 
+				hasHeaderRow: csvDialect.HasHeaderRow);
 
-		public IDataPackageResourceBuilder AddResource(string name, Func<IDataReader> getData)
-		{
+		public IDataPackageResourceBuilder AddResource(string name, Func<IDataReader> getData) =>
+			AddResource(new DataPackageResourceOptions {
+				Name = name,
+				Path = Path.ChangeExtension(name, "csv")
+			}, getData);
+
+		public IDataPackageResourceBuilder AddResource(DataPackageResourceOptions item) {
+			var parts = item.Paths
+				.Select(path => Resources.First(x => x.Path.Count == 1 && x.Path[0] == path))
+				.Select(x => x.Read());
+
+			return AddResource(item, () => new MultiDataReader(parts));
+		}
+
+		public IDataPackageResourceBuilder AddResource(DataPackageResourceOptions item, Func<IDataReader> getData) {
 			var resource = TabularDataResource.From(
 				new DataPackageResourceDescription {
 					Format = "csv",
-					Name = name,
+					Name = item.Name,
+					Path = item.Paths,
 					Schema = new TabularDataSchema {
 						PrimaryKey = new List<string>(),
 						ForeignKeys = new List<DataPackageForeignKey>(),
 					},
+					Dialect = new CsvDialectDescription {
+						HasHeaderRow = item.HasHeaderRow,
+					}
 				}, getData);
 			Resources.Add(resource);
 			return new DataPackageResourceBuilder(this, resource);
 		}
+
 
 		DataPackage IDataPackageBuilder.Done() => this;
 
@@ -231,12 +272,14 @@ namespace DataBoss.DataPackage
 			var defaultFormatter = new RecordFormatter(culture ?? CultureInfo.InvariantCulture);
 
 			foreach (var item in Resources) {
-				var resourcePath = $"{item.Name}.csv";
-				using var output = createOutput(resourcePath);
 				using var data = item.Read();
 
 				var desc = item.GetDescription();
-				desc.Path = Path.GetFileName(resourcePath);
+				desc.Path = item.Path;
+
+				if (desc.Path == null)
+					desc.Path = new[] { $"{item.Name}.csv" };
+
 				var fieldCount = item.Schema.Fields.Count;
 				var toString = new Func<IDataRecord, int, string>[fieldCount];
 
@@ -254,14 +297,17 @@ namespace DataBoss.DataPackage
 					toString[i] = fieldFormatter.GetFormatter(data.GetFieldType(i), field);
 				}
 
-				var delimiter = desc.Dialect.Delimiter ??= DefaultDelimiter;
+				desc.Dialect.Delimiter ??= DefaultDelimiter;
+
 				description.Resources.Add(desc);
-				try {
-					WriteRecords(output, delimiter, data, toString);
-				}
-				catch (Exception ex) {
-					throw new Exception($"Failed writing {item.Name}.", ex);
-				}
+				if(desc.Path.Count == 1)
+					try {
+						using var output = createOutput(desc.Path[0]);
+						WriteRecords(output, desc.Dialect, data, toString);
+					}
+					catch (Exception ex) {
+						throw new Exception($"Failed writing {item.Name}.", ex);
+					}
 			};
 
 			using var meta = new StreamWriter(createOutput("datapackage.json"));
@@ -278,9 +324,10 @@ namespace DataBoss.DataPackage
 		static CsvWriter NewCsvWriter(Stream stream, Encoding encoding, string delimiter) => 
 			new CsvWriter(new StreamWriter(stream, encoding, StreamBufferSize, leaveOpen: true), delimiter);
 
-		static void WriteRecords(Stream output, string delimiter, IDataReader data, Func<IDataRecord, int, string>[] toString) {
+		static void WriteRecords(Stream output, CsvDialectDescription csvDialect, IDataReader data, Func<IDataRecord, int, string>[] toString) {
 
-			WriteHeaderRecord(output, Encoding.UTF8, delimiter, data);
+			if(csvDialect.HasHeaderRow)
+				WriteHeaderRecord(output, Encoding.UTF8, csvDialect.Delimiter, data);
 
 			var records = Channel.CreateBounded<IReadOnlyCollection<IDataRecord>>(new BoundedChannelOptions(1024) {
 				SingleWriter = true,
@@ -293,7 +340,7 @@ namespace DataBoss.DataPackage
 
 			var reader = new RecordReader(data.AsDataRecordReader(), records);
 			var writer = new ChunkWriter(records, chunks, new UTF8Encoding(false)) {
-				Delimiter = delimiter,
+				Delimiter = csvDialect.Delimiter,
 				FormatValue = toString,					
 			};
 

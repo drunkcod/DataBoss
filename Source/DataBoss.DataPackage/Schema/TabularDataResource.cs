@@ -10,27 +10,30 @@ namespace DataBoss.DataPackage
 {
 	public class TabularDataResource
 	{
+		readonly DataPackageResourceDescription description;
 		readonly Func<IDataReader> getData;
-		public readonly string Name;
-		public readonly TabularDataSchema Schema;
+		public string Name => description.Name;
+		public IReadOnlyList<string> Path => description.Path;
+		public TabularDataSchema Schema => description.Schema;
 		public readonly string Format;
 
-		protected TabularDataResource(string name, TabularDataSchema schema, Func<IDataReader> getData, string format) {
-			if(!Regex.IsMatch(name, @"^[a-z0-9-._]+$"))
-				throw new NotSupportedException($"name MUST consist only of lowercase alphanumeric characters plus '.', '-' and '_' was '{name}'");
-			this.Name = name;
-			this.Schema = schema;
+		protected TabularDataResource(DataPackageResourceDescription description, Func<IDataReader> getData, string format) {
+			if(!Regex.IsMatch(description.Name, @"^[a-z0-9-._]+$"))
+				throw new NotSupportedException($"name MUST consist only of lowercase alphanumeric characters plus '.', '-' and '_' was '{description.Name}'");
+			this.description = description;
 			this.getData = getData;
 			this.Format = format;
 		}
 
 		public static TabularDataResource From(DataPackageResourceDescription desc, Func<IDataReader> getData) {
-			if (desc.Format == "csv" || (desc.Format == null && (desc.Path?.EndsWith(".csv") ?? false)))
-				return new CsvDataResource(desc.Name, desc.Schema, getData) { Delimiter = desc.Dialect?.Delimiter };
-			return new TabularDataResource(desc.Name, desc.Schema, getData, desc.Format);
+			if (desc.Format == "csv" || (desc.Format == null && (desc.Path?.All(x => x.EndsWith(".csv")) ?? false)))
+				return new CsvDataResource(desc, getData) { Delimiter = desc.Dialect?.Delimiter };
+			return new TabularDataResource(desc, getData, desc.Format);
 		}
 
 		public DataPackageResourceDescription GetDescription() {
+			if (Schema.Fields == null)
+				throw new InvalidOperationException("Field information missing. Did you forget to call Read on new resource?");
 			var desc = new DataPackageResourceDescription {
 				Name = Name,
 				Format = Format,
@@ -46,7 +49,7 @@ namespace DataBoss.DataPackage
 
 		protected virtual void UpdateDescription(DataPackageResourceDescription description) { }
 
-		static List<T> NullIfEmpty<T>(List<T> values) => values == null ? null : values.Count == 0 ? null : values;
+		static List<T> NullIfEmpty<T>(List<T> values) => (values == null || values.Count == 0) ? null : values;
 
 		public int GetOrdinal(string name) => Schema.Fields.FindIndex(x => x.Name == name);
 
@@ -64,10 +67,10 @@ namespace DataBoss.DataPackage
 			Rebind(Name, Schema, () => new WhereDataReader(getData(), predicate));
 
 		public TabularDataResource Transform(Action<DataReaderTransform> defineTransform) {
-			var schema = new TabularDataSchema();
-			schema.PrimaryKey = Schema.PrimaryKey?.ToList();
-			schema.ForeignKeys = Schema.ForeignKeys?.ToList();
-			return Rebind(Name, schema, () => {
+			return Rebind(Name, new TabularDataSchema {
+				PrimaryKey = Schema.PrimaryKey?.ToList(),
+				ForeignKeys = Schema.ForeignKeys?.ToList()
+			}, () => {
 				var data = new DataReaderTransform(getData());
 				defineTransform(data);
 				return data;
@@ -75,12 +78,15 @@ namespace DataBoss.DataPackage
 		}
 
 		protected virtual TabularDataResource Rebind(string name, TabularDataSchema schema, Func<IDataReader> getData) =>
-			new TabularDataResource(name, schema, getData, Format);
+			new TabularDataResource(new DataPackageResourceDescription {
+				Name = name,
+				Schema = schema,
+				Path = Path,
+			}, getData, Format);
 
 		static List<TabularDataSchemaFieldDescription> GetFieldInfo(IDataReader reader) {
 			var r = new List<TabularDataSchemaFieldDescription>(reader.FieldCount);
-			var schema = ObjectReader.For(reader.GetSchemaTable().CreateDataReader())
-				.Read<DataReaderSchemaRow>()
+			var schema = ObjectReader.Read<DataReaderSchemaRow>(reader.GetSchemaTable().CreateDataReader())
 				.ToDictionary(x => x.ColumnName, x => x);
 			
 			for (var i = 0; i != reader.FieldCount; ++i) {
@@ -104,9 +110,11 @@ namespace DataBoss.DataPackage
 			switch(Type.GetTypeCode(type)) {
 				case TypeCode.Boolean: return ("boolean", null);
 				case TypeCode.DateTime: return ("datetime", null);
-				case TypeCode.Decimal:
+
 				case TypeCode.Single:
-				case TypeCode.Double: return ("number", null);
+				case TypeCode.Double: 
+				case TypeCode.Decimal: return ("number", null);
+
 				case TypeCode.Byte:
 				case TypeCode.Int16:
 				case TypeCode.Int32:
@@ -126,14 +134,23 @@ namespace DataBoss.DataPackage
 	public class CsvDataResource : TabularDataResource
 	{
 		public string Delimiter;
+		public bool HasHeaderRow;
 
-		public CsvDataResource(string name, TabularDataSchema schema, Func<IDataReader> getData) : base(name, schema, getData, "csv") { }
+		public CsvDataResource(DataPackageResourceDescription description, Func<IDataReader> getData) : base(description, getData, "csv") {
+			this.HasHeaderRow = description.Dialect?.HasHeaderRow ?? true;
+		}
 
 		protected override TabularDataResource Rebind(string name, TabularDataSchema schema, Func<IDataReader> getData) =>
-			new CsvDataResource(name, schema, getData) { Delimiter = Delimiter };
+			new CsvDataResource(new DataPackageResourceDescription {
+				Name = name,
+				Schema = schema,
+			}, getData) { Delimiter = Delimiter };
 
 		protected override void UpdateDescription(DataPackageResourceDescription description) {
-			description.Dialect = new CsvDialectDescription { Delimiter = Delimiter };
+			description.Dialect = new CsvDialectDescription { 
+				Delimiter = Delimiter,
+				HasHeaderRow = HasHeaderRow,
+			};
 		}
 	}
 }

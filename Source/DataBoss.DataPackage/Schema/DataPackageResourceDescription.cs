@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.ComponentModel;
 using Newtonsoft.Json;
 
 namespace DataBoss.DataPackage
@@ -7,8 +9,8 @@ namespace DataBoss.DataPackage
 	{
 		[JsonProperty("name")]
 		public string Name;
-		[JsonProperty("path")]
-		public string Path;
+		[JsonProperty("path"), JsonConverter(typeof(ItemOrArrayJsonConverter))]
+		public IReadOnlyList<string> Path;
 		[JsonProperty("format")]
 		public string Format;
 
@@ -28,5 +30,8 @@ namespace DataBoss.DataPackage
 	{
 		[JsonProperty("delimiter")]
 		public string Delimiter;
+
+		[JsonProperty("header"), DefaultValue(true)]
+		public bool HasHeaderRow = true;
 	}
 }
