@@ -13,7 +13,7 @@ namespace DataBoss.DataPackage
 		readonly DataPackageResourceDescription description;
 		readonly Func<IDataReader> getData;
 		public string Name => description.Name;
-		public IReadOnlyList<string> Path => description.Path;
+		public ResourcePath Path => description.Path;
 		public TabularDataSchema Schema => description.Schema;
 		public readonly string Format;
 
@@ -26,7 +26,7 @@ namespace DataBoss.DataPackage
 		}
 
 		public static TabularDataResource From(DataPackageResourceDescription desc, Func<IDataReader> getData) {
-			if (desc.Format == "csv" || (desc.Format == null && (desc.Path?.All(x => x.EndsWith(".csv")) ?? false)))
+			if (desc.Format == "csv" || (desc.Format == null && (desc.Path.All(x => x.EndsWith(".csv")))))
 				return new CsvDataResource(desc, getData) { Delimiter = desc.Dialect?.Delimiter };
 			return new TabularDataResource(desc, getData, desc.Format);
 		}

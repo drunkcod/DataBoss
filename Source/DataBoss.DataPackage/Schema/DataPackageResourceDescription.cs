@@ -9,8 +9,8 @@ namespace DataBoss.DataPackage
 	{
 		[JsonProperty("name")]
 		public string Name;
-		[JsonProperty("path"), JsonConverter(typeof(ItemOrArrayJsonConverter))]
-		public IReadOnlyList<string> Path;
+		[JsonProperty("path")]
+		public ResourcePath Path;
 		[JsonProperty("format")]
 		public string Format;
 

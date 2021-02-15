@@ -20,12 +20,7 @@ namespace DataBoss.DataPackage
 	public class DataPackageResourceOptions
 	{
 		public string Name;
-		public string Path {
-			get => (Paths != null && Paths.Count != 0) ? Paths[0] : null;
-			set => Paths = new[] { value };
-		}
-
-		public IReadOnlyList<string> Paths;
+		public ResourcePath Path;
 
 		public bool HasHeaderRow = true;
 	}
@@ -98,7 +93,7 @@ namespace DataBoss.DataPackage
 			r.Resources.AddRange(description.Resources.Select(x =>
 				TabularDataResource.From(x, () =>
 					NewCsvDataReader(
-						new StreamReader(OpenResourceStream(x.Path, WebResponseStream.Get)),
+						new StreamReader(x.Path.OpenResourceStream(WebResponseStream.Get)),
 						x.Dialect,
 						x.Schema))));
 
@@ -116,7 +111,7 @@ namespace DataBoss.DataPackage
 			r.Resources.AddRange(description.Resources.Select(x =>
 				TabularDataResource.From(x, () =>
 					NewCsvDataReader(
-						new StreamReader(OpenResourceStream(x.Path, openRead)),
+						new StreamReader(x.Path.OpenResourceStream(openRead)),
 						x.Dialect,
 						x.Schema))));
 
@@ -148,18 +143,12 @@ namespace DataBoss.DataPackage
 			public IDataReader GetData() {
 				var source = new ZipArchive(openZip(), ZipArchiveMode.Read);
 				var csv = NewCsvDataReader(
-					new StreamReader(OpenResourceStream(resource.Path, x => source.GetEntry(x).Open()), Encoding.UTF8, true, StreamBufferSize),
+					new StreamReader(resource.Path.OpenResourceStream(x => source.GetEntry(x).Open()), Encoding.UTF8, true, StreamBufferSize),
 					resource.Dialect,
 					resource.Schema);
 				csv.Disposed += delegate { source.Dispose(); };
 				return csv;
 			}
-		}
-
-		static Stream OpenResourceStream(IReadOnlyList<string> path, Func<string, Stream> open) {
-			if (path.Count == 1)
-				return open(path[0]);
-			return new ConcatStream(path.Select(open).GetEnumerator());
 		}
 
 		static DataPackageDescription LoadZipPackageDescription(Func<Stream> openZip) {
@@ -185,8 +174,8 @@ namespace DataBoss.DataPackage
 			}, getData);
 
 		public IDataPackageResourceBuilder AddResource(DataPackageResourceOptions item) {
-			var parts = item.Paths
-				.Select(path => Resources.First(x => x.Path.Count == 1 && x.Path[0] == path))
+			var parts = item.Path
+				.Select(path => Resources.First(x => x.Path.Count == 1 && x.Path == path))
 				.Select(x => x.Read());
 
 			return AddResource(item, () => new MultiDataReader(parts));
@@ -197,7 +186,7 @@ namespace DataBoss.DataPackage
 				new DataPackageResourceDescription {
 					Format = "csv",
 					Name = item.Name,
-					Path = item.Paths,
+					Path = item.Path,
 					Schema = new TabularDataSchema {
 						PrimaryKey = new List<string>(),
 						ForeignKeys = new List<DataPackageForeignKey>(),
@@ -233,7 +222,7 @@ namespace DataBoss.DataPackage
 				using var data = item.Read();
 				var desc = item.GetDescription();
 				desc.Path = item.Path;
-				if (desc.Path == null)
+				if (desc.Path.IsEmpty)
 					desc.Path = new[] { $"{item.Name}.csv" };
 
 				var fieldCount = item.Schema.Fields.Count;
@@ -257,7 +246,7 @@ namespace DataBoss.DataPackage
 
 				description.Resources.Add(desc);
 				if (desc.Path.Count == 1) {
-					var output = createOutput(desc.Path[0]);
+					var output = createOutput(desc.Path.First());
 					try {
 						WriteRecords(output, desc.Dialect, data, toString);
 					}

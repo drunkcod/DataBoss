@@ -29,6 +29,10 @@ namespace DataBoss.DataPackage
 			() => FromJson<List<int>>(ToItemOrArray(1, 2, 3)).SequenceEqual(new[] { 1, 2, 3 }));
 
 		[Fact]
+		public void empty() => Check.That(
+			() => ToItemOrArray(new object[0]) == "[]");
+
+		[Fact]
 		public void ICollection_of_T() => Check.That(
 			() => FromJson<ICollection<int>>(ToItemOrArray(321)).SequenceEqual(new[] { 321 }));
 

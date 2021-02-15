@@ -67,18 +67,20 @@ namespace DataBoss.DataPackage
 					writer.WriteStartArray();
 					writer.WriteEndArray();
 				}
-				var first = items.Current;
-				if (items.MoveNext()) {
-					writer.WriteStartArray();
-					serializer.Serialize(writer, first);
+				else {
+					var first = items.Current;
+					if (items.MoveNext()) {
+						writer.WriteStartArray();
+						serializer.Serialize(writer, first);
 
-					do {
-						serializer.Serialize(writer, items.Current);
-					} while (items.MoveNext());
+						do {
+							serializer.Serialize(writer, items.Current);
+						} while (items.MoveNext());
 
-					writer.WriteEndArray();
+						writer.WriteEndArray();
+					}
+					else serializer.Serialize(writer, first);
 				}
-				else serializer.Serialize(writer, first);
 			} finally {
 				(items as IDisposable)?.Dispose();
 			}
