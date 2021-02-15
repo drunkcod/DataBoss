@@ -19,16 +19,24 @@ namespace DataBoss.IO
 		public override bool CanWrite => false;
 
 		public override long Length => throw new NotSupportedException();
-		public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+		public override long Position { 
+			get => throw new NotSupportedException(); 
+			set => throw new NotSupportedException();
+		}
 
 		public override int Read(byte[] buffer, int offset, int count) {
-			var n = 0;
+			var totalBytes = 0;
 			do {
-				n += activeStream.Read(buffer, offset + n, count - n);
-				if (n == count)
-					return n;
+				var bytesRead = activeStream.Read(buffer, offset, count);
+				totalBytes += bytesRead;
+				if (bytesRead == count)
+					break;
+
+				offset += bytesRead;
+				count -= bytesRead;
 			} while (MoveNext());
-			return n;
+
+			return totalBytes;
 		}
 
 		bool MoveNext() {
@@ -44,7 +52,7 @@ namespace DataBoss.IO
 
 		protected override void Dispose(bool disposing) {
 			if (disposing) {
-				activeStream?.Dispose();
+				activeStream.Dispose();
 				streams.Dispose();
 			}
 		}

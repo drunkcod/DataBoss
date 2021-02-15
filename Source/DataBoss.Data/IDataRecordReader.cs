@@ -25,7 +25,6 @@ namespace DataBoss.Data
 
 		public bool Read() => reader.Read();
 		public IDataRecord GetRecord() => ObjectDataRecord.GetRecord(reader);
-		public DataTable GetSchemaTable() => reader.GetSchemaTable();
 
 		class ObjectDataRecord : IDataRecord
 		{

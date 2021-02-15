@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -12,6 +13,40 @@ using Xunit;
 
 namespace DataBoss.DataPackage
 {
+	public class ResourcePath : IEquatable<ResourcePath>
+	{
+		readonly string path;
+
+		ResourcePath(string path) {
+			this.path = path;
+		}
+
+		public static implicit operator ResourcePath(string path) => new ResourcePath(path);
+		public static implicit operator string(ResourcePath path) => path.path;
+		public static bool operator ==(ResourcePath left, string path) => left.path == path;
+		public static bool operator !=(ResourcePath left, string path) => left.path != path;
+
+		public override bool Equals(object obj) =>
+			obj is ResourcePath other && Equals(other);
+
+		public override int GetHashCode() => 
+			path.GetHashCode();
+
+		public bool Equals([AllowNull] ResourcePath other) => 
+			ReferenceEquals(this, other) || other.path == this.path;
+	}
+
+	public class ResourcePathSpec
+	{
+		[Fact]
+		public void single_item() {
+			var path = "data.csv";
+			ResourcePath resourcePath = path;
+
+			Check.That(() => resourcePath == path);
+		}
+	}
+
 	public class DataPackageSpec
 	{
 		struct IdValueRow

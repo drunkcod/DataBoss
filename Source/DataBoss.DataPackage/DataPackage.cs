@@ -5,7 +5,6 @@ using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -104,44 +103,6 @@ namespace DataBoss.DataPackage
 						x.Schema))));
 
 			return r;
-		}
-
-		class WebResponseStream : Stream
-		{
-			readonly WebResponse source;
-			readonly Stream stream;
-
-			public static WebResponseStream Get(string url) {
-				var http = WebRequest.Create(url);
-				http.Method = "GET";
-				return new WebResponseStream(http.GetResponse());
-			}
-
-			WebResponseStream(WebResponse source) {
-				this.source = source;
-				this.stream = source.GetResponseStream();
-			}
-
-			protected override void Dispose(bool disposing) {
-				if (!disposing)
-					return;
-				source.Dispose();
-				stream.Dispose();
-			}
-
-			public override bool CanRead => stream.CanRead;
-			public override bool CanSeek => stream.CanSeek;
-			public override bool CanWrite => stream.CanWrite;
-
-			public override long Length => stream.Length;
-			public override long Position { get => stream.Position; set => stream.Position = value; }
-
-			public override void Flush() => stream.Flush();
-
-			public override int Read(byte[] buffer, int offset, int count) => stream.Read(buffer, offset, count);
-			public override long Seek(long offset, SeekOrigin origin) => stream.Seek(offset, origin);
-			public override void SetLength(long value) => stream.SetLength(value);
-			public override void Write(byte[] buffer, int offset, int count) => stream.Write(buffer, offset, count);
 		}
 
 		public static DataPackage Load(Func<string, Stream> openRead) {
@@ -249,7 +210,6 @@ namespace DataBoss.DataPackage
 			return new DataPackageResourceBuilder(this, resource);
 		}
 
-
 		DataPackage IDataPackageBuilder.Done() => this;
 
 		public void UpdateResource(string name, Func<TabularDataResource, TabularDataResource> doUpdate) {
@@ -271,10 +231,8 @@ namespace DataBoss.DataPackage
 
 			foreach (var item in Resources) {
 				using var data = item.Read();
-
 				var desc = item.GetDescription();
 				desc.Path = item.Path;
-
 				if (desc.Path == null)
 					desc.Path = new[] { $"{item.Name}.csv" };
 
@@ -298,15 +256,19 @@ namespace DataBoss.DataPackage
 				desc.Dialect.Delimiter ??= DefaultDelimiter;
 
 				description.Resources.Add(desc);
-				if(desc.Path.Count == 1)
+				if (desc.Path.Count == 1) {
+					var output = createOutput(desc.Path[0]);
 					try {
-						using var output = createOutput(desc.Path[0]);
 						WriteRecords(output, desc.Dialect, data, toString);
 					}
 					catch (Exception ex) {
 						throw new Exception($"Failed writing {item.Name}.", ex);
 					}
-			};
+					finally {
+						output.Dispose();
+					}
+				}
+			}
 
 			using var meta = new StreamWriter(createOutput("datapackage.json"));
 			meta.Write(JsonConvert.SerializeObject(description, Formatting.Indented));
@@ -336,16 +298,21 @@ namespace DataBoss.DataPackage
 				SingleReader = true,
 			});
 
-			var reader = new RecordReader(data.AsDataRecordReader(), records);
+			var cancellation = new CancellationTokenSource();
+			var reader = new RecordReader(data.AsDataRecordReader(), records, cancellation.Token);
 			var writer = new ChunkWriter(records, chunks, new UTF8Encoding(false)) {
 				Delimiter = csvDialect.Delimiter,
-				FormatValue = toString,					
+				FormatValue = toString,
+				OnError = _ => cancellation.Cancel(),
 			};
 
 			reader.Start();
 			writer.Start();
 
 			chunks.Reader.ForEach(x => x.CopyTo(output));
+
+			reader.Join();
+			writer.Join();
 
 			if (reader.Error != null)
 				throw new Exception("Failed to write csv", reader.Error);
@@ -369,8 +336,10 @@ namespace DataBoss.DataPackage
 			protected abstract void DoWork();
 			protected virtual void Cleanup() { }
 
+			public Action<Exception> OnError;
+
 			public void Start() {
-				if(thread != null)
+				if(thread != null && thread.IsAlive)
 					throw new InvalidOperationException("WorkItem already started.");
 				thread = new Thread(Run) {
 					IsBackground = true,
@@ -384,11 +353,13 @@ namespace DataBoss.DataPackage
 					DoWork();
 				} catch (Exception ex) {
 					Error = ex;
+					OnError?.Invoke(ex);
 				} finally {
 					Cleanup();
-					thread = null;
 				}
 			}
+
+			public void Join() => thread.Join();
 		}
 
 		class RecordReader : WorkItem
@@ -397,16 +368,18 @@ namespace DataBoss.DataPackage
 
 			readonly IDataRecordReader reader;
 			readonly ChannelWriter<IReadOnlyCollection<IDataRecord>> writer;
+			readonly CancellationToken cancellation;
  
-			public RecordReader(IDataRecordReader reader, ChannelWriter<IReadOnlyCollection<IDataRecord>> writer) {
+			public RecordReader(IDataRecordReader reader, ChannelWriter<IReadOnlyCollection<IDataRecord>> writer, CancellationToken cancellation) {
 				this.reader = reader;
 				this.writer = writer;
+				this.cancellation = cancellation;
 			}
 
 			protected override void DoWork() {
 				var values = CreateBuffer();
 				var n = 0;
-				while (reader.Read()) {
+				while(!cancellation.IsCancellationRequested && reader.Read()) {
 					values.Add(reader.GetRecord());
 
 					if (++n == BufferRows) {
