@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
@@ -13,27 +14,93 @@ using Xunit;
 
 namespace DataBoss.DataPackage
 {
-	public class ResourcePath : IEquatable<ResourcePath>
+	public struct ResourcePath : IEquatable<ResourcePath>, ICollection<string>
 	{
-		readonly string path;
-
-		ResourcePath(string path) {
-			this.path = path;
+		interface IResourcePathState : IEnumerable<string>
+		{
+			int Count { get;  }
 		}
 
-		public static implicit operator ResourcePath(string path) => new ResourcePath(path);
-		public static implicit operator string(ResourcePath path) => path.path;
-		public static bool operator ==(ResourcePath left, string path) => left.path == path;
-		public static bool operator !=(ResourcePath left, string path) => left.path != path;
+		class SinglePath : IResourcePathState
+		{
+			public readonly string Path;
+
+			public SinglePath(string path) { this.Path = path; }
+
+			public int Count => 1;
+
+			public override string ToString() => Path;
+			public override int GetHashCode() => Path.GetHashCode();
+
+			public IEnumerator<string> GetEnumerator() {
+				yield return Path;
+			}
+
+			IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+		}
+
+		class MultiPath : IResourcePathState
+		{
+			public List<string> Paths;
+
+			public int Count => Paths.Count;
+
+			public IEnumerator<string> GetEnumerator() => Paths.GetEnumerator();
+			IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+			public override string ToString() => string.Join(",", Paths);
+		}
+
+		readonly IResourcePathState state;
+
+		public int Count => state.Count;
+
+		public bool IsReadOnly => false;
+
+		ResourcePath(IResourcePathState state) {
+			this.state = state;
+		}
+
+		public static implicit operator ResourcePath(string path) => new ResourcePath(new SinglePath(path));
+		public static implicit operator ResourcePath(string[] path) => new ResourcePath(new MultiPath { Paths = path.ToList() });
+		public static implicit operator string(ResourcePath path) => path.ToString();
+
+		public static bool operator ==(ResourcePath left, string path) => left.ToString() == path;
+		public static bool operator !=(ResourcePath left, string path) => left.ToString() != path;
 
 		public override bool Equals(object obj) =>
 			obj is ResourcePath other && Equals(other);
 
+		public override string ToString() => state.ToString();
+
 		public override int GetHashCode() => 
-			path.GetHashCode();
+			state.GetHashCode();
 
 		public bool Equals([AllowNull] ResourcePath other) => 
-			ReferenceEquals(this, other) || other.path == this.path;
+			ReferenceEquals(this, other) || other.ToString() == this.ToString();
+
+		public void Add(string item) {
+			throw new NotImplementedException();
+		}
+
+		public void Clear() {
+			throw new NotImplementedException();
+		}
+
+		public bool Contains(string item) {
+			throw new NotImplementedException();
+		}
+
+		public void CopyTo(string[] array, int arrayIndex) {
+			throw new NotImplementedException();
+		}
+
+		public bool Remove(string item) {
+			throw new NotImplementedException();
+		}
+
+		public IEnumerator<string> GetEnumerator() => state.GetEnumerator();
+		IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 	}
 
 	public class ResourcePathSpec
@@ -44,6 +111,20 @@ namespace DataBoss.DataPackage
 			ResourcePath resourcePath = path;
 
 			Check.That(() => resourcePath == path);
+		}
+
+		[Fact]
+		public void multi_item() {
+			var paths = new[] {
+				"part-1.csv",
+				"part-2.csv",
+			};
+			ResourcePath resourcePath = paths;
+
+			Check.That(
+				() => resourcePath.Count == 2,
+				() => resourcePath.SequenceEqual(paths));
+
 		}
 	}
 

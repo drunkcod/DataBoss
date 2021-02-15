@@ -28,6 +28,7 @@ namespace DataBoss.Data
 			inner.Close();
 			Closed?.Invoke();
 		}
+
 		public void Dispose() {
 			if(inner == null)
 				return;

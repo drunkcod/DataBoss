@@ -8,7 +8,6 @@ using DataBoss.Data;
 
 namespace DataBoss.DataPackage
 {
-
 	public class DataReaderTransform : IDataReader
 	{
 		static readonly ConcurrentDictionary<Type, Func<string, int, IFieldAccessor>> fieldAccessorCtorCache = new();
@@ -26,6 +25,33 @@ namespace DataBoss.DataPackage
 		}
 
 		readonly IDataReader inner;
+
+		interface IFieldAccessor
+		{
+			string Name { get; }
+			Type FieldType { get; }
+
+			bool IsDBNull(IDataRecord record);
+			object GetValue(IDataRecord record);
+			T GetFieldValue<T>(IDataRecord record);
+		}
+
+		class FieldAccessor<TField> : IFieldAccessor
+		{
+			readonly int ordinal;
+			public string Name { get; }
+
+			public Type FieldType => typeof(TField);
+
+			public FieldAccessor(string name, int ordinal) {
+				this.Name = name;
+				this.ordinal = ordinal;
+			}
+
+			public bool IsDBNull(IDataRecord record) => record.IsDBNull(ordinal);
+			public object GetValue(IDataRecord record) => GetFieldValue<TField>(record);
+			public T GetFieldValue<T>(IDataRecord record) => record.GetFieldValue<T>(ordinal);
+		}
 
 		class FieldTransform<T> : IFieldAccessor
 		{
@@ -71,33 +97,6 @@ namespace DataBoss.DataPackage
 			T Invoke(IDataRecord record) => transform(record.GetFieldValue<TField>(ordinal));
 		}
 
-		interface IFieldAccessor
-		{
-			string Name { get; }
-			Type FieldType { get; }
-
-			bool IsDBNull(IDataRecord record);
-			object GetValue(IDataRecord record);
-			T GetFieldValue<T>(IDataRecord record);
-		}
-
-		class FieldAccessor<TField> : IFieldAccessor
-		{
-			readonly int ordinal;
-			public string Name { get; }
-
-			public Type FieldType => typeof(TField);
-
-			public FieldAccessor(string name, int ordinal) {
-				this.Name = name;
-				this.ordinal = ordinal;
-			}
-
-			public bool IsDBNull(IDataRecord record) => record.IsDBNull(ordinal);
-			public object GetValue(IDataRecord record) => GetFieldValue<TField>(record);
-			public T GetFieldValue<T>(IDataRecord record) => record.GetFieldValue<T>(ordinal);
-		}
-
 		readonly List<IFieldAccessor> fields = new();
 
 		public DataReaderTransform(IDataReader inner) {
@@ -127,6 +126,11 @@ namespace DataBoss.DataPackage
 			return this;
 		}
 
+		public DataReaderTransform Transform<TField, T>(int ordinal, Func<TField, T> transform) {
+			fields[ordinal] = new FieldTransform<TField, T>(inner.GetName(ordinal), ordinal, transform);
+			return this;
+		}
+
 		public DataReaderTransform Set<T>(string name, Func<IDataRecord, T> getValue) {
 			var n = fields.FindIndex(x => x.Name == name);
 			return n == -1
@@ -134,36 +138,36 @@ namespace DataBoss.DataPackage
 			: Transform(name, getValue);
 		}
 
-		public object GetValue(int i) => fields[i].GetValue(inner);
 		public T GetFieldValue<T>(int i) => fields[i].GetFieldValue<T>(inner);
+		public object GetValue(int i) => fields[i].GetValue(inner);
 
-		public object this[int i] => GetValue(i);
-		public object this[string name] => this[GetOrdinal(name)];
+		object IDataRecord.this[int i] => GetValue(i);
+		object IDataRecord.this[string name] => GetValue(GetOrdinal(name));
+		object IDataRecord.GetValue(int i) => GetValue(i);
 
-		public int Depth => inner.Depth;
-		public bool IsClosed => inner.IsClosed;
-		public int RecordsAffected => inner.RecordsAffected;
+		int IDataReader.Depth => inner.Depth;
+		bool IDataReader.IsClosed => inner.IsClosed;
+		int IDataReader.RecordsAffected => inner.RecordsAffected;
 		public int FieldCount => fields.Count;
 
-		public void Close() => inner.Close();
-		public void Dispose() => inner.Dispose();
+		void IDataReader.Close() => inner.Close();
+		void IDisposable.Dispose() => inner.Dispose();
 
 		public Type GetFieldType(int i) => fields[i].FieldType;
+		bool IDataRecord.GetBoolean(int i) => GetFieldValue<bool>(i);
+		byte IDataRecord.GetByte(int i) => GetFieldValue<byte>(i);
+		char IDataRecord.GetChar(int i) => GetFieldValue<char>(i);
+		DateTime IDataRecord.GetDateTime(int i) => GetFieldValue<DateTime>(i);
+		decimal IDataRecord.GetDecimal(int i) => GetFieldValue<decimal>(i);
+		double IDataRecord.GetDouble(int i) => GetFieldValue<double>(i);
+		float IDataRecord.GetFloat(int i) => GetFieldValue<float>(i);
+		Guid IDataRecord.GetGuid(int i) => GetFieldValue<Guid>(i);
+		short IDataRecord.GetInt16(int i) => GetFieldValue<short>(i);
+		int IDataRecord.GetInt32(int i) => GetFieldValue<int>(i);
+		long IDataRecord.GetInt64(int i) => GetFieldValue<long>(i);
+		string IDataRecord.GetString(int i) => GetFieldValue<string>(i);
 
-		public bool GetBoolean(int i) => GetFieldValue<bool>(i);
-		public byte GetByte(int i) => GetFieldValue<byte>(i);
-		public char GetChar(int i) => GetFieldValue<char>(i);
-		public DateTime GetDateTime(int i) => GetFieldValue<DateTime>(i);
-		public decimal GetDecimal(int i) => GetFieldValue<Decimal>(i);
-		public double GetDouble(int i) => GetFieldValue<double>(i);
-		public float GetFloat(int i) => GetFieldValue<float>(i);
-		public Guid GetGuid(int i) => GetFieldValue<Guid>(i);
-		public short GetInt16(int i) => GetFieldValue<short>(i);
-		public int GetInt32(int i) => GetFieldValue<int>(i);
-		public long GetInt64(int i) => GetFieldValue<long>(i);
-		public string GetString(int i) => GetFieldValue<string>(i);
-
-		public int GetValues(object[] values) {
+		int IDataRecord.GetValues(object[] values) {
 			var n = Math.Min(FieldCount, values.Length);
 			for (var i = 0; i != n; ++i)
 				values[i] = GetValue(i);
@@ -173,7 +177,7 @@ namespace DataBoss.DataPackage
 		public string GetName(int i) => fields[i].Name;
 		public int GetOrdinal(string name) => fields.FindIndex(x => x.Name == name);
 
-		public DataTable GetSchemaTable() {
+		DataTable IDataReader.GetSchemaTable() {
 			var schema = new DataReaderSchemaTable();
 			for (var i = 0; i != FieldCount; ++i) {
 				var fieldType = GetFieldType(i);
@@ -183,15 +187,32 @@ namespace DataBoss.DataPackage
 			return schema.ToDataTable();
 		}
 
-		public string GetDataTypeName(int i) => DataBossDbType.From(GetFieldType(i)).TypeName;
+		string IDataRecord.GetDataTypeName(int i) => DataBossDbType.From(GetFieldType(i)).TypeName;
 
 		public bool IsDBNull(int i) => fields[i].IsDBNull(inner);
-		public bool NextResult() => inner.NextResult();
-		public bool Read() => inner.Read();
+		bool IDataReader.NextResult() => inner.NextResult();
+		bool IDataReader.Read() => inner.Read();
 
-		public long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) => throw new NotSupportedException();
-		public long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) => throw new NotSupportedException();
-		public IDataReader GetData(int i) => throw new NotSupportedException();
+		long IDataRecord.GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) => throw new NotSupportedException();
+		long IDataRecord.GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) => throw new NotSupportedException();
+		IDataReader IDataRecord.GetData(int i) => throw new NotSupportedException();
+	}
 
+	public static class DataReaderTransformExtensions
+	{
+		public static IDataReader WithTransform(this IDataReader self, Action<DataReaderTransform> defineTransfrom) {
+			var r = new DataReaderTransform(self);
+			defineTransfrom(r);
+			return r;
+		}
+
+		public static DataReaderTransform SpecifyDateTimeKind(this DataReaderTransform self, DateTimeKind kind) {
+			for(var i = 0; i != self.FieldCount; ++i) {
+				if (self.GetFieldType(i) == typeof(DateTime))
+					self.Transform(i, (DateTime x) => DateTime.SpecifyKind(x, kind));
+			}
+
+			return self;
+		}
 	}
 }
