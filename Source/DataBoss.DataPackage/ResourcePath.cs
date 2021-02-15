@@ -59,7 +59,6 @@ namespace DataBoss.DataPackage
 
 		IResourcePathState state;
 
-
 		public bool IsEmpty => state == null || Count == 0;
 		public int Count => state?.Count ?? 0;
 
@@ -69,7 +68,7 @@ namespace DataBoss.DataPackage
 			this.state = state;
 		}
 
-		public Stream OpenResourceStream(Func<string, Stream> open) {
+		public Stream OpenStream(Func<string, Stream> open) {
 			if (Count == 1)
 				return open(this.First());
 			return new ConcatStream(this.Select(open).GetEnumerator());

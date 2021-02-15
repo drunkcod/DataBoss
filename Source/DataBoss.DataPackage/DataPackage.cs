@@ -92,10 +92,7 @@ namespace DataBoss.DataPackage
 			var r = new DataPackage();
 			r.Resources.AddRange(description.Resources.Select(x =>
 				TabularDataResource.From(x, () =>
-					NewCsvDataReader(
-						new StreamReader(x.Path.OpenResourceStream(WebResponseStream.Get)),
-						x.Dialect,
-						x.Schema))));
+					CreateCsvDataReader(x, WebResponseStream.Get))));
 
 			return r;
 		}
@@ -109,11 +106,7 @@ namespace DataBoss.DataPackage
 
 			var r = new DataPackage();
 			r.Resources.AddRange(description.Resources.Select(x =>
-				TabularDataResource.From(x, () =>
-					NewCsvDataReader(
-						new StreamReader(x.Path.OpenResourceStream(openRead)),
-						x.Dialect,
-						x.Schema))));
+				TabularDataResource.From(x, () => CreateCsvDataReader(x, openRead))));
 
 			return r;
 		}
@@ -142,10 +135,7 @@ namespace DataBoss.DataPackage
 
 			public IDataReader GetData() {
 				var source = new ZipArchive(openZip(), ZipArchiveMode.Read);
-				var csv = NewCsvDataReader(
-					new StreamReader(resource.Path.OpenResourceStream(x => source.GetEntry(x).Open()), Encoding.UTF8, true, StreamBufferSize),
-					resource.Dialect,
-					resource.Schema);
+				var csv = CreateCsvDataReader(resource, x => source.GetEntry(x).Open());
 				csv.Disposed += delegate { source.Dispose(); };
 				return csv;
 			}
@@ -159,7 +149,11 @@ namespace DataBoss.DataPackage
 			return json.Deserialize<DataPackageDescription>(reader);
 		}
 
-		static CsvDataReader NewCsvDataReader(TextReader reader, CsvDialectDescription csvDialect, TabularDataSchema schema) =>
+		static CsvDataReader CreateCsvDataReader(DataPackageResourceDescription resource, Func<string, Stream> open) =>
+			CreateCsvDataReader(new StreamReader(resource.Path.OpenStream(open), Encoding.UTF8, true, StreamBufferSize),
+				resource.Dialect, resource.Schema);
+
+		static CsvDataReader CreateCsvDataReader(TextReader reader, CsvDialectDescription csvDialect, TabularDataSchema schema) =>
 			new CsvDataReader(
 				new CsvHelper.CsvReader(
 					reader,
