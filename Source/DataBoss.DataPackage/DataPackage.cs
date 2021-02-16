@@ -9,15 +9,15 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Channels;
+using System.Threading.Tasks;
 using DataBoss.Data;
-using DataBoss.IO;
 using DataBoss.Linq;
 using DataBoss.Threading.Channels;
 using Newtonsoft.Json;
 
 namespace DataBoss.DataPackage
 {
-	public class DataPackageResourceOptions
+	public class CsvResourceOptions
 	{
 		public string Name;
 		public ResourcePath Path;
@@ -162,12 +162,12 @@ namespace DataBoss.DataPackage
 				hasHeaderRow: csvDialect.HasHeaderRow);
 
 		public IDataPackageResourceBuilder AddResource(string name, Func<IDataReader> getData) =>
-			AddResource(new DataPackageResourceOptions {
+			AddResource(new CsvResourceOptions {
 				Name = name,
 				Path = Path.ChangeExtension(name, "csv")
 			}, getData);
 
-		public IDataPackageResourceBuilder AddResource(DataPackageResourceOptions item) {
+		public IDataPackageResourceBuilder AddResource(CsvResourceOptions item) {
 			var parts = item.Path
 				.Select(path => Resources.First(x => x.Path.Count == 1 && x.Path == path))
 				.Select(x => x.Read());
@@ -175,7 +175,7 @@ namespace DataBoss.DataPackage
 			return AddResource(item, () => new MultiDataReader(parts));
 		}
 
-		public IDataPackageResourceBuilder AddResource(DataPackageResourceOptions item, Func<IDataReader> getData) {
+		public IDataPackageResourceBuilder AddResource(CsvResourceOptions item, Func<IDataReader> getData) {
 			var resource = TabularDataResource.From(
 				new DataPackageResourceDescription {
 					Format = "csv",
@@ -286,21 +286,15 @@ namespace DataBoss.DataPackage
 			var writer = new ChunkWriter(records, chunks, new UTF8Encoding(false)) {
 				Delimiter = csvDialect.Delimiter,
 				FormatValue = toString,
-				OnError = _ => cancellation.Cancel(),
 			};
+			var writeTask = writer.RunAsync();
 
-			reader.Start();
-			writer.Start();
+			writeTask.ContinueWith(_ => cancellation.Cancel(), TaskContinuationOptions.OnlyOnFaulted);
 
-			chunks.Reader.ForEach(x => x.CopyTo(output));
-
-			reader.Join();
-			writer.Join();
-
-			if (reader.Error != null)
-				throw new Exception("Failed to write csv", reader.Error);
-			if (writer.Error != null)
-				throw new Exception("Failed to write csv", writer.Error);
+			Task.WaitAll(
+				reader.RunAsync(), 
+				writeTask,
+				chunks.Reader.ForEachAsync(x => x.CopyTo(output)));
 		}
 
 		static void WriteHeaderRecord(Stream output, Encoding encoding, string delimiter, IDataReader data) {
@@ -314,29 +308,30 @@ namespace DataBoss.DataPackage
 		abstract class WorkItem
 		{
 			Thread thread;
-			public Exception Error { get; private set; }
 
 			protected abstract void DoWork();
 			protected virtual void Cleanup() { }
 
-			public Action<Exception> OnError;
-
-			public void Start() {
+			public Task RunAsync() {
 				if(thread != null && thread.IsAlive)
 					throw new InvalidOperationException("WorkItem already started.");
 				thread = new Thread(Run) {
 					IsBackground = true,
 					Name = GetType().Name,
 				};
-				thread.Start();
+				var tsc = new TaskCompletionSource<int>();
+				thread.Start(tsc);
+
+				return tsc.Task;
 			}
 
-			void Run() {
+			void Run(object obj) {
+				var tsc = (TaskCompletionSource<int>)obj;
 				try {
 					DoWork();
+					tsc.SetResult(0);
 				} catch (Exception ex) {
-					Error = ex;
-					OnError?.Invoke(ex);
+					tsc.SetException(new Exception("CSV writing failed.", ex));
 				} finally {
 					Cleanup();
 				}

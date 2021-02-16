@@ -23,7 +23,7 @@ namespace DataBoss.DataPackage
 		[Fact]
 		public void AddResource_with_non_default_path() {
 			var dp = new DataPackage()
-				.AddResource(new DataPackageResourceOptions {
+				.AddResource(new CsvResourceOptions {
 					Name = "my-resource",
 					Path = "some/path.csv",
 				}, () => SequenceDataReader.Items(new { Id = 1, Value = "One" }));
@@ -36,18 +36,18 @@ namespace DataBoss.DataPackage
 		[Fact]
 		public void multi_part_resource() {
 			var dp = new DataPackage();
-			dp.AddResource(new DataPackageResourceOptions {
+			dp.AddResource(new CsvResourceOptions {
 				Name = "1",
 				Path = "parts/1.csv",
 			}, () => SequenceDataReader.Items(new { Id = 1, Value = "One" }));
 			
-			dp.AddResource(new DataPackageResourceOptions {
+			dp.AddResource(new CsvResourceOptions {
 				Name = "2",
 				Path = "parts/2.csv",
 				HasHeaderRow = false,
 			}, () => SequenceDataReader.Items(new { Id = 2, Value = "Two" }));
 
-			dp.AddResource(new DataPackageResourceOptions {
+			dp.AddResource(new CsvResourceOptions {
 				Name = "all-parts",
 				Path = new[] {
 					"parts/1.csv",
@@ -66,7 +66,7 @@ namespace DataBoss.DataPackage
 		[Fact]
 		public void resource_without_header() {
 			var dp = new DataPackage();
-			dp.AddResource(new DataPackageResourceOptions {
+			dp.AddResource(new CsvResourceOptions {
 				Name = "stuff",
 				HasHeaderRow = false,
 			}, () => SequenceDataReader.Items(new { Id = 1, Value = "Stuff" }));

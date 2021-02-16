@@ -77,24 +77,29 @@ namespace DataBoss.DataPackage
 		public override bool Equals(object obj) =>
 			obj is ResourcePath other && Equals(other);
 
-		public override string ToString() => state?.ToString() ?? string.Empty;
+		public override string ToString() =>
+			state?.ToString() ?? string.Empty;
 
 		public override int GetHashCode() => 
-			state.GetHashCode();
+			state?.GetHashCode() ?? 0;
 
-		public bool Equals(ResourcePath other) => 
-			ReferenceEquals(this, other) || other.ToString() == this.ToString();
+		public bool Equals(ResourcePath other) =>
+			ReferenceEquals(this, other) || other.SequenceEqual(this);
 
 		public void Add(string item) {
 			state = state?.Add(item) ?? new SinglePath(item);
 		}
 
 		public void Clear() {
-			throw new NotImplementedException();
+			state = null;
 		}
 
 		public bool Contains(string item) {
-			throw new NotImplementedException();
+			using var items = GetEnumerator();
+			while (items.MoveNext())
+				if (items.Current == item)
+					return true;
+			return false;
 		}
 
 		public void CopyTo(string[] array, int arrayIndex) {

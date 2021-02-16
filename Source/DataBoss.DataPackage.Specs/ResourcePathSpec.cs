@@ -51,7 +51,8 @@ namespace DataBoss.DataPackage
 
 			Check.That(
 				() => resourcePath.Count == 2,
-				() => resourcePath.SequenceEqual(paths));
+				() => resourcePath.SequenceEqual(paths),
+				() => paths.All(resourcePath.Contains));
 		}
 
 		[Fact]
