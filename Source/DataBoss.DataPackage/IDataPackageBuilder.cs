@@ -4,7 +4,6 @@ using System.Data;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
-using System.Linq;
 using System.Linq.Expressions;
 using DataBoss.Data;
 
@@ -66,7 +65,6 @@ namespace DataBoss.DataPackage
 
 		static void DetectExternalAttributeSupport(ZipArchiveEntry e) => (SetExternalAttributes = GetExternalAttributeSetter())(e);
 
-
 		static Action<ZipArchiveEntry> GetExternalAttributeSetter() {
 			var externalAttributes = typeof(ZipArchiveEntry).GetProperty("ExternalAttributes");
 			if (externalAttributes == null)
@@ -116,5 +114,4 @@ namespace DataBoss.DataPackage
 			position += count;
 		}
 	}
-
 }

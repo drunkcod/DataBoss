@@ -12,12 +12,58 @@ using Xunit;
 
 namespace DataBoss.DataPackage
 {
+	class MemoryDataPackageStore
+	{
+		readonly Dictionary<string, MemoryStream> files = new();
+		readonly List<string> writtenFiles = new();
+
+		public void Save(DataPackage data, CultureInfo culture = null) {
+			Clear();
+			data.Save(OpenWrite, culture);
+		}
+
+		public DataPackage Load() => DataPackage.Load(OpenRead);
+
+		public byte[] GetBytes(string path) => files[path].ToArray();
+
+		public DataPackageDescription GetDataPackageDescription() =>
+			JsonConvert.DeserializeObject<DataPackageDescription>(Encoding.UTF8.GetString(GetBytes("datapackage.json")));
+
+		public IReadOnlyList<string> WrittenFiles => writtenFiles;
+
+		void Clear() {
+			files.Clear();
+			writtenFiles.Clear();
+		}
+
+		Stream OpenWrite(string path) {
+			var s = files[path] = new MemoryStream();
+			writtenFiles.Add(path);
+			return s;
+		}
+
+		Stream OpenRead(string path) {
+			var bytes = files[path];
+			if (bytes.TryGetBuffer(out var buffer))
+				return new MemoryStream(buffer.Array, buffer.Offset, buffer.Count, writable: false);
+			return new MemoryStream(bytes.ToArray(), writable: false);
+		}
+	}
+
 	public class DataPackageSpec
 	{
 		struct IdValueRow
 		{
 			public int Id;
 			public string Value;
+		}
+
+		[Fact]
+		public void getting_unknown_resource_is_an_InvalidOperation() {
+			var dp = new DataPackage();
+
+			var e = Check.Exception<InvalidOperationException>(() => dp.GetResource("no-such-resource"));
+			Check.That(() => e.Message.Contains("no-such-resource"));
 		}
 
 		[Fact]
@@ -31,6 +77,28 @@ namespace DataBoss.DataPackage
 			var r = dp.Serialize();
 
 			Check.That(() => r.Resources[0].Path.Single() == "some/path.csv");
+		}
+
+		[Fact]
+		public void resource_alias() {
+			var dp = new DataPackage();
+			dp.AddResource(new CsvResourceOptions {
+				Name = "1",
+				Path = "parts/1.csv",
+			}, () => SequenceDataReader.Items(new { Id = 1, Value = "One" }));
+
+			dp.AddResource(new CsvResourceOptions {
+				Name = "also-1",
+				Path = "parts/1.csv"
+			});
+
+			var store = new MemoryDataPackageStore();
+			store.Save(dp);
+			var r = store.Load();
+
+			Check.That(
+				() => r.GetResource("also-1").Read<IdValueRow>().SequenceEqual(r.GetResource("1").Read<IdValueRow>()),
+				() => store.WrittenFiles.Count == 2);
 		}
 
 		[Fact]
@@ -71,11 +139,11 @@ namespace DataBoss.DataPackage
 				HasHeaderRow = false,
 			}, () => SequenceDataReader.Items(new { Id = 1, Value = "Stuff" }));
 
-			var outputs = new Dictionary<string, MemoryStream>();
-			dp.Save(path => outputs[path] = new MemoryStream());
 
+			var store = new MemoryDataPackageStore();
+			store.Save(dp);
 
-			Check.That(() => Encoding.UTF8.GetString(outputs["stuff.csv"].ToArray()).TrimEnd() == "1;Stuff");
+			Check.That(() => Encoding.UTF8.GetString(store.GetBytes("stuff.csv")).TrimEnd() == "1;Stuff");
 		}
 
 		[Fact]
@@ -223,16 +291,14 @@ namespace DataBoss.DataPackage
 		public void custom_resource_delimiter() {
 			var dp = new DataPackage()
 				.AddResource("stuff", () => new[] { new { Id = 1, Message = "Hello World." } })
-				.WithDelimiter("|");
+				.WithDelimiter("|")
+				.Done();
 
-			var bytes = new MemoryStream();
-			dp.Save(x => x switch {
-				"datapackage.json" => bytes,
-				_ => Stream.Null,
-			});
+			var store = new MemoryDataPackageStore();
+			store.Save(dp);
 
-			var description = JsonConvert.DeserializeObject<DataPackageDescription>(Encoding.UTF8.GetString(bytes.ToArray()));
-			var dp2 = dp.Serialize();
+			var description = store.GetDataPackageDescription();
+			var dp2 = store.Load();
 			Check.That(
 				() => description.Resources[0].Dialect.Delimiter == "|",
 				() => (dp2.Resources[0] as CsvDataResource).Delimiter == "|");
@@ -247,20 +313,15 @@ namespace DataBoss.DataPackage
 
 			dp.TransformResource("stuff", xs => xs.Transform("Id", x => x["Id"].ToString()));
 
-			var bytes = new MemoryStream();
-			dp.Save(x => x switch {
-				"datapackage.json" => bytes,
-				_ => Stream.Null,
-			});
+			var store = new MemoryDataPackageStore();
+			store.Save(dp);
 
-			var description = JsonConvert.DeserializeObject<DataPackageDescription>(Encoding.UTF8.GetString(bytes.ToArray()));
-			var dp2 = dp.Serialize();
+			var description = store.GetDataPackageDescription();
+			var dp2 = store.Load();
 			Check.That(
 				() => description.Resources[0].Dialect.Delimiter == "|",
 				() => (dp2.Resources[0] as CsvDataResource).Delimiter == "|");
-
 		}
-
 
 		class DateTimeFormatRow
 		{

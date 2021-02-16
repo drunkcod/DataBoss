@@ -205,13 +205,14 @@ namespace DataBoss.DataPackage
 		public void TransformResource(string name, Action<DataReaderTransform> defineTransform) =>
 			UpdateResource(name, xs => xs.Transform(defineTransform));
 
-		public TabularDataResource GetResource(string name) => Resources.Single(x => x.Name == name);
+		public TabularDataResource GetResource(string name) => 
+			Resources.SingleOrDefault(x => x.Name == name) ?? throw new InvalidOperationException($"Invalid resource name '{name}'");
 
 		public void Save(Func<string, Stream> createOutput, CultureInfo culture = null) {
 			var description = new DataPackageDescription();
 			var decimalCharOverride = culture?.NumberFormat.NumberDecimalSeparator;
 			var defaultFormatter = new RecordFormatter(culture ?? CultureInfo.InvariantCulture);
-
+			var writtenPaths = new HashSet<string>();
 			foreach (var item in Resources) {
 				using var data = item.Read();
 				var desc = item.GetDescription();
@@ -240,7 +241,11 @@ namespace DataBoss.DataPackage
 
 				description.Resources.Add(desc);
 				if (desc.Path.Count == 1) {
-					var output = createOutput(desc.Path.First());
+					var outputPath = desc.Path.First();
+					if (writtenPaths.Contains(outputPath))
+						continue;
+
+					var output = createOutput(outputPath);
 					try {
 						WriteRecords(output, desc.Dialect, data, toString);
 					}
@@ -248,6 +253,7 @@ namespace DataBoss.DataPackage
 						throw new Exception($"Failed writing {item.Name}.", ex);
 					}
 					finally {
+						writtenPaths.Add(outputPath);
 						output.Dispose();
 					}
 				}
