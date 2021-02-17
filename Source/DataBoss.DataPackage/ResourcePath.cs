@@ -15,7 +15,28 @@ namespace DataBoss.DataPackage
 		{
 			int Count { get;  }
 
-			IResourcePathState Add(string path);
+			void Add(string path, out IResourcePathState next);
+		}
+
+		class EmptyPath : IResourcePathState
+		{
+			public int Count => 0;
+
+			EmptyPath() { }
+
+			public void Add(string path, out IResourcePathState next) =>
+				next = new SinglePath(path);
+
+			public IEnumerator<string> GetEnumerator() =>
+				Enumerable.Empty<string>().GetEnumerator();
+
+			IEnumerator IEnumerable.GetEnumerator() => 
+				GetEnumerator();
+
+			public static readonly EmptyPath Instance = new EmptyPath();
+
+			public override string ToString() => string.Empty;
+			public override int GetHashCode() => 0;
 		}
 
 		class SinglePath : IResourcePathState
@@ -26,9 +47,10 @@ namespace DataBoss.DataPackage
 
 			public int Count => 1;
 
-			public IResourcePathState Add(string path) => new MultiPath {
-				Paths = new List<string> { this.Path, path }
-			};
+			public void Add(string path, out IResourcePathState next) => 
+				next = new MultiPath {
+					Paths = new List<string> { this.Path, path }
+				};
 
 			public override string ToString() => Path;
 			public override int GetHashCode() => Path.GetHashCode();
@@ -46,9 +68,9 @@ namespace DataBoss.DataPackage
 
 			public int Count => Paths.Count;
 
-			public IResourcePathState Add(string path) {
+			public void Add(string path, out IResourcePathState next) {
 				Paths.Add(path);
-				return this;
+				next = this;
 			}
 
 			public IEnumerator<string> GetEnumerator() => Paths.GetEnumerator();
@@ -58,9 +80,10 @@ namespace DataBoss.DataPackage
 		}
 
 		IResourcePathState state;
+		IResourcePathState CurrentState => state ??= EmptyPath.Instance;
 
-		public bool IsEmpty => state == null || Count == 0;
-		public int Count => state?.Count ?? 0;
+		public bool IsEmpty => CurrentState == EmptyPath.Instance;
+		public int Count => CurrentState.Count;
 
 		public bool IsReadOnly => false;
 
@@ -78,20 +101,19 @@ namespace DataBoss.DataPackage
 			obj is ResourcePath other && Equals(other);
 
 		public override string ToString() =>
-			state?.ToString() ?? string.Empty;
+			CurrentState.ToString();
 
 		public override int GetHashCode() => 
-			state?.GetHashCode() ?? 0;
+			CurrentState.GetHashCode();
 
 		public bool Equals(ResourcePath other) =>
 			ReferenceEquals(this, other) || other.SequenceEqual(this);
 
-		public void Add(string item) {
-			state = state?.Add(item) ?? new SinglePath(item);
-		}
+		public void Add(string item) =>
+			CurrentState.Add(item, out state);
 
 		public void Clear() {
-			state = null;
+			state = EmptyPath.Instance;
 		}
 
 		public bool Contains(string item) {
@@ -110,7 +132,7 @@ namespace DataBoss.DataPackage
 			throw new NotImplementedException();
 		}
 
-		public IEnumerator<string> GetEnumerator() => (state ?? Enumerable.Empty<string>()).GetEnumerator();
+		public IEnumerator<string> GetEnumerator() => CurrentState.GetEnumerator();
 		IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
 		public static implicit operator ResourcePath(string path) => new ResourcePath(new SinglePath(path));
