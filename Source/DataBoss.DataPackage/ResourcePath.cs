@@ -77,6 +77,8 @@ namespace DataBoss.DataPackage
 			IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
 			public override string ToString() => string.Join(",", Paths);
+			public override int GetHashCode() =>
+				Count == 0 ? 0 : Paths[0].GetHashCode();
 		}
 
 		IResourcePathState state;

@@ -17,6 +17,7 @@ namespace DataBoss.DataPackage
 				() => empty.Count == 0,
 				() => empty.Count() == 0);
 		}
+
 		[Fact]
 		public void single_item() {
 			var path = "data.csv";
@@ -58,8 +59,11 @@ namespace DataBoss.DataPackage
 		[Fact]
 		public void json_deserialization() {
 			Check.That(
-				() => JsonConvert.DeserializeObject<ResourcePath>(JsonConvert.SerializeObject("path.csv")) == "path.csv",
-				() => JsonConvert.DeserializeObject<ResourcePath>(JsonConvert.SerializeObject(new[] { "1.csv", "2.csv" })) == "1.csv,2.csv");
+				() => FromJson("null").IsEmpty,
+				() => FromJson("\"path.csv\"") == "path.csv",
+				() => FromJson("[\"1.csv\", \"2.csv\"]").SequenceEqual(new[] { "1.csv", "2.csv" }));
 		}
+
+		static ResourcePath FromJson(string value) => JsonConvert.DeserializeObject<ResourcePath>(value);
 	}
 }

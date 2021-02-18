@@ -41,6 +41,12 @@ namespace DataBoss.DataPackage
 			() => FromJson<int[]>(ToItemOrArray(321)).SequenceEqual(new[] { 321 }));
 
 		[Fact]
+		public void @null() => Check.That(
+			() => FromJson<int[]>("null") == null,
+			() => FromJson<List<string>>("null") == null);
+			
+
+		[Fact]
 		public void dispose_enumerators() {
 			var items = new MyCollection<string> { "Hello World!" };
 			var enumeratorCreated = false;

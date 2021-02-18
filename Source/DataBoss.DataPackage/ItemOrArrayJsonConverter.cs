@@ -17,9 +17,8 @@ namespace DataBoss.DataPackage
 			var itemType = GetItemType(objectType);
 			return objectType.IsArray
 			? ReadArray(itemType, reader, serializer)
-			: ReadCollection(itemType, reader, 
-				existingValue ?? (objectType.IsAbstract ? null : Activator.CreateInstance(objectType)),
-				serializer);
+			: ReadCollection(itemType, reader, existingValue ?? (objectType.IsAbstract ? null : Activator.CreateInstance(objectType)), serializer) 
+			  ?? DefaultValue(objectType);
 		}
 
 		static Type GetItemType(Type collectionType) =>
@@ -29,16 +28,24 @@ namespace DataBoss.DataPackage
 			GetObectReader(nameof(DoReadArray), itemType)(reader, null, serializer);
 
 		static T[] DoReadArray<T>(JsonReader reader, object existingValue, JsonSerializer serializer) =>
-			DoReadCollection<T>(reader, existingValue, serializer).ToArray();
+			DoReadCollection<T>(reader, existingValue, serializer)?.ToArray();
 
 		static object ReadCollection(Type itemType, JsonReader reader, object existingValue, JsonSerializer serializer) =>
 			GetObectReader(nameof(DoReadCollection), itemType)(reader, existingValue, serializer);
+
+		static object DefaultValue(Type type) => 
+			Lambdas.CreateDelegate<Func<object>>(GetGenericMethod(nameof(GetDefaultValue), type))();
+
+		static object GetDefaultValue<T>() => default(T);
 
 		static IEnumerable<T> DoReadCollection<T>(JsonReader reader, object existingValue, JsonSerializer serializer) {
 			var target = (existingValue as ICollection<T>) ?? new List<T>();
 			void ReadItem() => target.Add(serializer.Deserialize<T>(reader));
 
 			if(reader.TokenType == JsonToken.None && !reader.Read())
+				return null;
+
+			if (reader.TokenType == JsonToken.Null)
 				return null;
 
 			if (reader.TokenType == JsonToken.StartArray)
