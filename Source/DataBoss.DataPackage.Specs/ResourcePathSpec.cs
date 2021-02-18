@@ -8,6 +8,13 @@ namespace DataBoss.DataPackage
 {
 	public class ResourcePathSpec
 	{
+		/*
+		 * ResourcePath exists to support the Frictionless Data Package spec where a resource path property 
+		 * can be either a string or a array of strings. 
+		 * In practice that means that we need to handle json objects of these two shapes:
+		 * var simpleResource = { path: "data.csv" }
+		 * var multipartResource = { path: ["part1.csv", "part2.csv"] }
+		*/
 		[Fact]
 		public void empty() {
 			var empty = new ResourcePath();
@@ -27,7 +34,7 @@ namespace DataBoss.DataPackage
 		}
 
 		[Fact]
-		public void multi_item() {
+		public void multipart() {
 			var paths = new[] {
 				"part-1.csv",
 				"part-2.csv",
@@ -36,7 +43,8 @@ namespace DataBoss.DataPackage
 
 			Check.That(
 				() => resourcePath.Count == 2,
-				() => resourcePath.SequenceEqual(paths));
+				() => resourcePath.SequenceEqual(paths),
+				() => resourcePath == string.Join(",", paths));
 		}
 
 		[Fact]
@@ -45,10 +53,10 @@ namespace DataBoss.DataPackage
 				"part-1.csv",
 				"part-2.csv",
 			};
-			var resourcePath = new ResourcePath();
-
-			resourcePath.Add(paths[0]);
-			resourcePath.Add(paths[1]);
+			var resourcePath = new ResourcePath {
+				paths[0],
+				paths[1]
+			};
 
 			Check.That(
 				() => resourcePath.Count == 2,

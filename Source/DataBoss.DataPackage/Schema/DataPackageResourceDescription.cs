@@ -9,7 +9,7 @@ namespace DataBoss.DataPackage
 	{
 		[JsonProperty("name")]
 		public string Name;
-		[JsonProperty("path")]
+		[JsonProperty("path", DefaultValueHandling = DefaultValueHandling.Ignore)]
 		public ResourcePath Path;
 		[JsonProperty("format")]
 		public string Format;
