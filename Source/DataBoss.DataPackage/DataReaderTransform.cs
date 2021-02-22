@@ -10,7 +10,29 @@ namespace DataBoss.DataPackage
 {
 	public class DataReaderTransform : IDataReader
 	{
+		public static class FieldInfo<T>
+		{
+			public static readonly Type FieldType = typeof(T).TryGetNullableTargetType(out var targetType) ? targetType : typeof(T);
+			public static readonly bool IsNullable = typeof(T).IsNullable();
+			public static readonly int ColumnSize = DataBossDbType.From(typeof(T)).ColumnSize ?? -1;
+			public static readonly Func<T, bool> IsNull = CreateIsNullMethod();
+
+			static Func<T, bool> CreateIsNullMethod() {
+				var p0 = Expression.Parameter(typeof(T));
+				Expression CreateNullCheck(Expression input) {
+					if (p0.Type.IsNullable())
+						return Expression.Not(Expression.MakeMemberAccess(input, typeof(T).GetMember("HasValue").Single()));
+					if (p0.Type.IsValueType)
+						return Expression.Constant(false, typeof(bool));
+
+					return Expression.ReferenceEqual(input, Expression.Constant(null, p0.Type));
+				}
+				return Expression.Lambda<Func<T, bool>>(CreateNullCheck(p0), p0).Compile();
+			}
+		}
+
 		delegate IFieldAccessor AccessorBuilder(int ordinal, bool allowDBNull, int columnSize);
+
 		static readonly ConcurrentDictionary<Type, AccessorBuilder> fieldAccessorCtorCache = new();
 
 		static IFieldAccessor CreateFieldAccessor(int ordinal, bool isNullable, int columnSize, Type type) {
@@ -71,25 +93,25 @@ namespace DataBoss.DataPackage
 			public Type FieldType => FieldInfo<TField>.FieldType;
 
 			public T GetFieldValue<T>(IDataRecord record) =>
-				(T)(object)GetRecordValue(record);
+				(T)(object)GetCurrentValue(record);
 
 
 			public object GetValue(IDataRecord record) {
-				var value = GetRecordValue(record);
+				var value = GetCurrentValue(record);
 				return FieldInfo<TField>.IsNull(value) ? DBNull.Value : value;
 			}
 
-			public bool IsDBNull(IDataRecord record) => AllowDBNull && FieldInfo<TField>.IsNull(GetRecordValue(record));
+			public bool IsDBNull(IDataRecord record) => AllowDBNull && FieldInfo<TField>.IsNull(GetCurrentValue(record));
 
-			TField GetRecordValue(IDataRecord record) {
+			TField GetCurrentValue(IDataRecord record) {
 				if (isDirty) {
-					currentValue = GetUserValue(record);
+					currentValue = GetRecordValue(record);
 					isDirty = false;
 				}
 				return currentValue;
 			}
 
-			protected abstract TField GetUserValue(IDataRecord record);
+			protected abstract TField GetRecordValue(IDataRecord record);
 
 			public void Dirty() { isDirty = true; }
 		}
@@ -102,7 +124,7 @@ namespace DataBoss.DataPackage
 				this.transform = transform;
 			}
 
-			protected override T GetUserValue(IDataRecord record) => transform(record);
+			protected override T GetRecordValue(IDataRecord record) => transform(record);
 		}
 
 		class FieldTransform<TField, T> : UserFieldAccessor<T>
@@ -119,25 +141,7 @@ namespace DataBoss.DataPackage
 
 			public override bool AllowDBNull => allowDBNull;
 
-			protected override T GetUserValue(IDataRecord record) => transform(record.GetFieldValue<TField>(ordinal));
-		}
-
-		static class FieldInfo<T>
-		{
-			public static readonly Type FieldType = typeof(T).TryGetNullableTargetType(out var targetType) ? targetType : typeof(T);
-			public static readonly bool IsNullable = typeof(T).IsNullable();
-			public static readonly int ColumnSize = DataBossDbType.From(typeof(T)).ColumnSize ?? -1;
-			public static readonly Func<T, bool> IsNull = IsNullable 
-				? CreateIsNullMethod()
-				: _ => false;
-
-			static Func<T, bool> CreateIsNullMethod() {
-				var p0 = Expression.Parameter(typeof(T));
-
-				return Expression.Lambda<Func<T, bool>>(
-					Expression.Not(Expression.MakeMemberAccess(p0, typeof(T).GetMember("HasValue").Single())), p0)
-					.Compile();
-			}
+			protected override T GetRecordValue(IDataRecord record) => transform(record.GetFieldValue<TField>(ordinal));
 		}
 
 		readonly IDataReader inner;
@@ -160,9 +164,7 @@ namespace DataBoss.DataPackage
 		}
 
 		public DataReaderTransform Add<T>(string name, Func<IDataRecord, T> getValue) {
-			var newField = new FieldTransform<T>(getValue);
-			onRead += newField.Dirty;
-			fields.Add((newField, name));
+			fields.Add(Bind(new FieldTransform<T>(getValue), name));
 			return this;
 		}
 
@@ -172,10 +174,7 @@ namespace DataBoss.DataPackage
 		}
 
 		public DataReaderTransform Transform<T>(string name, Func<IDataRecord, T> transform) {
-			var o = inner.GetOrdinal(name);
-			var newField = new FieldTransform<T>(transform);
-			fields[o] = (newField, name);
-			onRead += newField.Dirty;
+			fields[inner.GetOrdinal(name)] = Bind(new FieldTransform<T>(transform), name);
 			return this;
 		}
 
@@ -186,10 +185,18 @@ namespace DataBoss.DataPackage
 			Transform(inner.GetName(ordinal), ordinal, transform);
 
 		DataReaderTransform Transform<TField, T>(string name, int ordinal, Func<TField, T> transform) {
-			var newField = new FieldTransform<TField, T>(ordinal, transform, 
-				FieldInfo<TField>.IsNullable ? FieldInfo<T>.IsNullable : FieldInfo<T>.IsNullable || fields[ordinal].Accessor.AllowDBNull);
-			fields[ordinal] = (newField, name);
+			var allowDBNull = 
+				FieldInfo<TField>.IsNullable 
+				? FieldInfo<T>.IsNullable 
+				: FieldInfo<T>.IsNullable || fields[ordinal].Accessor.AllowDBNull;
+			
+			fields[ordinal] = Bind(new FieldTransform<TField, T>(ordinal, transform, allowDBNull), name);
 			return this;
+		}
+
+		(IFieldAccessor, string) Bind<T>(UserFieldAccessor<T> accessor, string name) {
+			onRead += accessor.Dirty;
+			return (accessor, name);
 		}
 
 		public DataReaderTransform Set<T>(string name, Func<IDataRecord, T> getValue) {

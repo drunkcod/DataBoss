@@ -27,145 +27,44 @@ namespace DataBoss.Data
 
 	public class SequenceDataReader<T> : IDataReader, IDataRecordReader
 	{
-		abstract class ColumnAccessor
+		interface IColumnAccessor
 		{
-			public abstract object GetValue(T item);
-
-			public abstract bool IsDBNull(T item);
-
-			public virtual bool GetBoolean(T item) => (bool)GetValue(item);
-			public virtual byte GetByte(T item) => (byte)GetValue(item);
-			public virtual char GetChar(T item) => (char)GetValue(item);
-			public virtual short GetInt16(T item) => (short)GetValue(item);
-			public virtual int GetInt32(T item) => (int)GetValue(item);
-			public virtual long GetInt64(T item) => (long)GetValue(item);
-			public virtual float GetFloat(T item) => (float)GetValue(item);
-			public virtual double GetDouble(T item) => (double)GetValue(item);
-			public virtual decimal GetDecimal(T item) => (decimal)GetValue(item);
-			public virtual DateTime GetDateTime(T item) => (DateTime)GetValue(item);
-			public virtual Guid GetGuid(T item) => (Guid)GetValue(item);
-			public virtual string GetString(T item) => (string)GetValue(item);
+			bool IsDBNull(T item);
+			object GetValue(T item);
+			TValue GetFieldValue<TValue>(T item);
 		}
 
-		sealed class ObjectColumnAccessor : ColumnAccessor
+		sealed class ColumnAccessor<TField> : IColumnAccessor
 		{
-			readonly Func<T, object> get;
-			readonly bool isValueType;
-
-			public ObjectColumnAccessor(Func<T, object> get, bool isValueType) {
-				this.get = get;
-				this.isValueType = isValueType;
-			}
-
-			public override object GetValue(T item) => get(item);
-			public override bool IsDBNull(T item) {
-				var x = GetValue(item);
-				return (isValueType == false && x == null) || (DBNull.Value == x);
-			}
-		}
-
-		sealed class StringColumnAccessor : ColumnAccessor
-		{
-			readonly Func<T, string> get;
-
-			public StringColumnAccessor(Func<T, string> get) {
-				this.get = get;
-			}
-
-			public override bool IsDBNull(T item) => GetString(item) == null;
-			public override string GetString(T item) => get(item);
-			public override object GetValue(T item) => get(item);
-		}
-
-		class NativeColumnAccessor<TColumn> : ColumnAccessor
-		{
-			protected readonly Func<T, TColumn> get;
+			readonly Func<T, TField> get;
 			readonly Func<T, bool> hasValue;
 
-			protected NativeColumnAccessor(Func<T, TColumn> get, Func<T, bool> hasValue) {
+			public ColumnAccessor(Func<T, TField> get, Func<T, bool> hasValue) {
 				this.get = get;
 				this.hasValue = hasValue;
 			}
 
-			public sealed override bool IsDBNull(T item) => hasValue != null && !hasValue(item);
-			public sealed override object GetValue(T item) => IsDBNull(item) ? (object)DBNull.Value : get(item);
-		}
+			public object GetValue(T item) =>
+				IsDBNull(item) ? DBNull.Value : (object)get(item);
 
-		sealed class BooleanColumnAccessor : NativeColumnAccessor<bool>
-		{
-			public BooleanColumnAccessor(Func<T, bool> get, Func<T, bool> hasValue) : base(get, hasValue) { }
+			public bool IsDBNull(T item) =>
+				(hasValue != null) && !hasValue(item);
 
-			public override bool GetBoolean(T item) => get(item);
-		}
+			public bool GetBoolean(T item) => GetFieldValue<bool>(item);
+			public byte GetByte(T item) => GetFieldValue<byte>(item);
+			public char GetChar(T item) => GetFieldValue<char>(item);
+			public short GetInt16(T item) => GetFieldValue<short>(item);
+			public int GetInt32(T item) => GetFieldValue<int>(item);
+			public long GetInt64(T item) => GetFieldValue<long>(item);
+			public float GetFloat(T item) => GetFieldValue<float>(item);
+			public double GetDouble(T item) => GetFieldValue<double>(item);
+			public decimal GetDecimal(T item) => GetFieldValue<decimal>(item);
+			public DateTime GetDateTime(T item) => GetFieldValue<DateTime>(item);
+			public Guid GetGuid(T item) => GetFieldValue<Guid>(item);
+			public string GetString(T item) => GetFieldValue<string>(item);
 
-		sealed class ByteColumnAccessor : NativeColumnAccessor<byte>
-		{
-			public ByteColumnAccessor(Func<T, byte> get, Func<T, bool> hasValue) : base(get, hasValue) { }
-
-			public override byte GetByte(T item) => get(item);
-		}
-
-		sealed class CharColumnAccessor : NativeColumnAccessor<char>
-		{
-			public CharColumnAccessor(Func<T, char> get, Func<T, bool> hasValue) : base(get, hasValue) { }
-
-			public override char GetChar(T item) => get(item);
-		}
-
-		sealed class Int16ColumnAccessor : NativeColumnAccessor<short>
-		{
-			public Int16ColumnAccessor(Func<T, short> get, Func<T, bool> hasValue) : base(get, hasValue) { }
-
-			public override short GetInt16(T item) => get(item);
-		}
-
-		sealed class Int32ColumnAccessor : NativeColumnAccessor<int>
-		{
-			public Int32ColumnAccessor(Func<T, int> get, Func<T, bool> hasValue) : base(get, hasValue) { }
-
-			public override int GetInt32(T item) => get(item);
-		}
-
-		sealed class Int64ColumnAccessor : NativeColumnAccessor<long>
-		{
-			public Int64ColumnAccessor(Func<T, long> get, Func<T, bool> hasValue) : base(get, hasValue) { }
-
-			public override long GetInt64(T item) => get(item);
-		}
-
-		sealed class SingleColumnAccessor : NativeColumnAccessor<float>
-		{
-			public SingleColumnAccessor(Func<T, float> get, Func<T, bool> hasValue) : base(get, hasValue) { }
-
-			public override float GetFloat(T item) => get(item);
-		}
-
-		sealed class DoubleColumnAccessor : NativeColumnAccessor<double>
-		{
-			public DoubleColumnAccessor(Func<T, double> get, Func<T, bool> hasValue) : base(get, hasValue) { }
-
-			public override double GetDouble(T item) => get(item);
-		}
-
-		sealed class DecimalColumnAccessor : NativeColumnAccessor<decimal>
-		{
-			public DecimalColumnAccessor(Func<T, decimal> get, Func<T, bool> hasValue) : base(get, hasValue) { }
-
-			public override decimal GetDecimal(T item) => get(item);
-		}
-
-		sealed class DateTimeColumnAccessor : NativeColumnAccessor<DateTime>
-		{
-			public DateTimeColumnAccessor(Func<T, DateTime> get, Func<T, bool> hasValue) : base(get, hasValue) { }
-
-			public override DateTime GetDateTime(T item) => get(item);
-		}
-
-		sealed class GuidColumnAccessor : NativeColumnAccessor<Guid>
-		{
-			public GuidColumnAccessor(Func<T, Guid> get, Func<T, bool> hasValue) : base(get, hasValue) { }
-
-			public override Guid GetGuid(T item) => get(item);
+			public TValue GetFieldValue<TValue>(T item) =>
+				(TValue)(object)get(item);
 		}
 
 		class DataRecord : IDataRecord
@@ -183,20 +82,20 @@ namespace DataBoss.Data
 			public bool IsDBNull(int i) => GetAccessor(i).IsDBNull(item);
 			public object GetValue(int i) => GetAccessor(i).GetValue(item);
 
-			public bool GetBoolean(int i) => GetAccessor(i).GetBoolean(item);
-			public byte GetByte(int i) => GetAccessor(i).GetByte(item);
-			public char GetChar(int i) => GetAccessor(i).GetChar(item);
-			public short GetInt16(int i) => GetAccessor(i).GetInt16(item);
-			public int GetInt32(int i) => GetAccessor(i).GetInt32(item);
-			public long GetInt64(int i) => GetAccessor(i).GetInt64(item);
-			public float GetFloat(int i) => GetAccessor(i).GetFloat(item);
-			public double GetDouble(int i) => GetAccessor(i).GetDouble(item);
-			public decimal GetDecimal(int i) => GetAccessor(i).GetDecimal(item);
-			public DateTime GetDateTime(int i) => GetAccessor(i).GetDateTime(item);
-			public Guid GetGuid(int i) => GetAccessor(i).GetGuid(item);
-			public string GetString(int i) => GetAccessor(i).GetString(item);
+			public bool GetBoolean(int i) => GetAccessor(i).GetFieldValue<bool>(item);
+			public byte GetByte(int i) => GetAccessor(i).GetFieldValue<byte>(item);
+			public char GetChar(int i) => GetAccessor(i).GetFieldValue<char>(item);
+			public short GetInt16(int i) => GetAccessor(i).GetFieldValue<short>(item);
+			public int GetInt32(int i) => GetAccessor(i).GetFieldValue<int>(item);
+			public long GetInt64(int i) => GetAccessor(i).GetFieldValue<long>(item);
+			public float GetFloat(int i) => GetAccessor(i).GetFieldValue<float>(item);
+			public double GetDouble(int i) => GetAccessor(i).GetFieldValue<double>(item);
+			public decimal GetDecimal(int i) => GetAccessor(i).GetFieldValue<decimal>(item);
+			public DateTime GetDateTime(int i) => GetAccessor(i).GetFieldValue<DateTime>(item);
+			public Guid GetGuid(int i) => GetAccessor(i).GetFieldValue<Guid>(item);
+			public string GetString(int i) => GetAccessor(i).GetFieldValue<string>(item);
 
-			ColumnAccessor GetAccessor(int i) => parent.accessors[i];
+			IColumnAccessor GetAccessor(int i) => parent.accessors[i];
 
 			public int GetValues(object[] values) {
 				var n = Math.Min(FieldCount, values.Length);
@@ -218,7 +117,7 @@ namespace DataBoss.Data
 			public int GetOrdinal(string name) => parent.GetOrdinal(name);
 		}
 
-		readonly ColumnAccessor[] accessors;
+		readonly IColumnAccessor[] accessors;
 		readonly IEnumerator<T> data;
 		readonly DataReaderSchemaTable schema = new DataReaderSchemaTable();
 	
@@ -229,29 +128,29 @@ namespace DataBoss.Data
 			var dbTypes = fields.GetDbTypes();
 			for(var i = 0; i != fieldNames.Length; ++i) 
 				schema.Add(fieldNames[i], i, fieldTypes[i], dbTypes[i].IsNullable, columnSize: dbTypes[i].ColumnSize, dataTypeName: dbTypes[i].TypeName); 
-			this.accessors = new ColumnAccessor[fields.Count];
+			this.accessors = new IColumnAccessor[fields.Count];
 			for (var i = 0; i != accessors.Length; ++i)
 				accessors[i] = MakeAccessor(fields.Source, fields[i], schema[i].IsValueType);
 		}
 
-		static ColumnAccessor MakeAccessor(ParameterExpression source, in FieldMappingItem field, bool isValueType) {
+		static IColumnAccessor MakeAccessor(ParameterExpression source, in FieldMappingItem field, bool isValueType) {
 			var (hasValue, selector) = field.HasValue == null ? (null, field.Selector) : (CompileSelector<bool>(source, field.HasValue), field.GetValue);
 			switch(Type.GetTypeCode(selector.Type)) {
 				default:
 					if (selector.Type == typeof(Guid))
-						return new GuidColumnAccessor(CompileSelector<Guid>(source, selector), hasValue);
-					return new ObjectColumnAccessor(CompileSelector<object>(source, selector.Box()), isValueType);
-				case TypeCode.Boolean: return new BooleanColumnAccessor(CompileSelector<bool>(source, selector), hasValue);
-				case TypeCode.Byte: return new ByteColumnAccessor(CompileSelector<byte>(source, selector), hasValue);
-				case TypeCode.Char: return new CharColumnAccessor(CompileSelector<char>(source, selector), hasValue);
-				case TypeCode.Int16: return new Int16ColumnAccessor(CompileSelector<short>(source, selector), hasValue);
-				case TypeCode.Int32: return new Int32ColumnAccessor(CompileSelector<int>(source, selector), hasValue);
-				case TypeCode.Int64: return new Int64ColumnAccessor(CompileSelector<long>(source, selector), hasValue);
-				case TypeCode.Single: return new SingleColumnAccessor(CompileSelector<float>(source, selector), hasValue);
-				case TypeCode.Double: return new DoubleColumnAccessor(CompileSelector<double>(source, selector), hasValue);
-				case TypeCode.Decimal: return new DecimalColumnAccessor(CompileSelector<decimal>(source, selector), hasValue);
-				case TypeCode.DateTime: return new DateTimeColumnAccessor(CompileSelector<DateTime>(source, selector), hasValue);
-				case TypeCode.String: return new StringColumnAccessor(CompileSelector<string>(source, selector));
+						return new ColumnAccessor<Guid>(CompileSelector<Guid>(source, selector), hasValue);
+					return new ColumnAccessor<object>(CompileSelector<object>(source, selector.Box()), hasValue);
+				case TypeCode.Boolean: return new ColumnAccessor<bool>(CompileSelector<bool>(source, selector), hasValue);
+				case TypeCode.Byte: return new ColumnAccessor<byte>(CompileSelector<byte>(source, selector), hasValue);
+				case TypeCode.Char: return new ColumnAccessor<char>(CompileSelector<char>(source, selector), hasValue);
+				case TypeCode.Int16: return new ColumnAccessor<short>(CompileSelector<short>(source, selector), hasValue);
+				case TypeCode.Int32: return new ColumnAccessor<int>(CompileSelector<int>(source, selector), hasValue);
+				case TypeCode.Int64: return new ColumnAccessor<long>(CompileSelector<long>(source, selector), hasValue);
+				case TypeCode.Single: return new ColumnAccessor<float>(CompileSelector<float>(source, selector), hasValue);
+				case TypeCode.Double: return new ColumnAccessor<double>(CompileSelector<double>(source, selector), hasValue);
+				case TypeCode.Decimal: return new ColumnAccessor<decimal>(CompileSelector<decimal>(source, selector), hasValue);
+				case TypeCode.DateTime: return new ColumnAccessor<DateTime>(CompileSelector<DateTime>(source, selector), hasValue);
+				case TypeCode.String: return new ColumnAccessor<string>(CompileSelector<string>(source, selector), hasValue);
 			}			
 		}
 

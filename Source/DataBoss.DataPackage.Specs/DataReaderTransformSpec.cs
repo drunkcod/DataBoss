@@ -119,5 +119,8 @@ namespace DataBoss.DataPackage
 			Check.That(() => xform.GetOrdinal("Value") == 0);
 		}
 
+		[Fact]
+		public void null_string_is_null() =>
+			Check.That(() => DataReaderTransform.FieldInfo<string>.IsNull(null));
 	}
 }
