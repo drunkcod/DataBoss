@@ -27,6 +27,7 @@ namespace DataBoss.Data
 			DateTime = 8,
 			Date = 9,
 			Time = 10,
+			Guid = 11,
 
 			Char = 16,
 			VarChar = 17,
@@ -55,6 +56,7 @@ namespace DataBoss.Data
 			("datetime", 8),
 			("date", 3),
 			("time", 8),
+			("uniqueidentifier", 16)
 		};
 
 		static readonly (string TypeName, byte Width)[] VariableSizeTypes = new(string, byte)[] {
@@ -182,6 +184,7 @@ namespace DataBoss.Data
 				case DbType.Boolean: return BossTypeTag.Bit;
 				case DbType.String: return BossTypeTag.NVarChar;
 				case DbType.Binary: return BossTypeTag.Binary;
+				case DbType.Guid: return BossTypeTag.Guid;
 			}
 		}
 
@@ -204,6 +207,7 @@ namespace DataBoss.Data
 				case "System.Single": return new DataBossDbType(BossTypeTag.Real, canBeNull);
 				case "System.Double": return new DataBossDbType(BossTypeTag.Float, canBeNull);
 				case "System.Boolean": return new DataBossDbType(BossTypeTag.Bit, canBeNull);
+				case "System.Guid": return new DataBossDbType(BossTypeTag.Guid, canBeNull);
 				case "System.String":
 					return new DataBossDbType(attributes.Any<AnsiStringAttribute>() ? BossTypeTag.VarChar: BossTypeTag.NVarChar, canBeNull, MaxLength(attributes)?.Length ?? int.MaxValue);
 				case "System.Char":
@@ -232,6 +236,7 @@ namespace DataBoss.Data
 				case "System.Double": return DbType.Double;
 				case "System.Boolean": return DbType.Boolean;
 				case "System.DateTime": return DbType.DateTime;
+				case "System.Guid": return DbType.Guid;
 			}
 			return DbType.String;
 		}

@@ -133,7 +133,7 @@ namespace DataBoss.DataPackage
 				case TypeCode.Int16:
 				case TypeCode.Int32:
 				case TypeCode.Int64: return ("integer", null);
-				case TypeCode.Char: return ("string", null);
+				case TypeCode.Char:
 				case TypeCode.String: return ("string", null);
 			}
 
@@ -142,6 +142,7 @@ namespace DataBoss.DataPackage
 					return (type.SingleOrDefault<FieldAttribute>()?.SchemaType ?? throw new NotSupportedException($"Can't map {type}"), null);
 				case "System.TimeSpan": return ("time", null);
 				case "System.Byte[]": return ("string", "binary");
+				case "System.Guid": return ("string", "uuid");
 			}
 		}
 	}

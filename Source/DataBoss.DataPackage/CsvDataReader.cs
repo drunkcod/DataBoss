@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Reflection;
@@ -7,24 +8,23 @@ using DataBoss.Data;
 
 namespace DataBoss.DataPackage
 {
-
 	public class CsvDataReader : IDataReader, IDataRecordReader
 	{
 		class CsvDataRecord : IDataRecord
 		{
 			readonly string[] fieldValue;
-			readonly bool[] isNull;
+			readonly BitArray isNull;
 			readonly CsvDataReader parent;
 			int rowNumber;
 
-			public CsvDataRecord(CsvDataReader parent, int rowNumber, bool[] isNull, string[] fieldValue) {
+			public CsvDataRecord(CsvDataReader parent, int rowNumber, BitArray isNull, string[] fieldValue) {
 				this.isNull = isNull;
 				this.fieldValue = fieldValue;
 				this.parent = parent;
 				this.rowNumber = rowNumber;
 			}
 
-			public CsvDataRecord Clone() => new CsvDataRecord(parent, rowNumber, (bool[])isNull.Clone(), (string[])fieldValue.Clone());
+			public CsvDataRecord Clone() => new CsvDataRecord(parent, rowNumber, new BitArray(isNull), (string[])fieldValue.Clone());
 
 			public void Fill(int rowNumber, CsvReader csv) {
 				this.rowNumber = rowNumber;
@@ -53,26 +53,59 @@ namespace DataBoss.DataPackage
 			}
 			
 			bool CheckedIsNull(int i) {
-				if (isNull[i])
-					return parent.IsNullable(i) ? true : throw new InvalidOperationException($"Unexpected null value for {parent.GetName(i)} on line {rowNumber}.");
-				return false;
+				if (!isNull[i])
+					return false;
+				return parent.IsNullable(i) || UnexpectedNull(i);
 			}
+
+			bool UnexpectedNull(int i) => 
+				throw new InvalidOperationException($"Unexpected null value for {parent.GetName(i)} on line {rowNumber}.");
 
 			public bool IsDBNull(int i) => isNull[i];
 
 			public bool GetBoolean(int i) => (bool)GetValue(i);
 			public byte GetByte(int i) => (byte)GetValue(i);
 			public char GetChar(int i) => (char)GetValue(i);
-			public Guid GetGuid(int i) => (Guid)GetValue(i);
-			public short GetInt16(int i) => CheckedIsNull(i) ? default : short.Parse(fieldValue[i], parent.fieldFormat[i]);
-			public int GetInt32(int i) => CheckedIsNull(i) ? default : int.Parse(fieldValue[i], parent.fieldFormat[i]);
-			public long GetInt64(int i) => CheckedIsNull(i) ? default : long.Parse(fieldValue[i], parent.fieldFormat[i]);
-			public float GetFloat(int i) => CheckedIsNull(i) ? default : float.Parse(fieldValue[i], parent.fieldFormat[i]);
-			public double GetDouble(int i) => CheckedIsNull(i) ? default : double.Parse(fieldValue[i], parent.fieldFormat[i]);
+			public Guid GetGuid(int i) => GetFieldValue<Guid>(i);
+			public short GetInt16(int i) => GetFieldValue<short>(i);
+			public int GetInt32(int i) => GetFieldValue<int>(i);
+			public long GetInt64(int i) => GetFieldValue<long>(i);
+			public float GetFloat(int i) => GetFieldValue<float>(i);
+			public double GetDouble(int i) => GetFieldValue<double>(i);
+			public decimal GetDecimal(int i) => GetFieldValue<decimal>(i);
 			public string GetString(int i) => CheckedIsNull(i) ? default : fieldValue[i];
-			public decimal GetDecimal(int i) => CheckedIsNull(i) ? default : decimal.Parse(fieldValue[i], parent.fieldFormat[i]);
 			public DateTime GetDateTime(int i) => (DateTime)GetValue(i);
-			public TimeSpan GetTimeSpan(int i) => CheckedIsNull(i) ? default : TimeSpan.Parse(fieldValue[i], parent.fieldFormat[i]);
+			public TimeSpan GetTimeSpan(int i) => GetFieldValue<TimeSpan>(i);
+
+
+			T GetFieldValue<T>(int i) {
+				if (CheckedIsNull(i))
+					return default;
+
+				var value = fieldValue[i];
+				var format = parent.fieldFormat[i];
+
+				if (typeof(T) == typeof(short))
+					return (T)(object)short.Parse(value, format);
+				if (typeof(T) == typeof(int))
+					return (T)(object)int.Parse(value, format);
+				if (typeof(T) == typeof(long))
+					return (T)(object)long.Parse(value, format);
+				if (typeof(T) == typeof(float))
+					return (T)(object)float.Parse(value, format);
+				if (typeof(T) == typeof(double))
+					return (T)(object)double.Parse(value, format);
+				if (typeof(T) == typeof(decimal))
+					return (T)(object)decimal.Parse(value, format);
+
+				if (typeof(T) == typeof(TimeSpan))
+					return (T)(object)TimeSpan.Parse(value, format);
+
+				if (typeof(T) == typeof(Guid))
+					return (T)(object)Guid.Parse(value);
+
+				return (T)GetValue(i);
+			}
 
 			public int GetValues(object[] values) {
 				var n = Math.Min(FieldCount, values.Length);
@@ -117,7 +150,7 @@ namespace DataBoss.DataPackage
 					fieldFormat[i] = field.GetNumberFormat();
 			}
 
-			this.current = new CsvDataRecord(this, 0, new bool[FieldCount], new string[FieldCount]);
+			this.current = new CsvDataRecord(this, 0, new BitArray(FieldCount), new string[FieldCount]);
 
 			if (hasHeaderRow)
 				ValidateHeaderRow();
@@ -152,14 +185,16 @@ namespace DataBoss.DataPackage
 				case "time": return GetDbTypePair(typeof(TimeSpan), required);
 				case "integer": return GetDbTypePair(typeof(int), required);
 				case "number": return GetDbTypePair(typeof(double), required);
-				case "string": 
-					if(field.Format == "binary")
+				case "string":
+					if (field.Format == "binary")
 						return GetDbTypePair(typeof(byte[]), required);
+					else if (field.Format == "uuid")
+						return GetDbTypePair(typeof(Guid), required);
 					return GetDbTypePair(typeof(string), required);
 			}
 		}
 
-		static (Type, DataBossDbType) GetDbTypePair(Type type, bool required = false) {
+		static (Type, DataBossDbType) GetDbTypePair(Type type, bool required) {
 			var dbType = required 
 				? DataBossDbType.From(type, RequiredAttributeProvider.Instance)
 				: DataBossDbType.From(type.IsValueType ? typeof(Nullable<>).MakeGenericType(type) : type);

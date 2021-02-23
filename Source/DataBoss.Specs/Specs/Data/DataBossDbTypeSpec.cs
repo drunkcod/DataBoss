@@ -50,6 +50,7 @@ namespace DataBoss.Data
 		[InlineData(typeof(string), "nvarchar(max)", true)]
 		[InlineData(typeof(bool), "bit", false)]
 		[InlineData(typeof(bool?), "bit", true)]
+		[InlineData(typeof(Guid), "uniqueidentifier", false)]
 		[InlineData(typeof(SqlMoney), "money", false)]
 		[InlineData(typeof(SqlMoney?), "money", true)]
 		[InlineData(typeof(RowVersion), "binary(8)", false)]

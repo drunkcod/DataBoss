@@ -307,6 +307,24 @@ namespace DataBoss.DataPackage
 				() => readerSchema[0].ColumnSize == 1);
 		}
 
+		[Fact]
+		public void guid_is_a_uuid_string() {
+			var value = Guid.NewGuid();
+			var dp = new DataPackage()
+				.AddResource("uuids", new[] {
+					new { Value = value }
+				}).Serialize();
+
+			var r = dp.Resources.Single();
+			var readerSchema = r.Read().GetDataReaderSchemaTable();
+			var rows = r.Read<MyRow<Guid>>().ToList();
+			Check.That(
+				() => r.Schema.Fields[0].Name == "Value",
+				() => r.Schema.Fields[0].Type == "string",
+				() => r.Schema.Fields[0].Format == "uuid",
+				() => rows[0].Value == value);
+		}
+
 		class MyRow<T>
 		{
 			public T Value;

@@ -19,6 +19,8 @@ namespace DataBoss.DataPackage
 						return FormatTimeSpan;
 					if (type == typeof(byte[]))
 						return FormatBinary;
+					if (type == typeof(Guid))
+						return FormatGuid;
 					return FormatObject;
 
 				case TypeCode.DateTime:
@@ -58,9 +60,11 @@ namespace DataBoss.DataPackage
 				throw new InvalidOperationException("DateTimeKind.Unspecified not supported.");
 			return value.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ssK");
 		}
+
 		static string FormatTimeSpan(IDataRecord r, int i) => r.IsDBNull(i) ? null : ((TimeSpan)r.GetValue(i)).ToString("hh\\:mm\\:ss");
 		static string FormatBinary(IDataRecord r, int i) => r.IsDBNull(i) ? null : Convert.ToBase64String((byte[])r.GetValue(i));
 		static string FormatString(IDataRecord r, int i) => r.GetString(i);
 		static string FormatBoolean(IDataRecord r, int i) => r.GetBoolean(i).ToString();
+		public string FormatGuid(IDataRecord r, int i) => r.GetGuid(i).ToString();
 	}
 }
