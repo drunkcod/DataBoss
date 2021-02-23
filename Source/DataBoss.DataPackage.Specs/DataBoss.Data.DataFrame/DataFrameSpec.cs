@@ -1,12 +1,16 @@
+using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
+using System.Reflection;
 using CheckThat;
+using Newtonsoft.Json;
 using Xunit;
 
 namespace DataBoss.Data.DataFrames
 {
-	public class DataFrameSpec
-	{
+	public class DataFrameSpec {
 		[Fact]
 		public void create_from_DataReader() {
 			var items = SequenceDataReader.Items(
@@ -44,5 +48,36 @@ namespace DataBoss.Data.DataFrames
 			var filtered = df[df.GetColumn<int>("N") > 5];
 			Check.That(() => filtered.Count == 4);
 		}
+
+		[Fact]
+		public void DataSeries_() {
+			var items = SequenceDataReader.Items(
+				new { Id = 1, Message = "Hello", Value = (float?)42 },
+				new { Id = 2, Message = "World", Value = default(float?) },
+				new { Id = 3, Message = (string)null, Value = (float?)17.0f });
+
+			var data = new DataSeriesReader(items);
+			data.Add("Id");
+			data.Add("Message");
+			data.Add("Value");
+
+			var series = data.Read();
+			var ids = series[0];
+			var messages = series[1];
+			var values = series[2];
+			
+			Check.That(
+				() => ids.Type == typeof(int),
+				() => messages.Type == typeof(string),
+				() => values.Type == typeof(float),
+				() => ids.IsNull(0) == false,
+				() => values.IsNull(1),
+				() => (messages as DataSeries<string>)[1] == "World",
+				() => values is IEnumerable<float?>,
+				() => ToJson(messages) == "[\"Hello\",\"World\",null]",
+				() => ToJson(values) == "[42.0,null,17.0]");
+		}
+
+		static string ToJson(object obj) => JsonConvert.SerializeObject(obj);
 	}
 }

@@ -45,7 +45,7 @@ namespace DataBoss.Data
 			}
 
 			public object GetValue(T item) =>
-				IsDBNull(item) ? DBNull.Value : (object)get(item);
+				IsDBNull(item) ? DBNull.Value : GetFieldValue<object>(item);
 
 			public bool IsDBNull(T item) =>
 				(hasValue != null) && !hasValue(item);
@@ -63,8 +63,14 @@ namespace DataBoss.Data
 			public Guid GetGuid(T item) => GetFieldValue<Guid>(item);
 			public string GetString(T item) => GetFieldValue<string>(item);
 
-			public TValue GetFieldValue<TValue>(T item) =>
-				(TValue)(object)get(item);
+			public TValue GetFieldValue<TValue>(T item) {
+				if(typeof(TValue) == typeof(TField) || typeof(TValue) == typeof(object))
+					return (TValue)(object)get(item);
+				ThrowInvalidCastException<TValue>();
+				return default;
+			}
+
+			static void ThrowInvalidCastException<TValue>() => throw new InvalidCastException($"Unable to cast object of type '{typeof(TField)}' to {typeof(TValue)}.");
 		}
 
 		class DataRecord : IDataRecord
@@ -130,29 +136,21 @@ namespace DataBoss.Data
 				schema.Add(fieldNames[i], i, fieldTypes[i], dbTypes[i].IsNullable, columnSize: dbTypes[i].ColumnSize, dataTypeName: dbTypes[i].TypeName); 
 			this.accessors = new IColumnAccessor[fields.Count];
 			for (var i = 0; i != accessors.Length; ++i)
-				accessors[i] = MakeAccessor(fields.Source, fields[i], schema[i].IsValueType);
+				accessors[i] = MakeAccessor(fields.Source, fields[i]);
 		}
 
-		static IColumnAccessor MakeAccessor(ParameterExpression source, in FieldMappingItem field, bool isValueType) {
+		static IColumnAccessor MakeAccessor(ParameterExpression source, in FieldMappingItem field) {
 			var (hasValue, selector) = field.HasValue == null ? (null, field.Selector) : (CompileSelector<bool>(source, field.HasValue), field.GetValue);
-			switch(Type.GetTypeCode(selector.Type)) {
-				default:
-					if (selector.Type == typeof(Guid))
-						return new ColumnAccessor<Guid>(CompileSelector<Guid>(source, selector), hasValue);
-					return new ColumnAccessor<object>(CompileSelector<object>(source, selector.Box()), hasValue);
-				case TypeCode.Boolean: return new ColumnAccessor<bool>(CompileSelector<bool>(source, selector), hasValue);
-				case TypeCode.Byte: return new ColumnAccessor<byte>(CompileSelector<byte>(source, selector), hasValue);
-				case TypeCode.Char: return new ColumnAccessor<char>(CompileSelector<char>(source, selector), hasValue);
-				case TypeCode.Int16: return new ColumnAccessor<short>(CompileSelector<short>(source, selector), hasValue);
-				case TypeCode.Int32: return new ColumnAccessor<int>(CompileSelector<int>(source, selector), hasValue);
-				case TypeCode.Int64: return new ColumnAccessor<long>(CompileSelector<long>(source, selector), hasValue);
-				case TypeCode.Single: return new ColumnAccessor<float>(CompileSelector<float>(source, selector), hasValue);
-				case TypeCode.Double: return new ColumnAccessor<double>(CompileSelector<double>(source, selector), hasValue);
-				case TypeCode.Decimal: return new ColumnAccessor<decimal>(CompileSelector<decimal>(source, selector), hasValue);
-				case TypeCode.DateTime: return new ColumnAccessor<DateTime>(CompileSelector<DateTime>(source, selector), hasValue);
-				case TypeCode.String: return new ColumnAccessor<string>(CompileSelector<string>(source, selector), hasValue);
-			}			
+			var createAccessor = Lambdas.CreateDelegate<Func<ParameterExpression, Expression, Func<T, bool>, IColumnAccessor>>(
+				MakeAccessorMethod.MakeGenericMethod(selector.Type));
+			return createAccessor(source, selector, hasValue);
 		}
+
+		static readonly MethodInfo MakeAccessorMethod = typeof(SequenceDataReader<T>)
+			.GetMethod(nameof(MakeAccessorT), BindingFlags.Static | BindingFlags.NonPublic);
+
+		static IColumnAccessor MakeAccessorT<TFieldType>(ParameterExpression source, Expression selector, Func<T, bool> hasValue) =>
+			new ColumnAccessor<TFieldType>(CompileSelector<TFieldType>(source, selector), hasValue);
 
 		static Func<T, TResult> CompileSelector<TResult>(ParameterExpression source, Expression selector) =>
 			Expression.Lambda<Func<T, TResult>>(selector, source).Compile();
