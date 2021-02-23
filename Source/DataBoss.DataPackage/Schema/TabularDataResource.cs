@@ -119,6 +119,7 @@ namespace DataBoss.DataPackage
 				case TypeCode.Int16:
 				case TypeCode.Int32:
 				case TypeCode.Int64: return ("integer", null);
+				case TypeCode.Char: return ("string", null);
 				case TypeCode.String: return ("string", null);
 			}
 
