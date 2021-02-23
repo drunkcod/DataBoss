@@ -60,8 +60,15 @@ namespace DataBoss.DataPackage
 			return reader;
 		}
 
-		public IEnumerable<T> Read<T>() =>
-			ObjectReader.Read<T>(Read());
+		public IEnumerable<T> Read<T>() => 
+			ObjectReader.For(Read()).Read<T>(CustomConverters);
+
+		static readonly ConverterCollection CustomConverters = new ConverterCollection {
+			new Func<string, char>(StringToChar),
+		};
+
+		static char StringToChar(string input) =>
+			input.Length == 1 ? input[0] : throw new InvalidConversionException($"expected string of length 1, was '{input}'", typeof(char));
 
 		public TabularDataResource Where(Func<IDataRecord, bool> predicate) =>
 			Rebind(Name, Schema, () => new WhereDataReader(getData(), predicate));
@@ -86,13 +93,20 @@ namespace DataBoss.DataPackage
 
 		static List<TabularDataSchemaFieldDescription> GetFieldInfo(IDataReader reader) {
 			var r = new List<TabularDataSchemaFieldDescription>(reader.FieldCount);
-			var schema = ObjectReader.Read<DataReaderSchemaRow>(reader.GetSchemaTable().CreateDataReader())
+			var schema = reader
+				.GetDataReaderSchemaTable()
 				.ToDictionary(x => x.ColumnName, x => x);
 			
 			for (var i = 0; i != reader.FieldCount; ++i) {
 				TabularDataSchemaFieldConstraints constraints = null;
-				if (schema.TryGetValue(reader.GetName(i), out var found) && !found.AllowDBNull)
-					constraints = new TabularDataSchemaFieldConstraints { IsRequired = true };
+				TabularDataSchemaFieldConstraints FieldConstraints() => constraints ??= new TabularDataSchemaFieldConstraints();
+				if (schema.TryGetValue(reader.GetName(i), out var found)) {
+					if(!found.AllowDBNull)
+						FieldConstraints().IsRequired = true;
+					if ((found.ColumnType == typeof(string) || found.ColumnType == typeof(char)) && found.ColumnSize != int.MaxValue) {
+						FieldConstraints().MaxLength = found.ColumnSize;
+					}
+				}
 
 				var (type, format) = ToTableSchemaType(reader.GetFieldType(i));
 				var field = new TabularDataSchemaFieldDescription(

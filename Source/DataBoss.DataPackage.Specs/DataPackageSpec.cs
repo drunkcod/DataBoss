@@ -288,6 +288,31 @@ namespace DataBoss.DataPackage
 		}
 
 		[Fact]
+		public void a_character_is_a_string_of_length_one() {
+			var dp = new DataPackage()
+				.AddResource("chars", new[] {
+					new { Value = '☺' }
+				}).Serialize();
+
+			var r = dp.Resources.Single();
+			var readerSchema = r.Read().GetDataReaderSchemaTable();
+			var rows = r.Read<MyRow<char>>().ToList();
+			Check.That(
+				() => r.Schema.Fields[0].Name == "Value",
+				() => r.Schema.Fields[0].Type == "string",
+				() => r.Schema.Fields[0].Constraints.MaxLength == 1,
+				() => rows[0].Value == '☺',
+				() => readerSchema[0].ColumnName == "Value",
+				() => readerSchema[0].AllowDBNull == false,
+				() => readerSchema[0].ColumnSize == 1);
+		}
+
+		class MyRow<T>
+		{
+			public T Value;
+		}
+
+		[Fact]
 		public void custom_resource_delimiter() {
 			var dp = new DataPackage()
 				.AddResource("stuff", () => new[] { new { Id = 1, Message = "Hello World." } })

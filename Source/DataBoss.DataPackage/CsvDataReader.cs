@@ -1,5 +1,7 @@
 using System;
+using System.ComponentModel.DataAnnotations;
 using System.Data;
+using System.Reflection;
 using CsvHelper;
 using DataBoss.Data;
 
@@ -109,7 +111,7 @@ namespace DataBoss.DataPackage
 			for (var i = 0; i != tabularSchema.Fields.Count; ++i) {
 				var field = tabularSchema.Fields[i];
 				var (fieldType, dbType) = ToDbType(field);
-				schema.Add(field.Name, i, fieldType, dbType.IsNullable, dbType.ColumnSize);
+				schema.Add(field.Name, i, fieldType, dbType.IsNullable, field.Constraints?.MaxLength ?? dbType.ColumnSize, dbType.TypeName);
 				dbTypes[i] = dbType;
 				if(field.IsNumber())
 					fieldFormat[i] = field.GetNumberFormat();
@@ -157,8 +159,30 @@ namespace DataBoss.DataPackage
 			}
 		}
 
-		static (Type, DataBossDbType) GetDbTypePair(Type type, bool required = false) =>
-			(type, DataBossDbType.From(!type.IsValueType || required ? type : typeof(Nullable<>).MakeGenericType(type)));
+		static (Type, DataBossDbType) GetDbTypePair(Type type, bool required = false) {
+			var dbType = required 
+				? DataBossDbType.From(type, RequiredAttributeProvider.Instance)
+				: DataBossDbType.From(type.IsValueType ? typeof(Nullable<>).MakeGenericType(type) : type);
+
+			return (type, dbType);
+		}
+
+		class RequiredAttributeProvider : ICustomAttributeProvider
+		{
+			readonly RequiredAttribute[] RequiredAttribute = new[] { new RequiredAttribute() };
+
+			RequiredAttributeProvider() { }
+
+			public static readonly RequiredAttributeProvider Instance = new RequiredAttributeProvider();
+
+			public object[] GetCustomAttributes(bool inherit) => RequiredAttribute;
+
+			public object[] GetCustomAttributes(Type attributeType, bool inherit) =>
+				attributeType == typeof(RequiredAttribute) ? RequiredAttribute : Array.Empty<object>();
+
+			public bool IsDefined(Type attributeType, bool inherit) =>
+				attributeType == typeof(RequiredAttribute);
+		}
 
 		public int FieldCount => schema.Count;
 

@@ -40,6 +40,9 @@ namespace DataBoss.DataPackage
 		[JsonProperty("required", DefaultValueHandling = DefaultValueHandling.Ignore)]
 		public bool IsRequired;
 
+		[JsonProperty("maxLength", DefaultValueHandling = DefaultValueHandling.Ignore)]
+		public int? MaxLength;
+
 		public override string ToString() => JsonConvert.SerializeObject(this);
 	}
 

@@ -29,6 +29,7 @@ namespace DataBoss.Data
 				ColumnOrdinal: sourceSchema.Columns["ColumnOrdinal"],
 				ColumnSize: sourceSchema.Columns["ColumnSize"],
 				DataType: sourceSchema.Columns["DataType"],
+				DataTypeName: sourceSchema.Columns["DataTypeName"],
 				AllowDBNull: sourceSchema.Columns["AllowDBNull"]);
 
 			for(var i = 0; i != sourceSchema.Rows.Count; ++i) {
@@ -37,11 +38,18 @@ namespace DataBoss.Data
 					 Name: (string)item[columns.ColumnName],
 					 Ordinal: (int)item[columns.ColumnOrdinal],
 					 DataType: (Type)item[columns.DataType],
+					 DataTypeName: DefaultIfDBNull<string>(item[columns.DataTypeName]),
 					 AllowDBNull: (bool)item[columns.AllowDBNull],
 					 Size: (int)item[columns.ColumnSize]);
-				schema.Add(row.Name, row.Ordinal, row.DataType, row.AllowDBNull, row.Size);
+				schema.Add(row.Name, row.Ordinal, row.DataType, row.AllowDBNull, row.Size, row.DataTypeName);
 			}
 			return schema;
+		}
+
+		static T DefaultIfDBNull<T>(object obj) {
+			if (obj == DBNull.Value)
+				return default;
+			return (T)obj;
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
