@@ -206,7 +206,9 @@ namespace DataBoss.Data
 				case "System.Boolean": return new DataBossDbType(BossTypeTag.Bit, canBeNull);
 				case "System.String":
 					return new DataBossDbType(attributes.Any<AnsiStringAttribute>() ? BossTypeTag.VarChar: BossTypeTag.NVarChar, canBeNull, MaxLength(attributes)?.Length ?? int.MaxValue);
-				case "System.Byte[]": 
+				case "System.Char":
+					return new DataBossDbType(attributes.Any<AnsiStringAttribute>() ? BossTypeTag.Char : BossTypeTag.NChar, canBeNull, 1);
+				case "System.Byte[]":
 					return new DataBossDbType(BossTypeTag.VarBinary, canBeNull, MaxLength(attributes)?.Length ?? int.MaxValue);
 				case "System.DateTime": return Create("datetime", 8, canBeNull);
 				case "System.TimeSpan": return Create("time", 3, canBeNull);

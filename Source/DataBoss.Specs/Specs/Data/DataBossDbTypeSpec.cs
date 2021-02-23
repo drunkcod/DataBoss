@@ -46,6 +46,7 @@ namespace DataBoss.Data
 		[InlineData(typeof(float), "real", false)]
 		[InlineData(typeof(double?), "float", true)]
 		[InlineData(typeof(double), "float", false)]
+		[InlineData(typeof(char), "nchar", false)]
 		[InlineData(typeof(string), "nvarchar(max)", true)]
 		[InlineData(typeof(bool), "bit", false)]
 		[InlineData(typeof(bool?), "bit", true)]
