@@ -30,14 +30,14 @@ namespace DataBoss
 		[InlineData(typeof(string))]
 		[InlineData(typeof(Guid))]
 		[InlineData(typeof(DateTime))]
-		[InlineData(typeof(Decimal))]
+		[InlineData(typeof(decimal))]
 		[InlineData(typeof(SqlMoney))]
 		[InlineData(typeof(SqlDecimal))]
 		[InlineData(typeof(byte[]))]
 		public void has_sql_type_mapping_for(Type clrType) => Check.That(() => ToParams.HasSqlTypeMapping(clrType));
 
 		[Fact]
-		public void object_is_not_considered_complext() {
+		public void object_is_not_considered_complex() {
 			var nullableInt = new int?();
 			Check.With(() => GetParams(new { Value = nullableInt.HasValue ? (object)nullableInt.Value : DBNull.Value }))
 				.That(x => x.Length == 1, x => x.Any(p => p.ParameterName == "@Value"));
@@ -49,6 +49,19 @@ namespace DataBoss
 			.That(
 				xs => xs.Length == 1,
 				xs => xs[0].Value == DBNull.Value);
+
+		[Fact]
+		public void Uri_is_treated_as_string() {
+			var uri = new Uri("http://example.com");
+			Check.With(() =>
+			GetParams(new { 
+				Uri = uri,
+				NullUri = (Uri)null,
+			})).That(
+				xs => xs.Length == 2,
+				xs => xs[0].Value.Equals(uri.ToString()),
+				xs => xs[1].Value == DBNull.Value);
+		}
 
 		[Fact]
 		public void nullable_values() => Check.With(() => 

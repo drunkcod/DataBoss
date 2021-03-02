@@ -1,9 +1,10 @@
-using System;
+using System; 
 using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
@@ -156,14 +157,130 @@ namespace DataBoss.Data
 			}
 		}
 
+		[NewtonsoftJsonConverter(typeof(NewtonsoftDataReaderJsonConverter))]
 		public interface IDataReaderJsonObject
 		{
-			void WriteRecords(NewtonsoftJsonWriter json, NewtonsoftJsonSerializer serializer);
-			void WriteRecords(Utf8JsonWriter json, JsonSerializerOptions options);
+			void Write(NewtonsoftJsonWriter json, NewtonsoftJsonSerializer serializer);
+			void Write(Utf8JsonWriter json, JsonSerializerOptions options);
+		}
+
+		[JsonConverter(typeof(DataReaderJsonConverter<DataRecordJsonObject>))]
+		public class DataRecordJsonObject : IDataReaderJsonObject
+		{
+			static readonly HashSet<Type> seenTypes = new();
+			static Func<IDataRecord, int, IDataReaderJsonObject> GetRecordValueDispatch = delegate { return null; };
+
+			class RecordValue<T> : IDataReaderJsonObject
+			{
+				readonly T value;
+
+				public RecordValue(T value) { this.value = value; }
+				
+				public void Write(NewtonsoftJsonWriter json, NewtonsoftJsonSerializer serializer) {
+					if (typeof(T) == typeof(bool)) json.WriteValue((bool)(object)value);
+					else if (typeof(T) == typeof(byte)) json.WriteValue((byte)(object)value);
+					else if (typeof(T) == typeof(short)) json.WriteValue((short)(object)value);
+					else if (typeof(T) == typeof(int)) json.WriteValue((int)(object)value);
+					else if (typeof(T) == typeof(long)) json.WriteValue((long)(object)value);
+					else if (typeof(T) == typeof(float)) json.WriteValue((float)(object)value);
+					else if (typeof(T) == typeof(double)) json.WriteValue((double)(object)value);
+					else if (typeof(T) == typeof(string)) json.WriteValue((string)(object)value);
+					else if (typeof(T) == typeof(DateTime)) json.WriteValue((DateTime)(object)value);
+					else if (typeof(T) == typeof(Guid)) json.WriteValue((Guid)(object)value);
+					else serializer.Serialize(json, value);
+				}
+
+				public void Write(Utf8JsonWriter json, JsonSerializerOptions options) {
+					if (typeof(T) == typeof(bool)) json.WriteBooleanValue((bool)(object)value);
+					else if (typeof(T) == typeof(byte)) json.WriteNumberValue((byte)(object)value);
+					else if (typeof(T) == typeof(short)) json.WriteNumberValue((short)(object)value);
+					else if (typeof(T) == typeof(int)) json.WriteNumberValue((int)(object)value);
+					else if (typeof(T) == typeof(long)) json.WriteNumberValue((long)(object)value);
+					else if (typeof(T) == typeof(float)) json.WriteNumberValue((float)(object)value);
+					else if (typeof(T) == typeof(double)) json.WriteNumberValue((double)(object)value);
+					else if (typeof(T) == typeof(string)) json.WriteStringValue((string)(object)value);
+					else if (typeof(T) == typeof(DateTime)) json.WriteStringValue((DateTime)(object)value);
+					else if (typeof(T) == typeof(Guid)) json.WriteStringValue((Guid)(object)value);
+					else JsonSerializer.Serialize(json, value, typeof(T), options);
+				}
+			}
+
+			class NullValue : IDataReaderJsonObject
+			{
+				public void Write(NewtonsoftJsonWriter json, NewtonsoftJsonSerializer serializer) =>
+					json.WriteNull();
+
+				public void Write(Utf8JsonWriter json, JsonSerializerOptions options) =>
+					json.WriteNullValue();
+
+				NullValue() { }
+
+				public static NullValue Instance = new NullValue();
+			}
+
+			readonly List<(string Name, IDataReaderJsonObject Value)> values = new();
+
+			public static DataRecordJsonObject Read(IDataRecord record) {
+				var jrecord = new DataRecordJsonObject();
+				for (var i = 0; i != record.FieldCount; ++i)
+					jrecord.values.Add((record.GetName(i), GetRecordValue(record, i)));
+				return jrecord;
+			}
+
+			static IDataReaderJsonObject GetRecordValue(IDataRecord record, int i) {
+				if (record.IsDBNull(i))
+					return NullValue.Instance;
+
+				var value = GetRecordValueDispatch(record, i);
+				if (value != null)
+					return value;
+				lock(seenTypes)
+					if(seenTypes.Add(record.GetFieldType(i))) {
+						var m = typeof(DataRecordJsonObject).GetMethod(nameof(GetRecordValueT), BindingFlags.Static | BindingFlags.NonPublic);
+						var p0 = Expression.Parameter(typeof(IDataRecord));
+						var p1 = Expression.Parameter(typeof(int));
+
+						var dispatchList = 
+							seenTypes.Select(x => Expression.SwitchCase(
+								Expression.Call(m.MakeGenericMethod(x), p0, p1),
+								Expression.Constant(x)))
+							.ToArray();
+
+						GetRecordValueDispatch = Expression.Lambda<Func<IDataRecord, int, IDataReaderJsonObject>>(
+							Expression.Switch(
+								Expression.Call(p0, p0.Type.GetMethod(nameof(IDataRecord.GetFieldType)), p1), 
+								Expression.Constant(null, typeof(IDataReaderJsonObject)),
+								dispatchList),
+								p0, p1).Compile();
+					}
+				return GetRecordValueDispatch(record, i);
+			}
+
+			static IDataReaderJsonObject GetRecordValueT<T>(IDataRecord record, int i) =>
+				new RecordValue<T>(record.GetFieldValue<T>(i));
+
+			public void Write(NewtonsoftJsonWriter json, NewtonsoftJsonSerializer serializer) {
+				json.WriteStartObject();
+				var namingPolicy = GetNamingPolicy(serializer);
+				foreach(var item in values) {
+					json.WritePropertyName(namingPolicy(item.Name));
+					item.Value.Write(json, serializer);
+				}
+				json.WriteEndObject();
+			}
+
+			public void Write(Utf8JsonWriter json, JsonSerializerOptions options) {
+				json.WriteStartObject();
+				var namingPolicy = GetNamingPolicy(options);
+				foreach (var item in values) {
+					json.WritePropertyName(namingPolicy(item.Name));
+					item.Value.Write(json, options);
+				}
+				json.WriteEndObject();
+			}
 		}
 
 		[JsonConverter(typeof(DataReaderJsonConverter<DataReaderJsonArray>))]
-		[NewtonsoftJsonConverter(typeof(NewtonsoftDataReaderJsonConverter))]
 		public class DataReaderJsonArray : IDataReaderJsonObject
 		{
 			readonly IReadOnlyList<DataSeries> series;
@@ -177,7 +294,7 @@ namespace DataBoss.Data
 				return new DataReaderJsonArray(series);
 			}
 
-			public void WriteRecords(NewtonsoftJsonWriter json, NewtonsoftJsonSerializer serializer) {
+			public void Write(NewtonsoftJsonWriter json, NewtonsoftJsonSerializer serializer) {
 				var records = new NewtonsoftRecordWriter(json, serializer, series);
 				json.WriteStartArray();
 				while (records.MoveNext())
@@ -185,7 +302,7 @@ namespace DataBoss.Data
 				json.WriteEndArray();
 			}
 
-			public void WriteRecords(Utf8JsonWriter json, JsonSerializerOptions options = null) {
+			public void Write(Utf8JsonWriter json, JsonSerializerOptions options = null) {
 				var records = new Utf8RecordWriter(json, options, series);
 				json.WriteStartArray();
 				while (records.MoveNext())
@@ -195,7 +312,6 @@ namespace DataBoss.Data
 		}
 
 		[JsonConverter(typeof(DataReaderJsonConverter<DataReaderJsonColumns>))]
-		[NewtonsoftJsonConverter(typeof(NewtonsoftDataReaderJsonConverter))]
 		public class DataReaderJsonColumns : IDataReaderJsonObject
 		{
 			readonly IReadOnlyList<DataSeries> data;
@@ -207,7 +323,7 @@ namespace DataBoss.Data
 			public static DataReaderJsonColumns Read(IDataReader reader) =>
 				new DataReaderJsonColumns(DataSeriesReader.ReadAll(reader));
 
-			public void WriteRecords(NewtonsoftJsonWriter json, NewtonsoftJsonSerializer serializer) {
+			public void Write(NewtonsoftJsonWriter json, NewtonsoftJsonSerializer serializer) {
 				json.WriteStartObject();
 				var namingPolicy = GetNamingPolicy(serializer);
 				foreach(var c in data) {
@@ -217,7 +333,7 @@ namespace DataBoss.Data
 				json.WriteEndObject();
 			}
 
-			public void WriteRecords(Utf8JsonWriter json, JsonSerializerOptions options = null) {
+			public void Write(Utf8JsonWriter json, JsonSerializerOptions options = null) {
 				json.WriteStartObject();
 				var namingPolicy = GetNamingPolicy(options);
 				foreach(var c in data) {
@@ -249,7 +365,7 @@ namespace DataBoss.Data
 			}
 
 			public override void WriteJson(NewtonsoftJsonWriter writer, object value, NewtonsoftJsonSerializer serializer) =>
-				((IDataReaderJsonObject)value).WriteRecords(writer, serializer);
+				((IDataReaderJsonObject)value).Write(writer, serializer);
 		}
 
 		public class DataReaderJsonConverter<T> : JsonConverter<T> where T : IDataReaderJsonObject
@@ -259,16 +375,16 @@ namespace DataBoss.Data
 			}
 
 			public override void Write(Utf8JsonWriter writer, T value, JsonSerializerOptions options) =>
-				value.WriteRecords(writer, options);
+				value.Write(writer, options);
 		}
 
-		public static DataReaderJsonArray ToJsonObjects(this IDataReader r) => DataReaderJsonArray.Read(r);
+		public static DataRecordJsonObject ToJsonObject(this IDataRecord r) => DataRecordJsonObject.Read(r); 
+		public static DataReaderJsonArray ToJsonArray(this IDataReader r) => DataReaderJsonArray.Read(r);
 		public static DataReaderJsonColumns ToJsonColumns(this IDataReader r) => DataReaderJsonColumns.Read(r);
-
 		public static string ToJson(this IDataReader r) {
 			var bytes = new MemoryStream();
 			using var json = new Utf8JsonWriter(bytes);
-			r.ToJsonObjects().WriteRecords(json);
+			r.ToJsonArray().Write(json);
 			json.Flush();
 			return bytes.TryGetBuffer(out var buffer)
 			? Encoding.UTF8.GetString(buffer.Array, buffer.Offset, buffer.Count)

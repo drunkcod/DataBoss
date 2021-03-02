@@ -6,7 +6,6 @@ using DataBoss.Collections;
 
 namespace DataBoss.Linq
 {
-
 	public class EmptyCollection<T> : ICollection<T>, IReadOnlyCollection<T>, IEnumerator<T>
 	{
 		T IEnumerator<T>.Current => throw new InvalidOperationException();
@@ -149,11 +148,11 @@ namespace DataBoss.Linq
 					;
 		}
 
-		public static TOutput[] ConvertAll<T, TOutput>(this IReadOnlyCollection<T> self, Converter<T, TOutput> converter) {
+		public static TOutput[] ToArray<T, TOutput>(this IReadOnlyCollection<T> self, Func<T, TOutput> selector) {
 			var r = new TOutput[self.Count];
 			var n = 0;
 			foreach(var item in self)
-				r[n++] = converter(item);
+				r[n++] = selector(item);
 			return r;
 		}
 		

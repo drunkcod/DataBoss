@@ -67,7 +67,7 @@ namespace DataBoss.Data
 				return new ExtractorContext(target, createParameter, getParameters, addParameter);
 			}
 
-			public ParameterExpression CreatParameter(string name) => 
+			public ParameterExpression CreateParameter(string name) => 
 				Expression.Variable(TypeOfParameters, name);
 
 			public void AddParameter(ParameterExpression p, Expression initP) {
@@ -76,9 +76,7 @@ namespace DataBoss.Data
 					Expression.MakeMemberAccess(p, parameterName),
 					Expression.Constant(p.Name));
 
-				initP = Expression.Assign(
-					Expression.MakeMemberAccess(p, parameterValue),
-					initP);
+				initP = Expression.Assign(Expression.MakeMemberAccess(p, parameterValue), initP);
 
 				extractedValues.Add(Expression.Block(new[] { p }, setP, nameP, initP, AddParameterItem(p)));
 			}
@@ -92,10 +90,11 @@ namespace DataBoss.Data
 		}
 
 		static void ExtractValues(ExtractorContext extractor, ISqlDialect dialect, string prefix, Expression input) {
-			foreach (var value in input.Type.GetProperties()
+			var inputValues = input.Type.GetProperties()
 				.Where(x => x.CanRead)
-				.Concat<MemberInfo>(input.Type.GetFields())
-			) {
+				.Concat<MemberInfo>(input.Type.GetFields());
+
+			foreach (var value in inputValues)  {
 				var name = prefix + value.Name;
 				var readMember = Expression.MakeMemberAccess(input, value);
 				if(readMember.Type == typeof(RowVersion)) {
@@ -103,21 +102,28 @@ namespace DataBoss.Data
 					continue;
 				}
 
-				var p = extractor.CreatParameter(name);
+				var p = extractor.CreateParameter(name);
 				Expression initP = null;
 				if (HasSqlTypeMapping(readMember.Type))
 					initP = MakeParameter(readMember);
-				else if (readMember.Type.IsNullable())
-					initP = MakeParameterFromNullable(p, readMember);
-				else if(TryGetDbType(readMember, out var readAsDbType))
+				else if (readMember.Type.TryGetNullableTargetType(out var valueType))
+					initP = MakeParameterFromNullable(p, readMember, valueType);
+				else if (readMember.Type == typeof(Uri))
+					initP = MakeParameter(AsString(readMember));
+				else if (TryGetDbType(readMember, out var readAsDbType))
 					initP = MakeParameter(readAsDbType);
 
 				if(initP != null)
 					extractor.AddParameter(p, initP);
-				else
-					ExtractValues(extractor, dialect, name + "_", readMember);
+				else ExtractValues(extractor, dialect, name + "_", readMember);
 			}
 		}
+
+		static Expression AsString(Expression readMember) =>
+			Expression.Condition(
+				Expression.Equal(readMember, Expression.Constant(null)),
+				Expression.Constant(null, typeof(string)),
+				Expression.Call(readMember, typeof(object).GetMethod("ToString")));
 
 		static bool TryGetDbType(Expression readMember, out Expression readAsDbType) {
 			var dbType = readMember.Type.SingleOrDefault<DbTypeAttribute>();
@@ -138,14 +144,14 @@ namespace DataBoss.Data
 				Expression.Constant(DBNull.Value, typeof(object)))
 			: Expression.Convert(value, typeof(object));
 
-		static Expression MakeParameterFromNullable(Expression p, Expression value) =>
+		static Expression MakeParameterFromNullable(Expression p, Expression value, Type valueTyp) =>
 			Expression.Condition(
-				Expression.MakeMemberAccess(value, value.Type.GetProperty(nameof(Nullable<int>.HasValue))),
-					Expression.Convert(Expression.MakeMemberAccess(value, value.Type.GetProperty(nameof(Nullable<int>.Value))), typeof(object)),
+				Expression.Property(value, "HasValue"),
+					Expression.Convert(Expression.Property(value, "Value"), typeof(object)),
 					Expression.Block(
 						Expression.Assign(
 							Expression.MakeMemberAccess(p, typeof(IDataParameter).GetProperty(nameof(IDataParameter.DbType))), 
-								Expression.Constant(DataBossDbType.ToDbType(value.Type.GetGenericArguments()[0]))),
+								Expression.Constant(DataBossDbType.ToDbType(valueTyp))),
 						Expression.Constant(DBNull.Value, typeof(object))));
 	}
 }

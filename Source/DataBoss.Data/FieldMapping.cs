@@ -61,9 +61,9 @@ namespace DataBoss.Data
 
 		internal FieldMappingItem this[int index] => mappings[index];
 
-		public string[] GetFieldNames() => MissingLinq.ConvertAll(mappings, x => x.Name);
-		public Type[] GetFieldTypes() => MissingLinq.ConvertAll(mappings, x => x.FieldType);
-		public DataBossDbType[] GetDbTypes() => MissingLinq.ConvertAll(mappings, x => x.DbType);
+		public string[] GetFieldNames() => mappings.ToArray(x => x.Name);
+		public Type[] GetFieldTypes() => mappings.ToArray(x => x.FieldType);
+		public DataBossDbType[] GetDbTypes() => mappings.ToArray(x => x.DbType);
 
 		public void MapAll() {
 			var fields = SourceType.GetFields().Where(x => !x.IsStatic);
@@ -87,8 +87,8 @@ namespace DataBoss.Data
 			Expression hasValue = null;
 			Expression getValue = null;
 			if (type.TryGetNullableTargetType(out var newTargetType)) {
-				hasValue = Expression.MakeMemberAccess(selector, type.GetProperty("HasValue"));
-				getValue = Expression.MakeMemberAccess(selector, type.GetProperty("Value"));
+				hasValue = Expression.Property(selector, "HasValue");
+				getValue = Expression.Property(selector, "Value");
 				selector = Expression.Condition(
 					hasValue,
 					getValue.Box(),

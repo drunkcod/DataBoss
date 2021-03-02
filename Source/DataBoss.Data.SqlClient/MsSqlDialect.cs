@@ -34,8 +34,6 @@ namespace DataBoss.Data
 						typeof(SqlParameter).GetProperty(nameof(SqlParameter.Value)),
 						Expression.Convert(Expression.Field(readMember, nameof(RowVersion.Value)), typeof(object))));
 
-
-
 		public static void AddTo<T>(SqlCommand command, T args) =>
 			Extractor<T>.CreateParameters(command, args);
 

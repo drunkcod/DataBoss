@@ -21,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\DataBoss.Labs\DataBoss.Labs.csproj" />
     <ProjectReference Include="..\DataBoss.DataPackage\DataBoss.DataPackage.csproj" />
   </ItemGroup>
 

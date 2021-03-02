@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+	  <TargetFramework>netstandard2.0</TargetFramework>
+	  <LangVersion>latest</LangVersion>
+	  <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Source\DataBoss.Data\DataBoss.Data.csproj" />
+    <ProjectReference Include="..\Source\DataBoss.Linq\DataBoss.Linq.csproj" />
+  </ItemGroup>
+
+</Project>

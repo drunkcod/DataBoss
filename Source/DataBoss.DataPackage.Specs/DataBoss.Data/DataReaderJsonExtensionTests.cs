@@ -3,7 +3,7 @@ using CheckThat;
 using DataBoss.Data;
 using Xunit;
 
-namespace DataBoss.DataBoss.Data
+namespace DataBoss.Data
 {
 	public class DataReaderJsonExtensionTests
 	{
@@ -20,15 +20,15 @@ namespace DataBoss.DataBoss.Data
 		}
 
 		[Fact]
-		public void newtonsoft_json_object() {
+		public void newtonsoft_json_array() {
 			var rows = new[] { new { Id = 1, Value = "Hello" }, new { Id = 2, Value = "World." } };
-			Check.That(() => NewtonsoftSerialize(SequenceDataReader.Create(rows).ToJsonObjects()) == NewtonsoftSerialize(rows));
+			Check.That(() => NewtonsoftSerialize(SequenceDataReader.Create(rows).ToJsonArray()) == NewtonsoftSerialize(rows));
 		}
 
 		[Fact]
-		public void system_text_json_object() {
+		public void system_text_json_array() {
 			var rows = new[] { new { Id = 1, Value = "Hello" }, new { Id = 2, Value = "World." } };
-			Check.That(() => JsonSerializer.Serialize(SequenceDataReader.Create(rows).ToJsonObjects(), null) == NewtonsoftSerialize(rows));
+			Check.That(() => JsonSerializer.Serialize(SequenceDataReader.Create(rows).ToJsonArray(), null) == NewtonsoftSerialize(rows));
 		}
 
 		[Fact]
@@ -41,6 +41,20 @@ namespace DataBoss.DataBoss.Data
 			Check.That(
 				() => JsonSerializer.Serialize(SequenceDataReader.Create(rows).ToJsonColumns(), null) == NewtonsoftSerialize(expected),
 				() => NewtonsoftSerialize(SequenceDataReader.Create(rows).ToJsonColumns()) == NewtonsoftSerialize(expected));
+		}
+
+		[Fact]
+		public void single_object() {
+			var item = new {
+				Int32 = 1,
+				String = "Hello",
+				NullInt = (int?)null,
+			};
+			var r = SequenceDataReader.Items(item);
+			r.Read();
+			Check.That(
+				() => JsonSerializer.Serialize(r.ToJsonObject(), null) == NewtonsoftSerialize(item),
+				() => NewtonsoftSerialize(r.ToJsonObject()) == NewtonsoftSerialize(item));
 
 		}
 
