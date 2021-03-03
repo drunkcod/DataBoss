@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using DataBoss.IO;
 using Newtonsoft.Json;
@@ -95,8 +96,16 @@ namespace DataBoss.DataPackage
 
 		public Stream OpenStream(Func<string, Stream> open) {
 			if (Count == 1)
-				return open(this.First());
-			return new ConcatStream(this.Select(open).GetEnumerator());
+				return OpenResourceStream(this.First(), open);
+			return new ConcatStream(this.Select(x => OpenResourceStream(x, open)).GetEnumerator());
+		}
+
+		static Stream OpenResourceStream(string path, Func<string, Stream> open) {
+			var r = open(path);
+			return (Path.GetExtension(path)) switch {
+				".gz" => new GZipStream(r, CompressionMode.Decompress),
+				_ => r,
+			};
 		}
 
 		public override bool Equals(object obj) =>

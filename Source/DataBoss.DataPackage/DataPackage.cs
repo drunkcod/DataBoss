@@ -27,6 +27,8 @@ namespace DataBoss.DataPackage
 
 	public partial class DataPackage : IDataPackageBuilder
 	{
+		delegate bool TryGetResourceOutputPath(ResourcePath path, out string outputPath);
+
 		const int StreamBufferSize = 81920;
 		public const string DefaultDelimiter = ";";
 
@@ -45,8 +47,8 @@ namespace DataBoss.DataPackage
 			public IDataPackageResourceBuilder AddResource(string name, Func<IDataReader> getData) =>
 				package.AddResource(name, getData);
 
-			public void Save(Func<string, Stream> createOutput, CultureInfo culture = null) =>
-				package.Save(createOutput, culture);
+			public void Save(Func<string, Stream> createOutput, DataPackageSaveOptions options) =>
+				package.Save(createOutput, options);
 
 			public DataPackage Serialize(CultureInfo culture) =>
 				package.Serialize(culture);
@@ -208,17 +210,28 @@ namespace DataBoss.DataPackage
 		public TabularDataResource GetResource(string name) => 
 			Resources.SingleOrDefault(x => x.Name == name) ?? throw new InvalidOperationException($"Invalid resource name '{name}'");
 
-		public void Save(Func<string, Stream> createOutput, CultureInfo culture = null) {
+		public void Save(Func<string, Stream> createOutput, CultureInfo culture = null) =>
+			Save(createOutput, new DataPackageSaveOptions { Culture = culture });
+		
+		public void Save(Func<string, Stream> createOutput, DataPackageSaveOptions options) {
 			var description = new DataPackageDescription();
-			var decimalCharOverride = culture?.NumberFormat.NumberDecimalSeparator;
-			var defaultFormatter = new RecordFormatter(culture ?? CultureInfo.InvariantCulture);
+			var decimalCharOverride = options.Culture?.NumberFormat.NumberDecimalSeparator;
+			var defaultFormatter = new RecordFormatter(options.Culture ?? CultureInfo.InvariantCulture);
 			var writtenPaths = new HashSet<string>();
+			TryGetResourceOutputPath getOutputPath = TryGetOutputPath;
+			var createResourceStream = createOutput;
+
+			if(options.ResourceCompression == ResourceCompression.GZip) {
+				getOutputPath = TryGetGZipOutputPath;
+				createResourceStream = path => new GZipStream(createOutput(path), CompressionLevel.Optimal);
+			}
+
 			foreach (var item in Resources) {
 				using var data = item.Read();
 				var desc = item.GetDescription();
 				desc.Path = item.Path;
 				if (desc.Path.IsEmpty)
-					desc.Path = new[] { $"{item.Name}.csv" };
+					desc.Path = $"{item.Name}.csv" ;
 
 				var fieldCount = item.Schema.Fields.Count;
 				var toString = new Func<IDataRecord, int, string>[fieldCount];
@@ -240,12 +253,9 @@ namespace DataBoss.DataPackage
 				desc.Dialect.Delimiter ??= DefaultDelimiter;
 
 				description.Resources.Add(desc);
-				if (desc.Path.Count == 1) {
-					var outputPath = desc.Path.First();
-					if (writtenPaths.Contains(outputPath))
-						continue;
-
-					var output = createOutput(outputPath);
+				if (getOutputPath(desc.Path, out var outputPath) && !writtenPaths.Contains(outputPath)) {
+					desc.Path = outputPath;
+					var output = createResourceStream(outputPath);
 					try {
 						WriteRecords(output, desc.Dialect, data, toString);
 					}
@@ -261,6 +271,22 @@ namespace DataBoss.DataPackage
 
 			using var meta = new StreamWriter(createOutput("datapackage.json"));
 			meta.Write(JsonConvert.SerializeObject(description, Formatting.Indented));
+		}
+
+		static bool TryGetOutputPath(ResourcePath path, out string outputPath) {
+			if(path.Count != 1) {
+				outputPath = null;
+				return false;
+			}
+			outputPath = path.First();
+			return true;
+		}
+
+		static bool TryGetGZipOutputPath(ResourcePath path, out string outputPath) {
+			if (!TryGetOutputPath(path, out outputPath))
+				return false;
+			outputPath = Path.ChangeExtension(outputPath, Path.GetExtension(outputPath) + ".gz");
+			return true;
 		}
 
 		public DataPackage Serialize(CultureInfo culture = null) {
@@ -441,5 +467,17 @@ namespace DataBoss.DataPackage
 			protected override void Cleanup() =>
 				chunks.Complete();
 		}
+	}
+
+	public class DataPackageSaveOptions
+	{
+		public CultureInfo Culture = null;
+		public ResourceCompression ResourceCompression;
+	}
+
+	public enum ResourceCompression
+	{
+		None,
+		GZip,
 	}
 }

@@ -1,5 +1,4 @@
-using System; 
-using System.Collections;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
@@ -278,6 +277,8 @@ namespace DataBoss.Data
 				}
 				json.WriteEndObject();
 			}
+
+			public override string ToString() => JsonSerializer.Serialize(this);
 		}
 
 		[JsonConverter(typeof(DataReaderJsonConverter<DataReaderJsonArray>))]
@@ -390,150 +391,5 @@ namespace DataBoss.Data
 			? Encoding.UTF8.GetString(buffer.Array, buffer.Offset, buffer.Count)
 			: Encoding.UTF8.GetString(bytes.ToArray());
 		}
-	}
-
-	public class DataSeriesReader
-	{
-		class EnumerableDataSeries<T> : DataSeries<T>, IEnumerable<T>
-		{
-			public EnumerableDataSeries(string name, bool allowNulls) : base(name, allowNulls) { }
-
-			IEnumerator<T> IEnumerable<T>.GetEnumerator() => GetEnumerator();
-			IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-			IEnumerator<T> GetEnumerator() {
-				for (var i = 0; i != Count; ++i)
-					yield return this[i];
-			}
-		}
-
-		class NullableDataSeries<T> : DataSeries<T>, IEnumerable<T?> where T : struct
-		{
-			public NullableDataSeries(string name) : base(name, true) { }
-
-			IEnumerator<T?> IEnumerable<T?>.GetEnumerator() => GetEnumerator();
-			IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-			IEnumerator<T?> GetEnumerator() {
-				for (var i = 0; i != Count; ++i)
-					if (IsNull(i))
-						yield return null;
-					else yield return this[i];
-			}
-		}
-
-		static DataSeries CreateDataSeries(string name, Type type, bool allowNulls) =>
-			(type.IsValueType && allowNulls)
-			? Lambdas.CreateDelegate<Func<string, DataSeries>>(CreateNullableSeriesMethod.MakeGenericMethod(type))(name)
-			: Lambdas.CreateDelegate<Func<string, bool, DataSeries>>(CreateDataSeriesMethod.MakeGenericMethod(type))(name, allowNulls);
-
-		static readonly MethodInfo CreateDataSeriesMethod = GetGenericMethod(nameof(CreateDataSeries));
-		static readonly MethodInfo CreateNullableSeriesMethod = GetGenericMethod(nameof(CreateNullableSeries));
-
-		static MethodInfo GetGenericMethod(string name) =>
-			typeof(DataSeriesReader)
-			.GetMethods(BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.DeclaredOnly)
-			.Single(x => x.IsGenericMethod && x.Name == name);
-
-		static DataSeries CreateDataSeries<T>(string name, bool allowNulls) =>
-			new EnumerableDataSeries<T>(name, allowNulls);
-
-		static DataSeries CreateNullableSeries<T>(string name) where T : struct =>
-			new NullableDataSeries<T>(name);
-
-		readonly IDataReader reader;
-		readonly DataReaderSchemaTable schema;
-		readonly List<DataSeries> series = new();
-		readonly List<int> ordinals = new();
-
-		public DataSeriesReader(IDataReader reader) {
-			this.reader = reader;
-			this.schema = reader.GetDataReaderSchemaTable();
-		}
-
-		public static IReadOnlyList<DataSeries> ReadAll(IDataReader reader) {
-			var xs = new DataSeriesReader(reader);
-			foreach (var column in xs.schema)
-				xs.Add(column);
-			return xs.Read();
-		}
-
-		public void Add(string name) =>
-			Add(schema.Single(x => x.ColumnName == name));
-
-		void Add(DataReaderSchemaRow columnSchema) {
-			var data = CreateDataSeries(columnSchema.ColumnName, columnSchema.ColumnType, columnSchema.AllowDBNull);
-			Add(data, columnSchema.Ordinal);
-		}
-
-		void Add(DataSeries item, int ordinal) {
-			series.Add(item);
-			ordinals.Add(ordinal);
-		}
-
-		public IReadOnlyList<DataSeries> Read() {
-			while (reader.Read())
-				foreach (var (item, ordinal) in series.Zip(ordinals, (s, o) => (s, o)))
-					item.ReadItem(reader, ordinal);
-
-			return series;
-		}
-	}
-
-	public abstract class DataSeries
-	{
-		readonly BitArray isNull;
-
-		public DataSeries(Type type, bool allowNulls) {
-			this.Type = type;
-			this.isNull = allowNulls ? new BitArray(0) : null;
-		}
-
-		public bool AllowNulls => isNull != null;
-		public abstract int Count { get; }
-		public abstract string Name { get; }
-
-		internal void ReadItem(IDataRecord record, int ordinal) {
-			if (AllowNulls) {
-
-				var isNullItem = record.IsDBNull(ordinal);
-				isNull.Length = Count + 1;
-				isNull[Count] = isNullItem;
-
-				if (isNullItem) {
-					AddDefault();
-					return;
-				}
-			}
-			AddItem(record, ordinal);
-		}
-
-		protected virtual void AddDefault() { }
-		protected virtual void AddItem(IDataRecord record, int ordinal) { }
-
-		public Type Type { get; }
-		public bool IsNull(int index) => AllowNulls && isNull[index];
-		public abstract T GetValue<T>(int index);
-	}
-
-	public class DataSeries<TItem> : DataSeries
-	{
-		readonly List<TItem> items = new();
-
-		public DataSeries(string name, bool allowNulls) : base(typeof(TItem), allowNulls) {
-			this.Name = name;
-		}
-
-		public override int Count => items.Count;
-		public override string Name { get; }
-		public TItem this[int index] => items[index];
-
-		public override T GetValue<T>(int index) =>
-			(T)(object)items[index];
-
-		protected override void AddDefault() =>
-			items.Add(default);
-
-		protected override void AddItem(IDataRecord record, int ordinal) =>
-			items.Add(record.GetFieldValue<TItem>(ordinal));
-
 	}
 }

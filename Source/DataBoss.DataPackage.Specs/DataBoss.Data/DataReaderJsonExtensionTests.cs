@@ -1,6 +1,5 @@
 using System.Text.Json;
 using CheckThat;
-using DataBoss.Data;
 using Xunit;
 
 namespace DataBoss.Data

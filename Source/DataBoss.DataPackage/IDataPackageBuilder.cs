@@ -12,7 +12,7 @@ namespace DataBoss.DataPackage
 	public interface IDataPackageBuilder
 	{
 		IDataPackageResourceBuilder AddResource(string name, Func<IDataReader> getData);
-		void Save(Func<string, Stream> createOutput, CultureInfo culture = null);
+		void Save(Func<string, Stream> createOutput, DataPackageSaveOptions options);
 		DataPackage Serialize(CultureInfo culture = null);
 		DataPackage Done();
 	}
@@ -38,27 +38,42 @@ namespace DataBoss.DataPackage
 		public static IDataPackageResourceBuilder WithForeignKey(this IDataPackageResourceBuilder self, string field, DataPackageKeyReference reference) =>
 			self.WithForeignKey(new DataPackageForeignKey(field, reference));
 
-		public static void Save(this IDataPackageBuilder self, string path, CultureInfo culture = null) {
+		public static void Save(this IDataPackageBuilder self, Func<string, Stream> createOutput, CultureInfo culture = null) =>
+			self.Save(createOutput, new DataPackageSaveOptions { Culture = culture });
+
+		public static void Save(this IDataPackageBuilder self, string path, CultureInfo culture = null) =>
+			self.Save(name => File.Create(Path.Combine(path, name)), new DataPackageSaveOptions { Culture = culture });
+
+		public static void Save(this IDataPackageBuilder self, string path, DataPackageSaveOptions options) {
 			Directory.CreateDirectory(path);
-			self.Save(name => File.Create(Path.Combine(path, name)), culture);
+			self.Save(name => File.Create(Path.Combine(path, name)), options);
 		}
 
 		public static void SaveZip(this IDataPackageBuilder self, string path, CultureInfo culture = null) => 
-			SaveZip(self, File.Create(path, 16384), culture, leaveOpen: false);
-		
-		public static void SaveZip(this IDataPackageBuilder self, Stream stream, CultureInfo culture = null) =>
-			SaveZip(self, stream, culture, leaveOpen: false);
+			SaveZip(self, File.Create(path, 16384), new DataPackageSaveOptions { Culture = culture }, leaveOpen: false);
 
-		public static void SaveZip(this IDataPackageBuilder self, Stream stream, CultureInfo culture, bool leaveOpen) {
+		public static void SaveZip(this IDataPackageBuilder self, string path, DataPackageSaveOptions options) =>
+			SaveZip(self, File.Create(path, 16384), options, leaveOpen: false);
+
+		public static void SaveZip(this IDataPackageBuilder self, Stream stream, CultureInfo culture = null) =>
+			SaveZip(self, stream, new DataPackageSaveOptions { Culture = culture }, leaveOpen: false);
+
+		public static void SaveZip(this IDataPackageBuilder self, Stream stream, DataPackageSaveOptions options, bool leaveOpen = false) {
 			if(!stream.CanSeek)//work around for ZipArchive Create mode reading Position.
 				stream = new ZipOutputStream(stream);
 
 			using var zip = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: leaveOpen);
+			var compressionLevel = options.ResourceCompression switch {
+				ResourceCompression.None => CompressionLevel.Optimal,
+				ResourceCompression.GZip => CompressionLevel.NoCompression,
+				_ => throw new NotSupportedException($"Unknown resource compression '{options.ResourceCompression}'."),
+			};
+
 			self.Save(x => {
-				var e = zip.CreateEntry(x);
+				var e = zip.CreateEntry(x, compressionLevel);
 				SetExternalAttributes(e);
 				return e.Open();
-			}, culture);
+			}, options);
 		}
 
 		static Action<ZipArchiveEntry> SetExternalAttributes = DetectExternalAttributeSupport;
