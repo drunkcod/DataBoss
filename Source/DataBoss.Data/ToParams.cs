@@ -19,9 +19,9 @@ namespace DataBoss.Data
 			typeof(DateTime),
 			typeof(decimal),
 			typeof(Guid),
+			typeof(byte[]),
 			typeof(SqlDecimal),
 			typeof(SqlMoney),
-			typeof(byte[]),
 			typeof(SqlBinary),
 		};
 
@@ -97,8 +97,8 @@ namespace DataBoss.Data
 			foreach (var value in inputValues)  {
 				var name = prefix + value.Name;
 				var readMember = Expression.MakeMemberAccess(input, value);
-				if(readMember.Type == typeof(RowVersion)) {
-					extractor.AddParameter(dialect.MakeRowVersionParameter(name, readMember));
+				if(dialect.TryCreateParameter(name, readMember, out var dialectParameter)) {
+					extractor.AddParameter(dialectParameter);
 					continue;
 				}
 

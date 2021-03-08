@@ -14,7 +14,7 @@ namespace DataBoss
 	{
 		SqlParameter[] GetParams<T>(T args) {
 			var cmd = new SqlCommand();
-			MsSqlDialect.AddTo(cmd, args);
+			cmd.AddParameters(args);
 			return cmd.Parameters.Cast<SqlParameter>().ToArray();
 		}
 

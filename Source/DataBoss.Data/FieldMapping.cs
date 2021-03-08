@@ -1,4 +1,5 @@
 using DataBoss.Linq;
+using DataBoss.Linq.Expressions;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -29,22 +30,6 @@ namespace DataBoss.Data
 
 	public class FieldMapping
 	{
-		class NodeReplacementVisitor : ExpressionVisitor
-		{
-			readonly Dictionary<Expression, Expression> theReplacements = new Dictionary<Expression, Expression>();
-
-			public void AddReplacement(Expression a, Expression b) => theReplacements.Add(a, b);
-
-			public override Expression Visit(Expression node) {
-				if (node == null)
-					return null;
-
-				if (theReplacements.TryGetValue(node, out var found))
-					return found;
-				return base.Visit(node);
-			}
-		}
-
 		public readonly ParameterExpression Source;
 		protected readonly ParameterExpression Target;
 		protected Type SourceType => Source.Type;
@@ -86,7 +71,10 @@ namespace DataBoss.Data
 		protected int Map(string name, Type type, DataBossDbType dbType, Expression selector) {
 			Expression hasValue = null;
 			Expression getValue = null;
-			if (type.TryGetNullableTargetType(out var newTargetType)) {
+			if (type == typeof(string)) {
+				hasValue = Expression.NotEqual(selector, Expression.Constant(null, type));
+				getValue = selector;
+			} else if (type.TryGetNullableTargetType(out var newTargetType)) {
 				hasValue = Expression.Property(selector, "HasValue");
 				getValue = Expression.Property(selector, "Value");
 				selector = Expression.Condition(
@@ -116,7 +104,7 @@ namespace DataBoss.Data
 				throw new InvalidOperationException($"Wrong paramter type, expected {SourceType}");
 			
 			var replacer = new NodeReplacementVisitor();
-			replacer.AddReplacement(selector.Parameters[0], Source);
+			replacer.Add(selector.Parameters[0], Source);
 			return Map(name,
 				selector.ReturnType,
 				DataBossDbType.From(selector.ReturnType, NullAttributeProvider.Instance),

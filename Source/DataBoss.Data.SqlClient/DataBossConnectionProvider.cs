@@ -23,6 +23,7 @@ namespace DataBoss.Data
 		readonly ConcurrentDictionary<int, SqlConnection> connections = new ConcurrentDictionary<int, SqlConnection>();
 		readonly ConcurrentDictionary<string, long> accumulatedStats = new ConcurrentDictionary<string, long>();
 		int nextConnectionId = 0;
+		int resetAt = 0;
 		bool statisticsEnabled = false;
 		
 		public DataBossConnectionProvider(SqlConnectionStringBuilder connectionString) : this(connectionString.ToString()) { }
@@ -81,7 +82,7 @@ namespace DataBoss.Data
 
 		public SqlCommand NewCommand<T>(string commandText, T args, CommandOptions options, CommandType commandType) {
 			var cmd = NewCommand(commandText, options, commandType);
-			MsSqlDialect.AddTo(cmd, args);
+			cmd.AddParameters(args);
 			return cmd;
 		}
 
@@ -147,7 +148,7 @@ namespace DataBoss.Data
 			}
 		}
 
-		public int ConnectionsCreated => nextConnectionId;
+		public int ConnectionsCreated => nextConnectionId - resetAt;
 		public int LiveConnections => connections.Count;
 
 		public void SetStatisticsEnabled(bool value) {
@@ -158,6 +159,7 @@ namespace DataBoss.Data
 
 		public ProviderStatistics RetrieveStatistics() {
 			var stats = new Dictionary<string, long>(accumulatedStats) {
+				{ "TotalConnectionsCreated", nextConnectionId },
 				{ nameof(ConnectionsCreated), ConnectionsCreated },
 				{ nameof(LiveConnections), LiveConnections },
 			};
@@ -177,6 +179,7 @@ namespace DataBoss.Data
 
 		public void ResetStatistics() { 
 			accumulatedStats.Clear();
+			resetAt = nextConnectionId;
 			foreach(var item in connections.Values)
 				item.ResetStatistics();
 		}

@@ -8,8 +8,20 @@ namespace DataBoss.Data
 	using System.Data.SqlClient;
 #endif
 
+	using System;
+
 	public static class SqlCommandExtensions
 	{
+		public static void AddParameters<T>(this SqlCommand command, T args) =>
+			Extractor<T>.CreateParameters(command, args);
+
+		static class Extractor<TArg>
+		{
+			internal static Action<SqlCommand, TArg> CreateParameters =
+				(Action<SqlCommand, TArg>)ToParams.CreateExtractor(MsSqlDialect.Instance, typeof(SqlCommand), typeof(TArg), typeof(TArg))
+				.Compile();
+		}
+
 		public static SqlDataReader ExecuteReader(this SqlCommand cmd, RetryStrategy retry) =>
 			retry.Execute(() => cmd.ExecuteReader());
 
@@ -58,7 +70,7 @@ namespace DataBoss.Data
 		static SqlCommand WithQuery<T>(this SqlCommand cmd, string cmdText, T args) {
 			cmd.CommandText = cmdText;
 			cmd.Parameters.Clear();
-			MsSqlDialect.AddTo(cmd, args);
+			cmd.AddParameters(args);
 			return cmd;
 		}
 	}

@@ -141,5 +141,15 @@ namespace DataBoss.Data
 			Check.With(() => SequenceDataReader.Create(items, x => x.MapAll()))
 				.That(x => x.GetFieldType(0) == typeof(int));
 		}
+
+		[Fact]
+		public void string_null_is_db_null() {
+			var rows = SequenceDataReader.Items(new { NullString = (string)null });
+			rows.Read();
+
+			Check.That(
+				() => rows.IsDBNull(0),
+				() => rows.GetValue(0) is DBNull);
+		}
 	}
 }

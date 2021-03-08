@@ -22,6 +22,7 @@ namespace DataBoss.Data
 		public static readonly SchemaColumn ColumnSize = new SchemaColumn("ColumnSize", typeof(int));
 		public static readonly SchemaColumn DataType = new SchemaColumn("DataType", typeof(Type));
 		public static readonly SchemaColumn DataTypeName = new SchemaColumn("DataTypeName", typeof(string));
+		public static readonly SchemaColumn IsKey = new SchemaColumn("IsKey", typeof(bool));
 
 		public static DataColumn Add(this DataColumnCollection cs, SchemaColumn column) => cs.Add(column.Name, column.ColumnType);
 	}

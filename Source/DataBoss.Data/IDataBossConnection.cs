@@ -8,7 +8,7 @@ namespace DataBoss.Data
 		string ParameterPrefix { get; }
 
 		string GetTypeName(DataBossDbType dbType);
-		Expression MakeRowVersionParameter(string name, Expression readMember);
+		bool TryCreateParameter(string name, Expression readMember, out Expression create);
 	}
 
 	public interface IDataBossConnection

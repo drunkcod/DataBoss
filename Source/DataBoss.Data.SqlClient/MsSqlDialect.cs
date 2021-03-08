@@ -12,36 +12,50 @@ namespace DataBoss.Data
 	using System.Data;
 	using System.Linq.Expressions;
 	using DataBoss.Data.SqlServer;
+	using DataBoss.Linq.Expressions;
 
 	public class MsSqlDialect : ISqlDialect
 	{
 		private MsSqlDialect()  { }
 
-		public static readonly MsSqlDialect Instance = new MsSqlDialect();
+		public static readonly MsSqlDialect Instance = new();
 		
 		public string ParameterPrefix => "@";
 
 		public string GetTypeName(DataBossDbType dbType) => dbType.ToString();
 
-		public Expression MakeRowVersionParameter(string name, Expression readMember)=> 
-			Expression.MemberInit(
-				Expression.New(
-					typeof(SqlParameter).GetConstructor(new []{ typeof(string), typeof(SqlDbType), typeof(int) }),
-					Expression.Constant(name),
-					Expression.Constant(SqlDbType.Binary),
-					Expression.Constant(8)), 
-					Expression.Bind(
-						typeof(SqlParameter).GetProperty(nameof(SqlParameter.Value)),
-						Expression.Convert(Expression.Field(readMember, nameof(RowVersion.Value)), typeof(object))));
+		public bool TryCreateParameter(string name, Expression readMember, out Expression create) {
+			if(TryGetParameterPrototype(readMember.Type, out var createProto)) {
+				create = Rebind(createProto, Expression.Constant(name), readMember);
+				return true;
+			}
 
-		public static void AddTo<T>(SqlCommand command, T args) =>
-			Extractor<T>.CreateParameters(command, args);
-
-		static class Extractor<TArg>
-		{
-			internal static Action<SqlCommand, TArg> CreateParameters =
-				(Action<SqlCommand, TArg>)ToParams.CreateExtractor(Instance, typeof(SqlCommand), typeof(TArg), typeof(TArg))
-				.Compile();
+			create = null;
+			return false;
 		}
+
+		static bool TryGetParameterPrototype(Type type, out LambdaExpression found) {
+			if (type == typeof(RowVersion))
+				found = CreateRowVersionParameter;
+			else if (typeof(ITableValuedParameter).IsAssignableFrom(type))
+				found = CreateTableValuedParameter;
+			else found = null;
+			return found != null;
+		}
+
+		Expression Rebind(LambdaExpression expr, Expression arg0, Expression arg1) =>
+			new NodeReplacementVisitor {
+				{ expr.Parameters[0], arg0 },
+				{ expr.Parameters[1], arg1 },
+			}.Visit(expr.Body);
+
+		static readonly Expression<Func<string, RowVersion, SqlParameter>> CreateRowVersionParameter = 
+			(name, value) => new SqlParameter(name, SqlDbType.Binary, 8) { Value = value, };
+
+		static readonly Expression<Func<string, ITableValuedParameter, SqlParameter>> CreateTableValuedParameter =
+			(name, value) => new SqlParameter(name, SqlDbType.Structured) { 
+				TypeName = value.TypeName, 
+				Value = value.Rows
+			};
 	}
 }

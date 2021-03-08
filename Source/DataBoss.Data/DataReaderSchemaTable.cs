@@ -37,7 +37,7 @@ namespace DataBoss.Data
 			var allowDBNull = schema.Columns.Add(DataReaderSchemaColumns.AllowDBNull);
 			var dataType = schema.Columns.Add(DataReaderSchemaColumns.DataType);
 			var dataTypeName = schema.Columns.Add(DataReaderSchemaColumns.DataTypeName);
-
+			var isKey = schema.Columns.Add(DataReaderSchemaColumns.IsKey);
 			foreach(var item in rows) {
 				var r = schema.NewRow();
 				r[columnName] = item.ColumnName;
@@ -46,6 +46,7 @@ namespace DataBoss.Data
 				r[allowDBNull] = item.AllowDBNull;
 				r[dataType] = item.ColumnType;
 				r[dataTypeName] = item.DataTypeName;
+				r[isKey] = false;
 				schema.Rows.Add(r);
 			}
 

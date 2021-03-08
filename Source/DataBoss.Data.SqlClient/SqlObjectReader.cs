@@ -16,6 +16,6 @@ namespace DataBoss.Data
 
 		public SqlObjectReader(Func<SqlCommand> newCommand) : base(newCommand) { }
 		
-		public override void AddParameters<T>(SqlCommand cmd, T args) => MsSqlDialect.AddTo(cmd, args);
+		public override void AddParameters<T>(SqlCommand cmd, T args) => cmd.AddParameters(args);
 	}
 }

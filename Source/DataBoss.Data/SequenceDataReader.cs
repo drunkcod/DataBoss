@@ -1,6 +1,8 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.Common;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -8,24 +10,24 @@ namespace DataBoss.Data
 {
 	public static class SequenceDataReader
 	{
-		public static IDataReader Items<T>(params T[] data) => Create(data);
-		public static IDataReader Create<T>(IEnumerable<T> data) => Create(data, x => x.MapAll());
-		public static IDataReader Create<T>(IEnumerable<T> data, Action<FieldMapping<T>> mapFields) {
+		public static DbDataReader Items<T>(params T[] data) => Create(data);
+		public static DbDataReader Create<T>(IEnumerable<T> data) => Create(data, x => x.MapAll());
+		public static DbDataReader Create<T>(IEnumerable<T> data, Action<FieldMapping<T>> mapFields) {
 			var fieldMapping = new FieldMapping<T>();
 			mapFields(fieldMapping);
 			return new SequenceDataReader<T>(data?.GetEnumerator(), fieldMapping);
 		}
 
-		public static IDataReader Create<T>(IEnumerable<T> data, params string[] members) =>
+		public static DbDataReader Create<T>(IEnumerable<T> data, params string[] members) =>
 			Create(data, fields => Array.ForEach(members, x => fields.Map(x)));
 
-		public static IDataReader Create<T>(IEnumerable<T> data, params MemberInfo[] members) =>
+		public static DbDataReader Create<T>(IEnumerable<T> data, params MemberInfo[] members) =>
 			Create(data, fields => Array.ForEach(members, x => fields.Map(x)));
 
-		public static IDataReader ToDataReader<T>(this IEnumerable<T> data) => Create(data); 
+		public static DbDataReader ToDataReader<T>(this IEnumerable<T> data) => Create(data); 
 	}
 
-	public class SequenceDataReader<T> : IDataReader, IDataRecordReader
+	public class SequenceDataReader<T> : DbDataReader, IDataRecordReader
 	{
 		interface IColumnAccessor
 		{
@@ -66,12 +68,29 @@ namespace DataBoss.Data
 			public TValue GetFieldValue<TValue>(T item) {
 				if(typeof(TValue) == typeof(TField) || typeof(TValue) == typeof(object))
 					return (TValue)(object)get(item);
-				ThrowInvalidCastException<TValue>();
+				ThrowInvalidCastException<TField, TValue>();
+				return default;
+			}
+		}
+
+		sealed class StringColumnAccessor : IColumnAccessor
+		{
+			readonly Func<T, string> get;
+
+			public StringColumnAccessor(Func<T, string> get) { this.get = get; }
+
+			public TValue GetFieldValue<TValue>(T item) {
+				if (typeof(TValue) == typeof(string) || typeof(TValue) == typeof(object))
+					return (TValue)(object)get(item);
+				ThrowInvalidCastException<string, TValue>();
 				return default;
 			}
 
-			static void ThrowInvalidCastException<TValue>() => throw new InvalidCastException($"Unable to cast object of type '{typeof(TField)}' to {typeof(TValue)}.");
+			public object GetValue(T item) => (object)get(item) ?? DBNull.Value;
+			public bool IsDBNull(T item) => get(item) == null;
 		}
+
+		static void ThrowInvalidCastException<TField, TValue>() => throw new InvalidCastException($"Unable to cast object of type '{typeof(TField)}' to {typeof(TValue)}.");
 
 		class DataRecord : IDataRecord
 		{
@@ -140,6 +159,8 @@ namespace DataBoss.Data
 		}
 
 		static IColumnAccessor MakeAccessor(ParameterExpression source, in FieldMappingItem field) {
+			if (field.FieldType == typeof(string))
+				return new StringColumnAccessor(CompileSelector<string>(source, field.GetValue));
 			var (hasValue, selector) = field.HasValue == null ? (null, field.Selector) : (CompileSelector<bool>(source, field.HasValue), field.GetValue);
 			var createAccessor = Lambdas.CreateDelegate<Func<ParameterExpression, Expression, Func<T, bool>, IColumnAccessor>>(
 				MakeAccessorMethod.MakeGenericMethod(selector.Type));
@@ -155,47 +176,55 @@ namespace DataBoss.Data
 		static Func<T, TResult> CompileSelector<TResult>(ParameterExpression source, Expression selector) =>
 			Expression.Lambda<Func<T, TResult>>(selector, source).Compile();
 
-		public object this[int i] => GetValue(i);
-		public object this[string name] => GetValue(GetOrdinal(name));
+		public override object this[int i] => GetValue(i);
+		public override object this[string name] => GetValue(GetOrdinal(name));
 
-		public int FieldCount => schema.Count;
-	
-		public bool Read() { 
+		public override int FieldCount => schema.Count;
+
+		public override int Depth => throw new NotSupportedException();
+		public override bool HasRows => throw new NotSupportedException();
+		public override bool IsClosed => throw new NotSupportedException();
+		public override int RecordsAffected => throw new NotSupportedException();
+
+		public override bool Read() { 
 			if(!data.MoveNext())
 				return false;
 			return true;
 		}
 
-		public bool NextResult() => false;
+		public override bool NextResult() => false;
 
-		public void Close() { }
+		public override void Close() { }
 
-		public void Dispose() => data.Dispose();
+		protected override void Dispose(bool disposing) {
+			if(disposing)
+				data.Dispose();
+		}
 
-		public string GetName(int i) => schema[i].ColumnName;
-		public Type GetFieldType(int i) => schema[i].ColumnType;
-		public string GetDataTypeName(int i) => schema[i].DataTypeName;
-		public int GetOrdinal(string name) {
+		public override string GetName(int i) => schema[i].ColumnName;
+		public override Type GetFieldType(int i) => schema[i].ColumnType;
+		public override string GetDataTypeName(int i) => schema[i].DataTypeName;
+		public override int GetOrdinal(string name) {
 			var o = schema.GetOrdinal(name);
 			if(o < 0)
 				throw new InvalidOperationException($"No field named '{name}' mapped");
 			return o;
 		}
 
-		public object GetValue(int i) => accessors[i].GetValue(data.Current);
+		public override object GetValue(int i) => accessors[i].GetValue(data.Current);
 
-		public int GetValues(object[] values) {
+		public override int GetValues(object[] values) {
 			var n = Math.Min(FieldCount, values.Length);
 			for (var i = 0; i != n; ++i)
 				values[i] = GetValue(i);
 			return n;
 		}
 
-		DataTable IDataReader.GetSchemaTable() =>
+		public override DataTable GetSchemaTable() =>
 			schema.ToDataTable();
 
 		//SqlBulkCopy.EnableStreaming requires this
-		public bool IsDBNull(int i) => IsDBNull(data.Current, i);
+		public override bool IsDBNull(int i) => IsDBNull(data.Current, i);
 
 		bool IsDBNull(T item, int i) {
 			var field = schema[i];
@@ -205,26 +234,25 @@ namespace DataBoss.Data
 			return (field.IsValueType == false && x == null) || (DBNull.Value == x);
 		}
 
-		int IDataReader.Depth => throw new NotSupportedException();
-		bool IDataReader.IsClosed => throw new NotSupportedException();
-		int IDataReader.RecordsAffected => throw new NotSupportedException();
-
-		public bool GetBoolean(int i) => (bool)GetValue(i);
-		public byte GetByte(int i) => (byte)GetValue(i);
-		public long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
-		public char GetChar(int i) => (char)GetValue(i);
-		public long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
-		public Guid GetGuid(int i) => (Guid)GetValue(i);
-		public short GetInt16(int i) => (short)GetValue(i);
-		public int GetInt32(int i) => (int)GetValue(i);
-		public long GetInt64(int i) => (long)GetValue(i);
-		public float GetFloat(int i) => (float)GetValue(i);
-		public double GetDouble(int i) => (double)GetValue(i);
-		public string GetString(int i) => (string)GetValue(i);
-		public decimal GetDecimal(int i) => (decimal)GetValue(i);
-		public DateTime GetDateTime(int i) => (DateTime)GetValue(i);
-		public IDataReader GetData(int i) => throw new NotImplementedException();
+		public override bool GetBoolean(int i) => (bool)GetValue(i);
+		public override byte GetByte(int i) => (byte)GetValue(i);
+		public override long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
+		public override char GetChar(int i) => (char)GetValue(i);
+		public override long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
+		public override Guid GetGuid(int i) => (Guid)GetValue(i);
+		public override short GetInt16(int i) => (short)GetValue(i);
+		public override int GetInt32(int i) => (int)GetValue(i);
+		public override long GetInt64(int i) => (long)GetValue(i);
+		public override float GetFloat(int i) => (float)GetValue(i);
+		public override double GetDouble(int i) => (double)GetValue(i);
+		public override string GetString(int i) => (string)GetValue(i);
+		public override decimal GetDecimal(int i) => (decimal)GetValue(i);
+		public override DateTime GetDateTime(int i) => (DateTime)GetValue(i);
 
 		public IDataRecord GetRecord() => new DataRecord(this, data.Current);
+
+		public override IEnumerator GetEnumerator() {
+			throw new NotImplementedException();
+		}
 	}
 }

@@ -11,8 +11,6 @@ namespace DataBoss.Data
 	using System.Collections.Generic;
 	using System.Data;
 	using DataBoss.Data.Scripting;
-	using System.Linq.Expressions;
-	using DataBoss.Data.SqlServer;
 
 	public class DataBossSqlConnection : IDataBossConnection
 	{
@@ -33,7 +31,7 @@ namespace DataBoss.Data
 
 		public IDbCommand CreateCommand<T>(string cmdText, T args) {
 			var cmd = new SqlCommand(cmdText, connection);
-			MsSqlDialect.AddTo(cmd, args);
+			cmd.AddParameters(args);
 			return cmd;
 		}
 	}
@@ -45,7 +43,7 @@ namespace DataBoss.Data
 
 		public static SqlCommand CreateCommand<T>(this SqlConnection connection, string cmdText, T args) {
 			var cmd = CreateCommand(connection, cmdText);
-			MsSqlDialect.AddTo(cmd, args);
+			cmd.AddParameters(args);
 			return cmd;
 		}
 
