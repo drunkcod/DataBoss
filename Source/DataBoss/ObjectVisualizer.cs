@@ -40,7 +40,7 @@ namespace DataBoss
 			public Func<object,object> GetValue; 
 		}
 
-		static readonly DataGrid MaxDepthReached = DataGrid("…", typeof(string));
+		static readonly DataGrid MaxDepthReached = DataGrid("â€¦", typeof(string));
 		static readonly Dictionary<Type,Func<object,object>> TypeTransforms = new Dictionary<Type, Func<object, object>> {
 			{ typeof(DateTime), x => ((DateTime)x).ToString() }
 		};
@@ -71,13 +71,14 @@ namespace DataBoss
 			if(depth == 0)
 				return MaxDepthReached;
 
+			var reader = obj as IDataReader;
+			if (reader != null)
+				return DumpReader(reader);
+
 			var xs = obj as IEnumerable;
 			if(xs != null)
 				return DumpSequence(type, xs);
 
-			var reader = obj as IDataReader;
-			if(reader != null)
-				return DumpReader(reader);
 			return DumpObject(obj, type, depth);
 		}
 

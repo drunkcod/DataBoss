@@ -252,7 +252,8 @@ namespace DataBoss.Data
 		public IDataRecord GetRecord() => new DataRecord(this, data.Current);
 
 		public override IEnumerator GetEnumerator() {
-			throw new NotImplementedException();
+			while (Read())
+				yield return this;
 		}
 	}
 }
