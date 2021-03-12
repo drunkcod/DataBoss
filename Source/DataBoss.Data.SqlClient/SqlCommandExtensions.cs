@@ -17,9 +17,8 @@ namespace DataBoss.Data
 
 		static class Extractor<TArg>
 		{
-			internal static Action<SqlCommand, TArg> CreateParameters =
-				(Action<SqlCommand, TArg>)ToParams.CreateExtractor(MsSqlDialect.Instance, typeof(SqlCommand), typeof(TArg), typeof(TArg))
-				.Compile();
+			internal static Action<SqlCommand, TArg> CreateParameters = 
+				ToParams.CompileExtractor<SqlCommand, TArg>(MsSqlDialect.Instance);
 		}
 
 		public static SqlDataReader ExecuteReader(this SqlCommand cmd, RetryStrategy retry) =>

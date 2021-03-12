@@ -8,12 +8,11 @@ namespace DataBoss.Data
 	using System.Linq;
 	using System.Linq.Expressions;
 	using System.Reflection;
-	using DataBoss.Data.SqlServer;
 	using DataBoss.Linq;
 
 	public static class ToParams
 	{
-		static HashSet<Type> mappedTypes = new HashSet<Type> {
+		static readonly HashSet<Type> MappedTypes = new HashSet<Type> {
 			typeof(object),
 			typeof(string),
 			typeof(DateTime),
@@ -34,6 +33,10 @@ namespace DataBoss.Data
 			ExtractValues(extractor, dialect, dialect.ParameterPrefix, Expression.Convert(values, argType));
 			return Expression.Lambda(extractor.GetResult(), command, values);
 		}
+
+		public static Action<TCommand, TArg> CompileExtractor<TCommand, TArg>(ISqlDialect dialect) =>
+			(Action<TCommand, TArg>)CreateExtractor(dialect, typeof(TCommand), typeof(TArg), typeof(TArg))
+				.Compile();
 
 		class ExtractorContext
 		{
@@ -135,7 +138,7 @@ namespace DataBoss.Data
 			return false;
 		}
 
-		public static bool HasSqlTypeMapping(Type t) => t.IsPrimitive || mappedTypes.Contains(t) || t.IsEnum;
+		public static bool HasSqlTypeMapping(Type t) => t.IsPrimitive || MappedTypes.Contains(t) || t.IsEnum;
 
 		static Expression MakeParameter(Expression value) =>
 			value.Type.IsClass 

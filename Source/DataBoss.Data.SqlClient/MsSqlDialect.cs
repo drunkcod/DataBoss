@@ -43,11 +43,8 @@ namespace DataBoss.Data
 			return found != null;
 		}
 
-		Expression Rebind(LambdaExpression expr, Expression arg0, Expression arg1) =>
-			new NodeReplacementVisitor {
-				{ expr.Parameters[0], arg0 },
-				{ expr.Parameters[1], arg1 },
-			}.Visit(expr.Body);
+		static Expression Rebind(LambdaExpression expr, Expression arg0, Expression arg1) =>
+			NodeReplacementVisitor.ReplaceParameters(expr, arg0, arg1);
 
 		static readonly Expression<Func<string, RowVersion, SqlParameter>> CreateRowVersionParameter = 
 			(name, value) => new SqlParameter(name, SqlDbType.Binary, 8) { Value = value, };

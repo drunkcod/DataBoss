@@ -20,5 +20,12 @@ namespace DataBoss.Linq.Expressions
 		}
 
 		IEnumerator IEnumerable.GetEnumerator() => theReplacements.GetEnumerator();
+
+		public static Expression ReplaceParameters(LambdaExpression lambda, params Expression[] args) {
+			var r = new NodeReplacementVisitor();
+			for (var i = 0; i != args.Length; ++i)
+				r.Add(lambda.Parameters[i], args[i]);
+			return r.Visit(lambda.Body);
+		}
 	}
 }
