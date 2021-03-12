@@ -21,9 +21,11 @@ namespace DataBoss.Data
 				jump(self, target);
 		}
 
-		public static DataReaderSchemaTable GetDataReaderSchemaTable(this IDataReader self) {
+		public static DataReaderSchemaTable GetDataReaderSchemaTable(this IDataReader self) =>
+			GetDataReaderSchemaTable(self.GetSchemaTable());
+
+		public static DataReaderSchemaTable GetDataReaderSchemaTable(DataTable sourceSchema) {
 			var schema = new DataReaderSchemaTable();
-			var sourceSchema = self.GetSchemaTable();
 			var columns = (
 				ColumnName: sourceSchema.Columns["ColumnName"],
 				ColumnOrdinal: sourceSchema.Columns["ColumnOrdinal"],
@@ -32,7 +34,7 @@ namespace DataBoss.Data
 				DataTypeName: sourceSchema.Columns["DataTypeName"],
 				AllowDBNull: sourceSchema.Columns["AllowDBNull"]);
 
-			for(var i = 0; i != sourceSchema.Rows.Count; ++i) {
+			for (var i = 0; i != sourceSchema.Rows.Count; ++i) {
 				var item = sourceSchema.Rows[i];
 				var row = (
 					 Name: (string)item[columns.ColumnName],
@@ -40,7 +42,7 @@ namespace DataBoss.Data
 					 DataType: (Type)item[columns.DataType],
 					 DataTypeName: DefaultIfDBNull<string>(item[columns.DataTypeName]),
 					 AllowDBNull: (bool)item[columns.AllowDBNull],
-					 Size: (int)item[columns.ColumnSize]);
+					 Size: DefaultIfDBNull<int?>(item[columns.ColumnSize]));
 				schema.Add(row.Name, row.Ordinal, row.DataType, row.AllowDBNull, row.Size, row.DataTypeName);
 			}
 			return schema;
