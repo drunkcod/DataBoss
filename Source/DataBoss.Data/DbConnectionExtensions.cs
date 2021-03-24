@@ -78,6 +78,7 @@ namespace DataBoss.Data
 
 		static ConcurrentDictionary<Type, Action<IDbCommand, object>> CommandFactory = new ConcurrentDictionary<Type, Action<IDbCommand, object>>();
 
+		public static IEnumerable<T> Query<T>(this IDbConnection db, string sql) => Query<T>(db, sql, new DataBossQueryOptions { Parameters = null, Buffered = true });
 		public static IEnumerable<T> Query<T>(this IDbConnection db, string sql, object args = null, bool buffered = true) => Query<T>(db, sql, new DataBossQueryOptions { Parameters = args, Buffered = buffered });
 		public static IEnumerable<TResult> Query<T, TResult>(this IDbConnection db, Func<T, TResult> selector, string sql, object args = null, bool buffered = true) => Query(Wrap(db), sql, args, buffered).Read(selector);
 		public static IEnumerable<TResult> Query<T1, T2, TResult>(this IDbConnection db, Func<T1, T2, TResult> selector, string sql, object args = null, bool buffered = true) => Query(Wrap(db), sql, args, buffered).Read(selector);

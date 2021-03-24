@@ -9,7 +9,7 @@ namespace DataBoss.Data
 		public readonly string ConnectionString;
 
 		public TemporaryDatabaseFixture() {
-			ConnectionString = SqlServerTestDb.GetOrCreate(nameof(DataBossConnectionProvider) + " Tests").ConnectionString;
+			ConnectionString = SqlServerTestDb.Create().ConnectionString;
 			SqlServerTestDb.RegisterForAutoCleanup();
 		}
 	}

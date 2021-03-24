@@ -344,8 +344,10 @@ namespace DataBoss.Data
 
 		[Fact]
 		public void doesnt_attempt_to_set_readonly_fields() {
-			var source = new SimpleDataReader(Col<int>("ReadonlyValue"));
-			source.Add(1);
+			var source = new SimpleDataReader(
+				Col<int>("Value"),
+				Col<int>("ReadonlyValue"));
+			source.Add(0, 1);
 			Check
 				.With(() => ObjectReader.For(source).Read<StructRow<int>>().ToArray())
 				.That(x => x[0].Value == 0);

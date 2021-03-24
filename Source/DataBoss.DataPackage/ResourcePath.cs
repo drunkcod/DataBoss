@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -48,10 +49,8 @@ namespace DataBoss.DataPackage
 
 			public int Count => 1;
 
-			public void Add(string path, out IResourcePathState next) => 
-				next = new MultiPath {
-					Paths = new List<string> { this.Path, path }
-				};
+			public void Add(string path, out IResourcePathState next) =>
+				next = new MultiPath(ImmutableList<string>.Empty.AddRange(new [] { Path, path }));
 
 			public override string ToString() => Path;
 			public override int GetHashCode() => Path.GetHashCode();
@@ -65,21 +64,23 @@ namespace DataBoss.DataPackage
 
 		class MultiPath : IResourcePathState
 		{
-			public List<string> Paths;
+			readonly ImmutableList<string> paths;
 
-			public int Count => Paths.Count;
+			public int Count => paths.Count;
 
-			public void Add(string path, out IResourcePathState next) {
-				Paths.Add(path);
-				next = this;
+			public MultiPath(ImmutableList<string> paths) {
+				this.paths = paths;
 			}
 
-			public IEnumerator<string> GetEnumerator() => Paths.GetEnumerator();
+			public void Add(string path, out IResourcePathState next) =>
+				next = new MultiPath(paths.Add(path));
+
+			public IEnumerator<string> GetEnumerator() => paths.GetEnumerator();
 			IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-			public override string ToString() => string.Join(",", Paths);
+			public override string ToString() => string.Join(",", paths);
 			public override int GetHashCode() =>
-				Count == 0 ? 0 : Paths[0].GetHashCode();
+				Count == 0 ? 0 : paths[0].GetHashCode();
 		}
 
 		IResourcePathState state;
@@ -147,7 +148,7 @@ namespace DataBoss.DataPackage
 		IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
 		public static implicit operator ResourcePath(string path) => new ResourcePath(new SinglePath(path));
-		public static implicit operator ResourcePath(string[] path) => new ResourcePath(new MultiPath { Paths = path.ToList() });
+		public static implicit operator ResourcePath(string[] path) => new ResourcePath(new MultiPath(ImmutableList<string>.Empty.AddRange(path)));
 		public static implicit operator string(ResourcePath path) => path.ToString();
 
 		public static bool operator ==(ResourcePath left, string path) => left.ToString() == path;

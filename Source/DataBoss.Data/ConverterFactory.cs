@@ -175,7 +175,8 @@ namespace DataBoss.Data
 				GetCtor(map, item)
 				?? GetFactoryFunction(map, item)
 				?? InitValueType(map, item)
-				?? throw new InvalidConversionException("No suitable way found to init " + item.Type, ResultType);
+				?? ReadScalar(map, item)
+				?? throw new InvalidConversionException($"No suitable way found to init '{item.Name}' of type {item.Type}", ResultType);
 
 			MemberReader? GetCtor(FieldMap map, in ItemInfo item) {
 				var ctors = item.Type.GetConstructors()
@@ -222,8 +223,27 @@ namespace DataBoss.Data
 			}
 
 			MemberReader? InitValueType(FieldMap map, in ItemInfo item) {
-				if(item.Type.IsValueType)
-					return new MemberReader(map.MinOrdinal, item.Name, Expression.MemberInit(Expression.New(item.Type), GetMembers(map, item.Type)), null);
+				if (!item.Type.IsValueType)
+					return null;
+				
+				var foundMembers = GetMembers(map, item.Type);
+				if (foundMembers.Count == 0)
+					return null;
+
+				return new MemberReader(map.MinOrdinal, item.Name, Expression.MemberInit(Expression.New(item.Type), foundMembers), null);
+			}
+
+			MemberReader? ReadScalar(FieldMap map, in ItemInfo item) {
+				var (fieldName, field) = map.First();
+				var o = Expression.Constant(field.Ordinal);
+				
+				var isNull = IsNull(o);
+				if (TryReadFieldAs(field.FieldType, o, item.Type, out var read)) {
+					if (item.Type.IsValueType && !item.Type.IsNullable())
+						return new MemberReader(field.Ordinal, item.Name, read, new[] { (fieldName, isNull) });
+					else return new MemberReader(field.Ordinal, item.Name, Expression.Condition(isNull, Expression.Default(item.Type), read), null);
+				}
+
 				return null;
 			}
 
@@ -324,7 +344,7 @@ namespace DataBoss.Data
 				typeof(string),
 				fields.Select(x =>
 					Expression.Condition(x.IsDbNull,
-						Expression.Constant(x.Name),
+						Expression.Constant(x.Name, typeof(string)),
 						Expression.Constant(null, typeof(string)))));
 
 			var @throw = Expression.Throw(

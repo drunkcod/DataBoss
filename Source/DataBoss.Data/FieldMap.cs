@@ -1,11 +1,12 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 
 namespace DataBoss.Data
 {
-	public class FieldMap
+	public class FieldMap : IEnumerable<(string FieldName, FieldMapItem Item)>
 	{
 		readonly Dictionary<string, FieldMapItem> fields = new Dictionary<string, FieldMapItem>(StringComparer.InvariantCultureIgnoreCase);
 		Dictionary<string, FieldMap> subFields;
@@ -33,6 +34,7 @@ namespace DataBoss.Data
 			return (Func<int, Type>)Delegate.CreateDelegate(typeof(Func<int, Type>), reader, getter);
 		}
 
+		public int Count => fields.Count;
 		public int MinOrdinal => fields.Count == 0 ? -1 : fields.Min(x => x.Value.Ordinal);
 
 		public void Add(string name, int ordinal, Type fieldType, Type providerSpecificFieldType, bool allowDBNull) {
@@ -57,6 +59,14 @@ namespace DataBoss.Data
 		}
 
 		public override string ToString() => string.Join(", ", fields.OrderBy(x => x.Value.Ordinal).Select(x => $"{x.Value.FieldType} [{x.Key}]"));
+
+		public IEnumerator<(string, FieldMapItem)> GetEnumerator() {
+			foreach (var item in fields)
+				yield return (item.Key, item.Value);
+		}
+
+		IEnumerator IEnumerable.GetEnumerator() =>
+			GetEnumerator();
 
 		FieldMap this[string name] {
 			get {

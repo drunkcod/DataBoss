@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using CheckThat;
-using DataBoss.Data;
 using DataBoss.Specs;
 using Xunit;
 
