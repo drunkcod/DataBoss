@@ -10,7 +10,9 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using CsvHelper.Configuration;
 using DataBoss.Data;
+using DataBoss.DataPackage.Schema;
 using DataBoss.Linq;
 using DataBoss.Threading.Channels;
 using Newtonsoft.Json;
@@ -159,8 +161,10 @@ namespace DataBoss.DataPackage
 			new CsvDataReader(
 				new CsvHelper.CsvReader(
 					reader,
-					new CsvHelper.Configuration.CsvConfiguration(CultureInfo.InvariantCulture) { Delimiter = csvDialect.Delimiter ?? "," }),
-				schema, 
+					new CsvConfiguration(CultureInfo.InvariantCulture) { 
+						Delimiter = csvDialect.Delimiter ?? CsvDialectDescription.DefaultDelimiter 
+					}),
+				schema,
 				hasHeaderRow: csvDialect.HasHeaderRow);
 
 		public IDataPackageResourceBuilder AddResource(string name, Func<IDataReader> getData) =>
@@ -218,13 +222,6 @@ namespace DataBoss.DataPackage
 			var decimalCharOverride = options.Culture?.NumberFormat.NumberDecimalSeparator;
 			var defaultFormatter = new RecordFormatter(options.Culture ?? CultureInfo.InvariantCulture);
 			var writtenPaths = new HashSet<string>();
-			TryGetResourceOutputPath getOutputPath = TryGetOutputPath;
-			var createResourceStream = createOutput;
-
-			if(options.ResourceCompression == ResourceCompression.GZip) {
-				getOutputPath = TryGetGZipOutputPath;
-				createResourceStream = path => new GZipStream(createOutput(path), CompressionLevel.Optimal);
-			}
 
 			foreach (var item in Resources) {
 				using var data = item.Read();
@@ -253,9 +250,9 @@ namespace DataBoss.DataPackage
 				desc.Dialect.Delimiter ??= DefaultDelimiter;
 
 				description.Resources.Add(desc);
-				if (getOutputPath(desc.Path, out var outputPath) && !writtenPaths.Contains(outputPath)) {
+				if (options.ResourceCompression.TryGetOutputPath(desc.Path, out var outputPath) && !writtenPaths.Contains(outputPath)) {
 					desc.Path = outputPath;
-					var output = createResourceStream(outputPath);
+					var output = options.ResourceCompression.WrapWrite(createOutput(outputPath));
 					try {
 						WriteRecords(output, desc.Dialect, data, toString);
 					}
@@ -271,22 +268,6 @@ namespace DataBoss.DataPackage
 
 			using var meta = new StreamWriter(createOutput("datapackage.json"));
 			meta.Write(JsonConvert.SerializeObject(description, Formatting.Indented));
-		}
-
-		static bool TryGetOutputPath(ResourcePath path, out string outputPath) {
-			if(path.Count != 1) {
-				outputPath = null;
-				return false;
-			}
-			outputPath = path.First();
-			return true;
-		}
-
-		static bool TryGetGZipOutputPath(ResourcePath path, out string outputPath) {
-			if (!TryGetOutputPath(path, out outputPath))
-				return false;
-			outputPath = Path.ChangeExtension(outputPath, Path.GetExtension(outputPath) + ".gz");
-			return true;
 		}
 
 		public DataPackage Serialize(CultureInfo culture = null) {
@@ -472,12 +453,6 @@ namespace DataBoss.DataPackage
 	public class DataPackageSaveOptions
 	{
 		public CultureInfo Culture = null;
-		public ResourceCompression ResourceCompression;
-	}
-
-	public enum ResourceCompression
-	{
-		None,
-		GZip,
+		public ResourceCompression ResourceCompression = ResourceCompression.None;
 	}
 }

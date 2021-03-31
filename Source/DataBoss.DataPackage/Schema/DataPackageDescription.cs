@@ -1,5 +1,6 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.IO;
+using DataBoss.DataPackage.Schema;
 using Newtonsoft.Json;
 
 namespace DataBoss.DataPackage

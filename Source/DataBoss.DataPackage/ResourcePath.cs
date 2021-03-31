@@ -35,7 +35,7 @@ namespace DataBoss.DataPackage
 			IEnumerator IEnumerable.GetEnumerator() => 
 				GetEnumerator();
 
-			public static readonly EmptyPath Instance = new EmptyPath();
+			public static readonly EmptyPath Instance = new();
 
 			public override string ToString() => string.Empty;
 			public override int GetHashCode() => 0;
@@ -86,7 +86,7 @@ namespace DataBoss.DataPackage
 		IResourcePathState state;
 		IResourcePathState CurrentState => state ??= EmptyPath.Instance;
 
-		public bool IsEmpty => CurrentState == EmptyPath.Instance;
+		public bool IsEmpty => Count == 0;
 		public int Count => CurrentState.Count;
 
 		public bool IsReadOnly => false;
@@ -101,12 +101,16 @@ namespace DataBoss.DataPackage
 			return new ConcatStream(this.Select(x => OpenResourceStream(x, open)).GetEnumerator());
 		}
 
-		static Stream OpenResourceStream(string path, Func<string, Stream> open) {
-			var r = open(path);
-			return (Path.GetExtension(path)) switch {
-				".gz" => new GZipStream(r, CompressionMode.Decompress),
-				_ => r,
-			};
+		static Stream OpenResourceStream(string path, Func<string, Stream> open) =>
+			ResourceCompression.OpenRead(path, open);
+
+		public bool TryGetOutputPath(out string outputPath) {
+			if (Count != 1) {
+				outputPath = null;
+				return false;
+			}
+			outputPath = this.First();
+			return true;
 		}
 
 		public override bool Equals(object obj) =>
@@ -147,8 +151,8 @@ namespace DataBoss.DataPackage
 		public IEnumerator<string> GetEnumerator() => CurrentState.GetEnumerator();
 		IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-		public static implicit operator ResourcePath(string path) => new ResourcePath(new SinglePath(path));
-		public static implicit operator ResourcePath(string[] path) => new ResourcePath(new MultiPath(ImmutableList<string>.Empty.AddRange(path)));
+		public static implicit operator ResourcePath(string path) => new(new SinglePath(path));
+		public static implicit operator ResourcePath(string[] path) => new(new MultiPath(ImmutableList<string>.Empty.AddRange(path)));
 		public static implicit operator string(ResourcePath path) => path.ToString();
 
 		public static bool operator ==(ResourcePath left, string path) => left.ToString() == path;

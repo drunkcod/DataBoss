@@ -63,11 +63,7 @@ namespace DataBoss.DataPackage
 				stream = new ZipOutputStream(stream);
 
 			using var zip = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: leaveOpen);
-			var compressionLevel = options.ResourceCompression switch {
-				ResourceCompression.None => CompressionLevel.Optimal,
-				ResourceCompression.GZip => CompressionLevel.NoCompression,
-				_ => throw new NotSupportedException($"Unknown resource compression '{options.ResourceCompression}'."),
-			};
+			var compressionLevel = options.ResourceCompression.ArchiveCompressionLevel;
 
 			self.Save(x => {
 				var e = zip.CreateEntry(x, compressionLevel);

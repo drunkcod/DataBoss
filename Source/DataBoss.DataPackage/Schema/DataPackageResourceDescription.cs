@@ -1,9 +1,7 @@
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
 using Newtonsoft.Json;
 
-namespace DataBoss.DataPackage
+namespace DataBoss.DataPackage.Schema
 {
 	public class DataPackageResourceDescription
 	{
@@ -16,22 +14,13 @@ namespace DataBoss.DataPackage
 
 		[Obsolete("Use Dialect.Delimiter instead."), JsonProperty("delimiter")]
 		public string Delimiter {
-			set => (Dialect ??= new CsvDialectDescription()).Delimiter = value;
+			set => Dialect.Delimiter = value;
 		}
 
 		[JsonProperty("dialect")]
-		public CsvDialectDescription Dialect;
+		public CsvDialectDescription Dialect = CsvDialectDescription.GetDefaultDialect();
 
 		[JsonProperty("schema")]
 		public TabularDataSchema Schema;
-	}
-
-	public class CsvDialectDescription
-	{
-		[JsonProperty("delimiter")]
-		public string Delimiter;
-
-		[JsonProperty("header"), DefaultValue(true)]
-		public bool HasHeaderRow = true;
 	}
 }

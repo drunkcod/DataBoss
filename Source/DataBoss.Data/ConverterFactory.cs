@@ -176,7 +176,7 @@ namespace DataBoss.Data
 				?? GetFactoryFunction(map, item)
 				?? InitValueType(map, item)
 				?? ReadScalar(map, item)
-				?? throw new InvalidConversionException($"No suitable way found to init '{item.Name}' of type {item.Type}", ResultType);
+				?? throw new InvalidConversionException($"No suitable way found to init {item.Name ?? "$"} of type {item.Type}", ResultType);
 
 			MemberReader? GetCtor(FieldMap map, in ItemInfo item) {
 				var ctors = item.Type.GetConstructors()

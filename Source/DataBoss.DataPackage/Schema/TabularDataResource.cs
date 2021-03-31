@@ -4,6 +4,7 @@ using System.Data;
 using System.Linq;
 using System.Text.RegularExpressions;
 using DataBoss.Data;
+using DataBoss.DataPackage.Schema;
 using DataBoss.Linq;
 
 namespace DataBoss.DataPackage
