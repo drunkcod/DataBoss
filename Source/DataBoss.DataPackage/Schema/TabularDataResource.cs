@@ -62,7 +62,7 @@ namespace DataBoss.DataPackage
 		}
 
 		public IEnumerable<T> Read<T>() => 
-			ObjectReader.For(Read()).Read<T>(CustomConverters);
+			ObjectReader.Read<T>(Read(), CustomConverters);
 
 		static readonly ConverterCollection CustomConverters = new ConverterCollection {
 			new Func<string, char>(StringToChar),

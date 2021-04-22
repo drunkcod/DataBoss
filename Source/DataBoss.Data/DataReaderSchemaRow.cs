@@ -21,6 +21,8 @@ namespace DataBoss.Data
 		public int? ColumnSize;
 		public string DataTypeName;
 
+		public Type ProviderSpecificDataType;
+
 		/// <summary>
 		/// If this was a field what would type be then? 
 		/// When nulls are allowed it's a Nullable<T> rather than T 

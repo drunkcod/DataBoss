@@ -8,6 +8,21 @@ using DataBoss.Data;
 
 namespace DataBoss.DataPackage
 {
+	public struct CsvInteger
+	{
+		public readonly string Value;
+		public readonly IFormatProvider Format;
+
+		public CsvInteger(string value, IFormatProvider format) {
+			this.Value = value;
+			this.Format = format;
+		}
+
+		public static explicit operator short(CsvInteger self) => short.Parse(self.Value, self.Format);
+		public static explicit operator int(CsvInteger self) => int.Parse(self.Value, self.Format);
+		public static explicit operator long(CsvInteger self) => long.Parse(self.Value, self.Format);
+	}
+
 	public class CsvDataReader : IDataReader, IDataRecordReader
 	{
 		class CsvDataRecord : IDataRecord
@@ -77,6 +92,8 @@ namespace DataBoss.DataPackage
 			public DateTime GetDateTime(int i) => (DateTime)GetValue(i);
 			public TimeSpan GetTimeSpan(int i) => GetFieldValue<TimeSpan>(i);
 
+			public CsvInteger GetCsvInteger(int i) => GetFieldValue<CsvInteger>(i);
+
 			T GetFieldValue<T>(int i) {
 				if (CheckedIsNull(i))
 					return default;
@@ -107,6 +124,9 @@ namespace DataBoss.DataPackage
 
 				if (typeof(T) == typeof(Guid))
 					return (T)(object)Guid.Parse(value);
+
+				if (typeof(T) == typeof(CsvInteger))
+					return (T)(object)new CsvInteger(value, GetFieldFormat(i));
 
 				return (T)GetValue(i);
 			}
@@ -175,8 +195,8 @@ namespace DataBoss.DataPackage
 
 			for (var i = 0; i != tabularSchema.Fields.Count; ++i) {
 				var field = tabularSchema.Fields[i];
-				var (fieldType, dbType) = ToDbType(field, primaryKey);
-				schema.Add(field.Name, i, fieldType, dbType.IsNullable, field.Constraints?.MaxLength ?? dbType.ColumnSize, dbType.TypeName);
+				var (fieldType, dbType, providerType) = ToDbType(field, primaryKey);
+				schema.Add(field.Name, i, fieldType, dbType.IsNullable, field.Constraints?.MaxLength ?? dbType.ColumnSize, dbType.TypeName, providerType);
 				if (field.IsNumber())
 					fieldFormat[i] = field.GetNumberFormat();
 			}
@@ -202,7 +222,7 @@ namespace DataBoss.DataPackage
 			return true;
 		}
 
-		static (Type, DataBossDbType) ToDbType(TabularDataSchemaFieldDescription field, string[] primaryKey) {
+		static (Type, DataBossDbType, Type) ToDbType(TabularDataSchemaFieldDescription field, string[] primaryKey) {
 			var required = field.Constraints?.IsRequired ?? Array.IndexOf(primaryKey, field.Name) != -1;
 			Func<Type, DataBossDbType> getDbType = required ? GetDbTypeRequired : GetDbType;
 
@@ -212,19 +232,20 @@ namespace DataBoss.DataPackage
 			static DataBossDbType GetDbType(Type type) =>
 				DataBossDbType.From(type.IsValueType ? typeof(Nullable<>).MakeGenericType(type) : type);
 
-			(Type, DataBossDbType) GetTypePair(Type type) => (type, getDbType(type));
+			(Type, DataBossDbType, Type) MakeType(Type type) => (type, getDbType(type), null);
+			(Type, DataBossDbType, Type) MakeType2(Type type, Type providerType) => (type, getDbType(type), providerType);
 
 			return field.Type switch {
-				"boolean" => GetTypePair(typeof(bool)),
-				"datetime" => GetTypePair(typeof(DateTime)),
-				"date" => GetTypePair(typeof(DateTime)),
-				"time" => GetTypePair(typeof(TimeSpan)),
-				"integer" => GetTypePair(typeof(int)),
-				"number" => GetTypePair(typeof(double)),
+				"boolean" => MakeType(typeof(bool)),
+				"datetime" => MakeType(typeof(DateTime)),
+				"date" => MakeType(typeof(DateTime)),
+				"time" => MakeType(typeof(TimeSpan)),
+				"integer" => MakeType2(typeof(int), typeof(CsvInteger)),
+				"number" => MakeType(typeof(double)),
 				"string" => field.Format switch {
-					"binary" => GetTypePair(typeof(byte[])),
-					"uuid" => GetTypePair(typeof(Guid)),
-					_ => GetTypePair(typeof(string))
+					"binary" => MakeType(typeof(byte[])),
+					"uuid" => MakeType(typeof(Guid)),
+					_ => MakeType(typeof(string))
 				},
 				_ => throw new NotSupportedException($"Don't know how to map '{field.Type}'"),
 			};
@@ -265,6 +286,7 @@ namespace DataBoss.DataPackage
 		}
 
 		public Type GetFieldType(int i) => schema[i].ColumnType;
+		public Type GetProviderSpecificFieldType(int i) => schema[i].ProviderSpecificDataType;
 		public string GetDataTypeName(int i) => schema[i].DataTypeName;
 		public string GetName(int i) => schema[i].ColumnName;
 		public int GetOrdinal(string name) => schema.GetOrdinal(name);
@@ -298,6 +320,7 @@ namespace DataBoss.DataPackage
 		public decimal GetDecimal(int i) => current.GetDecimal(i);
 		public DateTime GetDateTime(int i) => current.GetDateTime(i);
 		public TimeSpan GetTimeSpan(int i) => current.GetTimeSpan(i);
+		public CsvInteger GetCsvInteger(int i) => current.GetCsvInteger(i);
 
 		public int GetValues(object[] values) {
 			var n = Math.Min(FieldCount, values.Length);

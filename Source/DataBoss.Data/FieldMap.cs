@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.Common;
 using System.Linq;
 
 namespace DataBoss.Data
@@ -28,7 +29,7 @@ namespace DataBoss.Data
 		}
 
 		static Func<int, Type> GetGetProviderSpecificFieldType(IDataReader reader) {
-			var getter = reader.GetType().GetMethod("GetProviderSpecificFieldType", new[] { typeof(int)});
+			var getter = reader.GetType().GetMethod(nameof(DbDataReader.GetProviderSpecificFieldType), new[] { typeof(int) });
 			if(getter == null)
 				return _ => null;
 			return (Func<int, Type>)Delegate.CreateDelegate(typeof(Func<int, Type>), reader, getter);

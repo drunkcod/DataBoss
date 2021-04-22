@@ -57,17 +57,35 @@ namespace DataBoss.Data
 			}
 
 			bool TryGetGetMethod(Type fieldType, out MethodInfo getter) {
-				getter = GetGetMethod(Arg0.Type, "Get" + fieldType.Name);
+				getter = GetGetMethod(Arg0.Type, "Get" + fieldType.Name, fieldType);
 				if (getter == null && getFieldValueT != null)
 					getter = getFieldValueT.MakeGenericMethod(fieldType);
 				if (getter == null)
-					getter = GetGetMethod(Arg0.Type, "Get" + MapFieldType(fieldType));
+					getter = GetGetMethod(Arg0.Type, "Get" + MapFieldType(fieldType), fieldType);
 
 				return getter != null;
 			}
 
-			static MethodInfo GetGetMethod(Type arg0, string name) =>
-				arg0.GetMethod(name) ?? typeof(IDataRecord).GetMethod(name);
+			static MethodInfo GetGetMethod(Type arg0, string name, Type type) {
+				var found = arg0.GetMethod(name) ?? typeof(IDataRecord).GetMethod(name);
+				
+				if(found != null && ParametersEqual(found, typeof(int)))
+					return found;
+				return null;
+			}
+
+			static bool ParametersEqual(MethodInfo method, params Type[] parameterTypes) {
+				var ps = method.GetParameters();
+				
+				if (ps.Length != parameterTypes.Length)
+					return false;
+
+				for (var i = 0; i != ps.Length; ++i)
+					if (ps[i].ParameterType != parameterTypes[i])
+						return false;
+				
+				return true;
+			}
 
 			bool TryConvertField(Expression rawField, Type to, out Expression convertedField) {
 				var from = rawField.Type;
@@ -86,7 +104,12 @@ namespace DataBoss.Data
 				if (converters.TryGetConverter(rawField, to, out converter))
 					return true;
 
-				if (IsByteArray(rawField, to) || IsEnum(rawField, to) || IsTimeSpan(rawField, to) || HasCast(rawField, to)) {
+				if(IsByteArray(rawField, to) 
+				|| IsEnum(rawField, to) 
+				|| IsTimeSpan(rawField, to) 
+				|| ToIsAssignableFrom(rawField, to)
+				|| FromIsCastableTo(rawField, to)
+				) {
 					converter = Expression.Convert(rawField, to);
 					return true;
 				}
@@ -103,12 +126,16 @@ namespace DataBoss.Data
 			static bool IsEnum(Expression rawField, Type to) =>
 				to.IsEnum && Enum.GetUnderlyingType(to) == rawField.Type;
 
-			static bool HasCast(Expression rawField, Type to) {
+			static bool ToIsAssignableFrom(Expression rawField, Type to) {
 				var t = new[] { rawField.Type };
 				var cast = to.GetMethod("op_Implicit", t) ?? to.GetMethod("op_Explicit", t);
 
 				return cast != null && to.IsAssignableFrom(cast.ReturnType);
 			}
+
+			static bool FromIsCastableTo(Expression rawField, Type to) =>
+				rawField.Type.GetMethods(BindingFlags.Public | BindingFlags.Static)
+				.Any(x => x.IsSpecialName && (x.Name == "op_Implicit" || x.Name == "op_Explicit") && x.ReturnType == to);
 
 			public Expression IsNull(Expression o) => Expression.Call(Arg0, IsDBNull, o);
 

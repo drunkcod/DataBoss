@@ -10,7 +10,14 @@ namespace DataBoss.Data
 {
 	public static class ObjectReader
 	{
-		static readonly ConcurrentDictionary<(Type Reader, Type T), Func<IDataReader, IEnumerable>> readerCache = new ConcurrentDictionary<(Type Reader, Type T), Func<IDataReader, IEnumerable>>();
+		delegate IEnumerable<T> ItemReader<T>(IDataReader reader, ConverterCollection converters);
+
+		static class ItemReaderCache<T>
+		{
+			static readonly ConcurrentDictionary<Type, ItemReader<T>> readers = new();
+
+			public static ItemReader<T> GetReader(Type readerType) => readers.GetOrAdd(readerType, x => MakeReaderOfT<T>(x));
+		}
 
 		public static ObjectReader<TReader> For<TReader>(TReader reader) where TReader : IDataReader =>
 			new ObjectReader<TReader>(reader);
@@ -27,21 +34,19 @@ namespace DataBoss.Data
 		public static Expression<Func<TReader, T>> MakeConverter<TReader, T>(TReader reader, ConverterCollection customConversions) where TReader : IDataReader =>
 			ConverterFactory(customConversions).GetConverter<TReader, T>(reader).Expression;
 
-		public static IEnumerable<T> Read<T>(this IDataReader reader) {
-			var key = (reader.GetType(), typeof(T));
-			var read = readerCache.GetOrAdd(key, MakeReaderOfT);
-			return (IEnumerable<T>)read(reader);
-		}
+		public static IEnumerable<T> Read<T>(this IDataReader reader) => 
+			Read<T>(reader, null);
 
-		static Func<IDataReader, IEnumerable> MakeReaderOfT((Type Reader, Type T) key) {
+		public static IEnumerable<T> Read<T>(this IDataReader reader, ConverterCollection converters) =>
+			ItemReaderCache<T>.GetReader(reader.GetType())(reader, converters);
+
+		static ItemReader<T> MakeReaderOfT<T>(Type readerType) {
 			var m = typeof(ObjectReader).GetMethod(nameof(ReaderOfT), BindingFlags.NonPublic | BindingFlags.Static);
-			return (Func<IDataReader, IEnumerable>)Delegate.CreateDelegate(
-				typeof(Func<IDataReader, IEnumerable>),
-				m.MakeGenericMethod(key.Reader, key.T));
+			return Lambdas.CreateDelegate<ItemReader<T>>(m.MakeGenericMethod(readerType, typeof(T)));
 		}
 
-		static IEnumerable ReaderOfT<TReader, T>(IDataReader reader) where TReader : IDataReader =>
-			For((TReader)reader).Read<T>();
+		static IEnumerable<T> ReaderOfT<TReader, T>(IDataReader reader, ConverterCollection converters) where TReader : IDataReader =>
+			For((TReader)reader).Read<T>(converters);
 
 		static ConverterFactory ConverterFactory(ConverterCollection customConversions) => 
 			new ConverterFactory(customConversions, NullConverterCache.Instance);

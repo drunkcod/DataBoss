@@ -13,11 +13,12 @@ namespace DataBoss.Data
 
 		public DataReaderSchemaRow this[int index] => rows[index];
 
-		public void Add(string name, int ordinal, Type columnType, bool allowDBNull, int? columnSize = null, string dataTypeName = null) {
+		public void Add(string name, int ordinal, Type columnType, bool allowDBNull, int? columnSize = null, string dataTypeName = null, Type providerSpecificDataType = null) {
 			rows.Add(new DataReaderSchemaRow {
 				ColumnName = name,
 				Ordinal = ordinal,
 				ColumnType = columnType,
+				ProviderSpecificDataType = providerSpecificDataType,
 				AllowDBNull = allowDBNull,
 				ColumnSize = columnSize,
 				DataTypeName = dataTypeName,
@@ -38,13 +39,15 @@ namespace DataBoss.Data
 			var dataType = schema.Columns.Add(DataReaderSchemaColumns.DataType);
 			var dataTypeName = schema.Columns.Add(DataReaderSchemaColumns.DataTypeName);
 			var isKey = schema.Columns.Add(DataReaderSchemaColumns.IsKey);
-			foreach(var item in rows) {
+			var providerSpecificDataType = schema.Columns.Add(DataReaderSchemaColumns.ProviderSpecificDataType);
+			foreach (var item in rows) {
 				var r = schema.NewRow();
 				r[columnName] = item.ColumnName;
 				r[columnOrdinal] = item.Ordinal;
 				r[columnSize] = item.ColumnSize.HasValue ? (object)item.ColumnSize.Value : DBNull.Value;
 				r[allowDBNull] = item.AllowDBNull;
 				r[dataType] = item.ColumnType;
+				r[providerSpecificDataType] = item.ProviderSpecificDataType;
 				r[dataTypeName] = item.DataTypeName;
 				r[isKey] = false;
 				schema.Rows.Add(r);
