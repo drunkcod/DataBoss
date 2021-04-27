@@ -8,35 +8,6 @@ using DataBoss.Data;
 
 namespace DataBoss.DataPackage
 {
-	public struct CsvInteger
-	{
-		public readonly string Value;
-		public readonly IFormatProvider Format;
-
-		public CsvInteger(string value, IFormatProvider format) {
-			this.Value = value;
-			this.Format = format;
-		}
-
-		public static explicit operator short(CsvInteger self) => short.Parse(self.Value, self.Format);
-		public static explicit operator int(CsvInteger self) => int.Parse(self.Value, self.Format);
-		public static explicit operator long(CsvInteger self) => long.Parse(self.Value, self.Format);
-	}
-
-	public struct CsvNumber
-	{
-		public readonly string Value;
-		public readonly IFormatProvider Format;
-
-		public CsvNumber(string value, IFormatProvider format) {
-			this.Value = value;
-			this.Format = format;
-		}
-
-		public static explicit operator float(CsvNumber self) => float.Parse(self.Value, self.Format);
-		public static explicit operator double(CsvNumber self) => double.Parse(self.Value, self.Format);
-	}
-
 	public class CsvDataReader : IDataReader, IDataRecordReader
 	{
 		class CsvDataRecord : IDataRecord
