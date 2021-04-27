@@ -96,12 +96,12 @@ namespace DataBoss.DataPackage
 			var r = new List<TabularDataSchemaFieldDescription>(reader.FieldCount);
 			var schema = reader
 				.GetDataReaderSchemaTable()
-				.ToDictionary(x => x.ColumnName, x => x);
+				.ToDictionary(x => x.Ordinal, x => x);
 			
 			for (var i = 0; i != reader.FieldCount; ++i) {
 				TabularDataSchemaFieldConstraints constraints = null;
 				TabularDataSchemaFieldConstraints FieldConstraints() => constraints ??= new TabularDataSchemaFieldConstraints();
-				if (schema.TryGetValue(reader.GetName(i), out var found)) {
+				if (schema.TryGetValue(i, out var found)) {
 					if(!found.AllowDBNull)
 						FieldConstraints().IsRequired = true;
 					if ((found.ColumnType == typeof(string) || found.ColumnType == typeof(char)) && found.ColumnSize != int.MaxValue) {
