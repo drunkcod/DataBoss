@@ -180,10 +180,10 @@ namespace DataBoss.DataPackage
 
 		void TranslateSchema(TabularDataSchema tabularSchema) {
 			var primaryKey = tabularSchema.PrimaryKey?.ToArray() ?? Empty<string>.Array;
-
+			var fieldTypeConverter = new FieldToDbTypeConverter(primaryKey);
 			for (var i = 0; i != tabularSchema.Fields.Count; ++i) {
 				var field = tabularSchema.Fields[i];
-				var (fieldType, dbType, providerType) = ToDbType(field, primaryKey);
+				var (fieldType, dbType, providerType) = fieldTypeConverter.ToDbType(field);
 				schema.Add(field.Name, i, fieldType, dbType.IsNullable, field.Constraints?.MaxLength ?? dbType.ColumnSize, dbType.TypeName, providerType);
 				if (field.IsNumber())
 					fieldFormat[i] = field.GetNumberFormat();
@@ -210,33 +210,44 @@ namespace DataBoss.DataPackage
 			return true;
 		}
 
-		static (Type, DataBossDbType, Type) ToDbType(TabularDataSchemaFieldDescription field, string[] primaryKey) {
-			var required = field.Constraints?.IsRequired ?? Array.IndexOf(primaryKey, field.Name) != -1;
-			Func<Type, DataBossDbType> getDbType = required ? GetDbTypeRequired : GetDbType;
+		class FieldToDbTypeConverter
+		{
+			readonly Type Nullable = typeof(Nullable<>);
+			readonly string[] PrimaryKey;
+
+			public FieldToDbTypeConverter(string[] primaryKey) {
+				this.PrimaryKey = primaryKey;
+			}
+
+			public (Type, DataBossDbType, Type) ToDbType(TabularDataSchemaFieldDescription field) {
+				var required = field.Constraints?.IsRequired ?? Array.IndexOf(PrimaryKey, field.Name) != -1;
+				return MakeType(required, field.Type switch {
+					"boolean" => (typeof(bool), null),
+					"datetime" => (typeof(DateTime), null),
+					"date" => (typeof(DateTime), null),
+					"time" => (typeof(TimeSpan), null),
+					"integer" => (typeof(int), typeof(CsvInteger)),
+					"number" => (typeof(double), typeof(CsvNumber)),
+					"string" => field.Format switch {
+						"binary" => (typeof(byte[]), null),
+						"uuid" => (typeof(Guid), null),
+						_ => (typeof(string), null)
+					},
+					_ => throw new NotSupportedException($"Don't know how to map '{field.Type}'"),
+				});
+			}
+
+			(Type, DataBossDbType, Type) MakeType(bool isRequired, (Type Type, Type ProviderType) typle) {
+				var (type, providerType) = typle;
+				var dbType = isRequired ? GetDbTypeRequired(type) : GetDbType(type);
+				return (type, dbType, providerType);
+			}
 
 			static DataBossDbType GetDbTypeRequired(Type type) =>
 				DataBossDbType.From(type, RequiredAttributeProvider.Instance);
 
-			static DataBossDbType GetDbType(Type type) =>
-				DataBossDbType.From(type.IsValueType ? typeof(Nullable<>).MakeGenericType(type) : type);
-
-			(Type, DataBossDbType, Type) MakeType(Type type) => (type, getDbType(type), null);
-			(Type, DataBossDbType, Type) MakeType2(Type type, Type providerType) => (type, getDbType(type), providerType);
-
-			return field.Type switch {
-				"boolean" => MakeType(typeof(bool)),
-				"datetime" => MakeType(typeof(DateTime)),
-				"date" => MakeType(typeof(DateTime)),
-				"time" => MakeType(typeof(TimeSpan)),
-				"integer" => MakeType2(typeof(int), typeof(CsvInteger)),
-				"number" => MakeType2(typeof(double), typeof(CsvNumber)),
-				"string" => field.Format switch {
-					"binary" => MakeType(typeof(byte[])),
-					"uuid" => MakeType(typeof(Guid)),
-					_ => MakeType(typeof(string))
-				},
-				_ => throw new NotSupportedException($"Don't know how to map '{field.Type}'"),
-			};
+			DataBossDbType GetDbType(Type type) =>
+				DataBossDbType.From(type.IsValueType ? Nullable.MakeGenericType(type) : type);
 		}
 
 		public int FieldCount => schema.Count;

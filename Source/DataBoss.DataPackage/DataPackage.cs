@@ -103,7 +103,7 @@ namespace DataBoss.DataPackage
 			}
 
 			var r = new DataPackage();
-			r.resources.AddRange(description.Resources.Select(x =>
+			r.AddResources(description.Resources.Select(x =>
 				TabularDataResource.From(x, () =>
 					CreateCsvDataReader(x, WebResponseStream.Get))));
 
@@ -118,7 +118,7 @@ namespace DataBoss.DataPackage
 			}
 
 			var r = new DataPackage();
-			r.resources.AddRange(description.Resources.Select(x =>
+			r.AddResources(description.Resources.Select(x =>
 				TabularDataResource.From(x, () => CreateCsvDataReader(x, openRead))));
 
 			return r;
@@ -130,7 +130,7 @@ namespace DataBoss.DataPackage
 		public static DataPackage LoadZip(Func<Stream> openZip) {
 			var r = new DataPackage();
 			var description = LoadZipPackageDescription(openZip);
-			r.resources.AddRange(description.Resources.Select(x => 
+			r.AddResources(description.Resources.Select(x => 
 				TabularDataResource.From(x, new ZipResource(openZip, x).GetData)));
 
 			return r;
@@ -207,6 +207,9 @@ namespace DataBoss.DataPackage
 			resources.Add(resource);
 			return new DataPackageResourceBuilder(this, resource);
 		}
+
+		void AddResources(IEnumerable<TabularDataResource> items) =>
+			resources.AddRange(items);
 
 		DataPackage IDataPackageBuilder.Done() => this;
 
