@@ -366,6 +366,43 @@ namespace DataBoss.DataPackage
 				() => (dp2.Resources[0] as CsvDataResource).Delimiter == "|");
 		}
 
+		[Fact]
+		public void remove_resource() {
+			var dp = new DataPackage();
+
+			dp.AddResource("resource-1", () => new[] { new { Id = 1 } });
+			dp.AddResource("resource-2", () => new[] { new { Id = 2 } });
+
+			dp.RemoveResource("resource-1");
+			Check.That(
+				() => dp.Resources.Any(x => x.Name == "resource-1") == false);
+		}
+
+		[Fact]
+		public void cant_remove_referenced_resource() {
+			var dp = new DataPackage();
+
+			dp.AddResource("resource-1", () => new[] { new { Id = 1 } });
+			dp.AddResource("resource-2", () => new[] { new { Id = 1 } })
+				.WithForeignKey("Id", new DataPackageKeyReference("resource-1", "Id"));
+
+			Check.Exception<InvalidOperationException>(
+				() => dp.RemoveResource("resource-1"));
+		}
+
+		[Fact]
+		public void remove_resource_drop_constraints() {
+			var dp = new DataPackage();
+
+			dp.AddResource("resource-1", () => new[] { new { Id = 1 } });
+			dp.AddResource("resource-2", () => new[] { new { Id = 1 } })
+				.WithForeignKey("Id", new DataPackageKeyReference("resource-1", "Id"));
+
+			dp.RemoveResource("resource-1", ConstraintsBehavior.Drop);
+			Check.That(
+				() => dp.GetResource("resource-2").Schema.ForeignKeys.Any() == false);
+		}
+
 		class DateTimeFormatRow
 		{
 			#pragma warning disable CS0649//never assigned.

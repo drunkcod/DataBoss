@@ -23,6 +23,20 @@ namespace DataBoss.DataPackage
 		public static explicit operator long(CsvInteger self) => long.Parse(self.Value, self.Format);
 	}
 
+	public struct CsvNumber
+	{
+		public readonly string Value;
+		public readonly IFormatProvider Format;
+
+		public CsvNumber(string value, IFormatProvider format) {
+			this.Value = value;
+			this.Format = format;
+		}
+
+		public static explicit operator float(CsvNumber self) => float.Parse(self.Value, self.Format);
+		public static explicit operator double(CsvNumber self) => double.Parse(self.Value, self.Format);
+	}
+
 	public class CsvDataReader : IDataReader, IDataRecordReader
 	{
 		class CsvDataRecord : IDataRecord
@@ -93,6 +107,7 @@ namespace DataBoss.DataPackage
 			public TimeSpan GetTimeSpan(int i) => GetFieldValue<TimeSpan>(i);
 
 			public CsvInteger GetCsvInteger(int i) => GetFieldValue<CsvInteger>(i);
+			public CsvNumber GetCsvNumber(int i) => GetFieldValue<CsvNumber>(i);
 
 			T GetFieldValue<T>(int i) {
 				if (CheckedIsNull(i))
@@ -127,6 +142,8 @@ namespace DataBoss.DataPackage
 
 				if (typeof(T) == typeof(CsvInteger))
 					return (T)(object)new CsvInteger(value, GetFieldFormat(i));
+				if (typeof(T) == typeof(CsvNumber))
+					return (T)(object)new CsvNumber(value, GetFieldFormat(i));
 
 				return (T)GetValue(i);
 			}
@@ -241,7 +258,7 @@ namespace DataBoss.DataPackage
 				"date" => MakeType(typeof(DateTime)),
 				"time" => MakeType(typeof(TimeSpan)),
 				"integer" => MakeType2(typeof(int), typeof(CsvInteger)),
-				"number" => MakeType(typeof(double)),
+				"number" => MakeType2(typeof(double), typeof(CsvNumber)),
 				"string" => field.Format switch {
 					"binary" => MakeType(typeof(byte[])),
 					"uuid" => MakeType(typeof(Guid)),
@@ -320,7 +337,9 @@ namespace DataBoss.DataPackage
 		public decimal GetDecimal(int i) => current.GetDecimal(i);
 		public DateTime GetDateTime(int i) => current.GetDateTime(i);
 		public TimeSpan GetTimeSpan(int i) => current.GetTimeSpan(i);
+
 		public CsvInteger GetCsvInteger(int i) => current.GetCsvInteger(i);
+		public CsvNumber GetCsvNumber(int i) => current.GetCsvNumber(i);
 
 		public int GetValues(object[] values) {
 			var n = Math.Min(FieldCount, values.Length);

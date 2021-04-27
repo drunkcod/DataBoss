@@ -27,14 +27,23 @@ namespace DataBoss.DataPackage
 		public bool HasHeaderRow = true;
 	}
 
+	public enum ConstraintsBehavior
+	{
+		Check,
+		Ignore,
+		Drop,
+	}
+
 	public partial class DataPackage : IDataPackageBuilder
 	{
+		readonly List<TabularDataResource> resources = new();
+
 		delegate bool TryGetResourceOutputPath(ResourcePath path, out string outputPath);
 
 		const int StreamBufferSize = 81920;
 		public const string DefaultDelimiter = ";";
 
-		public readonly List<TabularDataResource> Resources = new List<TabularDataResource>();
+		public IReadOnlyList<TabularDataResource> Resources => resources.AsReadOnly();
 
 		class DataPackageResourceBuilder : IDataPackageResourceBuilder
 		{
@@ -62,7 +71,7 @@ namespace DataBoss.DataPackage
 			}
 
 			public IDataPackageResourceBuilder WithForeignKey(DataPackageForeignKey fk) {
-				if(!package.Resources.Any(x => x.Name == fk.Reference.Resource))
+				if(!package.resources.Any(x => x.Name == fk.Reference.Resource))
 					throw new InvalidOperationException($"Missing resource '{fk.Reference.Resource}'");
 				resource.Schema.ForeignKeys.Add(fk);
 				return this;
@@ -94,7 +103,7 @@ namespace DataBoss.DataPackage
 			}
 
 			var r = new DataPackage();
-			r.Resources.AddRange(description.Resources.Select(x =>
+			r.resources.AddRange(description.Resources.Select(x =>
 				TabularDataResource.From(x, () =>
 					CreateCsvDataReader(x, WebResponseStream.Get))));
 
@@ -109,7 +118,7 @@ namespace DataBoss.DataPackage
 			}
 
 			var r = new DataPackage();
-			r.Resources.AddRange(description.Resources.Select(x =>
+			r.resources.AddRange(description.Resources.Select(x =>
 				TabularDataResource.From(x, () => CreateCsvDataReader(x, openRead))));
 
 			return r;
@@ -121,7 +130,7 @@ namespace DataBoss.DataPackage
 		public static DataPackage LoadZip(Func<Stream> openZip) {
 			var r = new DataPackage();
 			var description = LoadZipPackageDescription(openZip);
-			r.Resources.AddRange(description.Resources.Select(x => 
+			r.resources.AddRange(description.Resources.Select(x => 
 				TabularDataResource.From(x, new ZipResource(openZip, x).GetData)));
 
 			return r;
@@ -175,7 +184,7 @@ namespace DataBoss.DataPackage
 
 		public IDataPackageResourceBuilder AddResource(CsvResourceOptions item) {
 			var parts = item.Path
-				.Select(path => Resources.First(x => x.Path.Count == 1 && x.Path == path))
+				.Select(path => resources.First(x => x.Path.Count == 1 && x.Path == path))
 				.Select(x => x.Read());
 
 			return AddResource(item, () => new MultiDataReader(parts));
@@ -195,24 +204,53 @@ namespace DataBoss.DataPackage
 						HasHeaderRow = item.HasHeaderRow,
 					}
 				}, getData);
-			Resources.Add(resource);
+			resources.Add(resource);
 			return new DataPackageResourceBuilder(this, resource);
 		}
 
 		DataPackage IDataPackageBuilder.Done() => this;
 
 		public void UpdateResource(string name, Func<TabularDataResource, TabularDataResource> doUpdate) {
-			var found = Resources.FindIndex(x => x.Name == name);
+			var found = resources.FindIndex(x => x.Name == name);
 			if(found == -1)
 				throw new InvalidOperationException($"Resource '{name}' not found.");
-			Resources[found] = doUpdate(Resources[found]);
+			resources[found] = doUpdate(resources[found]);
 		}
 
 		public void TransformResource(string name, Action<DataReaderTransform> defineTransform) =>
 			UpdateResource(name, xs => xs.Transform(defineTransform));
 
 		public TabularDataResource GetResource(string name) => 
-			Resources.SingleOrDefault(x => x.Name == name) ?? throw new InvalidOperationException($"Invalid resource name '{name}'");
+			resources.SingleOrDefault(x => x.Name == name) ?? throw new InvalidOperationException($"Invalid resource name '{name}'");
+
+		public void RemoveResource(string name) =>
+			RemoveResource(name, ConstraintsBehavior.Check);
+
+		public void RemoveResource(string name, ConstraintsBehavior constraintsBehavior) {
+			var r = GetResource(name);
+			switch(constraintsBehavior) {
+				case ConstraintsBehavior.Check:
+					var references = GetForeignKeys()
+							.Where(x => x.ForeignKey.Reference.Resource == r.Name)
+							.ToList();
+
+					if (references.Any())
+						throw new InvalidOperationException($"Can't remove resource {name}, it's referenced by: {string.Join(", ", references.Select(x => x.Resource.Name))}.");
+					break;
+
+				case ConstraintsBehavior.Drop:
+					foreach (var item in resources)
+						item.Schema.ForeignKeys.RemoveAll(x => x.Reference.Resource == name);
+					break;
+			}
+			resources.Remove(r);
+		}
+
+		IEnumerable<(TabularDataResource Resource, DataPackageForeignKey ForeignKey)> GetForeignKeys() {
+			foreach (var resource in resources)
+				foreach (var item in resource.Schema.ForeignKeys)
+					yield return (resource, item);
+		}
 
 		public void Save(Func<string, Stream> createOutput, CultureInfo culture = null) =>
 			Save(createOutput, new DataPackageSaveOptions { Culture = culture });
@@ -223,7 +261,7 @@ namespace DataBoss.DataPackage
 			var defaultFormatter = new RecordFormatter(options.Culture ?? CultureInfo.InvariantCulture);
 			var writtenPaths = new HashSet<string>();
 
-			foreach (var item in Resources) {
+			foreach (var item in resources) {
 				using var data = item.Read();
 				var desc = item.GetDescription();
 				desc.Path = item.Path;
