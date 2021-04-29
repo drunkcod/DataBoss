@@ -5,15 +5,21 @@ using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq.Expressions;
+using System.Threading.Tasks;
 using DataBoss.Data;
+using DataBoss.Threading;
 
 namespace DataBoss.DataPackage
 {
 	public interface IDataPackageBuilder
 	{
 		IDataPackageResourceBuilder AddResource(string name, Func<IDataReader> getData);
+		
 		void Save(Func<string, Stream> createOutput, DataPackageSaveOptions options);
+		Task SaveAsync(Func<string, Stream> createOutput, DataPackageSaveOptions options);
+		
 		DataPackage Serialize(CultureInfo culture = null);
+		Task<DataPackage> SerializeAsync(CultureInfo culture = null);
 		DataPackage Done();
 	}
 
@@ -58,14 +64,20 @@ namespace DataBoss.DataPackage
 		public static void SaveZip(this IDataPackageBuilder self, Stream stream, CultureInfo culture = null) =>
 			SaveZip(self, stream, new DataPackageSaveOptions { Culture = culture }, leaveOpen: false);
 
-		public static void SaveZip(this IDataPackageBuilder self, Stream stream, DataPackageSaveOptions options, bool leaveOpen = false) {
+		public static void SaveZip(this IDataPackageBuilder self, Stream stream, DataPackageSaveOptions options, bool leaveOpen = false) =>
+			TaskRunner.Run(() => SaveZipAsync(self, stream, options, leaveOpen));
+
+		public static Task SaveZipAsync(this IDataPackageBuilder self, Stream stream, CultureInfo culture = null) =>
+			SaveZipAsync(self, stream, new DataPackageSaveOptions { Culture = culture }, leaveOpen: false);
+
+		public static async Task SaveZipAsync(this IDataPackageBuilder self, Stream stream, DataPackageSaveOptions options, bool leaveOpen = false) {
 			if(!stream.CanSeek)//work around for ZipArchive Create mode reading Position.
 				stream = new ZipOutputStream(stream);
 
 			using var zip = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: leaveOpen);
 			var compressionLevel = options.ResourceCompression.ArchiveCompressionLevel;
 
-			self.Save(x => {
+			await self.SaveAsync(x => {
 				var e = zip.CreateEntry(x, compressionLevel);
 				SetExternalAttributes(e);
 				return e.Open();

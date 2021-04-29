@@ -5,7 +5,6 @@ using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -15,6 +14,7 @@ using CsvHelper.Configuration;
 using DataBoss.Data;
 using DataBoss.DataPackage.Schema;
 using DataBoss.Linq;
+using DataBoss.Threading;
 using DataBoss.Threading.Channels;
 using Newtonsoft.Json;
 
@@ -47,8 +47,14 @@ namespace DataBoss.DataPackage
 			public void Save(Func<string, Stream> createOutput, DataPackageSaveOptions options) =>
 				package.Save(createOutput, options);
 
+			public Task SaveAsync(Func<string, Stream> createOutput, DataPackageSaveOptions options) =>
+				package.SaveAsync(createOutput, options);
+
 			public DataPackage Serialize(CultureInfo culture) =>
 				package.Serialize(culture);
+
+			public Task<DataPackage> SerializeAsync(CultureInfo culture) =>
+				package.SerializeAsync(culture);
 
 			public IDataPackageResourceBuilder WithPrimaryKey(params string[] parts) {
 				if(parts != null && parts.Length > 0)
@@ -245,34 +251,7 @@ namespace DataBoss.DataPackage
 			Save(createOutput, new DataPackageSaveOptions { Culture = culture });
 
 		public void Save(Func<string, Stream> createOutput, DataPackageSaveOptions options) =>
-			RunTask(SaveAsync(createOutput, options));
-
-		class TaskRunnerState
-		{
-			public Task Task;
-			public Exception Exception;
-		}
-
-		static void RunTask(object obj) {
-			var state = (TaskRunnerState)obj;
-			try {
-				state.Task.Wait();
-			} catch(Exception ex) {
-				state.Exception = ex;
-			}
-		}
-
-		static void RunTask(Task task) {
-			var t = new Thread(RunTask) {
-				IsBackground = true,
-				Name = "TaskRunner",
-			};
-			var state = new TaskRunnerState { Task = task };
-			t.Start(state);
-			t.Join();
-			if (state.Exception != null)
-				ExceptionDispatchInfo.Capture(state.Exception).Throw();
-		}
+			TaskRunner.Run(() => SaveAsync(createOutput, options));
 
 		public async Task SaveAsync(Func<string, Stream> createOutput, CultureInfo culture = null) =>
 			await SaveAsync(createOutput, new DataPackageSaveOptions { Culture = culture });
@@ -315,11 +294,9 @@ namespace DataBoss.DataPackage
 					var output = options.ResourceCompression.WrapWrite(createOutput(outputPath));
 					try {
 						await WriteRecordsAsync(output, desc.Dialect, data, toString);
-					}
-					catch (Exception ex) {
+					} catch (Exception ex) {
 						throw new Exception($"Failed writing {item.Name}.", ex);
-					}
-					finally {
+					} finally {
 						writtenPaths.Add(outputPath);
 						output.Dispose();
 					}
@@ -333,6 +310,13 @@ namespace DataBoss.DataPackage
 		public DataPackage Serialize(CultureInfo culture = null) {
 			var bytes = new MemoryStream();
 			this.SaveZip(bytes, culture);
+			bytes.TryGetBuffer(out var buffer);
+			return LoadZip(() => new MemoryStream(buffer.Array, buffer.Offset, buffer.Count, false));
+		}
+
+		public async Task<DataPackage> SerializeAsync(CultureInfo culture = null) {
+			var bytes = new MemoryStream();
+			await this.SaveZipAsync(bytes, culture);
 			bytes.TryGetBuffer(out var buffer);
 			return LoadZip(() => new MemoryStream(buffer.Array, buffer.Offset, buffer.Count, false));
 		}
@@ -453,14 +437,14 @@ namespace DataBoss.DataPackage
 			});
 
 			var cancellation = new CancellationTokenSource();
-			var reader = new RecordReader(data.AsDataRecordReader(), records, cancellation.Token);
-			var writeTask = csv.WriteChunksAsync(records, chunks, toString);
+			var readerTask = new RecordReader(data.AsDataRecordReader(), records, cancellation.Token).RunAsync();
+			var writerTask = csv.WriteChunksAsync(records, chunks, toString);
 
-			writeTask.ContinueWith(_ => cancellation.Cancel(), TaskContinuationOptions.OnlyOnFaulted);
+			writerTask.ContinueWith(_ => cancellation.Cancel(), TaskContinuationOptions.OnlyOnFaulted);
 
 			return Task.WhenAll(
-				reader.RunAsync(), 
-				writeTask,
+				readerTask, 
+				writerTask,
 				chunks.Reader.ForEachAsync(x => x.CopyTo(output)));
 		}
 
