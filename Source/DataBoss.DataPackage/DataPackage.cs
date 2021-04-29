@@ -5,6 +5,7 @@ using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -242,8 +243,41 @@ namespace DataBoss.DataPackage
 
 		public void Save(Func<string, Stream> createOutput, CultureInfo culture = null) =>
 			Save(createOutput, new DataPackageSaveOptions { Culture = culture });
-		
-		public void Save(Func<string, Stream> createOutput, DataPackageSaveOptions options) {
+
+		public void Save(Func<string, Stream> createOutput, DataPackageSaveOptions options) =>
+			RunTask(SaveAsync(createOutput, options));
+
+		class TaskRunnerState
+		{
+			public Task Task;
+			public Exception Exception;
+		}
+
+		static void RunTask(object obj) {
+			var state = (TaskRunnerState)obj;
+			try {
+				state.Task.Wait();
+			} catch(Exception ex) {
+				state.Exception = ex;
+			}
+		}
+
+		static void RunTask(Task task) {
+			var t = new Thread(RunTask) {
+				IsBackground = true,
+				Name = "TaskRunner",
+			};
+			var state = new TaskRunnerState { Task = task };
+			t.Start(state);
+			t.Join();
+			if (state.Exception != null)
+				ExceptionDispatchInfo.Capture(state.Exception).Throw();
+		}
+
+		public async Task SaveAsync(Func<string, Stream> createOutput, CultureInfo culture = null) =>
+			await SaveAsync(createOutput, new DataPackageSaveOptions { Culture = culture });
+
+		public async Task SaveAsync(Func<string, Stream> createOutput, DataPackageSaveOptions options) {
 			var description = new DataPackageDescription();
 			var decimalCharOverride = options.Culture?.NumberFormat.NumberDecimalSeparator;
 			var defaultFormatter = new RecordFormatter(options.Culture ?? CultureInfo.InvariantCulture);
@@ -280,7 +314,7 @@ namespace DataBoss.DataPackage
 					desc.Path = outputPath;
 					var output = options.ResourceCompression.WrapWrite(createOutput(outputPath));
 					try {
-						WriteRecords(output, desc.Dialect, data, toString);
+						await WriteRecordsAsync(output, desc.Dialect, data, toString);
 					}
 					catch (Exception ex) {
 						throw new Exception($"Failed writing {item.Name}.", ex);
@@ -401,7 +435,7 @@ namespace DataBoss.DataPackage
 			public void Flush() => csv.Writer.Flush();
 		}
 
-		static void WriteRecords(Stream output, CsvDialectDescription csvDialect, IDataReader data, Func<IDataRecord, int, string>[] toString) {
+		static Task WriteRecordsAsync(Stream output, CsvDialectDescription csvDialect, IDataReader data, Func<IDataRecord, int, string>[] toString) {
 
 			var csv = new CsvRecordWriter(csvDialect.Delimiter, Encoding.UTF8);
 			if (csvDialect.HasHeaderRow) {
@@ -424,7 +458,7 @@ namespace DataBoss.DataPackage
 
 			writeTask.ContinueWith(_ => cancellation.Cancel(), TaskContinuationOptions.OnlyOnFaulted);
 
-			Task.WaitAll(
+			return Task.WhenAll(
 				reader.RunAsync(), 
 				writeTask,
 				chunks.Reader.ForEachAsync(x => x.CopyTo(output)));

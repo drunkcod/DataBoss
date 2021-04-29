@@ -36,7 +36,7 @@ namespace DataBoss.Threading.Channels
 			do {
 				while (r.TryRead(out var item))
 					action(item);
-			} while (await r.WaitToReadAsync());
+			} while (await r.WaitToReadAsync().ConfigureAwait(false));
 		}
 
 		public static IEnumerable<T> GetConsumingEnumerable<T>(this ChannelReader<T> r) {

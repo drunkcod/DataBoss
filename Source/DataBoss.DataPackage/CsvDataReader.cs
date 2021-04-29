@@ -12,9 +12,8 @@ namespace DataBoss.DataPackage
 	{
 		class CsvDataRecord : IDataRecord
 		{
-			static readonly Func<int, bool> NoData = delegate {
-				throw new InvalidOperationException("Invalid attempt to read when no data is present, call Read()");
-			}; 
+			static readonly Func<int, bool> NoData = InvalidGetAttempt;
+			static bool InvalidGetAttempt(int i) => throw new InvalidOperationException("Invalid attempt to read when no data is present, call Read()");
 
 			readonly string[] fieldValue;
 			readonly BitArray isNull;
@@ -30,7 +29,7 @@ namespace DataBoss.DataPackage
 				this.fieldValue = fieldValue;
 				this.parent = parent;
 				this.rowNumber = rowNumber;
-				this.checkedIsNull = NoData;
+				this.checkedIsNull = rowNumber == -1 ? NoData : CheckedIsNullUnsafe;
 			}
 
 			public CsvDataRecord Clone() => new CsvDataRecord(parent, rowNumber, new BitArray(isNull), (string[])fieldValue.Clone());
