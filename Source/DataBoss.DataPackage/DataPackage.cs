@@ -19,21 +19,6 @@ using Newtonsoft.Json;
 
 namespace DataBoss.DataPackage
 {
-	public class CsvResourceOptions
-	{
-		public string Name;
-		public ResourcePath Path;
-
-		public bool HasHeaderRow = true;
-	}
-
-	public enum ConstraintsBehavior
-	{
-		Check,
-		Ignore,
-		Drop,
-	}
-
 	public partial class DataPackage : IDataPackageBuilder
 	{
 		readonly List<TabularDataResource> resources = new();
@@ -318,13 +303,111 @@ namespace DataBoss.DataPackage
 			return LoadZip(() => new MemoryStream(buffer.Array, buffer.Offset, buffer.Count, false));
 		}
 
-		static CsvWriter NewCsvWriter(Stream stream, Encoding encoding, string delimiter) => 
-			new CsvWriter(new StreamWriter(stream, encoding, StreamBufferSize, leaveOpen: true), delimiter);
+		class CsvRecordWriter
+		{
+			readonly string delimiter;
+			public readonly Encoding Encoding;
+
+			public CsvRecordWriter(string delimiter, Encoding encoding) {
+				this.delimiter = delimiter;
+				this.Encoding = encoding;
+			}
+
+			public CsvFragmentWriter NewFragmentWriter(Stream stream) =>
+				new CsvFragmentWriter(new CsvWriter(new StreamWriter(stream, Encoding, StreamBufferSize, leaveOpen: true), delimiter));
+
+			public Task WriteChunksAsync(ChannelReader<IReadOnlyCollection<IDataRecord>> records, ChannelWriter<MemoryStream> chunks, Func<IDataRecord, int, string>[] toString) {
+				var writer = new ChunkWriter(records, chunks, this) {
+					FormatValue = toString,
+				};
+				return writer.RunAsync();
+			}
+
+			class ChunkWriter : WorkItem
+			{
+				readonly ChannelReader<IReadOnlyCollection<IDataRecord>> records;
+				readonly ChannelWriter<MemoryStream> chunks;
+				readonly CsvRecordWriter csv;
+				readonly int bomLength;
+				int chunkCapacity = 4 * 4096;
+
+				public ChunkWriter(ChannelReader<IReadOnlyCollection<IDataRecord>> records, ChannelWriter<MemoryStream> chunks, CsvRecordWriter csv) {
+					this.records = records;
+					this.chunks = chunks;
+					this.csv = csv;
+					this.bomLength = csv.Encoding.GetPreamble().Length;
+				}
+
+				public Func<IDataRecord, int, string>[] FormatValue;
+				public int MaxWorkers = 1;
+
+				protected override void DoWork() {
+					if (MaxWorkers == 1)
+						records.ForEach(WriteRecords);
+					else
+						records.GetConsumingEnumerable().AsParallel()
+							.WithDegreeOfParallelism(MaxWorkers)
+							.ForAll(WriteRecords);
+				}
+
+				void WriteRecords(IReadOnlyCollection<IDataRecord> item) {
+					if (item.Count == 0)
+						return;
+
+					var chunk = new MemoryStream(chunkCapacity);
+					using (var fragment = csv.NewFragmentWriter(chunk))
+						foreach (var r in item)
+							fragment.WriteRecord(r, FormatValue);
+
+					if (chunk.Position != 0) {
+						chunkCapacity = Math.Max(chunkCapacity, chunk.Capacity);
+						WriteChunk(chunk);
+					}
+				}
+
+				void WriteChunk(MemoryStream chunk) {
+					chunk.Position = bomLength;
+					chunks.Write(chunk);
+				}
+
+				protected override void Cleanup() =>
+					chunks.Complete();
+			}
+		}
+
+		class CsvFragmentWriter : IDisposable
+		{
+			readonly CsvWriter csv;
+
+			public CsvFragmentWriter(CsvWriter csv) {
+				this.csv = csv;
+			}
+
+			public void Dispose() => csv.Dispose();
+
+			public void WriteField(string value) => csv.WriteField(value);
+			public void NextField() => csv.NextField();
+
+			public void WriteRecord(IDataRecord r, Func<IDataRecord, int, string>[] recordFormat) {
+				for (var i = 0; i != r.FieldCount; ++i) {
+					if (r.IsDBNull(i))
+						NextField();
+					else
+						WriteField(recordFormat[i](r, i));
+				}
+				NextRecord();
+			}
+			public void NextRecord() => csv.NextRecord();
+			public void Flush() => csv.Writer.Flush();
+		}
 
 		static void WriteRecords(Stream output, CsvDialectDescription csvDialect, IDataReader data, Func<IDataRecord, int, string>[] toString) {
 
-			if(csvDialect.HasHeaderRow)
-				WriteHeaderRecord(output, Encoding.UTF8, csvDialect.Delimiter, data);
+			var csv = new CsvRecordWriter(csvDialect.Delimiter, Encoding.UTF8);
+			if (csvDialect.HasHeaderRow) {
+				using var headerFragment = csv.NewFragmentWriter(output);
+				WriteHeaderRecord(headerFragment, data);
+			}
 
 			var records = Channel.CreateBounded<IReadOnlyCollection<IDataRecord>>(new BoundedChannelOptions(1024) {
 				SingleWriter = true,
@@ -337,11 +420,7 @@ namespace DataBoss.DataPackage
 
 			var cancellation = new CancellationTokenSource();
 			var reader = new RecordReader(data.AsDataRecordReader(), records, cancellation.Token);
-			var writer = new ChunkWriter(records, chunks, new UTF8Encoding(false)) {
-				Delimiter = csvDialect.Delimiter,
-				FormatValue = toString,
-			};
-			var writeTask = writer.RunAsync();
+			var writeTask = csv.WriteChunksAsync(records, chunks, toString);
 
 			writeTask.ContinueWith(_ => cancellation.Cancel(), TaskContinuationOptions.OnlyOnFaulted);
 
@@ -351,12 +430,11 @@ namespace DataBoss.DataPackage
 				chunks.Reader.ForEachAsync(x => x.CopyTo(output)));
 		}
 
-		static void WriteHeaderRecord(Stream output, Encoding encoding, string delimiter, IDataReader data) {
-			using var csv = NewCsvWriter(output, encoding, delimiter);
+		static void WriteHeaderRecord(CsvFragmentWriter csv, IDataRecord data) {
 			for (var i = 0; i != data.FieldCount; ++i)
 				csv.WriteField(data.GetName(i));
 			csv.NextRecord();
-			csv.Writer.Flush();
+			csv.Flush();
 		}
 
 		abstract class WorkItem
@@ -429,65 +507,6 @@ namespace DataBoss.DataPackage
 
 			protected override void Cleanup() =>
 				writer.Complete();
-		}
-
-		class ChunkWriter : WorkItem
-		{
-			readonly ChannelReader<IReadOnlyCollection<IDataRecord>> records;
-			readonly ChannelWriter<MemoryStream> chunks;
-			readonly Encoding encoding;
-			readonly int bomLength;
-			int chunkCapacity = 4 * 4096; 
-
-			public ChunkWriter(ChannelReader<IReadOnlyCollection<IDataRecord>> records, ChannelWriter<MemoryStream> chunks, Encoding encoding) {
-				this.records = records;
-				this.chunks = chunks;
-				this.encoding = encoding;
-				this.bomLength = encoding.GetPreamble().Length;
-			}
-
-			public Func<IDataRecord, int, string>[] FormatValue;
-			public string Delimiter;
-			public int MaxWorkers = 1;
-
-			protected override void DoWork() {
-				if (MaxWorkers == 1)
-					records.ForEach(WriteRecords);
-				else 
-					records.GetConsumingEnumerable().AsParallel()
-						.WithDegreeOfParallelism(MaxWorkers)
-						.ForAll(WriteRecords);
-			}
-
-			void WriteRecords(IReadOnlyCollection<IDataRecord> item) {
-				if (item.Count == 0)
-					return;
-
-				var chunk = new MemoryStream(chunkCapacity);
-				using (var fragment = NewCsvWriter(chunk, encoding, Delimiter)) {
-					foreach (var r in item) {
-						for (var i = 0; i != r.FieldCount; ++i) {
-							if (r.IsDBNull(i))
-								fragment.NextField();
-							else
-								fragment.WriteField(FormatValue[i](r, i));
-						}
-						fragment.NextRecord();
-					}
-				}
-				if (chunk.Position != 0) {
-					chunkCapacity = Math.Max(chunkCapacity, chunk.Capacity);
-					WriteChunk(chunk);
-				}
-			}
-
-			void WriteChunk(MemoryStream chunk) {
-				chunk.Position = bomLength;
-				chunks.Write(chunk);
-			}
-
-			protected override void Cleanup() =>
-				chunks.Complete();
 		}
 	}
 

@@ -64,7 +64,7 @@ namespace DataBoss.DataPackage
 		public IEnumerable<T> Read<T>() => 
 			ObjectReader.Read<T>(Read(), CustomConverters);
 
-		static readonly ConverterCollection CustomConverters = new ConverterCollection {
+		static readonly ConverterCollection CustomConverters = new() {
 			new Func<string, char>(StringToChar),
 		};
 
@@ -86,7 +86,7 @@ namespace DataBoss.DataPackage
 		}
 
 		protected virtual TabularDataResource Rebind(string name, TabularDataSchema schema, Func<IDataReader> getData) =>
-			new TabularDataResource(new DataPackageResourceDescription {
+			new(new DataPackageResourceDescription {
 				Name = name,
 				Schema = schema,
 				Path = Path,
@@ -100,7 +100,7 @@ namespace DataBoss.DataPackage
 			
 			for (var i = 0; i != reader.FieldCount; ++i) {
 				TabularDataSchemaFieldConstraints constraints = null;
-				TabularDataSchemaFieldConstraints FieldConstraints() => constraints ??= new TabularDataSchemaFieldConstraints();
+				TabularDataSchemaFieldConstraints FieldConstraints() => constraints ??= new();
 				if (schema.TryGetValue(i, out var found)) {
 					if(!found.AllowDBNull)
 						FieldConstraints().IsRequired = true;
@@ -138,35 +138,11 @@ namespace DataBoss.DataPackage
 				case TypeCode.String: return ("string", null);
 			}
 
-			switch (type.FullName) {
-				default:
-					return (type.SingleOrDefault<FieldAttribute>()?.SchemaType ?? throw new NotSupportedException($"Can't map {type}"), null);
-				case "System.TimeSpan": return ("time", null);
-				case "System.Byte[]": return ("string", "binary");
-				case "System.Guid": return ("string", "uuid");
-			}
-		}
-	}
-
-	public class CsvDataResource : TabularDataResource
-	{
-		public string Delimiter;
-		public bool HasHeaderRow;
-
-		public CsvDataResource(DataPackageResourceDescription description, Func<IDataReader> getData) : base(description, getData, "csv") {
-			this.HasHeaderRow = description.Dialect?.HasHeaderRow ?? true;
-		}
-
-		protected override TabularDataResource Rebind(string name, TabularDataSchema schema, Func<IDataReader> getData) =>
-			new CsvDataResource(new DataPackageResourceDescription {
-				Name = name,
-				Schema = schema,
-			}, getData) { Delimiter = Delimiter };
-
-		protected override void UpdateDescription(DataPackageResourceDescription description) {
-			description.Dialect = new CsvDialectDescription { 
-				Delimiter = Delimiter,
-				HasHeaderRow = HasHeaderRow,
+			return type.FullName switch {
+				"System.TimeSpan" => ("time", null),
+				"System.Byte[]" => ("string", "binary"),
+				"System.Guid" => ("string", "uuid"),
+				_ => (type.SingleOrDefault<FieldAttribute>()?.SchemaType ?? throw new NotSupportedException($"Can't map {type}"), null),
 			};
 		}
 	}
