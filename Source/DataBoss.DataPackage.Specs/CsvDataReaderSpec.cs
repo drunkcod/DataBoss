@@ -105,6 +105,17 @@ namespace DataBoss.DataPackage
 				xs => xs[0].Value == 3.1415);
 		}
 
+		[Fact]
+		public void gets_angry_when_read_not_called() {
+			var dp = new DataPackage()
+				.AddResource("numbers", () => new[] { new { Value = 1 } })
+				.Serialize();
+
+			var r = dp.GetResource("numbers").Read();
+
+			Check.Exception<InvalidOperationException>(() => r.GetInt32(0));
+		}
+
 		class ValueRow<T> { public T Value { get; set; } }
 	}
 }

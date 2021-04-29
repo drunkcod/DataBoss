@@ -12,22 +12,33 @@ namespace DataBoss.DataPackage
 	{
 		class CsvDataRecord : IDataRecord
 		{
+			static readonly Func<int, bool> NoData = delegate {
+				throw new InvalidOperationException("Invalid attempt to read when no data is present, call Read()");
+			}; 
+
 			readonly string[] fieldValue;
 			readonly BitArray isNull;
 			readonly CsvDataReader parent;
+			Func<int, bool> checkedIsNull;
 			int rowNumber;
 
-			public CsvDataRecord(CsvDataReader parent, int rowNumber, BitArray isNull, string[] fieldValue) {
+			public CsvDataRecord(CsvDataReader parent, BitArray isNull, string[] fieldValue) : this(parent, -1, isNull, fieldValue) 
+			{ }
+			
+			CsvDataRecord(CsvDataReader parent, int rowNumber, BitArray isNull, string[] fieldValue) {
 				this.isNull = isNull;
 				this.fieldValue = fieldValue;
 				this.parent = parent;
 				this.rowNumber = rowNumber;
+				this.checkedIsNull = NoData;
 			}
 
 			public CsvDataRecord Clone() => new CsvDataRecord(parent, rowNumber, new BitArray(isNull), (string[])fieldValue.Clone());
 
 			public void Fill(int rowNumber, CsvReader csv) {
 				this.rowNumber = rowNumber;
+				if(checkedIsNull == NoData)
+					checkedIsNull = CheckedIsNullUnsafe;
 				for (var i = 0; i != FieldCount; ++i) {
 					var value = fieldValue[i] = csv.GetField(i);
 					isNull[i] = IsNull(value);
@@ -40,19 +51,18 @@ namespace DataBoss.DataPackage
 			public int FieldCount => fieldValue.Length;
 
 			public object GetValue(int i) {
-				if (CheckedIsNull(i))
+				if (checkedIsNull(i))
 					return DBNull.Value;
 
 				try {
 					return ChangeType(fieldValue[i], GetFieldType(i),  GetFieldFormat(i));
-				}
-				catch (FormatException ex) {
+				} catch (FormatException ex) {
 					var given = isNull[i] ? "null" : $"'{fieldValue[i]}'";
 					throw new InvalidOperationException($"Failed to parse {GetName(i)} of type {GetFieldType(i)} given {given} on line {rowNumber}", ex);
 				}
 			}
-			
-			bool CheckedIsNull(int i) {
+
+			bool CheckedIsNullUnsafe(int i) {
 				if (!isNull[i])
 					return false;
 				return parent.IsNullable(i) || UnexpectedNull(i);
@@ -73,7 +83,7 @@ namespace DataBoss.DataPackage
 			public float GetFloat(int i) => GetFieldValue<float>(i);
 			public double GetDouble(int i) => GetFieldValue<double>(i);
 			public decimal GetDecimal(int i) => GetFieldValue<decimal>(i);
-			public string GetString(int i) => CheckedIsNull(i) ? default : fieldValue[i];
+			public string GetString(int i) => checkedIsNull(i) ? default : fieldValue[i];
 			public DateTime GetDateTime(int i) => (DateTime)GetValue(i);
 			public TimeSpan GetTimeSpan(int i) => GetFieldValue<TimeSpan>(i);
 
@@ -81,7 +91,7 @@ namespace DataBoss.DataPackage
 			public CsvNumber GetCsvNumber(int i) => GetFieldValue<CsvNumber>(i);
 
 			T GetFieldValue<T>(int i) {
-				if (CheckedIsNull(i))
+				if (checkedIsNull(i))
 					return default;
 
 				var value = fieldValue[i];
@@ -170,7 +180,7 @@ namespace DataBoss.DataPackage
 			this.csv = csv; 
 			this.schema = new DataReaderSchemaTable();
 			this.fieldFormat = new IFormatProvider[fieldCount];
-			this.current = new CsvDataRecord(this, 0, new BitArray(fieldCount), new string[fieldCount]);
+			this.current = new CsvDataRecord(this, new BitArray(fieldCount), new string[fieldCount]);
 
 			TranslateSchema(tabularSchema);
 
