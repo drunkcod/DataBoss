@@ -7,7 +7,7 @@ namespace DataBoss.DataPackage
 	{
 		[JsonProperty("fields")]
 		[JsonConverter(typeof(ItemOrArrayJsonConverter))]
-		public IReadOnlyCollection<string> Fields { get; }
+		public IReadOnlyList<string> Fields { get; }
 
 		[JsonProperty("reference")]
 		public DataPackageKeyReference Reference { get; }

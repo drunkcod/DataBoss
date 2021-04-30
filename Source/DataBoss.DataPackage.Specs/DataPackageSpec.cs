@@ -398,7 +398,7 @@ namespace DataBoss.DataPackage
 			dp.AddResource("resource-2", () => new[] { new { Id = 1 } })
 				.WithForeignKey("Id", new DataPackageKeyReference("resource-1", "Id"));
 
-			dp.RemoveResource("resource-1", ConstraintsBehavior.Drop);
+			dp.RemoveResource("resource-1", ConstraintsBehavior.Drop, out var _);
 			Check.That(
 				() => dp.GetResource("resource-2").Schema.ForeignKeys.Any() == false);
 		}

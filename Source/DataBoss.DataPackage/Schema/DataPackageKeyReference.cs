@@ -9,7 +9,7 @@ namespace DataBoss.DataPackage
 		public string Resource { get; }
 		[JsonProperty("fields")]
 		[JsonConverter(typeof(ItemOrArrayJsonConverter))]
-		public IReadOnlyCollection<string> Fields { get; }
+		public IReadOnlyList<string> Fields { get; }
 
 		public DataPackageKeyReference(string resource, string field) : this(resource, new[]{ field }) { }
 		

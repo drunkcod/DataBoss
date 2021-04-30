@@ -216,18 +216,26 @@ namespace DataBoss.DataPackage
 			UpdateResource(name, xs => xs.Transform(defineTransform));
 
 		public TabularDataResource GetResource(string name) => 
-			resources.SingleOrDefault(x => x.Name == name) ?? throw new InvalidOperationException($"Invalid resource name '{name}'");
+			TryGetResource(name, out var found) ? found : throw new InvalidOperationException($"Invalid resource name '{name}'");
 
-		public void RemoveResource(string name) =>
-			RemoveResource(name, ConstraintsBehavior.Check);
+		public bool TryGetResource(string name, out TabularDataResource found) =>
+			(found = resources.SingleOrDefault(x => x.Name == name)) != null;
 
-		public void RemoveResource(string name, ConstraintsBehavior constraintsBehavior) {
-			var r = GetResource(name);
+		public bool RemoveResource(string name) =>
+			RemoveResource(name, ConstraintsBehavior.Check, out var _);
+
+		public bool RemoveResource(string name, out TabularDataResource value) =>
+			RemoveResource(name, ConstraintsBehavior.Check, out value);
+
+		public bool RemoveResource(string name, ConstraintsBehavior constraintsBehavior, out TabularDataResource value) {
+			if (!TryGetResource(name, out value))
+				return false;
+
 			switch(constraintsBehavior) {
 				case ConstraintsBehavior.Check:
 					var references = GetForeignKeys()
-							.Where(x => x.ForeignKey.Reference.Resource == r.Name)
-							.ToList();
+						.Where(x => x.ForeignKey.Reference.Resource == name)
+						.ToList();
 
 					if (references.Any())
 						throw new InvalidOperationException($"Can't remove resource {name}, it's referenced by: {string.Join(", ", references.Select(x => x.Resource.Name))}.");
@@ -238,13 +246,16 @@ namespace DataBoss.DataPackage
 						item.Schema.ForeignKeys.RemoveAll(x => x.Reference.Resource == name);
 					break;
 			}
-			resources.Remove(r);
+
+			resources.Remove(value);
+			return true;
 		}
 
 		IEnumerable<(TabularDataResource Resource, DataPackageForeignKey ForeignKey)> GetForeignKeys() {
 			foreach (var resource in resources)
-				foreach (var item in resource.Schema.ForeignKeys)
-					yield return (resource, item);
+				if(resource.Schema.ForeignKeys != null)
+					foreach (var item in resource.Schema.ForeignKeys)
+						yield return (resource, item);
 		}
 
 		public void Save(Func<string, Stream> createOutput, CultureInfo culture = null) =>
@@ -310,13 +321,16 @@ namespace DataBoss.DataPackage
 		public DataPackage Serialize(CultureInfo culture = null) {
 			var bytes = new MemoryStream();
 			this.SaveZip(bytes, culture);
-			bytes.TryGetBuffer(out var buffer);
-			return LoadZip(() => new MemoryStream(buffer.Array, buffer.Offset, buffer.Count, false));
+			return LoadZip(bytes);
 		}
 
 		public async Task<DataPackage> SerializeAsync(CultureInfo culture = null) {
 			var bytes = new MemoryStream();
 			await this.SaveZipAsync(bytes, culture);
+			return LoadZip(bytes);
+		}
+
+		static DataPackage LoadZip(MemoryStream bytes) {
 			bytes.TryGetBuffer(out var buffer);
 			return LoadZip(() => new MemoryStream(buffer.Array, buffer.Offset, buffer.Count, false));
 		}
@@ -420,7 +434,6 @@ namespace DataBoss.DataPackage
 		}
 
 		static Task WriteRecordsAsync(Stream output, CsvDialectDescription csvDialect, IDataReader data, Func<IDataRecord, int, string>[] toString) {
-
 			var csv = new CsvRecordWriter(csvDialect.Delimiter, Encoding.UTF8);
 			if (csvDialect.HasHeaderRow) {
 				using var headerFragment = csv.NewFragmentWriter(output);
