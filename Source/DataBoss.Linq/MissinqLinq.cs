@@ -156,8 +156,8 @@ namespace DataBoss.Linq
 			return r;
 		}
 
-		public static IEnumerable<T> EmptyIfNull<T>(this IEnumerable<T> items) 
-			=> items ?? Enumerable.Empty<T>();
+		public static IEnumerable<T> EmptyIfNull<T>(this IEnumerable<T> items) => 
+			items ?? Enumerable.Empty<T>();
 		
 		public static void ForEach<T>(this IEnumerable<T> self, Action<T> action) {
 			foreach(var item in self)

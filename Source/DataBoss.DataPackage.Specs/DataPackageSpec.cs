@@ -379,6 +379,20 @@ namespace DataBoss.DataPackage
 		}
 
 		[Fact]
+		public void remove_resource_serialized() {
+			var dp = new DataPackage();
+
+			dp.AddResource("resource-1", () => new[] { new { Id = 1 } });
+			dp.AddResource("resource-2", () => new[] { new { Id = 2 } });
+
+			var loaded = dp.Serialize();
+			loaded.RemoveResource("resource-1");
+			Check.That(
+				() => loaded.Resources.Any(x => x.Name == "resource-1") == false);
+		}
+
+
+		[Fact]
 		public void cant_remove_referenced_resource() {
 			var dp = new DataPackage();
 

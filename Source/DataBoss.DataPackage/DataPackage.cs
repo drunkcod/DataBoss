@@ -231,19 +231,20 @@ namespace DataBoss.DataPackage
 			if (!TryGetResource(name, out value))
 				return false;
 
-			switch(constraintsBehavior) {
+			var references = AllForeignKeys()
+				.Where(x => x.ForeignKey.Resource == name)
+				.ToList();
+
+			switch (constraintsBehavior) {
 				case ConstraintsBehavior.Check:
-					var references = AllForeignKeys()
-						.Where(x => x.ForeignKey.Resource == name)
-						.ToList();
 
 					if (references.Any())
 						throw new InvalidOperationException($"Can't remove resource {name}, it's referenced by: {string.Join(", ", references.Select(x => x.Resource.Name))}.");
 					break;
 
 				case ConstraintsBehavior.Drop:
-					foreach (var item in resources)
-						item.Schema.ForeignKeys.RemoveAll(x => x.Reference.Resource == name);
+					foreach (var item in references)
+						item.Resource.Schema.ForeignKeys.RemoveAll(x => x.Reference.Resource == name);
 					break;
 			}
 
@@ -252,7 +253,7 @@ namespace DataBoss.DataPackage
 		}
 
 		IEnumerable<(TabularDataResource Resource, DataPackageKeyReference ForeignKey)> AllForeignKeys() =>
-			resources.SelectMany(xs => xs.Schema?.ForeignKeys?.Select(x => (Resource: xs, ForeignKey: x.Reference)).EmptyIfNull()); 
+			resources.SelectMany(xs => xs.Schema?.ForeignKeys.EmptyIfNull().Select(x => (Resource: xs, ForeignKey: x.Reference))); 
 
 		public void Save(Func<string, Stream> createOutput, CultureInfo culture = null) =>
 			Save(createOutput, new DataPackageSaveOptions { Culture = culture });
