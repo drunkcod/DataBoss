@@ -14,6 +14,7 @@ namespace DataBoss.Data
 		public DataReaderSchemaRow this[int index] => rows[index];
 
 		public void Add(string name, int ordinal, Type columnType, bool allowDBNull, int? columnSize = null, string dataTypeName = null, Type providerSpecificDataType = null) {
+			var o = rows.Count;
 			rows.Add(new DataReaderSchemaRow {
 				ColumnName = name,
 				Ordinal = ordinal,
@@ -23,6 +24,8 @@ namespace DataBoss.Data
 				ColumnSize = columnSize,
 				DataTypeName = dataTypeName,
 			});
+			if (o != ordinal)
+				rows.Sort((a, b) => a.Ordinal.CompareTo(b.Ordinal));
 		}
 
 		public int GetOrdinal(string name) {

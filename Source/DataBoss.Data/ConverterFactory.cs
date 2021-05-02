@@ -172,14 +172,14 @@ namespace DataBoss.Data
 					Expression convertedField;
 					var canReadAsItem =
 						TryReadFieldAs(field.FieldType, o, item.Type, out convertedField)
-						|| (field.ProviderSpecificFieldType != null && TryReadFieldAs(field.ProviderSpecificFieldType, o, item.Type, out convertedField));
+						|| TryReadProviderSpecificFieldAs(item, field, o, ref convertedField);
 					if (!canReadAsItem) {
 						reader = default;
 						return BindingResult.InvalidCast;
 					}
 
-					var thisNull = field.CanBeNull 
-						? new[] { (item.Name, IsNull(o)) } 
+					var thisNull = field.CanBeNull
+						? new[] { (item.Name, IsNull(o)) }
 						: null;
 					reader = new MemberReader(field.Ordinal, item.Name, convertedField, thisNull);
 					return BindingResult.Ok;
@@ -191,6 +191,24 @@ namespace DataBoss.Data
 				}
 				reader = default;
 				return BindingResult.NotFound;
+			}
+
+			private bool TryReadProviderSpecificFieldAs(ItemInfo item, FieldMapItem field, ConstantExpression o, ref Expression convertedField) {
+				if (field.ProviderSpecificFieldType == null)
+					return false;
+
+				if (TryReadFieldAs(field.ProviderSpecificFieldType, o, item.Type, out convertedField))
+					return true;
+				
+				var getProviderSpecificValue = Arg0.Type.GetMethod("GetProviderSpecificValue");
+				if (getProviderSpecificValue == null)
+					return false;
+
+				var readProviderSpecific = Expression.Convert(
+					Expression.Call(Arg0, getProviderSpecificValue, o), 
+					field.ProviderSpecificFieldType);
+
+				return TryConvertField(readProviderSpecific, item.Type, out convertedField);
 			}
 
 			internal InvalidConversionException InvalidConversion(FieldMap map, in ItemInfo item) {

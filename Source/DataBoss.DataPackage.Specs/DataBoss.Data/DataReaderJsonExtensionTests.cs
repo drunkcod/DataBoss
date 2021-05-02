@@ -59,19 +59,4 @@ namespace DataBoss.Data
 
 		static string NewtonsoftSerialize(object value) => Newtonsoft.Json.JsonConvert.SerializeObject(value);
 	}
-
-	public class DataReaderSchemaTableTests
-	{
-		[Fact]
-		public void DataReaderSchemaTable_for_null_column_size() {
-			var sourceSchema = new DataReaderSchemaTable();
-			sourceSchema.Add("Column", 0, typeof(int), true, columnSize: null);
-
-			var schema = DataReaderExtensions.GetDataReaderSchemaTable(sourceSchema.ToDataTable());
-
-			Check.That(
-				() => schema[0].ColumnSize == sourceSchema[0].ColumnSize,
-				() => schema[0].ColumnName == sourceSchema[0].ColumnName);
-		}
-	}
 }

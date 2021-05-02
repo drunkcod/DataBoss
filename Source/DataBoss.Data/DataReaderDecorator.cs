@@ -15,6 +15,7 @@ namespace DataBoss.Data
 		public Func<int, string> GetName; 
 		public event Action<IDataRecord> RecordRead;
 		public event Action Closed;
+		public event Action Disposed;
 
 		public object this[int i] => inner[i];
 		public object this[string name] => inner[name];
@@ -36,6 +37,7 @@ namespace DataBoss.Data
 				Close();
 			inner.Dispose();
 			inner = null;
+			Disposed?.Invoke();
 		}
 
 		public bool GetBoolean(int i) => inner.GetBoolean(i);

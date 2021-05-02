@@ -20,7 +20,7 @@ using Newtonsoft.Json;
 
 namespace DataBoss.DataPackage
 {
-	public partial class DataPackage : IDataPackageBuilder
+	public class DataPackage : IDataPackageBuilder
 	{
 		readonly List<TabularDataResource> resources = new();
 
@@ -233,8 +233,8 @@ namespace DataBoss.DataPackage
 
 			switch(constraintsBehavior) {
 				case ConstraintsBehavior.Check:
-					var references = GetForeignKeys()
-						.Where(x => x.ForeignKey.Reference.Resource == name)
+					var references = AllForeignKeys()
+						.Where(x => x.ForeignKey.Resource == name)
 						.ToList();
 
 					if (references.Any())
@@ -251,12 +251,8 @@ namespace DataBoss.DataPackage
 			return true;
 		}
 
-		IEnumerable<(TabularDataResource Resource, DataPackageForeignKey ForeignKey)> GetForeignKeys() {
-			foreach (var resource in resources)
-				if(resource.Schema.ForeignKeys != null)
-					foreach (var item in resource.Schema.ForeignKeys)
-						yield return (resource, item);
-		}
+		IEnumerable<(TabularDataResource Resource, DataPackageKeyReference ForeignKey)> AllForeignKeys() =>
+			resources.SelectMany(xs => xs.Schema?.ForeignKeys?.Select(x => (Resource: xs, ForeignKey: x.Reference)).EmptyIfNull()); 
 
 		public void Save(Func<string, Stream> createOutput, CultureInfo culture = null) =>
 			Save(createOutput, new DataPackageSaveOptions { Culture = culture });

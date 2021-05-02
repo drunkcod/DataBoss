@@ -183,7 +183,7 @@ namespace DataBoss.Data
 
 		public override int Depth => throw new NotSupportedException();
 		public override bool HasRows => throw new NotSupportedException();
-		public override bool IsClosed => throw new NotSupportedException();
+		public override bool IsClosed => false;
 		public override int RecordsAffected => throw new NotSupportedException();
 
 		public override bool Read() { 

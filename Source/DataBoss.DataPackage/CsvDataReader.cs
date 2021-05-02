@@ -332,6 +332,15 @@ namespace DataBoss.DataPackage
 		public CsvInteger GetCsvInteger(int i) => current.GetCsvInteger(i);
 		public CsvNumber GetCsvNumber(int i) => current.GetCsvNumber(i);
 
+		public object GetProviderSpecificValue(int i) {
+			var t = GetProviderSpecificFieldType(i);
+			if (t == typeof(CsvInteger))
+				return GetCsvInteger(i);
+			if (t == typeof(CsvNumber))
+				return GetCsvNumber(i);
+			throw new InvalidOperationException();
+		}
+
 		public int GetValues(object[] values) {
 			var n = Math.Min(FieldCount, values.Length);
 			for(var i = 0; i != n; ++i)

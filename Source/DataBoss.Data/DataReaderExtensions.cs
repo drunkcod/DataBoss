@@ -32,18 +32,19 @@ namespace DataBoss.Data
 				ColumnSize: sourceSchema.Columns["ColumnSize"],
 				DataType: sourceSchema.Columns["DataType"],
 				DataTypeName: sourceSchema.Columns["DataTypeName"],
-				AllowDBNull: sourceSchema.Columns["AllowDBNull"]);
+				AllowDBNull: sourceSchema.Columns["AllowDBNull"],
+				ProviderSpecificDataType: sourceSchema.Columns["ProviderSpecificDataType"]);
 
 			for (var i = 0; i != sourceSchema.Rows.Count; ++i) {
 				var item = sourceSchema.Rows[i];
-				var row = (
-					 Name: (string)item[columns.ColumnName],
-					 Ordinal: (int)item[columns.ColumnOrdinal],
-					 DataType: (Type)item[columns.DataType],
-					 DataTypeName: DefaultIfDBNull<string>(item[columns.DataTypeName]),
-					 AllowDBNull: (bool)item[columns.AllowDBNull],
-					 Size: DefaultIfDBNull<int?>(item[columns.ColumnSize]));
-				schema.Add(row.Name, row.Ordinal, row.DataType, row.AllowDBNull, row.Size, row.DataTypeName);
+				schema.Add(
+					name: (string)item[columns.ColumnName],
+					ordinal: (int)item[columns.ColumnOrdinal],
+					columnType: (Type)item[columns.DataType],
+					dataTypeName: DefaultIfDBNull<string>(item[columns.DataTypeName]),
+					providerSpecificDataType: DefaultIfDBNull<Type>(item[columns.ProviderSpecificDataType]),
+					allowDBNull: (bool)item[columns.AllowDBNull],
+					columnSize: DefaultIfDBNull<int?>(item[columns.ColumnSize]));
 			}
 			return schema;
 		}

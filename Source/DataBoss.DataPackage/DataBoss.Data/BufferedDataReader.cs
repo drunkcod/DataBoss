@@ -105,9 +105,4 @@ namespace DataBoss.Data
 		public object GetValue(int i) => Current.GetValue(i);
 		public int GetValues(object[] values) => Current.GetValues(values);
 	}
-
-	public static class DataReaderBufferingExtensions
-	{
-		public static IDataReader AsBuffered(this IDataReader reader) => new BufferedDataReader(reader);
-	}
 }
