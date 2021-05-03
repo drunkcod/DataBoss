@@ -55,6 +55,9 @@ namespace DataBoss.DataPackage
 			return this;
 		}
 
+		public CsvResourceBuilder WithForeignKey(string field, DataPackageKeyReference reference) =>
+			WithForeignKey(new DataPackageForeignKey(field, reference));
+
 		public CsvResourceBuilder WithForeignKey(DataPackageForeignKey fk) {
 			schema.ForeignKeys.Add(fk);
 			return this;

@@ -196,13 +196,14 @@ namespace DataBoss.DataPackage
 		[Fact]
 		public void datetime_types() { 
 			var dp = new DataPackage()
-				.AddResource("dates-and-time", () => new[]{
-					new {
-						datetime = DateTime.Now,
-						date = (DataPackageDate)DateTime.Now,
-						time = DateTime.Now.TimeOfDay,
-					}, 
-				})
+				.AddResource(x => x
+					.WithName("dates-and-time")
+					.WithData(new [] {
+						new {
+							datetime = DateTime.Now,
+							date = (DataPackageDate)DateTime.Now,
+							time = DateTime.Now.TimeOfDay,
+						}, }))
 				.Serialize();
 
 			var r = dp.GetResource("dates-and-time");
@@ -221,13 +222,15 @@ namespace DataBoss.DataPackage
 			//clamp to seconds precision
 			timestamp = new DateTime(timestamp.Year, timestamp.Month, timestamp.Day, timestamp.Hour, timestamp.Minute, timestamp.Second, timestamp.Kind );
 			var dp = new DataPackage()
-				.AddResource("dates-and-time", () => new[]{
-					new {
-						datetime = timestamp,
-						date = (DataPackageDate)timestamp,
-						dpDate = timestamp,
-					},
-				})
+				.AddResource(x => x
+					.WithName("dates-and-time")
+					.WithData(new[]{
+						new {
+							datetime = timestamp,
+							date = (DataPackageDate)timestamp,
+							dpDate = timestamp,
+						},
+					}))
 				.Serialize();
 
 			var r = dp.GetResource("dates-and-time").Read<DateTimeFormatRow>().Single();
@@ -241,11 +244,11 @@ namespace DataBoss.DataPackage
 		public void time() {
 			var t = DateTime.Now;
 			var dp = new DataPackage()
-				.AddResource("times", () => new[]{
-					new {
-						time = t.TimeOfDay,
-					},
-				})
+				.AddResource(x => x
+					.WithName("times")
+					.WithData(new [] {
+						new { time = t.TimeOfDay,
+					}, }))
 				.Serialize();
 
 			var rows = dp.GetResource("times").Read<DateTimeFormatRow>().Single();
@@ -284,9 +287,10 @@ namespace DataBoss.DataPackage
 		public void bytes_are_binary() {
 			var bytes = Encoding.UTF8.GetBytes("Hello World!");
 			var dp = new DataPackage()
-				.AddResource("bytes", new[] {
-					new { bytes, }
-				}).Serialize();
+				.AddResource(x => x
+					.WithName("bytes")
+					.WithData(new[] { new { bytes, } }))
+				.Serialize();
 
 			var r = dp.Resources.Single();
 			var rows = r.Read();
@@ -302,9 +306,10 @@ namespace DataBoss.DataPackage
 		[Fact]
 		public void a_character_is_a_string_of_length_one() {
 			var dp = new DataPackage()
-				.AddResource("chars", new[] {
-					new { Value = '☺' }
-				}).Serialize();
+				.AddResource(x => x
+					.WithName("chars")
+					.WithData(new[] { new { Value = '☺' } }))
+				.Serialize();
 
 			var r = dp.Resources.Single();
 			var readerSchema = r.Read().GetDataReaderSchemaTable();
@@ -323,9 +328,10 @@ namespace DataBoss.DataPackage
 		public void guid_is_a_uuid_string() {
 			var value = Guid.NewGuid();
 			var dp = new DataPackage()
-				.AddResource("uuids", new[] {
-					new { Value = value }
-				}).Serialize();
+				.AddResource(x => x
+					.WithName("uuids")
+					.WithData(new [] { new { Value = value } }))
+				.Serialize();
 
 			var r = dp.Resources.Single();
 			var readerSchema = r.Read().GetDataReaderSchemaTable();
@@ -347,8 +353,10 @@ namespace DataBoss.DataPackage
 		[Fact]
 		public void custom_resource_delimiter() {
 			var dp = new DataPackage()
-				.AddResource("stuff", () => new[] { new { Id = 1, Message = "Hello World." } })
-				.WithDelimiter("|")
+				.AddResource(x => x
+					.WithName("stuff")
+					.WithData(new[] { new { Id = 1, Message = "Hello World." } })
+					.WithDelimiter("|"))
 				.Done();
 
 			var store = new MemoryDataPackageStore();
@@ -364,8 +372,10 @@ namespace DataBoss.DataPackage
 		[Fact]
 		public void transform_keeps_delimiter() {
 			var dp = new DataPackage()
-				.AddResource("stuff", () => new[] { new { Id = 1, Message = "Hello World." } })
-				.WithDelimiter("|")
+				.AddResource(x => x
+					.WithName("stuff")
+					.WithData(new[] { new { Id = 1, Message = "Hello World." } })
+					.WithDelimiter("|"))
 				.Done();
 
 			dp.TransformResource("stuff", xs => xs.Transform("Id", x => x["Id"].ToString()));
@@ -384,8 +394,8 @@ namespace DataBoss.DataPackage
 		public void remove_resource() {
 			var dp = new DataPackage();
 
-			dp.AddResource("resource-1", () => new[] { new { Id = 1 } });
-			dp.AddResource("resource-2", () => new[] { new { Id = 2 } });
+			dp.AddResource(x => x.WithName("resource-1").WithData(new[] { new { Id = 1 } }));
+			dp.AddResource(x => x.WithName("resource-2").WithData(new[] { new { Id = 2 } }));
 
 			dp.RemoveResource("resource-1");
 			Check.That(
@@ -396,8 +406,8 @@ namespace DataBoss.DataPackage
 		public void remove_resource_serialized() {
 			var dp = new DataPackage();
 
-			dp.AddResource("resource-1", () => new[] { new { Id = 1 } });
-			dp.AddResource("resource-2", () => new[] { new { Id = 2 } });
+			dp.AddResource(x => x.WithName("resource-1").WithData(new[] { new { Id = 1 } }));
+			dp.AddResource(x => x.WithName("resource-2").WithData(new[] { new { Id = 2 } }));
 
 			var loaded = dp.Serialize();
 			loaded.RemoveResource("resource-1");
@@ -409,9 +419,11 @@ namespace DataBoss.DataPackage
 		public void cant_remove_referenced_resource() {
 			var dp = new DataPackage();
 
-			dp.AddResource("resource-1", () => new[] { new { Id = 1 } });
-			dp.AddResource("resource-2", () => new[] { new { Id = 1 } })
-				.WithForeignKey("Id", new DataPackageKeyReference("resource-1", "Id"));
+			dp.AddResource(x => x.WithName("resource-1").WithData(new[] { new { Id = 1 } }));
+			dp.AddResource(x => x
+				.WithName("resource-2")
+				.WithData(new[] { new { Id = 1 } })
+				.WithForeignKey("Id", new DataPackageKeyReference("resource-1", "Id")));
 
 			Check.Exception<InvalidOperationException>(
 				() => dp.RemoveResource("resource-1"));
@@ -421,9 +433,11 @@ namespace DataBoss.DataPackage
 		public void remove_resource_drop_constraints() {
 			var dp = new DataPackage();
 
-			dp.AddResource("resource-1", () => new[] { new { Id = 1 } });
-			dp.AddResource("resource-2", () => new[] { new { Id = 1 } })
-				.WithForeignKey("Id", new DataPackageKeyReference("resource-1", "Id"));
+			dp.AddResource(x => x.WithName("resource-1").WithData(new[] { new { Id = 1 } }));
+			dp.AddResource(x => x
+				.WithName("resource-2")
+				.WithData(new[] { new { Id = 1 } })
+				.WithForeignKey("Id", new DataPackageKeyReference("resource-1", "Id")));
 
 			dp.RemoveResource("resource-1", ConstraintsBehavior.Drop, out var _);
 			Check.That(

@@ -108,7 +108,9 @@ namespace DataBoss.DataPackage
 		[Fact]
 		public void gets_angry_when_read_not_called() {
 			var dp = new DataPackage()
-				.AddResource("numbers", () => new[] { new { Value = 1 } })
+				.AddResource(x => x
+					.WithName("numbers")
+					.WithData(new[] { new { Value = 1 } }))
 				.Serialize();
 
 			var r = dp.GetResource("numbers").Read();

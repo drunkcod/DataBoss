@@ -89,7 +89,11 @@ namespace DataBoss.Data
 		}
 
 		static IDataReader GetCsvDataReader<T>(params T[] items) =>
-			new DataPackage.DataPackage().AddResource("items", items).Serialize().GetResource("items").Read();
+			new DataPackage.DataPackage()
+				.AddResource(x => x
+					.WithName("items")
+					.WithData(items))
+				.Serialize().GetResource("items").Read();
 
 		[Fact]
 		public void Dispose_disposes_all_readers() {

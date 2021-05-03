@@ -13,7 +13,7 @@ namespace DataBoss.DataPackage
 {
 	public interface IDataPackageBuilder
 	{
-		[Obsolete("use \"AddResource(string name, Action<CsvResourceBuilder> setupResource)\" instead.")]
+		[Obsolete("use \"AddResource(Action<CsvResourceBuilder> setupResource)\" instead.")]
 		IDataPackageResourceBuilder AddResource(string name, Func<IDataReader> getData);
 		IDataPackageBuilder AddResource(Action<CsvResourceBuilder> setupResource);
 
@@ -34,9 +34,11 @@ namespace DataBoss.DataPackage
 
 	public static class DataPackageBuilderExtensions
 	{
+		[Obsolete("use \"AddResource(Action<CsvResourceBuilder> setupResource)\" instead.")]
 		public static IDataPackageResourceBuilder AddResource<T>(this IDataPackageBuilder self, string name, IEnumerable<T> data) =>
 			self.AddResource(name, BoundMethod.Bind(SequenceDataReader.ToDataReader, data));
 
+		[Obsolete("use \"AddResource(Action<CsvResourceBuilder> setupResource)\" instead.")]
 		public static IDataPackageResourceBuilder AddResource<T>(this IDataPackageBuilder self, string name, Func<IEnumerable<T>> getData) =>
 			self.AddResource(name, BoundMethod.Bind(GetSequenceReader,  getData));
 
