@@ -54,7 +54,6 @@ namespace DataBoss.Data
 			Check.That(
 				() => JsonSerializer.Serialize(r.ToJsonObject(), null) == NewtonsoftSerialize(item),
 				() => NewtonsoftSerialize(r.ToJsonObject()) == NewtonsoftSerialize(item));
-
 		}
 
 		static string NewtonsoftSerialize(object value) => Newtonsoft.Json.JsonConvert.SerializeObject(value);

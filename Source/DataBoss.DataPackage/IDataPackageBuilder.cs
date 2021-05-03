@@ -13,8 +13,10 @@ namespace DataBoss.DataPackage
 {
 	public interface IDataPackageBuilder
 	{
+		[Obsolete("use \"AddResource(string name, Action<CsvResourceBuilder> setupResource)\" instead.")]
 		IDataPackageResourceBuilder AddResource(string name, Func<IDataReader> getData);
-		
+		IDataPackageBuilder AddResource(Action<CsvResourceBuilder> setupResource);
+
 		void Save(Func<string, Stream> createOutput, DataPackageSaveOptions options);
 		Task SaveAsync(Func<string, Stream> createOutput, DataPackageSaveOptions options);
 		

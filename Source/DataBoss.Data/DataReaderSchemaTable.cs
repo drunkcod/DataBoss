@@ -47,7 +47,7 @@ namespace DataBoss.Data
 				var r = schema.NewRow();
 				r[columnName] = item.ColumnName;
 				r[columnOrdinal] = item.Ordinal;
-				r[columnSize] = item.ColumnSize.HasValue ? (object)item.ColumnSize.Value : DBNull.Value;
+				r[columnSize] = item.ColumnSize ?? (object)DBNull.Value;
 				r[allowDBNull] = item.AllowDBNull;
 				r[dataType] = item.ColumnType;
 				r[providerSpecificDataType] = item.ProviderSpecificDataType;

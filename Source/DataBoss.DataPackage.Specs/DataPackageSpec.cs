@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using CheckThat;
 using DataBoss.Data;
+using DataBoss.Data.Common;
 using DataBoss.DataPackage.Types;
 using Newtonsoft.Json;
 using Xunit;
@@ -66,6 +67,15 @@ namespace DataBoss.DataPackage
 
 			var e = Check.Exception<InvalidOperationException>(() => dp.GetResource("no-such-resource"));
 			Check.That(() => e.Message.Contains("no-such-resource"));
+		}
+
+		[Fact]
+		public void cant_add_duplicate_resource() {
+			var dp = new DataPackage();
+
+			dp.AddResource(x => x.WithName("stuff").WithData(new[] { new { Value = 1 } }));
+			Check.Exception<InvalidOperationException>(
+				() => dp.AddResource(x => x.WithName("stuff").WithData(new[] { new { Value = 2 } })));
 		}
 
 		[Fact]
@@ -418,6 +428,26 @@ namespace DataBoss.DataPackage
 			dp.RemoveResource("resource-1", ConstraintsBehavior.Drop, out var _);
 			Check.That(
 				() => dp.GetResource("resource-2").Schema.ForeignKeys.Any() == false);
+		}
+
+		[Fact]
+		public void AddOrUpdateResource_must_supply_data() {
+			var dp = new DataPackage();
+
+			Action<CsvResourceBuilder> doNothing = x => { };
+			Check.Exception<InvalidOperationException>(() =>
+				dp.AddOrUpdateResource("stuff", doNothing, x => x));
+		}
+
+		[Fact]
+		public void AddOrUpdateResource_update_updates() {
+			var dp = new DataPackage();
+			Action<CsvResourceBuilder> create = x => x.WithData(() => SequenceDataReader.Items(new { Id = 1 }));
+			dp.AddOrUpdateResource("stuff", create, x => x);
+			dp.AddOrUpdateResource("stuff", create, x => x.WithData(() => x.Read().Concat(new[] { new { Id = 2 } })));
+
+			var rows = dp.Serialize().GetResource("stuff").Read<IdRow<int>>().ToList();
+			Check.That(() => rows.Count == 2);
 		}
 
 		class DateTimeFormatRow

@@ -41,8 +41,8 @@ namespace DataBoss.DataPackage
 				this.resource = resource;
 			}
 
-			public IDataPackageResourceBuilder AddResource(string name, Func<IDataReader> getData) =>
-				package.AddResource(name, getData);
+			public IDataPackageResourceBuilder AddResource(string name, Func<IDataReader> getData) => package.AddResource(name, getData);
+			public IDataPackageBuilder AddResource(Action<CsvResourceBuilder> setupResource) => package.AddResource(setupResource);
 
 			public void Save(Func<string, Stream> createOutput, DataPackageSaveOptions options) =>
 				package.Save(createOutput, options);
@@ -196,8 +196,21 @@ namespace DataBoss.DataPackage
 						HasHeaderRow = item.HasHeaderRow,
 					}
 				}, getData);
-			resources.Add(resource);
+			AddResource(resource);
 			return new DataPackageResourceBuilder(this, resource);
+		}
+
+		public IDataPackageBuilder AddResource(Action<CsvResourceBuilder> setupResource) {
+			var newResource = new CsvResourceBuilder();
+			setupResource(newResource);
+			AddResource(newResource.Build());
+			return this;
+		}
+
+		void AddResource(TabularDataResource item) {
+			if (TryGetResource(item.Name, out var _))
+				throw new InvalidOperationException($"Can't add duplicate resource {item.Name}.");
+			resources.Add(item);
 		}
 
 		void AddResources(IEnumerable<TabularDataResource> items) =>
@@ -210,6 +223,17 @@ namespace DataBoss.DataPackage
 			if(found == -1)
 				throw new InvalidOperationException($"Resource '{name}' not found.");
 			resources[found] = doUpdate(resources[found]);
+		}
+
+		public void AddOrUpdateResource(string name, Action<CsvResourceBuilder> setupResource, Func<TabularDataResource, TabularDataResource> doUpdate) {
+			var found = resources.FindIndex(x => x.Name == name);
+			if (found != -1)
+				resources[found] = doUpdate(resources[found]);
+			else {
+				var newResource = new CsvResourceBuilder();
+				setupResource(newResource.WithName(name));
+				AddResource(newResource.Build());
+			}
 		}
 
 		public void TransformResource(string name, Action<DataReaderTransform> defineTransform) =>

@@ -74,16 +74,21 @@ namespace DataBoss.DataPackage
 		public TabularDataResource Where(Func<IDataRecord, bool> predicate) =>
 			Rebind(Name, Schema.Clone(), () => getData().Where(predicate));
 
-		public TabularDataResource Transform(Action<DataReaderTransform> defineTransform) {
-			return Rebind(Name, new TabularDataSchema {
-				PrimaryKey = Schema.PrimaryKey?.ToList(),
-				ForeignKeys = Schema.ForeignKeys?.ToList()
-			}, () => {
+		public TabularDataResource Transform(Action<DataReaderTransform> defineTransform) => 
+			Rebind(Name, SchemaWithSameKeys(), () => {
 				var data = new DataReaderTransform(getData());
 				defineTransform(data);
 				return data;
 			});
-		}
+
+		public TabularDataResource WithData(Func<IDataReader> getData) =>
+			Rebind(Name, SchemaWithSameKeys(), getData);
+
+		TabularDataSchema SchemaWithSameKeys() =>
+			new TabularDataSchema {
+				PrimaryKey = Schema.PrimaryKey?.ToList(),
+				ForeignKeys = Schema.ForeignKeys?.ToList()
+			};
 
 		public TabularDataResource Rebind(string name, Func<IDataReader> getData) =>
 			Rebind(name, new TabularDataSchema(), getData);
