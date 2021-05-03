@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
+using System.Linq;
 using Newtonsoft.Json;
 
 namespace DataBoss.DataPackage
@@ -14,5 +15,11 @@ namespace DataBoss.DataPackage
 
 		[JsonProperty("foreignKeys", DefaultValueHandling = DefaultValueHandling.Ignore)]
 		public List<DataPackageForeignKey> ForeignKeys;
+
+		public TabularDataSchema Clone() => new TabularDataSchema {
+			Fields = Fields?.ToList(),
+			PrimaryKey = PrimaryKey?.ToList(),
+			ForeignKeys = ForeignKeys?.ToList(),
+		};
 	}
 }

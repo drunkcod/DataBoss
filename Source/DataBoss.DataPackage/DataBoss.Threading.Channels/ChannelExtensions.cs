@@ -23,7 +23,7 @@ namespace DataBoss.Threading.Channels
 		static T GetResult<T>(ValueTask<T> x) => 
 			x.IsCompleted 
 			? x.GetAwaiter().GetResult() 
-			: x.AsTask().GetAwaiter().GetResult();
+			: x.AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
 
 		public static void ForEach<T>(this ChannelReader<T> r, Action<T> action) {
 			do {

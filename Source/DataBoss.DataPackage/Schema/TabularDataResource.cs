@@ -72,7 +72,7 @@ namespace DataBoss.DataPackage
 			input.Length == 1 ? input[0] : throw new InvalidConversionException($"expected string of length 1, was '{input}'", typeof(char));
 
 		public TabularDataResource Where(Func<IDataRecord, bool> predicate) =>
-			Rebind(Name, Schema, () => new WhereDataReader(getData(), predicate));
+			Rebind(Name, Schema.Clone(), () => getData().Where(predicate));
 
 		public TabularDataResource Transform(Action<DataReaderTransform> defineTransform) {
 			return Rebind(Name, new TabularDataSchema {

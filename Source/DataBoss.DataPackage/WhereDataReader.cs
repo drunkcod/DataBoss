@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Data;
 
-namespace DataBoss.DataPackage
+namespace DataBoss.Data
 {
 	class WhereDataReader : IDataReader
 	{

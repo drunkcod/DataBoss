@@ -317,7 +317,10 @@ namespace DataBoss.DataPackage
 
 		public DataPackage Serialize(CultureInfo culture = null) {
 			var bytes = new MemoryStream();
-			this.SaveZip(bytes, culture);
+			this.SaveZip(bytes, new DataPackageSaveOptions {
+				Culture = culture,
+				ResourceCompression = ResourceCompression.NoResourceCompression(CompressionLevel.NoCompression),
+			});
 			return LoadZip(bytes);
 		}
 

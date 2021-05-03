@@ -6,10 +6,12 @@ namespace DataBoss.DataPackage
 {
 	public class ResourceCompression
 	{
-		public static readonly ResourceCompression None = new(
-			CompressionLevel.Optimal, 
+		public static readonly ResourceCompression None = NoResourceCompression();
+
+		public static ResourceCompression NoResourceCompression(CompressionLevel archiveCompression = CompressionLevel.Optimal) => new(
+			archiveCompression,
 			CompressionLevel.NoCompression,
-			string.Empty, 
+			string.Empty,
 			x => x,
 			(x, _) => x);
 

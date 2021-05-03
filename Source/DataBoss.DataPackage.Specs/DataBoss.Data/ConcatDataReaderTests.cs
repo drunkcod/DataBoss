@@ -142,6 +142,12 @@ namespace DataBoss.Data
 			Check.That(() => ((ConcatDataReader)all).ReaderCount == 3);
 		}
 
-		class ReaderRow { public int Reader; public int Item; };
+		class ReaderRow 
+		{
+			#pragma warning disable CS0649//never assigned.
+			public int Reader; 
+			public int Item;
+			#pragma warning restore CS0649
+		};
 	}
 }

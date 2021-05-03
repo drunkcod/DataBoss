@@ -54,8 +54,10 @@ namespace DataBoss.DataPackage
 	{
 		struct IdValueRow
 		{
+			#pragma warning disable CS0649//never assigned.
 			public int Id;
 			public string Value;
+			#pragma warning restore CS0649
 		}
 
 		[Fact]
@@ -327,7 +329,9 @@ namespace DataBoss.DataPackage
 
 		class MyRow<T>
 		{
+			#pragma warning disable CS0649//never assigned.
 			public T Value;
+			#pragma warning restore CS0649
 		}
 
 		[Fact]
@@ -390,7 +394,6 @@ namespace DataBoss.DataPackage
 			Check.That(
 				() => loaded.Resources.Any(x => x.Name == "resource-1") == false);
 		}
-
 
 		[Fact]
 		public void cant_remove_referenced_resource() {
