@@ -1,56 +1,15 @@
 using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Text;
 using CheckThat;
 using DataBoss.Data;
 using DataBoss.Data.Common;
 using DataBoss.DataPackage.Types;
-using Newtonsoft.Json;
 using Xunit;
 
 namespace DataBoss.DataPackage
 {
-	class MemoryDataPackageStore
-	{
-		readonly Dictionary<string, MemoryStream> files = new();
-		readonly List<string> writtenFiles = new();
-
-		public void Save(DataPackage data, CultureInfo culture = null) {
-			Clear();
-			data.Save(OpenWrite, culture);
-		}
-
-		public DataPackage Load() => DataPackage.Load(OpenRead);
-
-		public byte[] GetBytes(string path) => files[path].ToArray();
-
-		public DataPackageDescription GetDataPackageDescription() =>
-			JsonConvert.DeserializeObject<DataPackageDescription>(Encoding.UTF8.GetString(GetBytes("datapackage.json")));
-
-		public IReadOnlyList<string> WrittenFiles => writtenFiles;
-
-		void Clear() {
-			files.Clear();
-			writtenFiles.Clear();
-		}
-
-		Stream OpenWrite(string path) {
-			var s = files[path] = new MemoryStream();
-			writtenFiles.Add(path);
-			return s;
-		}
-
-		Stream OpenRead(string path) {
-			var bytes = files[path];
-			if (bytes.TryGetBuffer(out var buffer))
-				return new MemoryStream(buffer.Array, buffer.Offset, buffer.Count, writable: false);
-			return new MemoryStream(bytes.ToArray(), writable: false);
-		}
-	}
-
 	public class DataPackageSpec
 	{
 		struct IdValueRow
@@ -104,13 +63,12 @@ namespace DataBoss.DataPackage
 				Path = "parts/1.csv"
 			});
 
-			var store = new MemoryDataPackageStore();
+			var store = new InMemoryDataPackageStore();
 			store.Save(dp);
 			var r = store.Load();
 
 			Check.That(
-				() => r.GetResource("also-1").Read<IdValueRow>().SequenceEqual(r.GetResource("1").Read<IdValueRow>()),
-				() => store.WrittenFiles.Count == 2);
+				() => r.GetResource("also-1").Read<IdValueRow>().SequenceEqual(r.GetResource("1").Read<IdValueRow>()));
 		}
 
 		[Fact]
@@ -152,7 +110,7 @@ namespace DataBoss.DataPackage
 			}, () => SequenceDataReader.Items(new { Id = 1, Value = "Stuff" }));
 
 
-			var store = new MemoryDataPackageStore();
+			var store = new InMemoryDataPackageStore();
 			store.Save(dp);
 
 			Check.That(() => Encoding.UTF8.GetString(store.GetBytes("stuff.csv")).TrimEnd() == "1;Stuff");
@@ -359,7 +317,7 @@ namespace DataBoss.DataPackage
 					.WithDelimiter("|"))
 				.Done();
 
-			var store = new MemoryDataPackageStore();
+			var store = new InMemoryDataPackageStore();
 			store.Save(dp);
 
 			var description = store.GetDataPackageDescription();
@@ -380,7 +338,7 @@ namespace DataBoss.DataPackage
 
 			dp.TransformResource("stuff", xs => xs.Transform("Id", x => x["Id"].ToString()));
 
-			var store = new MemoryDataPackageStore();
+			var store = new InMemoryDataPackageStore();
 			store.Save(dp);
 
 			var description = store.GetDataPackageDescription();

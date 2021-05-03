@@ -340,18 +340,15 @@ namespace DataBoss.DataPackage
 		}
 
 		public DataPackage Serialize(CultureInfo culture = null) {
-			var bytes = new MemoryStream();
-			this.SaveZip(bytes, new DataPackageSaveOptions {
-				Culture = culture,
-				ResourceCompression = ResourceCompression.NoResourceCompression(CompressionLevel.NoCompression),
-			});
-			return LoadZip(bytes);
+			var store = new InMemoryDataPackageStore();
+			Save(store.OpenWrite, culture);
+			return Load(store.OpenRead);
 		}
 
 		public async Task<DataPackage> SerializeAsync(CultureInfo culture = null) {
-			var bytes = new MemoryStream();
-			await this.SaveZipAsync(bytes, culture);
-			return LoadZip(bytes);
+			var store = new InMemoryDataPackageStore();
+			await SaveAsync(store.OpenRead, culture);
+			return Load(store.OpenRead);
 		}
 
 		static DataPackage LoadZip(MemoryStream bytes) {
