@@ -119,33 +119,34 @@ namespace DataBoss.Linq
 			ChunkBy(items, selector, Lambdas.Id);
 
 		public static IEnumerable<IGrouping<TKey, TElement>> ChunkBy<T, TKey, TElement>(this IEnumerable<T> items, Func<T, TKey> keySelector, Func<T, TElement> elementSelector) {
-			using (var x = items.GetEnumerator()) {
+			using var x = items.GetEnumerator(); 
+			
+			if (!x.MoveNext())
+				yield break;
+			
+			var c = keySelector(x.Current);
+			var acc = new List<TElement>();
+			for (; ; ) {
+				acc.Add(elementSelector(x.Current));
 				if (!x.MoveNext())
-					yield break;
-				var c = keySelector(x.Current);
-				var acc = new List<TElement>();
-				for (; ; ) {
-					acc.Add(elementSelector(x.Current));
-					if (!x.MoveNext())
-						break;
-					var key = keySelector(x.Current);
-					if (!c.Equals(key)) {
-						yield return MakeArrayGrouping(c, acc.ToArray());
-						c = key;
-						acc.Clear();
-					}
+					break;
+				var key = keySelector(x.Current);
+				if (!c.Equals(key)) {
+					yield return MakeArrayGrouping(c, acc.ToArray());
+					c = key;
+					acc.Clear();
 				}
-				yield return MakeArrayGrouping(c, acc.ToArray());
 			}
+			yield return MakeArrayGrouping(c, acc.ToArray());
 		}
 
 		static ArrayGrouping<TKey, TElement> MakeArrayGrouping<TKey, TElement>(TKey key, TElement[] items) =>
 			new ArrayGrouping<TKey, TElement>(items, key);
 
 		public static void Consume<T>(this IEnumerable<T> items) {
-			using (var xs = items.GetEnumerator())
-				while (xs.MoveNext())
-					;
+			using var xs = items.GetEnumerator();
+			while (xs.MoveNext())
+				;
 		}
 
 		public static TOutput[] ToArray<T, TOutput>(this IReadOnlyCollection<T> self, Func<T, TOutput> selector) {

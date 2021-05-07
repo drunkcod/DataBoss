@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Text;
 using Newtonsoft.Json;
 
@@ -18,7 +17,7 @@ namespace DataBoss.DataPackage
 
 		public DataPackage Load() => DataPackage.Load(OpenRead);
 
-		public byte[] GetBytes(string path) => files[path].ToArray();
+		public byte[] ReadAllBytes(string path) => files[path].ToArray();
 
 		public DataPackageDescription GetDataPackageDescription() {
 			using var reader = new JsonTextReader(new StreamReader(OpenRead("datapackage.json"), Encoding.UTF8));

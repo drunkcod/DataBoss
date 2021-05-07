@@ -285,8 +285,8 @@ namespace DataBoss.DataPackage
 		public void Save(Func<string, Stream> createOutput, DataPackageSaveOptions options) =>
 			TaskRunner.Run(() => SaveAsync(createOutput, options));
 
-		public async Task SaveAsync(Func<string, Stream> createOutput, CultureInfo culture = null) =>
-			await SaveAsync(createOutput, new DataPackageSaveOptions { Culture = culture });
+		public Task SaveAsync(Func<string, Stream> createOutput, CultureInfo culture = null) =>
+			SaveAsync(createOutput, new DataPackageSaveOptions { Culture = culture });
 
 		public async Task SaveAsync(Func<string, Stream> createOutput, DataPackageSaveOptions options) {
 			var description = new DataPackageDescription();
@@ -349,11 +349,6 @@ namespace DataBoss.DataPackage
 			var store = new InMemoryDataPackageStore();
 			await SaveAsync(store.OpenRead, culture);
 			return Load(store.OpenRead);
-		}
-
-		static DataPackage LoadZip(MemoryStream bytes) {
-			bytes.TryGetBuffer(out var buffer);
-			return LoadZip(() => new MemoryStream(buffer.Array, buffer.Offset, buffer.Count, false));
 		}
 
 		class CsvRecordWriter
@@ -474,7 +469,10 @@ namespace DataBoss.DataPackage
 			var readerTask = new RecordReader(data.AsDataRecordReader(), records, cancellation.Token).RunAsync();
 			var writerTask = csv.WriteChunksAsync(records, chunks, toString);
 
-			writerTask.ContinueWith(_ => cancellation.Cancel(), TaskContinuationOptions.OnlyOnFaulted);
+			writerTask.ContinueWith(x => {
+				if (x.IsFaulted) 
+					cancellation.Cancel();
+			}, TaskContinuationOptions.ExecuteSynchronously);
 
 			return Task.WhenAll(
 				readerTask, 

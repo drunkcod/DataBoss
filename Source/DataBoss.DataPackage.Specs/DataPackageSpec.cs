@@ -63,9 +63,7 @@ namespace DataBoss.DataPackage
 				Path = "parts/1.csv"
 			});
 
-			var store = new InMemoryDataPackageStore();
-			store.Save(dp);
-			var r = store.Load();
+			var r = dp.Serialize();;
 
 			Check.That(
 				() => r.GetResource("also-1").Read<IdValueRow>().SequenceEqual(r.GetResource("1").Read<IdValueRow>()));
@@ -113,7 +111,7 @@ namespace DataBoss.DataPackage
 			var store = new InMemoryDataPackageStore();
 			store.Save(dp);
 
-			Check.That(() => Encoding.UTF8.GetString(store.GetBytes("stuff.csv")).TrimEnd() == "1;Stuff");
+			Check.That(() => Encoding.UTF8.GetString(store.ReadAllBytes("stuff.csv")).TrimEnd() == "1;Stuff");
 		}
 
 		[Fact]

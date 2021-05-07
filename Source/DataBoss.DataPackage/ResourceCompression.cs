@@ -6,10 +6,8 @@ namespace DataBoss.DataPackage
 {
 	public class ResourceCompression
 	{
-		public static readonly ResourceCompression None = NoResourceCompression();
-
-		public static ResourceCompression NoResourceCompression(CompressionLevel archiveCompression = CompressionLevel.Optimal) => new(
-			archiveCompression,
+		public static readonly ResourceCompression None = new(
+			CompressionLevel.Optimal,
 			CompressionLevel.NoCompression,
 			string.Empty,
 			x => x,
@@ -84,6 +82,5 @@ namespace DataBoss.DataPackage
 		public readonly string ExtensionSuffix;
 		public readonly Func<Stream, Stream> WrapRead;
 		public Stream WrapWrite(Stream stream) => wrapWrite(stream, ResourceCompressionLevel);
-
 	}
 }

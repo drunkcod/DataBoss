@@ -27,7 +27,7 @@ namespace DataBoss.Data
 		public static DbDataReader ToDataReader<T>(this IEnumerable<T> data) => Create(data); 
 	}
 
-	public class SequenceDataReader<T> : DbDataReader, IDataRecordReader
+	public sealed class SequenceDataReader<T> : DbDataReader, IDataRecordReader
 	{
 		interface IColumnAccessor
 		{
@@ -90,7 +90,65 @@ namespace DataBoss.Data
 			public bool IsDBNull(T item) => get(item) == null;
 		}
 
-		static void ThrowInvalidCastException<TField, TValue>() => throw new InvalidCastException($"Unable to cast object of type '{typeof(TField)}' to {typeof(TValue)}.");
+		abstract class AccessorCollectionBase : IReadOnlyList<IColumnAccessor>
+		{
+
+			public abstract AccessorCollectionBase GetAccessors();
+
+			public abstract int Count { get; }
+
+			public abstract IColumnAccessor this[int index] { get; }
+
+			public abstract IEnumerator<IColumnAccessor> GetEnumerator();
+			IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+		}
+
+		sealed class NoDataAccessorCollection : AccessorCollectionBase
+		{
+			readonly FieldMapping<T> mapping;
+
+			static TValue NoData<TValue>() => throw new InvalidOperationException("Invalid attempt to read when no data is present, call Read()");
+
+			public NoDataAccessorCollection(FieldMapping<T> mapping) {
+				this.mapping = mapping;
+			}
+
+			public override int Count => mapping.Count;
+
+			public override IColumnAccessor this[int index] => NoData<IColumnAccessor>();
+
+			public override AccessorCollectionBase GetAccessors() {
+				var accessors = new IColumnAccessor[mapping.Count];
+				for (var i = 0; i != accessors.Length; ++i)
+					accessors[i] = MakeAccessor(mapping.Source, mapping[i]);
+
+				return new AccessorCollection(accessors);
+			}
+
+			public override IEnumerator<IColumnAccessor> GetEnumerator() => NoData<IEnumerator<IColumnAccessor>>();
+		}
+
+		sealed class AccessorCollection : AccessorCollectionBase
+		{
+			readonly IColumnAccessor[] columns;
+
+			public AccessorCollection(IColumnAccessor[] columns) {
+				this.columns = columns;
+			}
+
+			public override int Count => columns.Length;
+
+			public override IColumnAccessor this[int index] => columns[index];
+
+			public override IEnumerator<IColumnAccessor> GetEnumerator() => GetEnumerator(columns);
+
+			static IEnumerator<TItem> GetEnumerator<TItem>(IEnumerable<TItem> xs) => xs.GetEnumerator();
+
+			public override AccessorCollectionBase GetAccessors() => this;
+		}
+
+		static void ThrowInvalidCastException<TField, TValue>() => 
+			throw new InvalidCastException($"Unable to cast object of type '{typeof(TField)}' to {typeof(TValue)}.");
 
 		class DataRecord : IDataRecord
 		{
@@ -99,7 +157,7 @@ namespace DataBoss.Data
 
 			public DataRecord(SequenceDataReader<T> parent, T item) {
 				this.parent = parent;
-				this.item = item; 
+				this.item = item;
 			}
 
 			public int FieldCount => parent.FieldCount;
@@ -142,20 +200,30 @@ namespace DataBoss.Data
 			public int GetOrdinal(string name) => parent.GetOrdinal(name);
 		}
 
-		readonly IColumnAccessor[] accessors;
+		AccessorCollectionBase accessors;
 		readonly IEnumerator<T> data;
-		readonly DataReaderSchemaTable schema = new DataReaderSchemaTable();
-	
+		readonly DataReaderSchemaTable schema;
+
 		internal SequenceDataReader(IEnumerator<T> data, FieldMapping<T> fields) {
 			this.data = data ?? throw new ArgumentNullException(nameof(data));
-			var fieldNames = fields.GetFieldNames();
-			var fieldTypes = fields.GetFieldTypes();
-			var dbTypes = fields.GetDbTypes();
-			for(var i = 0; i != fieldNames.Length; ++i) 
-				schema.Add(fieldNames[i], i, fieldTypes[i], dbTypes[i].IsNullable, columnSize: dbTypes[i].ColumnSize, dataTypeName: dbTypes[i].TypeName); 
-			this.accessors = new IColumnAccessor[fields.Count];
-			for (var i = 0; i != accessors.Length; ++i)
-				accessors[i] = MakeAccessor(fields.Source, fields[i]);
+			this.accessors = new NoDataAccessorCollection(fields);
+			this.schema = GetSchema(fields);
+		}
+
+
+		static DataReaderSchemaTable GetSchema(FieldMapping<T> mapping) {
+			var schema = new DataReaderSchemaTable();
+			for (var i = 0; i != mapping.Count; ++i) {
+				var dbType = mapping.GetDbType(i);
+				schema.Add(
+					ordinal: i,
+					name: mapping.GetFieldName(i),
+					columnType: mapping.GetFieldType(i),
+					allowDBNull: dbType.IsNullable,
+					columnSize: dbType.ColumnSize,
+					dataTypeName: dbType.TypeName);
+			}
+			return schema;
 		}
 
 		static IColumnAccessor MakeAccessor(ParameterExpression source, in FieldMappingItem field) {
@@ -179,7 +247,7 @@ namespace DataBoss.Data
 		public override object this[int i] => GetValue(i);
 		public override object this[string name] => GetValue(GetOrdinal(name));
 
-		public override int FieldCount => schema.Count;
+		public override int FieldCount => accessors.Count;
 
 		public override int Depth => throw new NotSupportedException();
 		public override bool HasRows => throw new NotSupportedException();
@@ -189,6 +257,7 @@ namespace DataBoss.Data
 		public override bool Read() { 
 			if(!data.MoveNext())
 				return false;
+			accessors = accessors.GetAccessors();
 			return true;
 		}
 
@@ -201,17 +270,16 @@ namespace DataBoss.Data
 				data.Dispose();
 		}
 
-		public override string GetName(int i) => schema[i].ColumnName;
-		public override Type GetFieldType(int i) => schema[i].ColumnType;
+		public override DataTable GetSchemaTable() => schema.ToDataTable();
 		public override string GetDataTypeName(int i) => schema[i].DataTypeName;
+		public override Type GetFieldType(int i) => schema[i].ColumnType;
+		public override string GetName(int i) => schema[i].ColumnName;
 		public override int GetOrdinal(string name) {
 			var o = schema.GetOrdinal(name);
-			if(o < 0)
+			if (o < 0)
 				throw new InvalidOperationException($"No field named '{name}' mapped");
 			return o;
 		}
-
-		public override object GetValue(int i) => accessors[i].GetValue(data.Current);
 
 		public override int GetValues(object[] values) {
 			var n = Math.Min(FieldCount, values.Length);
@@ -220,34 +288,26 @@ namespace DataBoss.Data
 			return n;
 		}
 
-		public override DataTable GetSchemaTable() =>
-			schema.ToDataTable();
 
-		//SqlBulkCopy.EnableStreaming requires this
-		public override bool IsDBNull(int i) => IsDBNull(data.Current, i);
+		public override bool IsDBNull(int i) => accessors[i].IsDBNull(data.Current);
+		public override object GetValue(int i) => accessors[i].GetValue(data.Current);
+		public override TValue GetFieldValue<TValue>(int i) => accessors[i].GetFieldValue<TValue>(data.Current);
 
-		bool IsDBNull(T item, int i) {
-			var field = schema[i];
-			if (!field.AllowDBNull)
-				return false;
-			var x = accessors[i].GetValue(item);
-			return (field.IsValueType == false && x == null) || (DBNull.Value == x);
-		}
+		public override bool GetBoolean(int i) => GetFieldValue<bool>(i);
+		public override byte GetByte(int i) => GetFieldValue<byte>(i);
+		public override char GetChar(int i) => GetFieldValue<char>(i);
+		public override Guid GetGuid(int i) => GetFieldValue<Guid>(i);
+		public override short GetInt16(int i) => GetFieldValue<short>(i);
+		public override int GetInt32(int i) => GetFieldValue<int>(i);
+		public override long GetInt64(int i) => GetFieldValue<long>(i);
+		public override float GetFloat(int i) => GetFieldValue<float>(i);
+		public override double GetDouble(int i) => GetFieldValue<double>(i);
+		public override string GetString(int i) => GetFieldValue<string>(i);
+		public override decimal GetDecimal(int i) => GetFieldValue<decimal>(i);
+		public override DateTime GetDateTime(int i) => GetFieldValue<DateTime>(i);
 
-		public override bool GetBoolean(int i) => (bool)GetValue(i);
-		public override byte GetByte(int i) => (byte)GetValue(i);
 		public override long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
-		public override char GetChar(int i) => (char)GetValue(i);
 		public override long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
-		public override Guid GetGuid(int i) => (Guid)GetValue(i);
-		public override short GetInt16(int i) => (short)GetValue(i);
-		public override int GetInt32(int i) => (int)GetValue(i);
-		public override long GetInt64(int i) => (long)GetValue(i);
-		public override float GetFloat(int i) => (float)GetValue(i);
-		public override double GetDouble(int i) => (double)GetValue(i);
-		public override string GetString(int i) => (string)GetValue(i);
-		public override decimal GetDecimal(int i) => (decimal)GetValue(i);
-		public override DateTime GetDateTime(int i) => (DateTime)GetValue(i);
 
 		public IDataRecord GetRecord() => new DataRecord(this, data.Current);
 
