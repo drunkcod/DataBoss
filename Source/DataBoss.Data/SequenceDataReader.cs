@@ -90,63 +90,6 @@ namespace DataBoss.Data
 			public bool IsDBNull(T item) => get(item) == null;
 		}
 
-		abstract class AccessorCollectionBase : IReadOnlyList<IColumnAccessor>
-		{
-
-			public abstract AccessorCollectionBase GetAccessors();
-
-			public abstract int Count { get; }
-
-			public abstract IColumnAccessor this[int index] { get; }
-
-			public abstract IEnumerator<IColumnAccessor> GetEnumerator();
-			IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-		}
-
-		sealed class NoDataAccessorCollection : AccessorCollectionBase
-		{
-			readonly FieldMapping<T> mapping;
-
-			static TValue NoData<TValue>() => throw new InvalidOperationException("Invalid attempt to read when no data is present, call Read()");
-
-			public NoDataAccessorCollection(FieldMapping<T> mapping) {
-				this.mapping = mapping;
-			}
-
-			public override int Count => mapping.Count;
-
-			public override IColumnAccessor this[int index] => NoData<IColumnAccessor>();
-
-			public override AccessorCollectionBase GetAccessors() {
-				var accessors = new IColumnAccessor[mapping.Count];
-				for (var i = 0; i != accessors.Length; ++i)
-					accessors[i] = MakeAccessor(mapping.Source, mapping[i]);
-
-				return new AccessorCollection(accessors);
-			}
-
-			public override IEnumerator<IColumnAccessor> GetEnumerator() => NoData<IEnumerator<IColumnAccessor>>();
-		}
-
-		sealed class AccessorCollection : AccessorCollectionBase
-		{
-			readonly IColumnAccessor[] columns;
-
-			public AccessorCollection(IColumnAccessor[] columns) {
-				this.columns = columns;
-			}
-
-			public override int Count => columns.Length;
-
-			public override IColumnAccessor this[int index] => columns[index];
-
-			public override IEnumerator<IColumnAccessor> GetEnumerator() => GetEnumerator(columns);
-
-			static IEnumerator<TItem> GetEnumerator<TItem>(IEnumerable<TItem> xs) => xs.GetEnumerator();
-
-			public override AccessorCollectionBase GetAccessors() => this;
-		}
-
 		static void ThrowInvalidCastException<TField, TValue>() => 
 			throw new InvalidCastException($"Unable to cast object of type '{typeof(TField)}' to {typeof(TValue)}.");
 
@@ -178,7 +121,7 @@ namespace DataBoss.Data
 			public Guid GetGuid(int i) => GetAccessor(i).GetFieldValue<Guid>(item);
 			public string GetString(int i) => GetAccessor(i).GetFieldValue<string>(item);
 
-			IColumnAccessor GetAccessor(int i) => parent.accessors[i];
+			IColumnAccessor GetAccessor(int i) => parent.fields[i];
 
 			public int GetValues(object[] values) {
 				var n = Math.Min(FieldCount, values.Length);
@@ -200,16 +143,18 @@ namespace DataBoss.Data
 			public int GetOrdinal(string name) => parent.GetOrdinal(name);
 		}
 
-		AccessorCollectionBase accessors;
+		readonly IColumnAccessor[] fields;
 		readonly IEnumerator<T> data;
 		readonly DataReaderSchemaTable schema;
+		bool hasData;
 
 		internal SequenceDataReader(IEnumerator<T> data, FieldMapping<T> fields) {
 			this.data = data ?? throw new ArgumentNullException(nameof(data));
-			this.accessors = new NoDataAccessorCollection(fields);
 			this.schema = GetSchema(fields);
+			this.fields = new IColumnAccessor[fields.Count];
+			for (var i = 0; i != this.fields.Length; ++i)
+				this.fields[i] = MakeAccessor(fields.Source, fields[i]);
 		}
-
 
 		static DataReaderSchemaTable GetSchema(FieldMapping<T> mapping) {
 			var schema = new DataReaderSchemaTable();
@@ -247,19 +192,14 @@ namespace DataBoss.Data
 		public override object this[int i] => GetValue(i);
 		public override object this[string name] => GetValue(GetOrdinal(name));
 
-		public override int FieldCount => accessors.Count;
+		public override int FieldCount => fields.Length;
 
 		public override int Depth => throw new NotSupportedException();
 		public override bool HasRows => throw new NotSupportedException();
 		public override bool IsClosed => false;
 		public override int RecordsAffected => throw new NotSupportedException();
 
-		public override bool Read() { 
-			if(!data.MoveNext())
-				return false;
-			accessors = accessors.GetAccessors();
-			return true;
-		}
+		public override bool Read() => (hasData = data.MoveNext());
 
 		public override bool NextResult() => false;
 
@@ -288,10 +228,13 @@ namespace DataBoss.Data
 			return n;
 		}
 
+		T Current => hasData ? data.Current : NoData(); 
 
-		public override bool IsDBNull(int i) => accessors[i].IsDBNull(data.Current);
-		public override object GetValue(int i) => accessors[i].GetValue(data.Current);
-		public override TValue GetFieldValue<TValue>(int i) => accessors[i].GetFieldValue<TValue>(data.Current);
+		static T NoData() => throw new InvalidOperationException("Invalid attempt to read when no data is present, call Read()");
+
+		public override bool IsDBNull(int i) => fields[i].IsDBNull(Current);
+		public override object GetValue(int i) => fields[i].GetValue(Current);
+		public override TValue GetFieldValue<TValue>(int i) => fields[i].GetFieldValue<TValue>(Current);
 
 		public override bool GetBoolean(int i) => GetFieldValue<bool>(i);
 		public override byte GetByte(int i) => GetFieldValue<byte>(i);
@@ -309,7 +252,7 @@ namespace DataBoss.Data
 		public override long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
 		public override long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
 
-		public IDataRecord GetRecord() => new DataRecord(this, data.Current);
+		public IDataRecord GetRecord() => new DataRecord(this, Current);
 
 		public override IEnumerator GetEnumerator() {
 			while (Read())
