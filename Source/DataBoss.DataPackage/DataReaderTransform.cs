@@ -8,7 +8,12 @@ using DataBoss.Data;
 
 namespace DataBoss.DataPackage
 {
-	public class DataReaderTransform : IDataReader
+	public interface ITransformedDataRecord : IDataRecord
+	{
+		IDataRecord Source { get; }
+	}
+
+	public class DataReaderTransform : IDataReader, ITransformedDataRecord
 	{
 		public static class FieldInfo<T>
 		{
@@ -53,10 +58,10 @@ namespace DataBoss.DataPackage
 			int ColumnSize { get; }
 			Type FieldType { get; }
 
-			bool IsDBNull(IDataRecord record);
+			bool IsDBNull(ITransformedDataRecord record);
 
-			object GetValue(IDataRecord record);
-			T GetFieldValue<T>(IDataRecord record);
+			object GetValue(ITransformedDataRecord record);
+			T GetFieldValue<T>(ITransformedDataRecord record);
 		}
 
 		abstract class SourceFieldAccessor : IFieldAccessor
@@ -72,10 +77,10 @@ namespace DataBoss.DataPackage
 			public int Ordinal { get; }
 			public abstract Type FieldType { get; }
 
-			public bool IsDBNull(IDataRecord record) => record.IsDBNull(Ordinal);
+			public bool IsDBNull(ITransformedDataRecord record) => record.IsDBNull(Ordinal);
 
-			public abstract object GetValue(IDataRecord record);
-			public T GetFieldValue<T>(IDataRecord record) => record.GetFieldValue<T>(Ordinal);
+			public abstract object GetValue(ITransformedDataRecord record);
+			public T GetFieldValue<T>(ITransformedDataRecord record) => record.Source.GetFieldValue<T>(Ordinal);
 		}
 
 		class SourceFieldAccessor<TField> : SourceFieldAccessor
@@ -84,7 +89,7 @@ namespace DataBoss.DataPackage
 			{ }
 
 			public override Type FieldType => FieldInfo<TField>.FieldType;
-			public override object GetValue(IDataRecord record) => GetFieldValue<TField>(record);
+			public override object GetValue(ITransformedDataRecord record) => GetFieldValue<TField>(record);
 		}
 
 		abstract class UserFieldAccessor<TField> : IFieldAccessor
@@ -100,17 +105,17 @@ namespace DataBoss.DataPackage
 			public int ColumnSize => FieldInfo<TField>.ColumnSize;
 			public Type FieldType => FieldInfo<TField>.FieldType;
 
-			public T GetFieldValue<T>(IDataRecord record) =>
+			public T GetFieldValue<T>(ITransformedDataRecord record) =>
 				(T)(object)GetCurrentValue(record);
 
-			public object GetValue(IDataRecord record) {
+			public object GetValue(ITransformedDataRecord record) {
 				var value = GetCurrentValue(record);
 				return FieldInfo<TField>.IsNull(value) ? DBNull.Value : value;
 			}
 
-			public bool IsDBNull(IDataRecord record) => AllowDBNull && FieldInfo<TField>.IsNull(GetCurrentValue(record));
+			public bool IsDBNull(ITransformedDataRecord record) => AllowDBNull && FieldInfo<TField>.IsNull(GetCurrentValue(record));
 
-			TField GetCurrentValue(IDataRecord record) {
+			TField GetCurrentValue(ITransformedDataRecord record) {
 				if (isDirty) {
 					currentValue = GetRecordValue(record);
 					isDirty = false;
@@ -118,20 +123,20 @@ namespace DataBoss.DataPackage
 				return currentValue;
 			}
 
-			protected abstract TField GetRecordValue(IDataRecord record);
+			protected abstract TField GetRecordValue(ITransformedDataRecord record);
 
 			public void Dirty() { isDirty = true; }
 		}
 
 		class FieldTransform<T> : UserFieldAccessor<T>
 		{
-			readonly Func<IDataRecord, T> transform;
+			readonly Func<ITransformedDataRecord, T> transform;
 
-			public FieldTransform(Func<IDataRecord, T> transform) {
+			public FieldTransform(Func<ITransformedDataRecord, T> transform) {
 				this.transform = transform;
 			}
 
-			protected override T GetRecordValue(IDataRecord record) => transform(record);
+			protected override T GetRecordValue(ITransformedDataRecord record) => transform(record);
 		}
 
 		class FieldTransform<TField, T> : UserFieldAccessor<T>
@@ -148,7 +153,7 @@ namespace DataBoss.DataPackage
 
 			public override bool AllowDBNull => allowDBNull;
 
-			protected override T GetRecordValue(IDataRecord record) => transform(source.GetFieldValue<TField>(record));
+			protected override T GetRecordValue(ITransformedDataRecord record) => transform(source.GetFieldValue<TField>(record));
 		}
 
 		readonly IDataReader inner;
@@ -170,12 +175,14 @@ namespace DataBoss.DataPackage
 			this.fields.AddRange(sourceFields);
 		}
 
-		public DataReaderTransform Add<T>(string name, Func<IDataRecord, T> getValue) {
+		IDataRecord ITransformedDataRecord.Source => inner;
+
+		public DataReaderTransform Add<T>(string name, Func<ITransformedDataRecord, T> getValue) {
 			fields.Add(Bind(new FieldTransform<T>(getValue), name));
 			return this;
 		}
 
-		public DataReaderTransform Add<T>(int ordinal, string name, Func<IDataRecord, T> getValue) {
+		public DataReaderTransform Add<T>(int ordinal, string name, Func<ITransformedDataRecord, T> getValue) {
 			fields.Insert(ordinal, Bind(new FieldTransform<T>(getValue), name));
 			return this;
 		}
@@ -185,7 +192,7 @@ namespace DataBoss.DataPackage
 			return this;
 		}
 
-		public DataReaderTransform Transform<T>(string name, Func<IDataRecord, T> transform) {
+		public DataReaderTransform Transform<T>(string name, Func<ITransformedDataRecord, T> transform) {
 			fields[GetOrdinal(name)] = Bind(new FieldTransform<T>(transform), name);
 			return this;
 		}
@@ -214,7 +221,7 @@ namespace DataBoss.DataPackage
 			return (accessor, name);
 		}
 
-		public DataReaderTransform Set<T>(string name, Func<IDataRecord, T> getValue) {
+		public DataReaderTransform Set<T>(string name, Func<ITransformedDataRecord, T> getValue) {
 			var n = fields.FindIndex(x => x.Name == name);
 			return n == -1
 			? Add(name, getValue)
@@ -227,8 +234,8 @@ namespace DataBoss.DataPackage
 			return this;
 		}
 
-		public T GetFieldValue<T>(int i) => fields[i].Accessor.GetFieldValue<T>(inner);
-		public object GetValue(int i) => fields[i].Accessor.GetValue(inner);
+		public T GetFieldValue<T>(int i) => fields[i].Accessor.GetFieldValue<T>(this);
+		public object GetValue(int i) => fields[i].Accessor.GetValue(this);
 
 		object IDataRecord.this[int i] => GetValue(i);
 		object IDataRecord.this[string name] => GetValue(GetOrdinal(name));
@@ -277,7 +284,7 @@ namespace DataBoss.DataPackage
 
 		string IDataRecord.GetDataTypeName(int i) => DataBossDbType.From(GetFieldType(i)).TypeName;
 
-		public bool IsDBNull(int i) => fields[i].Accessor.IsDBNull(inner);
+		public bool IsDBNull(int i) => fields[i].Accessor.IsDBNull(this);
 		bool IDataReader.NextResult() => inner.NextResult();
 		bool IDataReader.Read() {
 			onRead?.Invoke();
