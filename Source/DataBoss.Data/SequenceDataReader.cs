@@ -29,65 +29,61 @@ namespace DataBoss.Data
 
 	public sealed class SequenceDataReader<T> : DbDataReader, IDataRecordReader
 	{
-		interface IColumnAccessor
+		abstract class FieldAccessor
 		{
-			bool IsDBNull(T item);
-			object GetValue(T item);
-			TValue GetFieldValue<TValue>(T item);
+			public abstract bool IsDBNull(T item);
+			public abstract object GetValue(T item);
+			public abstract TValue GetFieldValue<TValue>(T item);
+
+			public static FieldAccessor Create<TField>(Func<T, TField> get) => new ValueAccessor<TField>(get);
+			public static FieldAccessor Create<TField>(Func<T, TField> get, Func<T, bool> hasValue) =>
+				hasValue == null ? Create(get) : new NullableAccessor<TField>(get, hasValue);
 		}
 
-		sealed class ColumnAccessor<TField> : IColumnAccessor
+		abstract class FieldAccessor<TField> : FieldAccessor
 		{
 			readonly Func<T, TField> get;
-			readonly Func<T, bool> hasValue;
 
-			public ColumnAccessor(Func<T, TField> get, Func<T, bool> hasValue) {
+			public FieldAccessor(Func<T, TField> get) {
 				this.get = get;
-				this.hasValue = hasValue;
 			}
 
-			public object GetValue(T item) =>
-				IsDBNull(item) ? DBNull.Value : GetFieldValue<object>(item);
-
-			public bool IsDBNull(T item) =>
-				(hasValue != null) && !hasValue(item);
-
-			public bool GetBoolean(T item) => GetFieldValue<bool>(item);
-			public byte GetByte(T item) => GetFieldValue<byte>(item);
-			public char GetChar(T item) => GetFieldValue<char>(item);
-			public short GetInt16(T item) => GetFieldValue<short>(item);
-			public int GetInt32(T item) => GetFieldValue<int>(item);
-			public long GetInt64(T item) => GetFieldValue<long>(item);
-			public float GetFloat(T item) => GetFieldValue<float>(item);
-			public double GetDouble(T item) => GetFieldValue<double>(item);
-			public decimal GetDecimal(T item) => GetFieldValue<decimal>(item);
-			public DateTime GetDateTime(T item) => GetFieldValue<DateTime>(item);
-			public Guid GetGuid(T item) => GetFieldValue<Guid>(item);
-			public string GetString(T item) => GetFieldValue<string>(item);
-
-			public TValue GetFieldValue<TValue>(T item) {
-				if(typeof(TValue) == typeof(TField) || typeof(TValue) == typeof(object))
+			public override TValue GetFieldValue<TValue>(T item) {
+				if (typeof(TValue) == typeof(TField) || typeof(TValue) == typeof(object))
 					return (TValue)(object)get(item);
 				ThrowInvalidCastException<TField, TValue>();
 				return default;
 			}
+
+			protected TField GetFieldValue(T item) => get(item);
 		}
 
-		sealed class StringColumnAccessor : IColumnAccessor
+		sealed class ValueAccessor<TField> : FieldAccessor<TField>
 		{
-			readonly Func<T, string> get;
+			public ValueAccessor(Func<T, TField> get) : base(get) { }
 
-			public StringColumnAccessor(Func<T, string> get) { this.get = get; }
+			public override object GetValue(T item) => GetFieldValue(item);
+			public override bool IsDBNull(T item) => false;
+		}
 
-			public TValue GetFieldValue<TValue>(T item) {
-				if (typeof(TValue) == typeof(string) || typeof(TValue) == typeof(object))
-					return (TValue)(object)get(item);
-				ThrowInvalidCastException<string, TValue>();
-				return default;
+		sealed class NullableAccessor<TField> : FieldAccessor<TField>
+		{
+			readonly Func<T, bool> hasValue;
+
+			public NullableAccessor(Func<T, TField> get, Func<T, bool> hasValue) : base(get) {
+				this.hasValue = hasValue ?? throw new ArgumentNullException(nameof(hasValue));
 			}
 
-			public object GetValue(T item) => (object)get(item) ?? DBNull.Value;
-			public bool IsDBNull(T item) => get(item) == null;
+			public override object GetValue(T item) => IsDBNull(item) ? DBNull.Value : GetFieldValue(item);
+			public override bool IsDBNull(T item) => !hasValue(item);
+		}
+
+		sealed class StringAccessor : FieldAccessor<string>
+		{
+			public StringAccessor(Func<T, string> get) : base(get) { }
+
+			public override object GetValue(T item) => (object)GetFieldValue(item) ?? DBNull.Value;
+			public override bool IsDBNull(T item) => GetFieldValue(item) == null;
 		}
 
 		static void ThrowInvalidCastException<TField, TValue>() => 
@@ -95,15 +91,17 @@ namespace DataBoss.Data
 
 		class DataRecord : IDataRecord
 		{
-			readonly SequenceDataReader<T> parent;
+			readonly DataReaderSchemaTable schema;
+			readonly FieldAccessor[] fields;
 			readonly T item;
 
-			public DataRecord(SequenceDataReader<T> parent, T item) {
-				this.parent = parent;
+			public DataRecord(DataReaderSchemaTable schema, FieldAccessor[] fields, T item) {
+				this.schema = schema;
+				this.fields = fields;
 				this.item = item;
 			}
 
-			public int FieldCount => parent.FieldCount;
+			public int FieldCount => fields.Length;
 
 			public bool IsDBNull(int i) => GetAccessor(i).IsDBNull(item);
 			public object GetValue(int i) => GetAccessor(i).GetValue(item);
@@ -121,7 +119,7 @@ namespace DataBoss.Data
 			public Guid GetGuid(int i) => GetAccessor(i).GetFieldValue<Guid>(item);
 			public string GetString(int i) => GetAccessor(i).GetFieldValue<string>(item);
 
-			IColumnAccessor GetAccessor(int i) => parent.fields[i];
+			FieldAccessor GetAccessor(int i) => fields[i];
 
 			public int GetValues(object[] values) {
 				var n = Math.Min(FieldCount, values.Length);
@@ -137,13 +135,13 @@ namespace DataBoss.Data
 			public long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
 			public IDataReader GetData(int i) => throw new NotImplementedException();
 
-			public string GetDataTypeName(int i) => parent.GetDataTypeName(i);
-			public Type GetFieldType(int i) => parent.GetFieldType(i);
-			public string GetName(int i) => parent.GetName(i);
-			public int GetOrdinal(string name) => parent.GetOrdinal(name);
+			public string GetDataTypeName(int i) => schema[i].DataTypeName;
+			public Type GetFieldType(int i) => schema[i].ColumnType;
+			public string GetName(int i) => schema[i].ColumnName;
+			public int GetOrdinal(string name) => schema.GetOrdinal(name);
 		}
 
-		readonly IColumnAccessor[] fields;
+		readonly FieldAccessor[] fields;
 		readonly IEnumerator<T> data;
 		readonly DataReaderSchemaTable schema;
 		bool hasData;
@@ -151,7 +149,7 @@ namespace DataBoss.Data
 		internal SequenceDataReader(IEnumerator<T> data, FieldMapping<T> fields) {
 			this.data = data ?? throw new ArgumentNullException(nameof(data));
 			this.schema = GetSchema(fields);
-			this.fields = new IColumnAccessor[fields.Count];
+			this.fields = new FieldAccessor[fields.Count];
 			for (var i = 0; i != this.fields.Length; ++i)
 				this.fields[i] = MakeAccessor(fields.Source, fields[i]);
 		}
@@ -171,11 +169,11 @@ namespace DataBoss.Data
 			return schema;
 		}
 
-		static IColumnAccessor MakeAccessor(ParameterExpression source, in FieldMappingItem field) {
+		static FieldAccessor MakeAccessor(ParameterExpression source, in FieldMappingItem field) {
 			if (field.FieldType == typeof(string))
-				return new StringColumnAccessor(CompileSelector<string>(source, field.GetValue));
+				return new StringAccessor(CompileSelector<string>(source, field.GetValue));
 			var (hasValue, selector) = field.HasValue == null ? (null, field.Selector) : (CompileSelector<bool>(source, field.HasValue), field.GetValue);
-			var createAccessor = Lambdas.CreateDelegate<Func<ParameterExpression, Expression, Func<T, bool>, IColumnAccessor>>(
+			var createAccessor = Lambdas.CreateDelegate<Func<ParameterExpression, Expression, Func<T, bool>, FieldAccessor>>(
 				MakeAccessorMethod.MakeGenericMethod(selector.Type));
 			return createAccessor(source, selector, hasValue);
 		}
@@ -183,8 +181,8 @@ namespace DataBoss.Data
 		static readonly MethodInfo MakeAccessorMethod = typeof(SequenceDataReader<T>)
 			.GetMethod(nameof(MakeAccessorT), BindingFlags.Static | BindingFlags.NonPublic);
 
-		static IColumnAccessor MakeAccessorT<TFieldType>(ParameterExpression source, Expression selector, Func<T, bool> hasValue) =>
-			new ColumnAccessor<TFieldType>(CompileSelector<TFieldType>(source, selector), hasValue);
+		static FieldAccessor MakeAccessorT<TFieldType>(ParameterExpression source, Expression selector, Func<T, bool> hasValue) =>
+			FieldAccessor.Create(CompileSelector<TFieldType>(source, selector), hasValue);
 
 		static Func<T, TResult> CompileSelector<TResult>(ParameterExpression source, Expression selector) =>
 			Expression.Lambda<Func<T, TResult>>(selector, source).Compile();
@@ -214,12 +212,7 @@ namespace DataBoss.Data
 		public override string GetDataTypeName(int i) => schema[i].DataTypeName;
 		public override Type GetFieldType(int i) => schema[i].ColumnType;
 		public override string GetName(int i) => schema[i].ColumnName;
-		public override int GetOrdinal(string name) {
-			var o = schema.GetOrdinal(name);
-			if (o < 0)
-				throw new InvalidOperationException($"No field named '{name}' mapped");
-			return o;
-		}
+		public override int GetOrdinal(string name) => schema.GetOrdinal(name);
 
 		public override int GetValues(object[] values) {
 			var n = Math.Min(FieldCount, values.Length);
@@ -228,31 +221,32 @@ namespace DataBoss.Data
 			return n;
 		}
 
-		T Current => hasData ? data.Current : NoData(); 
-
-		static T NoData() => throw new InvalidOperationException("Invalid attempt to read when no data is present, call Read()");
-
 		public override bool IsDBNull(int i) => fields[i].IsDBNull(Current);
 		public override object GetValue(int i) => fields[i].GetValue(Current);
-		public override TValue GetFieldValue<TValue>(int i) => fields[i].GetFieldValue<TValue>(Current);
 
-		public override bool GetBoolean(int i) => GetFieldValue<bool>(i);
-		public override byte GetByte(int i) => GetFieldValue<byte>(i);
-		public override char GetChar(int i) => GetFieldValue<char>(i);
-		public override Guid GetGuid(int i) => GetFieldValue<Guid>(i);
-		public override short GetInt16(int i) => GetFieldValue<short>(i);
-		public override int GetInt32(int i) => GetFieldValue<int>(i);
-		public override long GetInt64(int i) => GetFieldValue<long>(i);
-		public override float GetFloat(int i) => GetFieldValue<float>(i);
-		public override double GetDouble(int i) => GetFieldValue<double>(i);
-		public override string GetString(int i) => GetFieldValue<string>(i);
-		public override decimal GetDecimal(int i) => GetFieldValue<decimal>(i);
-		public override DateTime GetDateTime(int i) => GetFieldValue<DateTime>(i);
+		public override TValue GetFieldValue<TValue>(int i) => GetCurrentValue<TValue>(i);
+		public override bool GetBoolean(int i) => GetCurrentValue<bool>(i);
+		public override byte GetByte(int i) => GetCurrentValue<byte>(i);
+		public override char GetChar(int i) => GetCurrentValue<char>(i);
+		public override Guid GetGuid(int i) => GetCurrentValue<Guid>(i);
+		public override short GetInt16(int i) => GetCurrentValue<short>(i);
+		public override int GetInt32(int i) => GetCurrentValue<int>(i);
+		public override long GetInt64(int i) => GetCurrentValue<long>(i);
+		public override float GetFloat(int i) => GetCurrentValue<float>(i);
+		public override double GetDouble(int i) => GetCurrentValue<double>(i);
+		public override string GetString(int i) => GetCurrentValue<string>(i);
+		public override decimal GetDecimal(int i) => GetCurrentValue<decimal>(i);
+		public override DateTime GetDateTime(int i) => GetCurrentValue<DateTime>(i);
+
+		TValue GetCurrentValue<TValue>(int i) => fields[i].GetFieldValue<TValue>(Current);
+		T Current => hasData ? data.Current : NoData();
+		static T NoData() => throw new InvalidOperationException("Invalid attempt to read when no data is present, call Read()");
+
 
 		public override long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
 		public override long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
 
-		public IDataRecord GetRecord() => new DataRecord(this, Current);
+		public IDataRecord GetRecord() => new DataRecord(schema, fields, Current);
 
 		public override IEnumerator GetEnumerator() {
 			while (Read())

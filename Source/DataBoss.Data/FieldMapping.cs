@@ -46,13 +46,8 @@ namespace DataBoss.Data
 
 		internal FieldMappingItem this[int index] => mappings[index];
 
-		public string[] GetFieldNames() => mappings.ToArray(x => x.Name);
 		public string GetFieldName(int i) => mappings[i].Name;
-
-		public Type[] GetFieldTypes() => mappings.ToArray(x => x.FieldType);
 		public Type GetFieldType(int i) => mappings[i].FieldType;
-
-		public DataBossDbType[] GetDbTypes() => mappings.ToArray(x => x.DbType);
 		public DataBossDbType GetDbType(int i) => mappings[i].DbType;
 
 		public void MapAll() {

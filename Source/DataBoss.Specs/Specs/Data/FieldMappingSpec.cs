@@ -88,7 +88,7 @@ namespace DataBoss.Data
 
 			mapping.MapAll();
 
-			Check.That(() => mapping.GetFieldNames().Length == 1);
+			Check.That(() => mapping.Count == 1);
 		}
 
 		LambdaExpression MakeLambda<TArg, TResult>(Expression<Func<TArg, TResult>> expr) => expr;
