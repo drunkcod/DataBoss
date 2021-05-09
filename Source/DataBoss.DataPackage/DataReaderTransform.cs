@@ -69,8 +69,8 @@ namespace DataBoss.DataPackage
 
 			public bool AllowDBNull { get; }
 			public int ColumnSize { get; }
-			public abstract Type FieldType { get; }
 			public int Ordinal { get; }
+			public abstract Type FieldType { get; }
 
 			public bool IsDBNull(IDataRecord record) => record.IsDBNull(Ordinal);
 
@@ -102,7 +102,6 @@ namespace DataBoss.DataPackage
 
 			public T GetFieldValue<T>(IDataRecord record) =>
 				(T)(object)GetCurrentValue(record);
-
 
 			public object GetValue(IDataRecord record) {
 				var value = GetCurrentValue(record);

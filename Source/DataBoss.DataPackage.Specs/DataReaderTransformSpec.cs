@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using CheckThat;
 using DataBoss.Data;
 using Xunit;
@@ -86,15 +87,23 @@ namespace DataBoss.DataPackage
 		[Fact]
 		public void Add_nullable() {
 			var rows = SequenceDataReader.Items(
-				new { Value = 1 });
+				new { Value = 1 },
+				new { Value = 2 });
 
-			var xform = rows.WithTransform(x => x.Add("Null", _ => (float?)null));
-			xform.Read();
+			var xform = rows.WithTransform(x => x.Add("NullIfOdd", r => {
+				var value = r.GetInt32(0);
+				return value % 2 != 0 ? (float?)null : value;
+			}));
+			var nullIfEven = new List<(bool IsDBNull,object Value)>();
+			while (xform.Read())
+				nullIfEven.Add((xform.IsDBNull(1), xform.GetValue(1)));
 			Check.That(
 				() => xform.GetFieldType(1) == typeof(float),
 				() => xform.GetDataReaderSchemaTable()[1].AllowDBNull == true,
-				() => xform.IsDBNull(1) == true,
-				() => xform.GetValue(1) == DBNull.Value);
+				() => nullIfEven[0].IsDBNull == true,
+				() => nullIfEven[0].Value == DBNull.Value,
+				() => nullIfEven[1].IsDBNull == false,
+				() => (float)nullIfEven[1].Value == 2.0);
 		}
 
 		[Fact]
