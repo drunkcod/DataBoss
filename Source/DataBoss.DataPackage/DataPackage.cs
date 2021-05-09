@@ -88,27 +88,28 @@ namespace DataBoss.DataPackage
 		}
 
 		static DataPackage LoadUrl(string url) {
-			DataPackageDescription description;
-			using (var reader = new JsonTextReader(new StreamReader(WebResponseStream.Get(url)))) {
-				var json = new JsonSerializer();
-				description = json.Deserialize<DataPackageDescription>(reader);
+			var source = WebResponseStream.Get(url);
+			if(source.ContentType == "application/zip") {
+				try {
+					var bytes = new MemoryStream();
+					source.CopyTo(bytes);
+					var buff = bytes.TryGetBuffer(out var ok) ? ok : new ArraySegment<byte>(bytes.ToArray());
+					return LoadZip(() => new MemoryStream(buff.Array, buff.Offset, buff.Count, writable: false));
+				} finally {
+					source.Dispose();
+				}
+			} else {
+				var description = LoadPackageDescription(WebResponseStream.Get(url));
+				var r = new DataPackage();
+				r.AddResources(description.Resources.Select(x =>
+					TabularDataResource.From(x, () =>
+						CreateCsvDataReader(x, WebResponseStream.Get))));
+				return r;
 			}
-
-			var r = new DataPackage();
-			r.AddResources(description.Resources.Select(x =>
-				TabularDataResource.From(x, () =>
-					CreateCsvDataReader(x, WebResponseStream.Get))));
-
-			return r;
 		}
 
 		public static DataPackage Load(Func<string, Stream> openRead) {
-			DataPackageDescription description;
-			using(var reader = new JsonTextReader(new StreamReader(openRead("datapackage.json")))) {
-				var json = new JsonSerializer();
-				description = json.Deserialize<DataPackageDescription>(reader);
-			}
-
+			var description = LoadPackageDescription(openRead("datapackage.json"));
 			var r = new DataPackage();
 			r.AddResources(description.Resources.Select(x =>
 				TabularDataResource.From(x, () => CreateCsvDataReader(x, openRead))));
@@ -146,11 +147,15 @@ namespace DataBoss.DataPackage
 			}
 		}
 
+
 		static DataPackageDescription LoadZipPackageDescription(Func<Stream> openZip) {
-			var json = new JsonSerializer();
 			using var zip = new ZipArchive(openZip(), ZipArchiveMode.Read);
-			using var reader = new JsonTextReader(new StreamReader(zip.GetEntry("datapackage.json").Open()));
-				
+			return LoadPackageDescription(zip.GetEntry("datapackage.json").Open());
+		}
+
+		static DataPackageDescription LoadPackageDescription(Stream stream) {
+			var json = new JsonSerializer();
+			using var reader = new JsonTextReader(new StreamReader(stream));
 			return json.Deserialize<DataPackageDescription>(reader);
 		}
 
@@ -203,14 +208,14 @@ namespace DataBoss.DataPackage
 		public IDataPackageBuilder AddResource(Action<CsvResourceBuilder> setupResource) {
 			var newResource = new CsvResourceBuilder();
 			setupResource(newResource);
-			AddResource(newResource.Build());
-			return this;
+			return AddResource(newResource.Build());
 		}
 
-		void AddResource(TabularDataResource item) {
+		public IDataPackageBuilder AddResource(TabularDataResource item) {
 			if (TryGetResource(item.Name, out var _))
 				throw new InvalidOperationException($"Can't add duplicate resource {item.Name}.");
 			resources.Add(item);
+			return this;
 		}
 
 		void AddResources(IEnumerable<TabularDataResource> items) =>

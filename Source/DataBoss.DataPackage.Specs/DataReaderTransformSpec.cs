@@ -122,5 +122,38 @@ namespace DataBoss.DataPackage
 		[Fact]
 		public void null_string_is_null() =>
 			Check.That(() => DataReaderTransform.FieldInfo<string>.IsNull(null));
+
+		[Fact]
+		public void Add_at() {
+			var rows = SequenceDataReader.Items(new { Value = "Hello" });
+
+			var xform = rows.WithTransform(x => x.Add(0, "Id", x => 1));
+
+			Check.That(
+				() => xform.GetOrdinal("Id") == 0,
+				() => xform.GetOrdinal("Value") == 1,
+				() => xform.GetName(0) == "Id",
+				() => xform.GetName(1) == "Value",
+				() => xform.GetFieldType(0) == typeof(int),
+				() => xform.GetFieldType(1) == typeof(string));
+		}
+
+		[Fact]
+		public void Transform_handles_changed_column_order() {
+			var rows = SequenceDataReader.Items(new { Foo = "Hello", Bar = "World" });
+			var xform = rows.WithTransform(x => {
+				x.Add(0, "Id", x => 1); //displace columns
+				x.Transform("Foo", (string value) => value.ToUpper());
+				x.Transform(2, (string value) => value.ToLower());
+			});
+
+			xform.Read();
+			Check.That(
+				() => xform.GetOrdinal("Foo") == 1,
+				() => xform.GetString(1) == "HELLO",
+				() => xform.GetOrdinal("Bar") == 2,
+				() => xform.GetString(2) == "world");
+
+		}
 	}
 }

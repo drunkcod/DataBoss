@@ -19,6 +19,8 @@ namespace DataBoss.DataPackage
 			this.stream = source.GetResponseStream();
 		}
 
+		public string ContentType => source.ContentType;
+
 		protected override void Dispose(bool disposing) {
 			if (!disposing)
 				return;

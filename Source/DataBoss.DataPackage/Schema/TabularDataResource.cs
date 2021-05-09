@@ -81,8 +81,11 @@ namespace DataBoss.DataPackage
 				return data;
 			});
 
-		public TabularDataResource WithData(Func<IDataReader> getData) =>
-			Rebind(Name, SchemaWithSameKeys(), getData);
+		public TabularDataResource WithData(Func<IDataReader> newData) =>
+			Rebind(Name, SchemaWithSameKeys(), newData);
+
+		public TabularDataResource WithName(string name) =>
+			Rebind(name, SchemaWithSameKeys(), getData);
 
 		TabularDataSchema SchemaWithSameKeys() =>
 			new TabularDataSchema {

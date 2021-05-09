@@ -40,7 +40,7 @@ namespace DataBoss.DataPackage
 				var ps = Array.ConvertAll(
 					typeof(AccessorBuilder).GetMethod("Invoke").GetParameters(),
 					x => Expression.Parameter(x.ParameterType, x.Name));
-				var c = typeof(FieldAccessor<>).MakeGenericType(fieldType).GetConstructor(Array.ConvertAll(ps, x => x.Type));
+				var c = typeof(SourceFieldAccessor<>).MakeGenericType(fieldType).GetConstructor(Array.ConvertAll(ps, x => x.Type));
 				return Expression.Lambda<AccessorBuilder>(Expression.New(c, ps), ps).Compile();
 			});
 
@@ -59,24 +59,32 @@ namespace DataBoss.DataPackage
 			T GetFieldValue<T>(IDataRecord record);
 		}
 
-		class FieldAccessor<TField> : IFieldAccessor
+		abstract class SourceFieldAccessor : IFieldAccessor
 		{
-			readonly int ordinal;
-
-			public bool AllowDBNull { get; }
-			public int ColumnSize { get; }
-			public Type FieldType => FieldInfo<TField>.FieldType;
-
-			public FieldAccessor(int ordinal, bool allowDBNull, int columnSize) {
-				this.ordinal = ordinal;
+			public SourceFieldAccessor(int ordinal, bool allowDBNull, int columnSize) {
+				this.Ordinal = ordinal;
 				this.AllowDBNull = allowDBNull;
 				this.ColumnSize = columnSize;
 			}
 
-			public bool IsDBNull(IDataRecord record) => record.IsDBNull(ordinal);
+			public bool AllowDBNull { get; }
+			public int ColumnSize { get; }
+			public abstract Type FieldType { get; }
+			public int Ordinal { get; }
 
-			public object GetValue(IDataRecord record) => GetFieldValue<TField>(record);
-			public T GetFieldValue<T>(IDataRecord record) => record.GetFieldValue<T>(ordinal);
+			public bool IsDBNull(IDataRecord record) => record.IsDBNull(Ordinal);
+
+			public abstract object GetValue(IDataRecord record);
+			public T GetFieldValue<T>(IDataRecord record) => record.GetFieldValue<T>(Ordinal);
+		}
+
+		class SourceFieldAccessor<TField> : SourceFieldAccessor
+		{
+			public SourceFieldAccessor(int ordinal, bool allowDBNull, int columnSize) : base(ordinal, allowDBNull, columnSize) 
+			{ }
+
+			public override Type FieldType => FieldInfo<TField>.FieldType;
+			public override object GetValue(IDataRecord record) => GetFieldValue<TField>(record);
 		}
 
 		abstract class UserFieldAccessor<TField> : IFieldAccessor
@@ -129,19 +137,19 @@ namespace DataBoss.DataPackage
 
 		class FieldTransform<TField, T> : UserFieldAccessor<T>
 		{
+			readonly IFieldAccessor source;
 			readonly Func<TField, T> transform;
-			readonly int ordinal;
 			readonly bool allowDBNull;
 
-			public FieldTransform(int ordinal, Func<TField, T> transform, bool allowDBNull) {
+			public FieldTransform(IFieldAccessor source, Func<TField, T> transform, bool allowDBNull) {
+				this.source = source;
 				this.transform = transform;
 				this.allowDBNull = allowDBNull;
-				this.ordinal = ordinal;
 			}
 
 			public override bool AllowDBNull => allowDBNull;
 
-			protected override T GetRecordValue(IDataRecord record) => transform(record.GetFieldValue<TField>(ordinal));
+			protected override T GetRecordValue(IDataRecord record) => transform(source.GetFieldValue<TField>(record));
 		}
 
 		readonly IDataReader inner;
@@ -168,29 +176,37 @@ namespace DataBoss.DataPackage
 			return this;
 		}
 
+		public DataReaderTransform Add<T>(int ordinal, string name, Func<IDataRecord, T> getValue) {
+			fields.Insert(ordinal, Bind(new FieldTransform<T>(getValue), name));
+			return this;
+		}
+
 		public DataReaderTransform Remove(string name) {
 			fields.RemoveAll(x => x.Name == name);
 			return this;
 		}
 
 		public DataReaderTransform Transform<T>(string name, Func<IDataRecord, T> transform) {
-			fields[inner.GetOrdinal(name)] = Bind(new FieldTransform<T>(transform), name);
+			fields[GetOrdinal(name)] = Bind(new FieldTransform<T>(transform), name);
 			return this;
 		}
 
-		public DataReaderTransform Transform<TField, T>(string name, Func<TField, T> transform) =>
-			Transform(name, inner.GetOrdinal(name), transform);
-			
-		public DataReaderTransform Transform<TField, T>(int ordinal, Func<TField, T> transform) =>
-			Transform(inner.GetName(ordinal), ordinal, transform);
+		public DataReaderTransform Transform<TField, T>(string name, Func<TField, T> transform) {
+			var o = GetOrdinal(name);
+			return Transform(name, o, fields[o].Accessor, transform);
+		}
 
-		DataReaderTransform Transform<TField, T>(string name, int ordinal, Func<TField, T> transform) {
+		public DataReaderTransform Transform<TField, T>(int ordinal, Func<TField, T> transform) {
+			return Transform(GetName(ordinal), ordinal, fields[ordinal].Accessor, transform);
+		}
+
+		DataReaderTransform Transform<TField, T>(string name, int ordinal, IFieldAccessor source, Func<TField, T> transform) {
 			var allowDBNull = 
 				FieldInfo<TField>.IsNullable 
 				? FieldInfo<T>.IsNullable 
-				: FieldInfo<T>.IsNullable || fields[ordinal].Accessor.AllowDBNull;
+				: FieldInfo<T>.IsNullable || source.AllowDBNull;
 			
-			fields[ordinal] = Bind(new FieldTransform<TField, T>(ordinal, transform, allowDBNull), name);
+			fields[ordinal] = Bind(new FieldTransform<TField, T>(source, transform, allowDBNull), name);
 			return this;
 		}
 
