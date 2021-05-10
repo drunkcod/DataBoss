@@ -175,7 +175,7 @@ namespace DataBoss.DataPackage
 			this.fields.AddRange(sourceFields);
 		}
 
-		IDataRecord ITransformedDataRecord.Source => inner;
+		public IDataRecord Source => inner;
 
 		public DataReaderTransform Add<T>(string name, Func<ITransformedDataRecord, T> getValue) {
 			fields.Add(Bind(new FieldTransform<T>(getValue), name));

@@ -5,12 +5,12 @@
 	  <DefineConstants Condition="'$(TargetFramework)'=='netstandard2.1'">$(DefineConstants);NETSTANDARD2_1</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="CsvHelper" Version="26.1.0" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+    <PackageReference Include="CsvHelper" Version="27.0.2" />
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.1" />
     <PackageReference Include="System.Collections.Immutable" Version="5.0.0" />
     <PackageReference Include="System.IO.Compression" Version="4.3.0" />
     <PackageReference Include="System.Text.Encodings.Web" Version="5.0.1" />
-    <PackageReference Include="System.Text.Json" Version="5.0.1" />
+    <PackageReference Include="System.Text.Json" Version="5.0.2" />
     <PackageReference Include="System.Threading.Channels" Version="5.0.0" />
   </ItemGroup>
   <ItemGroup>

@@ -22,7 +22,7 @@ NuPack DataBoss.Testing.SqlServer
 
 #CLI Packaging
 $v = (Get-ChildItem Build\DataBoss.Cli\Release\net452\DataBoss.dll | Select-Object -ExpandProperty VersionInfo).ProductVersion
-$p = "Build\Bin\DastaBoss.Cli-$v"
+$p = "Build\Bin\DataBoss.Cli-$v"
 
 & { param($p)
     If (Test-Path $p) { Remove-Item $p -Recurse -Force }
