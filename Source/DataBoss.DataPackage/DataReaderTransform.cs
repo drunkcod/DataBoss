@@ -77,7 +77,7 @@ namespace DataBoss.DataPackage
 			public int Ordinal { get; }
 			public abstract Type FieldType { get; }
 
-			public bool IsDBNull(ITransformedDataRecord record) => record.IsDBNull(Ordinal);
+			public bool IsDBNull(ITransformedDataRecord record) => record.Source.IsDBNull(Ordinal);
 
 			public abstract object GetValue(ITransformedDataRecord record);
 			public T GetFieldValue<T>(ITransformedDataRecord record) => record.Source.GetFieldValue<T>(Ordinal);

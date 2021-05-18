@@ -49,15 +49,12 @@ namespace DataBoss.DataPackage
 			(TDelegate)MakeCtor(type, typeof(TDelegate)).Compile();
 	
 		static LambdaExpression MakeCtor(Type type, Type delegateType) {
-				var args = Array.ConvertAll(
-					delegateType.GetMethod("Invoke")?.GetParameters() ?? throw new InvalidOperationException("Invoke not found, non delegate type passed?."),
-					x => Expression.Parameter(x.ParameterType));
-				var ctor = type.GetConstructor(Array.ConvertAll(args, x => x.Type)) ?? throw new InvalidOperationException("No suitable ctor found.");
-				return Expression.Lambda(
-					Expression.New(ctor, args),
-					tailCall: true,
-					args);
-			}
+			var args = Array.ConvertAll(
+				delegateType.GetMethod("Invoke")?.GetParameters() ?? throw new InvalidOperationException("Invoke not found, non delegate type passed?."),
+				x => Expression.Parameter(x.ParameterType));
+			var ctor = type.GetConstructor(Array.ConvertAll(args, x => x.Type)) ?? throw new InvalidOperationException("No suitable ctor found.");
+			return Expression.Lambda(Expression.New(ctor, args), tailCall: true, args);
+		}
 
 		readonly Func<Stream, CompressionLevel, Stream> wrapWrite;
 		readonly Func<Stream, CompressionMode, Stream> open;
