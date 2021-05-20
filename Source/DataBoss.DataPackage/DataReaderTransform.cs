@@ -58,10 +58,10 @@ namespace DataBoss.DataPackage
 			int ColumnSize { get; }
 			Type FieldType { get; }
 
-			bool IsDBNull(ITransformedDataRecord record);
+			bool IsDBNull(DataReaderTransform record);
 
-			object GetValue(ITransformedDataRecord record);
-			T GetFieldValue<T>(ITransformedDataRecord record);
+			object GetValue(DataReaderTransform record);
+			T GetFieldValue<T>(DataReaderTransform record);
 		}
 
 		abstract class SourceFieldAccessor : IFieldAccessor
@@ -77,10 +77,10 @@ namespace DataBoss.DataPackage
 			public int Ordinal { get; }
 			public abstract Type FieldType { get; }
 
-			public bool IsDBNull(ITransformedDataRecord record) => record.Source.IsDBNull(Ordinal);
+			public bool IsDBNull(DataReaderTransform record) => record.Source.IsDBNull(Ordinal);
 
-			public abstract object GetValue(ITransformedDataRecord record);
-			public T GetFieldValue<T>(ITransformedDataRecord record) => record.Source.GetFieldValue<T>(Ordinal);
+			public abstract object GetValue(DataReaderTransform record);
+			public T GetFieldValue<T>(DataReaderTransform record) => record.Source.GetFieldValue<T>(Ordinal);
 		}
 
 		class SourceFieldAccessor<TField> : SourceFieldAccessor
@@ -89,7 +89,7 @@ namespace DataBoss.DataPackage
 			{ }
 
 			public override Type FieldType => FieldInfo<TField>.FieldType;
-			public override object GetValue(ITransformedDataRecord record) => GetFieldValue<TField>(record);
+			public override object GetValue(DataReaderTransform record) => GetFieldValue<TField>(record);
 		}
 
 		abstract class UserFieldAccessor<TField> : IFieldAccessor
@@ -105,17 +105,17 @@ namespace DataBoss.DataPackage
 			public int ColumnSize => FieldInfo<TField>.ColumnSize;
 			public Type FieldType => FieldInfo<TField>.FieldType;
 
-			public T GetFieldValue<T>(ITransformedDataRecord record) =>
+			public T GetFieldValue<T>(DataReaderTransform record) =>
 				(T)(object)GetCurrentValue(record);
 
-			public object GetValue(ITransformedDataRecord record) {
+			public object GetValue(DataReaderTransform record) {
 				var value = GetCurrentValue(record);
 				return FieldInfo<TField>.IsNull(value) ? DBNull.Value : value;
 			}
 
-			public bool IsDBNull(ITransformedDataRecord record) => AllowDBNull && FieldInfo<TField>.IsNull(GetCurrentValue(record));
+			public bool IsDBNull(DataReaderTransform record) => AllowDBNull && FieldInfo<TField>.IsNull(GetCurrentValue(record));
 
-			TField GetCurrentValue(ITransformedDataRecord record) {
+			TField GetCurrentValue(DataReaderTransform record) {
 				if (isDirty) {
 					currentValue = GetRecordValue(record);
 					isDirty = false;
@@ -123,7 +123,7 @@ namespace DataBoss.DataPackage
 				return currentValue;
 			}
 
-			protected abstract TField GetRecordValue(ITransformedDataRecord record);
+			protected abstract TField GetRecordValue(DataReaderTransform record);
 
 			public void Dirty() { isDirty = true; }
 		}
@@ -136,7 +136,7 @@ namespace DataBoss.DataPackage
 				this.transform = transform;
 			}
 
-			protected override T GetRecordValue(ITransformedDataRecord record) => transform(record);
+			protected override T GetRecordValue(DataReaderTransform record) => transform(record);
 		}
 
 		class FieldTransform<TField, T> : UserFieldAccessor<T>
@@ -153,7 +153,26 @@ namespace DataBoss.DataPackage
 
 			public override bool AllowDBNull => allowDBNull;
 
-			protected override T GetRecordValue(ITransformedDataRecord record) => transform(source.GetFieldValue<TField>(record));
+			protected override T GetRecordValue(DataReaderTransform record) => transform(source.GetFieldValue<TField>(record));
+		}
+
+		class RecordTransform<TRecord, T> : UserFieldAccessor<T>
+		{
+			Func<IDataReader, TRecord> readRecord;
+			readonly Func<TRecord, T> selector;
+
+			public string Name;
+
+			public RecordTransform(Func<TRecord, T> selector) {
+				this.selector = selector;
+			}
+
+			protected override T GetRecordValue(DataReaderTransform record) =>
+				selector(ReadRecord(record));
+
+			TRecord ReadRecord(IDataReader reader) =>
+				(readRecord ??= ConverterFactory.Default.GetConverter<IDataReader, TRecord>(reader).Compiled)(reader);
+
 		}
 
 		readonly IDataReader inner;
@@ -184,6 +203,11 @@ namespace DataBoss.DataPackage
 
 		public DataReaderTransform Add<T>(int ordinal, string name, Func<ITransformedDataRecord, T> getValue) {
 			fields.Insert(ordinal, Bind(new FieldTransform<T>(getValue), name));
+			return this;
+		}
+
+		public DataReaderTransform Add<TRecord, T>(int ordinal, string name, Func<TRecord, T> selector) {
+			fields.Insert(ordinal, Bind(new RecordTransform<TRecord, T>(selector) { Name = name }, name));
 			return this;
 		}
 

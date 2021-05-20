@@ -162,7 +162,25 @@ namespace DataBoss.DataPackage
 				() => xform.GetString(1) == "HELLO",
 				() => xform.GetOrdinal("Bar") == 2,
 				() => xform.GetString(2) == "world");
-
 		}
+
+		[Fact]
+		public void Transform_typed_record() {
+			var item = new { Value = 1 };
+			var rows = SequenceDataReader.Items(item);
+
+			var xform = rows.WithTransform(x => x.Add(0, "Text", (ValueRow x) => x.Value.ToString()));
+			xform.Read();
+			Check.That(
+				() => xform.GetOrdinal("Text") == 0,
+				() => xform.GetOrdinal("Value") == 1,
+				() => xform.GetName(0) == "Text",
+				() => xform.GetName(1) == "Value",
+				() => xform.GetFieldType(0) == typeof(string),
+				() => xform.GetFieldType(1) == typeof(int),
+				() => xform.GetString(0) == item.Value.ToString());
+		}
+
+		struct ValueRow { public int Value; }
 	}
 }
