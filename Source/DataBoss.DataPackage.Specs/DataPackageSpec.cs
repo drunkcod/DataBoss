@@ -5,6 +5,7 @@ using System.Text;
 using CheckThat;
 using DataBoss.Data;
 using DataBoss.Data.Common;
+using DataBoss.DataPackage.Schema;
 using DataBoss.DataPackage.Types;
 using Xunit;
 
@@ -334,7 +335,7 @@ namespace DataBoss.DataPackage
 					.WithDelimiter("|"))
 				.Done();
 
-			dp.TransformResource("stuff", xs => xs.Transform("Id", x => x["Id"].ToString()));
+			dp.TransformResource("stuff", xs => xs.Transform("Id", x => x.Source["Id"].ToString()));
 
 			var store = new InMemoryDataPackageStore();
 			store.Save(dp);
@@ -418,6 +419,19 @@ namespace DataBoss.DataPackage
 
 			var rows = dp.Serialize().GetResource("stuff").Read<IdRow<int>>().ToList();
 			Check.That(() => rows.Count == 2);
+		}
+
+		[Fact]
+		public void csv_resource_defaults() {
+			var dp = new DataPackage();
+
+			dp.AddResource(x => x.WithName("data").WithData(new[] { new { Value = 1 } }));
+
+			var csv = ((CsvDataResource)dp.GetResource("data"));
+			var defaultDialect = CsvDialectDescription.GetDefaultDialect();
+			Check.That(
+				() => csv.HasHeaderRow == defaultDialect.HasHeaderRow,
+				() => csv.Delimiter == defaultDialect.Delimiter);
 		}
 
 		class DateTimeFormatRow

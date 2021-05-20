@@ -9,7 +9,7 @@ namespace DataBoss.DataPackage
 	public class CsvResourceBuilder 
 	{
 		readonly CsvResourceOptions options = new();
-		readonly CsvDialectDescription dialect = new();
+		readonly CsvDialectDescription dialect = CsvDialectDescription.GetDefaultDialect();
 		readonly TabularDataSchema schema = new() {
 			PrimaryKey = new List<string>(),
 			ForeignKeys = new List<DataPackageForeignKey>(),
