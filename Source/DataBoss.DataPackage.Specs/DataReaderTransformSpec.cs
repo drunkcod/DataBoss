@@ -182,7 +182,7 @@ namespace DataBoss.DataPackage
 		}
 
 		[Fact]
-		public void Transform_typed_record_avoids_sels_recursion() {
+		public void Transform_typed_record_avoids_self_recursion() {
 			var item = new { Value = 1 };
 			var rows = SequenceDataReader.Items(item);
 
@@ -193,7 +193,22 @@ namespace DataBoss.DataPackage
 				() => xform.GetString(1) == item.Value.ToString());
 		}
 
+		[Fact]
+		public void Transform_typed_record_avoids_multi_recursion() {
+			var item = new { Id = 1 };
+			var rows = SequenceDataReader.Items(item);
+
+			var xform = rows.WithTransform(x => x
+				.Add("Value", (IdValueTextRow x) => x.Id + x.Id)
+				.Add("Text", (IdValueTextRow x) => x.Id.ToString()));
+			xform.Read();
+			Check.That(
+				() => xform.GetInt32(1) == item.Id + item.Id,
+				() => xform.GetString(2) == item.Id.ToString());
+		}
+
 		struct ValueRow { public int Value; }
 		struct ValueTextRow { public int Value; public string Text; };
+		struct IdValueTextRow { public int Id;  public int Value; public string Text; };
 	}
 }

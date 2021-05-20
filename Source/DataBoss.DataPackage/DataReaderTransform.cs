@@ -98,7 +98,6 @@ namespace DataBoss.DataPackage
 		{
 			TField currentValue;
 			bool isDirty;
-			string name;
 
 			public UserFieldAccessor() {
 				this.isDirty = true;
@@ -107,13 +106,7 @@ namespace DataBoss.DataPackage
 			public virtual bool AllowDBNull => FieldInfo<TField>.IsNullable;
 			public int ColumnSize => FieldInfo<TField>.ColumnSize;
 			public Type FieldType => FieldInfo<TField>.FieldType;
-			public string Name {
-				get => name;
-				set {
-					name = value;
-					OnNameChanged();
-				}
-			}
+			public string Name { get; set; }
 
 			public T GetFieldValue<T>(DataReaderTransform record) =>
 				(T)(object)GetCurrentValue(record);
@@ -136,7 +129,6 @@ namespace DataBoss.DataPackage
 			protected abstract TField GetRecordValue(DataReaderTransform record);
 
 			public void Dirty() { isDirty = true; }
-			protected virtual void OnNameChanged() { }
 		}
 
 		class FieldTransform<T> : UserFieldAccessor<T>
@@ -167,7 +159,12 @@ namespace DataBoss.DataPackage
 			protected override T GetRecordValue(DataReaderTransform record) => transform(source.GetFieldValue<TField>(record));
 		}
 
-		class RecordTransform<TRecord, T> : UserFieldAccessor<T>
+		interface IRecordTransform 
+		{
+			void Reset();
+		}
+
+		class RecordTransform<TRecord, T> : UserFieldAccessor<T>, IRecordTransform
 		{
 			Func<IDataReader, TRecord> readRecord;
 			readonly Func<TRecord, T> selector;
@@ -179,10 +176,16 @@ namespace DataBoss.DataPackage
 			protected override T GetRecordValue(DataReaderTransform record) =>
 				selector(ReadRecord(record));
 
-			TRecord ReadRecord(IDataReader reader) =>
-				(readRecord ??= ConverterFactory.Default.BuildConverter<IDataReader, TRecord>(FieldMap.Create(reader, x => x.ColumnName != Name)).Compiled)(reader);
+			TRecord ReadRecord(DataReaderTransform reader) {
+				if(readRecord == null) {
+					var recordFields = new HashSet<string>(reader.fields.Where(x => x is IRecordTransform).Select(x => x.Name));
+					var fields = FieldMap.Create(reader, x => !recordFields.Contains(x.ColumnName));
+					readRecord = ConverterFactory.Default.BuildConverter<IDataReader, TRecord>(fields).Compiled;
+				}
+				return readRecord(reader);
+			}
 
-			protected override void OnNameChanged() {
+			void IRecordTransform.Reset() {
 				readRecord = null;
 			}
 		}
@@ -274,7 +277,13 @@ namespace DataBoss.DataPackage
 		public DataReaderTransform Rename(string from, string to) {
 			var o = GetOrdinal(from);
 			fields[o].Name = to;
+			ResetRecordFields();
 			return this;
+		}
+
+		void ResetRecordFields() {
+			foreach (var x in fields.OfType<IRecordTransform>())
+				x.Reset();
 		}
 
 		public T GetFieldValue<T>(int i) => fields[i].GetFieldValue<T>(this);
