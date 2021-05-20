@@ -12,18 +12,25 @@ namespace DataBoss.Data
 		readonly Dictionary<string, FieldMapItem> fields = new Dictionary<string, FieldMapItem>(StringComparer.InvariantCultureIgnoreCase);
 		Dictionary<string, FieldMap> subFields;
 
-		public static FieldMap Create(IDataReader reader) {
+		public static FieldMap Create(IDataReader reader) => Create(reader, _ => true);
+		public static FieldMap Create(IDataReader reader, Predicate<DataReaderSchemaRow> include) {
 			var fieldMap = new FieldMap();
 			var schema = reader.GetSchemaTable();
 			var ordinalColumn = schema.Columns[DataReaderSchemaColumns.ColumnOrdinal.Name];
 			var allowDBNullColumn = schema.Columns[DataReaderSchemaColumns.AllowDBNull.Name];
 			var getProviderSpecificFieldType = GetGetProviderSpecificFieldType(reader);
 			for(var i = 0; i != reader.FieldCount; ++i) {
-				var isNullable = 
-					ordinalColumn != null 
-					&& allowDBNullColumn != null 
-					&& (bool)schema.Rows.Cast<DataRow>().Single(x => (int)x[ordinalColumn] == i)[allowDBNullColumn];
-				fieldMap.Add(reader.GetName(i), i, reader.GetFieldType(i), getProviderSpecificFieldType(i), isNullable);
+				var item = new DataReaderSchemaRow {
+					ColumnName = reader.GetName(i),
+					Ordinal = i,
+					ColumnType = reader.GetFieldType(i),
+					ProviderSpecificDataType = getProviderSpecificFieldType(i),
+					AllowDBNull = ordinalColumn != null
+						&& allowDBNullColumn != null
+						&& (bool)schema.Rows.Cast<DataRow>().Single(x => (int)x[ordinalColumn] == i)[allowDBNullColumn]	
+				};
+				if(include(item))
+					fieldMap.Add(item.ColumnName, item.Ordinal, item.ColumnType, item.ProviderSpecificDataType, item.AllowDBNull);
 			}
 			return fieldMap;
 		}

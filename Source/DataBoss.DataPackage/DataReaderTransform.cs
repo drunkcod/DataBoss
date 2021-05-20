@@ -171,7 +171,7 @@ namespace DataBoss.DataPackage
 				selector(ReadRecord(record));
 
 			TRecord ReadRecord(IDataReader reader) =>
-				(readRecord ??= ConverterFactory.Default.GetConverter<IDataReader, TRecord>(reader).Compiled)(reader);
+				(readRecord ??= ConverterFactory.Default.BuildConverter<IDataReader, TRecord>(FieldMap.Create(reader, x => x.ColumnName != Name)).Compiled)(reader);
 
 		}
 
@@ -203,6 +203,11 @@ namespace DataBoss.DataPackage
 
 		public DataReaderTransform Add<T>(int ordinal, string name, Func<ITransformedDataRecord, T> getValue) {
 			fields.Insert(ordinal, Bind(new FieldTransform<T>(getValue), name));
+			return this;
+		}
+
+		public DataReaderTransform Add<TRecord, T>(string name, Func<TRecord, T> selector) {
+			fields.Add(Bind(new RecordTransform<TRecord, T>(selector) { Name = name }, name));
 			return this;
 		}
 

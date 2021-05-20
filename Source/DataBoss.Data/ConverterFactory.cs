@@ -531,6 +531,9 @@ namespace DataBoss.Data
 			return recordConverterFactory.BuildConverter<TReader>(FieldMap.Create(reader), factory);
 		}
 
+		public DataRecordConverter<TReader, T> BuildConverter<TReader, T>(FieldMap fields) =>
+			recordConverterFactory.BuildConverter(typeof(TReader), fields, typeof(T)).ToTyped<TReader, T>();
+
 		public DataRecordConverter GetTrampoline<TReader>(TReader reader, Delegate exemplar) where TReader : IDataReader =>
 			converterCache.GetOrAdd(
 				reader, ConverterCacheKey.Create(reader, exemplar),

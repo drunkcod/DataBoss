@@ -181,6 +181,19 @@ namespace DataBoss.DataPackage
 				() => xform.GetString(0) == item.Value.ToString());
 		}
 
+		[Fact]
+		public void Transform_typed_record_avoids_sels_recursion() {
+			var item = new { Value = 1 };
+			var rows = SequenceDataReader.Items(item);
+
+			var xform = rows.WithTransform(x => x.Add("Text", (ValueTextRow x) => x.Value.ToString()));
+			xform.Read();
+			Check.That(
+				() => xform.GetOrdinal("Text") == 1,
+				() => xform.GetString(1) == item.Value.ToString());
+		}
+
 		struct ValueRow { public int Value; }
+		struct ValueTextRow { public int Value; public string Text; };
 	}
 }
