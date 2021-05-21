@@ -306,14 +306,15 @@ namespace DataBoss.DataPackage
 				if (desc.Path.IsEmpty)
 					desc.Path = $"{item.Name}.csv" ;
 
-				var fieldCount = item.Schema.Fields.Count;
+				var outputSchema = desc.Schema;
+				var fieldCount = outputSchema.Fields.Count;
 				var toString = new Func<IDataRecord, int, string>[fieldCount];
 
 				for (var i = 0; i != fieldCount; ++i) {
-					var field = desc.Schema.Fields[i];
+					var field = outputSchema.Fields[i];
 					var fieldFormatter = defaultFormatter;
 					if (field.IsNumber()) {
-						field = desc.Schema.Fields[i] = new TabularDataSchemaFieldDescription(
+						field = outputSchema.Fields[i] = new TabularDataSchemaFieldDescription(
 							field.Name,
 							field.Type,
 							constraints: field.Constraints,

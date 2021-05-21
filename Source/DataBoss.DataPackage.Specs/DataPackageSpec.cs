@@ -274,7 +274,7 @@ namespace DataBoss.DataPackage
 			Check.That(
 				() => r.Schema.Fields[0].Name == "Value",
 				() => r.Schema.Fields[0].Type == "string",
-				() => r.Schema.Fields[0].Constraints.MaxLength == 1,
+				() => r.Schema.Fields[0].Constraints.Value.MaxLength == 1,
 				() => rows[0].Value == '☺',
 				() => readerSchema[0].ColumnName == "Value",
 				() => readerSchema[0].AllowDBNull == false,
@@ -425,9 +425,11 @@ namespace DataBoss.DataPackage
 		public void csv_resource_defaults() {
 			var dp = new DataPackage();
 
-			dp.AddResource(x => x.WithName("data").WithData(new[] { new { Value = 1 } }));
+			dp.AddResource(x => x
+				.WithName("data")
+				.WithData(new[] { new { Value = 1 } }));
 
-			var csv = ((CsvDataResource)dp.GetResource("data"));
+			var csv = (CsvDataResource)dp.GetResource("data");
 			var defaultDialect = CsvDialectDescription.GetDefaultDialect();
 			Check.That(
 				() => csv.HasHeaderRow == defaultDialect.HasHeaderRow,

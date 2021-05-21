@@ -6,12 +6,14 @@ namespace DataBoss.DataPackage
 {
 	public class TabularDataSchemaFieldDescription
 	{
+		public const string DefaultDecimalChar = ".";
+
 		[JsonConstructor]
 		public TabularDataSchemaFieldDescription(
 			string name, 
 			string type,
 			string format = null,
-			TabularDataSchemaFieldConstraints constraints = null,
+			TabularDataSchemaFieldConstraints? constraints = null,
 			string decimalChar = null) { 
 			
 			this.Name = name;
@@ -28,20 +30,26 @@ namespace DataBoss.DataPackage
 		[JsonProperty("format", NullValueHandling = NullValueHandling.Ignore)]
 		public readonly string Format;
 
-		[DefaultValue("."), JsonProperty("decimalChar", DefaultValueHandling = DefaultValueHandling.Ignore, NullValueHandling = NullValueHandling.Ignore)]
+		[DefaultValue(DefaultDecimalChar), JsonProperty("decimalChar", DefaultValueHandling = DefaultValueHandling.Ignore, NullValueHandling = NullValueHandling.Ignore)]
 		public readonly string DecimalChar;
 
 		[JsonProperty("constraints", DefaultValueHandling = DefaultValueHandling.Ignore)]
-		public readonly TabularDataSchemaFieldConstraints Constraints;
+		public readonly TabularDataSchemaFieldConstraints? Constraints;
 	}
 
-	public class TabularDataSchemaFieldConstraints
+	public readonly struct TabularDataSchemaFieldConstraints
 	{
+		[JsonConstructor]
+		public TabularDataSchemaFieldConstraints(bool required, int? maxLength = null) {
+			this.IsRequired = required;
+			this.MaxLength = maxLength;
+		}
+
 		[JsonProperty("required", DefaultValueHandling = DefaultValueHandling.Ignore)]
-		public bool IsRequired;
+		public readonly bool IsRequired;
 
 		[JsonProperty("maxLength", DefaultValueHandling = DefaultValueHandling.Ignore)]
-		public int? MaxLength;
+		public readonly int? MaxLength;
 
 		public override string ToString() => JsonConvert.SerializeObject(this);
 	}
@@ -49,7 +57,7 @@ namespace DataBoss.DataPackage
 	public static class TabularDataSchemaFieldDescriptionExtensions
 	{
 		static readonly NumberFormatInfo DefaultNumberFormat = new NumberFormatInfo {
-			NumberDecimalSeparator = ".",
+			NumberDecimalSeparator = TabularDataSchemaFieldDescription.DefaultDecimalChar,
 		};
 
 		public static bool IsRequired(this TabularDataSchemaFieldDescription field) =>
@@ -59,7 +67,7 @@ namespace DataBoss.DataPackage
 			field.Type == "number";
 
 		public static NumberFormatInfo GetNumberFormat(this TabularDataSchemaFieldDescription field) => 
-			string.IsNullOrEmpty(field.DecimalChar)
+			(string.IsNullOrEmpty(field.DecimalChar) || field.DecimalChar == DefaultNumberFormat.NumberDecimalSeparator)
 			? DefaultNumberFormat
 			: new NumberFormatInfo { NumberDecimalSeparator = field.DecimalChar };
 	}

@@ -42,9 +42,7 @@ namespace DataBoss.DataPackage
 						new TabularDataSchemaFieldDescription(
 							"integer", 
 							"integer", 
-							constraints: new TabularDataSchemaFieldConstraints  {
-								IsRequired = true,
-							}),
+							constraints: new TabularDataSchemaFieldConstraints(required: true)),
 					}
 				}, hasHeaderRow: false);
 
@@ -77,9 +75,7 @@ namespace DataBoss.DataPackage
 						new TabularDataSchemaFieldDescription(
 							"Id",
 							"integer",
-							constraints: new TabularDataSchemaFieldConstraints  {
-								IsRequired = true,
-							}),
+							constraints: new TabularDataSchemaFieldConstraints(required: true)),
 					}
 				}, hasHeaderRow: false);
 

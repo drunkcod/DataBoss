@@ -110,14 +110,12 @@ namespace DataBoss.DataPackage
 				.ToDictionary(x => x.Ordinal, x => x);
 			
 			for (var i = 0; i != reader.FieldCount; ++i) {
-				TabularDataSchemaFieldConstraints constraints = null;
-				TabularDataSchemaFieldConstraints FieldConstraints() => constraints ??= new();
+				TabularDataSchemaFieldConstraints? constraints = null;
 				if (schema.TryGetValue(i, out var found)) {
 					if(!found.AllowDBNull)
-						FieldConstraints().IsRequired = true;
-					if ((found.ColumnType == typeof(string) || found.ColumnType == typeof(char)) && found.ColumnSize != int.MaxValue) {
-						FieldConstraints().MaxLength = found.ColumnSize;
-					}
+						constraints = new TabularDataSchemaFieldConstraints(true, constraints?.MaxLength);
+					if ((found.ColumnType == typeof(string) || found.ColumnType == typeof(char)) && found.ColumnSize != int.MaxValue)
+						constraints = new TabularDataSchemaFieldConstraints(constraints?.IsRequired ?? false, found.ColumnSize);
 				}
 
 				var (type, format) = ToTableSchemaType(reader.GetFieldType(i));
