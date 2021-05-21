@@ -248,9 +248,8 @@ namespace DataBoss.DataPackage
 			return Transform(name, o, fields[o], transform);
 		}
 
-		public DataReaderTransform Transform<TField, T>(int ordinal, Func<TField, T> transform) {
-			return Transform(GetName(ordinal), ordinal, fields[ordinal], transform);
-		}
+		public DataReaderTransform Transform<TField, T>(int ordinal, Func<TField, T> transform) =>
+			Transform(GetName(ordinal), ordinal, fields[ordinal], transform);
 
 		DataReaderTransform Transform<TField, T>(string name, int ordinal, IFieldAccessor source, Func<TField, T> transform) {
 			var allowDBNull = 

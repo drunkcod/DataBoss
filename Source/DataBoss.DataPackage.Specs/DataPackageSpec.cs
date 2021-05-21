@@ -431,7 +431,7 @@ namespace DataBoss.DataPackage
 			var defaultDialect = CsvDialectDescription.GetDefaultDialect();
 			Check.That(
 				() => csv.HasHeaderRow == defaultDialect.HasHeaderRow,
-				() => csv.Delimiter == defaultDialect.Delimiter);
+				() => csv.Delimiter == null);
 		}
 
 		class DateTimeFormatRow
