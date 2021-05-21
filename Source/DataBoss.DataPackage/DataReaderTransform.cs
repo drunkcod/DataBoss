@@ -178,8 +178,8 @@ namespace DataBoss.DataPackage
 
 			TRecord ReadRecord(DataReaderTransform reader) {
 				if(readRecord == null) {
-					var recordFields = new HashSet<string>(reader.fields.Where(x => x is IRecordTransform).Select(x => x.Name));
-					var fields = FieldMap.Create(reader, x => !recordFields.Contains(x.ColumnName));
+					var self = reader.fields.IndexOf(this);
+					var fields = FieldMap.Create(reader, x => x.Ordinal < self || reader.fields[x.Ordinal] is SourceFieldAccessor);
 					readRecord = ConverterFactory.Default.BuildConverter<IDataReader, TRecord>(fields).Compiled;
 				}
 				return readRecord(reader);
