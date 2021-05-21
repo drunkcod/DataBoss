@@ -295,34 +295,14 @@ namespace DataBoss.DataPackage
 
 		public async Task SaveAsync(Func<string, Stream> createOutput, DataPackageSaveOptions options) {
 			var description = new DataPackageDescription();
-			var decimalCharOverride = options.Culture?.NumberFormat.NumberDecimalSeparator;
-			var defaultFormatter = new RecordFormatter(options.Culture ?? CultureInfo.InvariantCulture);
 			var writtenPaths = new HashSet<string>();
 
 			foreach (var item in resources) {
 				using var data = item.Read();
-				var desc = item.GetDescription();
+				var desc = item.GetDescription(options.Culture);
 				desc.Path = item.Path;
 				if (desc.Path.IsEmpty)
 					desc.Path = $"{item.Name}.csv" ;
-
-				var outputSchema = desc.Schema;
-				var fieldCount = outputSchema.Fields.Count;
-				var toString = new Func<IDataRecord, int, string>[fieldCount];
-
-				for (var i = 0; i != fieldCount; ++i) {
-					var field = outputSchema.Fields[i];
-					var fieldFormatter = defaultFormatter;
-					if (field.IsNumber()) {
-						field = outputSchema.Fields[i] = new TabularDataSchemaFieldDescription(
-							field.Name,
-							field.Type,
-							constraints: field.Constraints,
-							decimalChar: decimalCharOverride ?? field.DecimalChar);
-						fieldFormatter = new RecordFormatter(field.GetNumberFormat());
-					}
-					toString[i] = fieldFormatter.GetFormatter(data.GetFieldType(i), field);
-				}
 
 				desc.Dialect.Delimiter ??= DefaultDelimiter;
 
@@ -331,7 +311,7 @@ namespace DataBoss.DataPackage
 					desc.Path = outputPath;
 					var output = options.ResourceCompression.WrapWrite(createOutput(outputPath));
 					try {
-						await WriteRecordsAsync(output, desc.Dialect, data, toString);
+						await WriteRecordsAsync(output, desc, data, options.Culture);
 					} catch (Exception ex) {
 						throw new Exception($"Failed writing {item.Name}.", ex);
 					} finally {
@@ -453,6 +433,22 @@ namespace DataBoss.DataPackage
 			}
 			public void NextRecord() => csv.NextRecord();
 			public void Flush() => csv.Writer.Flush();
+		}
+
+		static Task WriteRecordsAsync(Stream output, DataPackageResourceDescription desc, IDataReader data, CultureInfo culture) {
+			var defaultFormatter = new RecordFormatter(culture ?? CultureInfo.InvariantCulture);
+			var outputFields = desc.Schema.Fields;
+			var toString = new Func<IDataRecord, int, string>[outputFields.Count];
+			for (var i = 0; i != outputFields.Count; ++i) {
+				var field = outputFields[i];
+				var fieldFormatter = field.IsNumber()
+					? new RecordFormatter(field.GetNumberFormat())
+					: defaultFormatter;
+
+				toString[i] = fieldFormatter.GetFormatter(data.GetFieldType(i), field);
+			}
+
+			return WriteRecordsAsync(output, desc.Dialect, data, toString);
 		}
 
 		static Task WriteRecordsAsync(Stream output, CsvDialectDescription csvDialect, IDataReader data, Func<IDataRecord, int, string>[] toString) {

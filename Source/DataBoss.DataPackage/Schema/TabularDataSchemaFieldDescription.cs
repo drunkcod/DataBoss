@@ -66,6 +66,14 @@ namespace DataBoss.DataPackage
 		public static bool IsNumber(this TabularDataSchemaFieldDescription field) =>
 			field.Type == "number";
 
+		public static TabularDataSchemaFieldDescription WithDecimalChar(this TabularDataSchemaFieldDescription field, string decimalChar) => 
+			new (
+				name: field.Name,
+				type: field.Type,
+				format: field.Format,
+				constraints: field.Constraints,
+				decimalChar: decimalChar);
+
 		public static NumberFormatInfo GetNumberFormat(this TabularDataSchemaFieldDescription field) => 
 			(string.IsNullOrEmpty(field.DecimalChar) || field.DecimalChar == DefaultNumberFormat.NumberDecimalSeparator)
 			? DefaultNumberFormat

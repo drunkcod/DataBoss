@@ -41,30 +41,41 @@ namespace DataBoss.DataPackage
 			}
 		}
 
-		public string FormatInt16(IDataRecord r, int i) => r.GetInt16(i).ToString(format);
-		public string FormatInt32(IDataRecord r, int i) => r.GetInt32(i).ToString(format);
-		public string FormatInt64(IDataRecord r, int i) => r.GetInt64(i).ToString(format);
-		public string FormatFloat(IDataRecord r, int i) => r.GetFloat(i).ToString(format);
-		public string FormatDouble(IDataRecord r, int i) => r.GetDouble(i).ToString(format);
-		public string FormatDecimal(IDataRecord r, int i) => r.GetDecimal(i).ToString(format);
+		Func<IDataRecord, int, string> int16;
+		public Func<IDataRecord, int, string> FormatInt16 => int16 ??= (IDataRecord r, int i) => r.GetInt16(i).ToString(format);
+
+		Func<IDataRecord, int, string> int32;
+		public Func<IDataRecord, int, string> FormatInt32 => int32 ??= (IDataRecord r, int i) => r.GetInt32(i).ToString(format);
+
+		Func<IDataRecord, int, string> int64;
+		public Func<IDataRecord, int, string> FormatInt64 => int64 ??= (IDataRecord r, int i) => r.GetInt64(i).ToString(format);
+
+		Func<IDataRecord, int, string> @float;
+		public Func<IDataRecord, int, string> FormatFloat => @float ??= (IDataRecord r, int i) => r.GetFloat(i).ToString(format);
+
+		Func<IDataRecord, int, string> @double;
+		public Func<IDataRecord, int, string> FormatDouble => @double ??= (IDataRecord r, int i) => r.GetDouble(i).ToString(format);
+
+		Func<IDataRecord, int, string> @decimal;
+		public Func<IDataRecord, int, string> FormatDecimal => @decimal ??= (IDataRecord r, int i) => r.GetDouble(i).ToString(format);
 
 		string FormatObject(IDataRecord r, int i) {
 			var obj = r.GetValue(i);
 			return obj is IFormattable x ? x.ToString(null, format) : obj?.ToString();
 		}
 
-		static string FormatDate(IDataRecord r, int i) => ((DataPackageDate)r.GetDateTime(i)).ToString();
-		static string FormatDateTime(IDataRecord r, int i) {
+		static readonly Func<IDataRecord, int, string> FormatDate = (IDataRecord r, int i) => ((DataPackageDate)r.GetDateTime(i)).ToString();
+		static readonly Func<IDataRecord, int, string> FormatDateTime = (IDataRecord r, int i) => {
 			var value = r.GetDateTime(i);
 			if (value.Kind == DateTimeKind.Unspecified)
 				throw new InvalidOperationException("DateTimeKind.Unspecified not supported.");
 			return value.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ssK");
-		}
+		};
 
-		static string FormatTimeSpan(IDataRecord r, int i) => r.IsDBNull(i) ? null : ((TimeSpan)r.GetValue(i)).ToString("hh\\:mm\\:ss");
-		static string FormatBinary(IDataRecord r, int i) => r.IsDBNull(i) ? null : Convert.ToBase64String((byte[])r.GetValue(i));
-		static string FormatString(IDataRecord r, int i) => r.GetString(i);
-		static string FormatBoolean(IDataRecord r, int i) => r.GetBoolean(i).ToString();
-		public string FormatGuid(IDataRecord r, int i) => r.GetGuid(i).ToString();
+		static readonly Func<IDataRecord, int, string> FormatTimeSpan = (IDataRecord r, int i) => r.IsDBNull(i) ? null : ((TimeSpan)r.GetValue(i)).ToString("hh\\:mm\\:ss");
+		static readonly Func<IDataRecord, int, string> FormatBinary = (IDataRecord r, int i) => r.IsDBNull(i) ? null : Convert.ToBase64String((byte[])r.GetValue(i));
+		static readonly Func<IDataRecord, int, string> FormatString = (IDataRecord r, int i) => r.GetString(i);
+		static readonly Func<IDataRecord, int, string> FormatBoolean = (IDataRecord r, int i) => r.GetBoolean(i).ToString();
+		public static readonly Func<IDataRecord, int, string> FormatGuid = (IDataRecord r, int i) => r.GetGuid(i).ToString();
 	}
 }

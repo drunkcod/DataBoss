@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 using DataBoss.Data;
@@ -32,7 +33,8 @@ namespace DataBoss.DataPackage
 			return new TabularDataResource(desc, getData, desc.Format);
 		}
 
-		public DataPackageResourceDescription GetDescription() {
+		public DataPackageResourceDescription GetDescription() => GetDescription(null);
+		public DataPackageResourceDescription GetDescription(CultureInfo culture) {
 			if (Schema.Fields == null)
 				throw new InvalidOperationException("Field information missing. Did you forget to call Read on new resource?");
 			var desc = new DataPackageResourceDescription {
@@ -44,7 +46,19 @@ namespace DataBoss.DataPackage
 					ForeignKeys = NullIfEmpty(Schema.ForeignKeys),
 				},
 			};
+
 			UpdateDescription(desc);
+
+			var outputFields = desc.Schema.Fields;
+			var decimalCharOverride = culture?.NumberFormat.NumberDecimalSeparator;
+			if (decimalCharOverride != null) {
+				for (var i = 0; i != outputFields.Count; ++i) {
+					var field = outputFields[i];
+					if (field.IsNumber() && field.DecimalChar != decimalCharOverride)
+						outputFields[i] = field.WithDecimalChar(decimalCharOverride);
+				}
+			}
+
 			return desc;
 		}
 
