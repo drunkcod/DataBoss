@@ -20,19 +20,17 @@ using Newtonsoft.Json;
 
 namespace DataBoss.DataPackage
 {
-	public class DataPackage : IDataPackageBuilder
-	{
+	public class DataPackage : IDataPackageBuilder {
 		readonly List<TabularDataResource> resources = new();
 
 		delegate bool TryGetResourceOutputPath(ResourcePath path, out string outputPath);
 
-		const int StreamBufferSize = 81920;
+		internal const int StreamBufferSize = 81920;
 		public const string DefaultDelimiter = ";";
 
 		public IReadOnlyList<TabularDataResource> Resources => resources.AsReadOnly();
 
-		class DataPackageResourceBuilder : IDataPackageResourceBuilder
-		{
+		class DataPackageResourceBuilder : IDataPackageResourceBuilder {
 			readonly DataPackage package;
 			readonly TabularDataResource resource;
 
@@ -57,13 +55,13 @@ namespace DataBoss.DataPackage
 				package.SerializeAsync(culture);
 
 			public IDataPackageResourceBuilder WithPrimaryKey(params string[] parts) {
-				if(parts != null && parts.Length > 0)
+				if (parts != null && parts.Length > 0)
 					resource.Schema.PrimaryKey.AddRange(parts);
 				return this;
 			}
 
 			public IDataPackageResourceBuilder WithForeignKey(DataPackageForeignKey fk) {
-				if(!package.resources.Any(x => x.Name == fk.Reference.Resource))
+				if (!package.resources.Any(x => x.Name == fk.Reference.Resource))
 					throw new InvalidOperationException($"Missing resource '{fk.Reference.Resource}'");
 				resource.Schema.ForeignKeys.Add(fk);
 				return this;
@@ -80,7 +78,7 @@ namespace DataBoss.DataPackage
 		public static DataPackage Load(string path) {
 			if (Regex.IsMatch(path, "http(s?)://"))
 				return LoadUrl(path);
-			if(path.EndsWith(".zip")) 
+			if (path.EndsWith(".zip"))
 				return LoadZip(path);
 
 			var datapackageRoot = path.EndsWith("datapackage.json") ? Path.GetDirectoryName(path) : path;
@@ -89,7 +87,7 @@ namespace DataBoss.DataPackage
 
 		static DataPackage LoadUrl(string url) {
 			var source = WebResponseStream.Get(url);
-			if(source.ContentType == "application/zip") {
+			if (source.ContentType == "application/zip") {
 				try {
 					var bytes = new MemoryStream();
 					source.CopyTo(bytes);
@@ -119,18 +117,17 @@ namespace DataBoss.DataPackage
 
 		public static DataPackage LoadZip(string path) =>
 			LoadZip(BoundMethod.Bind(File.OpenRead, path));
- 	
+
 		public static DataPackage LoadZip(Func<Stream> openZip) {
 			var r = new DataPackage();
 			var description = LoadZipPackageDescription(openZip);
-			r.AddResources(description.Resources.Select(x => 
+			r.AddResources(description.Resources.Select(x =>
 				TabularDataResource.From(x, new ZipResource(openZip, x).GetData)));
 
 			return r;
 		}
 
-		class ZipResource
-		{
+		class ZipResource {
 			readonly Func<Stream> openZip;
 			readonly DataPackageResourceDescription resource;
 
@@ -167,8 +164,8 @@ namespace DataBoss.DataPackage
 			new CsvDataReader(
 				new CsvHelper.CsvReader(
 					reader,
-					new CsvConfiguration(CultureInfo.InvariantCulture) { 
-						Delimiter = csvDialect.Delimiter ?? CsvDialectDescription.DefaultDelimiter 
+					new CsvConfiguration(CultureInfo.InvariantCulture) {
+						Delimiter = csvDialect.Delimiter ?? CsvDialectDescription.DefaultDelimiter
 					}),
 				schema,
 				hasHeaderRow: csvDialect.HasHeaderRow);
@@ -225,7 +222,7 @@ namespace DataBoss.DataPackage
 
 		public void UpdateResource(string name, Func<TabularDataResource, TabularDataResource> doUpdate) {
 			var found = resources.FindIndex(x => x.Name == name);
-			if(found == -1)
+			if (found == -1)
 				throw new InvalidOperationException($"Resource '{name}' not found.");
 			resources[found] = doUpdate(resources[found]);
 		}
@@ -244,7 +241,7 @@ namespace DataBoss.DataPackage
 		public void TransformResource(string name, Action<DataReaderTransform> defineTransform) =>
 			UpdateResource(name, xs => xs.Transform(defineTransform));
 
-		public TabularDataResource GetResource(string name) => 
+		public TabularDataResource GetResource(string name) =>
 			TryGetResource(name, out var found) ? found : throw new InvalidOperationException($"Invalid resource name '{name}'");
 
 		public bool TryGetResource(string name, out TabularDataResource found) =>
@@ -282,7 +279,7 @@ namespace DataBoss.DataPackage
 		}
 
 		IEnumerable<(TabularDataResource Resource, DataPackageKeyReference ForeignKey)> AllForeignKeys() =>
-			resources.SelectMany(xs => xs.Schema?.ForeignKeys.EmptyIfNull().Select(x => (Resource: xs, ForeignKey: x.Reference))); 
+			resources.SelectMany(xs => xs.Schema?.ForeignKeys.EmptyIfNull().Select(x => (Resource: xs, ForeignKey: x.Reference)));
 
 		public void Save(Func<string, Stream> createOutput, CultureInfo culture = null) =>
 			Save(createOutput, new DataPackageSaveOptions { Culture = culture });
@@ -302,7 +299,7 @@ namespace DataBoss.DataPackage
 				var desc = item.GetDescription(options.Culture);
 				desc.Path = item.Path;
 				if (desc.Path.IsEmpty)
-					desc.Path = $"{item.Name}.csv" ;
+					desc.Path = $"{item.Name}.csv";
 
 				desc.Dialect.Delimiter ??= DefaultDelimiter;
 
@@ -311,7 +308,8 @@ namespace DataBoss.DataPackage
 					desc.Path = outputPath;
 					var output = options.ResourceCompression.WrapWrite(createOutput(outputPath));
 					try {
-						await WriteRecordsAsync(output, desc, data, options.Culture);
+						var toString = GetFieldFormatters(desc.Schema.Fields, data, options.Culture);
+						await WriteRecordsAsync(output, desc.Dialect, data, toString);
 					} catch (Exception ex) {
 						throw new Exception($"Failed writing {item.Name}.", ex);
 					} finally {
@@ -337,126 +335,19 @@ namespace DataBoss.DataPackage
 			return Load(store.OpenRead);
 		}
 
-		class CsvRecordWriter
-		{
-			readonly string delimiter;
-			public readonly Encoding Encoding;
-
-			public CsvRecordWriter(string delimiter, Encoding encoding) {
-				this.delimiter = delimiter;
-				this.Encoding = encoding;
-			}
-
-			public CsvFragmentWriter NewFragmentWriter(Stream stream) =>
-				new CsvFragmentWriter(new CsvWriter(new StreamWriter(stream, Encoding, StreamBufferSize, leaveOpen: true), delimiter));
-
-			public Task WriteChunksAsync(ChannelReader<IReadOnlyCollection<IDataRecord>> records, ChannelWriter<MemoryStream> chunks, Func<IDataRecord, int, string>[] toString) {
-				var writer = new ChunkWriter(records, chunks, this) {
-					FormatValue = toString,
-				};
-				return writer.RunAsync();
-			}
-
-			class ChunkWriter : WorkItem
-			{
-				readonly ChannelReader<IReadOnlyCollection<IDataRecord>> records;
-				readonly ChannelWriter<MemoryStream> chunks;
-				readonly CsvRecordWriter csv;
-				readonly int bomLength;
-				int chunkCapacity = 4 * 4096;
-
-				public ChunkWriter(ChannelReader<IReadOnlyCollection<IDataRecord>> records, ChannelWriter<MemoryStream> chunks, CsvRecordWriter csv) {
-					this.records = records;
-					this.chunks = chunks;
-					this.csv = csv;
-					this.bomLength = csv.Encoding.GetPreamble().Length;
-				}
-
-				public Func<IDataRecord, int, string>[] FormatValue;
-				public int MaxWorkers = 1;
-
-				protected override void DoWork() {
-					if (MaxWorkers == 1)
-						records.ForEach(WriteRecords);
-					else
-						records.GetConsumingEnumerable().AsParallel()
-							.WithDegreeOfParallelism(MaxWorkers)
-							.ForAll(WriteRecords);
-				}
-
-				void WriteRecords(IReadOnlyCollection<IDataRecord> item) {
-					if (item.Count == 0)
-						return;
-
-					var chunk = new MemoryStream(chunkCapacity);
-					using (var fragment = csv.NewFragmentWriter(chunk))
-						foreach (var r in item)
-							fragment.WriteRecord(r, FormatValue);
-
-					if (chunk.Position != 0) {
-						chunkCapacity = Math.Max(chunkCapacity, chunk.Capacity);
-						WriteChunk(chunk);
-					}
-				}
-
-				void WriteChunk(MemoryStream chunk) {
-					chunk.Position = bomLength;
-					chunks.Write(chunk);
-				}
-
-				protected override void Cleanup() =>
-					chunks.Complete();
-			}
-		}
-
-		class CsvFragmentWriter : IDisposable
-		{
-			readonly CsvWriter csv;
-
-			public CsvFragmentWriter(CsvWriter csv) {
-				this.csv = csv;
-			}
-
-			public void Dispose() => csv.Dispose();
-
-			public void WriteField(string value) => csv.WriteField(value);
-			public void NextField() => csv.NextField();
-
-			public void WriteRecord(IDataRecord r, Func<IDataRecord, int, string>[] recordFormat) {
-				for (var i = 0; i != r.FieldCount; ++i) {
-					if (r.IsDBNull(i))
-						NextField();
-					else
-						WriteField(recordFormat[i](r, i));
-				}
-				NextRecord();
-			}
-			public void NextRecord() => csv.NextRecord();
-			public void Flush() => csv.Writer.Flush();
-		}
-
-		static Task WriteRecordsAsync(Stream output, DataPackageResourceDescription desc, IDataReader data, CultureInfo culture) {
-			var defaultFormatter = new RecordFormatter(culture ?? CultureInfo.InvariantCulture);
-			var outputFields = desc.Schema.Fields;
+		static Func<IDataRecord, int, string>[] GetFieldFormatters(IReadOnlyList<TabularDataSchemaFieldDescription> outputFields, IDataReader data, CultureInfo culture) {
+			var formatter = (culture == null) ? RecordFormatter.DefaultFormatter : new RecordFormatter(culture.NumberFormat);
 			var toString = new Func<IDataRecord, int, string>[outputFields.Count];
 			for (var i = 0; i != outputFields.Count; ++i) {
-				var field = outputFields[i];
-				var fieldFormatter = field.IsNumber()
-					? new RecordFormatter(field.GetNumberFormat())
-					: defaultFormatter;
-
-				toString[i] = fieldFormatter.GetFormatter(data.GetFieldType(i), field);
+				toString[i] = formatter.GetFormatter(outputFields[i], data.GetFieldType(i));
 			}
-
-			return WriteRecordsAsync(output, desc.Dialect, data, toString);
+			return toString;
 		}
 
 		static Task WriteRecordsAsync(Stream output, CsvDialectDescription csvDialect, IDataReader data, Func<IDataRecord, int, string>[] toString) {
 			var csv = new CsvRecordWriter(csvDialect.Delimiter, Encoding.UTF8);
-			if (csvDialect.HasHeaderRow) {
-				using var headerFragment = csv.NewFragmentWriter(output);
-				WriteHeaderRecord(headerFragment, data);
-			}
+			if (csvDialect.HasHeaderRow)
+				csv.WriteHeaderRecord(output, data);
 
 			var records = Channel.CreateBounded<IReadOnlyCollection<IDataRecord>>(new BoundedChannelOptions(1024) {
 				SingleWriter = true,
@@ -480,48 +371,6 @@ namespace DataBoss.DataPackage
 				readerTask, 
 				writerTask,
 				chunks.Reader.ForEachAsync(x => x.CopyTo(output)));
-		}
-
-		static void WriteHeaderRecord(CsvFragmentWriter csv, IDataRecord data) {
-			for (var i = 0; i != data.FieldCount; ++i)
-				csv.WriteField(data.GetName(i));
-			csv.NextRecord();
-			csv.Flush();
-		}
-
-		abstract class WorkItem
-		{
-			Thread thread;
-
-			protected abstract void DoWork();
-			protected virtual void Cleanup() { }
-
-			public Task RunAsync() {
-				if(thread != null && thread.IsAlive)
-					throw new InvalidOperationException("WorkItem already started.");
-				thread = new Thread(Run) {
-					IsBackground = true,
-					Name = GetType().Name,
-				};
-				var tsc = new TaskCompletionSource<int>();
-				thread.Start(tsc);
-
-				return tsc.Task;
-			}
-
-			void Run(object obj) {
-				var tsc = (TaskCompletionSource<int>)obj;
-				try {
-					DoWork();
-					tsc.SetResult(0);
-				} catch (Exception ex) {
-					tsc.SetException(new Exception("CSV writing failed.", ex));
-				} finally {
-					Cleanup();
-				}
-			}
-
-			public void Join() => thread.Join();
 		}
 
 		class RecordReader : WorkItem

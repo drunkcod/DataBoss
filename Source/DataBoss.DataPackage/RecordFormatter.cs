@@ -1,30 +1,48 @@
 using System;
 using System.Data;
+using System.Globalization;
 using DataBoss.DataPackage.Types;
 
 namespace DataBoss.DataPackage
 {
 	class RecordFormatter
 	{
-		readonly IFormatProvider format;
+		public static readonly RecordFormatter DefaultFormatter = new(TabularDataSchemaFieldDescription.DefaultNumberFormat);
 
-		public RecordFormatter(IFormatProvider format) {
+		readonly NumberFormatInfo format;
+
+		public RecordFormatter(NumberFormatInfo format) {
 			this.format = format;
 		}
 
-		public Func<IDataRecord, int, string> GetFormatter(Type type, TabularDataSchemaFieldDescription fieldDescription) {
-			switch (Type.GetTypeCode(type)) {
+		public Func<IDataRecord, int, string> GetFormatter(TabularDataSchemaFieldDescription field, Type fieldType) {
+			var formatter = field.IsNumber() ? GetNumberFormatter(field) : this;
+			return formatter.GetFormatterCore(field, fieldType);
+		}
+
+		RecordFormatter GetNumberFormatter(TabularDataSchemaFieldDescription field) {
+			if (string.IsNullOrEmpty(field.DecimalChar))
+				return DefaultFormatter;
+
+			if (field.DecimalChar == format.NumberDecimalSeparator)
+				return this;
+			
+			return new RecordFormatter(new NumberFormatInfo { NumberDecimalSeparator = field.DecimalChar });
+		}
+
+		Func<IDataRecord, int, string> GetFormatterCore(TabularDataSchemaFieldDescription field, Type fieldType) {
+			switch (Type.GetTypeCode(fieldType)) {
 				default:
-					if (type == typeof(TimeSpan))
+					if (fieldType == typeof(TimeSpan))
 						return FormatTimeSpan;
-					if (type == typeof(byte[]))
+					if (fieldType == typeof(byte[]))
 						return FormatBinary;
-					if (type == typeof(Guid))
+					if (fieldType == typeof(Guid))
 						return FormatGuid;
 					return FormatObject;
 
 				case TypeCode.DateTime:
-					if (fieldDescription.Type == "date")
+					if (field.Type == "date")
 						return FormatDate;
 					return FormatDateTime;
 

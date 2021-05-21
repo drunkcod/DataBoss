@@ -6,6 +6,10 @@ namespace DataBoss.DataPackage
 {
 	public class TabularDataSchemaFieldDescription
 	{
+		internal static readonly NumberFormatInfo DefaultNumberFormat = new() {
+			NumberDecimalSeparator = TabularDataSchemaFieldDescription.DefaultDecimalChar,
+		};
+
 		public const string DefaultDecimalChar = ".";
 
 		[JsonConstructor]
@@ -56,10 +60,6 @@ namespace DataBoss.DataPackage
 
 	public static class TabularDataSchemaFieldDescriptionExtensions
 	{
-		static readonly NumberFormatInfo DefaultNumberFormat = new NumberFormatInfo {
-			NumberDecimalSeparator = TabularDataSchemaFieldDescription.DefaultDecimalChar,
-		};
-
 		public static bool IsRequired(this TabularDataSchemaFieldDescription field) =>
 			field.Constraints?.IsRequired ?? false;
 
@@ -75,8 +75,8 @@ namespace DataBoss.DataPackage
 				decimalChar: decimalChar);
 
 		public static NumberFormatInfo GetNumberFormat(this TabularDataSchemaFieldDescription field) => 
-			(string.IsNullOrEmpty(field.DecimalChar) || field.DecimalChar == DefaultNumberFormat.NumberDecimalSeparator)
-			? DefaultNumberFormat
+			(string.IsNullOrEmpty(field.DecimalChar) || field.DecimalChar == TabularDataSchemaFieldDescription.DefaultNumberFormat.NumberDecimalSeparator)
+			? TabularDataSchemaFieldDescription.DefaultNumberFormat
 			: new NumberFormatInfo { NumberDecimalSeparator = field.DecimalChar };
 	}
 }
