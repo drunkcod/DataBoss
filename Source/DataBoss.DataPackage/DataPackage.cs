@@ -335,7 +335,7 @@ namespace DataBoss.DataPackage
 			return Load(store.OpenRead);
 		}
 
-		static Func<IDataRecord, int, string>[] GetFieldFormatters(IReadOnlyList<TabularDataSchemaFieldDescription> outputFields, IDataReader data, CultureInfo culture) {
+		internal static Func<IDataRecord, int, string>[] GetFieldFormatters(IReadOnlyList<TabularDataSchemaFieldDescription> outputFields, IDataReader data, CultureInfo culture) {
 			var formatter = (culture == null) ? RecordFormatter.DefaultFormatter : new RecordFormatter(culture.NumberFormat);
 			var toString = new Func<IDataRecord, int, string>[outputFields.Count];
 			for (var i = 0; i != outputFields.Count; ++i) {
@@ -415,5 +415,17 @@ namespace DataBoss.DataPackage
 	{
 		public CultureInfo Culture = null;
 		public ResourceCompression ResourceCompression = ResourceCompression.None;
+	}
+
+	public static class TabularDataResourceCsvExtensions
+	{
+		public static void WriteCsv(this TabularDataResource self, TextWriter writer) {
+			using var reader = self.Read();
+			var desc = self.GetDescription();
+			var toString = DataPackage.GetFieldFormatters(desc.Schema.Fields, reader, null);
+			var csv = new CsvRecordWriter(";", writer.Encoding);
+			csv.WriteHeaderRecord(writer, reader);
+			csv.WriteRecords(writer, reader, toString);
+		}
 	}
 }

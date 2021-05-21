@@ -23,14 +23,29 @@ namespace DataBoss.DataPackage
 		}
 
 		CsvFragmentWriter NewFragmentWriter(Stream stream) =>
-			new CsvFragmentWriter(new CsvWriter(new StreamWriter(stream, Encoding, DataPackage.StreamBufferSize, leaveOpen: true), delimiter));
+			NewFragmentWriter(NewTextWriter(stream));
 
-		public void WriteHeaderRecord(Stream stream, IDataRecord data) {
-			using var csv = NewFragmentWriter(stream);
+		CsvFragmentWriter NewFragmentWriter(TextWriter writer) =>
+			new CsvFragmentWriter(new CsvWriter(writer, delimiter, leaveOpen: true));
+
+		public void WriteHeaderRecord(Stream stream, IDataRecord data) =>
+			WriteHeaderRecord(NewTextWriter(stream), data);
+
+		TextWriter NewTextWriter(Stream stream) =>
+			new StreamWriter(stream, Encoding, DataPackage.StreamBufferSize);
+		
+		public void WriteHeaderRecord(TextWriter writer, IDataRecord data) {
+			using var csv = NewFragmentWriter(writer);
 			for (var i = 0; i != data.FieldCount; ++i)
 				csv.WriteField(data.GetName(i));
 			csv.NextRecord();
 			csv.Flush();
+		}
+
+		public void WriteRecords(TextWriter writer, IDataReader reader, Func<IDataRecord, int, string>[] toString) {
+			using var csv = NewFragmentWriter(writer);
+			while (reader.Read())
+				csv.WriteRecord(reader, toString);
 		}
 
 		public Task WriteChunksAsync(ChannelReader<IReadOnlyCollection<IDataRecord>> records, ChannelWriter<MemoryStream> chunks, Func<IDataRecord, int, string>[] toString) {
