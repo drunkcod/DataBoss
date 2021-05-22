@@ -42,15 +42,15 @@ namespace DataBoss.DataPackage
 			csv.Flush();
 		}
 
-		public void WriteRecords(TextWriter writer, IDataReader reader, Func<IDataRecord, int, string>[] toString) {
+		public void WriteRecords(TextWriter writer, IDataReader reader, DataRecordStringView view) {
 			using var csv = NewFragmentWriter(writer);
 			while (reader.Read())
-				csv.WriteRecord(reader, toString);
+				csv.WriteRecord(reader, view);
 		}
 
-		public Task WriteChunksAsync(ChannelReader<IReadOnlyCollection<IDataRecord>> records, ChannelWriter<MemoryStream> chunks, Func<IDataRecord, int, string>[] toString) {
+		public Task WriteChunksAsync(ChannelReader<IReadOnlyCollection<IDataRecord>> records, ChannelWriter<MemoryStream> chunks, DataRecordStringView view) {
 			var writer = new ChunkWriter(records, chunks, this) {
-				FormatValue = toString,
+				ReaderStringView= view,
 			};
 			return writer.RunAsync();
 		}
@@ -68,12 +68,12 @@ namespace DataBoss.DataPackage
 			public void WriteField(string value) => csv.WriteField(value);
 			public void NextField() => csv.NextField();
 
-			public void WriteRecord(IDataRecord r, Func<IDataRecord, int, string>[] recordFormat) {
+			public void WriteRecord(IDataRecord r, DataRecordStringView view) {
 				for (var i = 0; i != r.FieldCount; ++i) {
 					if (r.IsDBNull(i))
 						NextField();
 					else
-						WriteField(recordFormat[i](r, i));
+						WriteField(view.GetString(r, i));
 				}
 				NextRecord();
 			}
@@ -96,7 +96,7 @@ namespace DataBoss.DataPackage
 				this.bomLength = csv.Encoding.GetPreamble().Length;
 			}
 
-			public Func<IDataRecord, int, string>[] FormatValue;
+			public DataRecordStringView ReaderStringView;
 			public int MaxWorkers = 1;
 
 			protected override void DoWork() {
@@ -115,7 +115,7 @@ namespace DataBoss.DataPackage
 				var chunk = new MemoryStream(chunkCapacity);
 				using (var fragment = csv.NewFragmentWriter(chunk))
 					foreach (var r in item)
-						fragment.WriteRecord(r, FormatValue);
+						fragment.WriteRecord(r, ReaderStringView);
 
 				if (chunk.Position != 0) {
 					chunkCapacity = Math.Max(chunkCapacity, chunk.Capacity);

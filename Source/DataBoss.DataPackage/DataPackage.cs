@@ -308,8 +308,8 @@ namespace DataBoss.DataPackage
 					desc.Path = outputPath;
 					var output = options.ResourceCompression.WrapWrite(createOutput(outputPath));
 					try {
-						var toString = GetFieldFormatters(desc.Schema.Fields, data, options.Culture);
-						await WriteRecordsAsync(output, desc.Dialect, data, toString);
+						var view = DataRecordStringView.Create(desc.Schema.Fields, data, options.Culture);
+						await WriteRecordsAsync(output, desc.Dialect, data, view);
 					} catch (Exception ex) {
 						throw new Exception($"Failed writing {item.Name}.", ex);
 					} finally {
@@ -335,16 +335,7 @@ namespace DataBoss.DataPackage
 			return Load(store.OpenRead);
 		}
 
-		internal static Func<IDataRecord, int, string>[] GetFieldFormatters(IReadOnlyList<TabularDataSchemaFieldDescription> outputFields, IDataReader data, CultureInfo culture) {
-			var formatter = (culture == null) ? RecordFormatter.DefaultFormatter : new RecordFormatter(culture.NumberFormat);
-			var toString = new Func<IDataRecord, int, string>[outputFields.Count];
-			for (var i = 0; i != outputFields.Count; ++i) {
-				toString[i] = formatter.GetFormatter(outputFields[i], data.GetFieldType(i));
-			}
-			return toString;
-		}
-
-		static Task WriteRecordsAsync(Stream output, CsvDialectDescription csvDialect, IDataReader data, Func<IDataRecord, int, string>[] toString) {
+		static Task WriteRecordsAsync(Stream output, CsvDialectDescription csvDialect, IDataReader data, DataRecordStringView view) {
 			var csv = new CsvRecordWriter(csvDialect.Delimiter, Encoding.UTF8);
 			if (csvDialect.HasHeaderRow)
 				csv.WriteHeaderRecord(output, data);
@@ -360,7 +351,7 @@ namespace DataBoss.DataPackage
 
 			var cancellation = new CancellationTokenSource();
 			var readerTask = new RecordReader(data.AsDataRecordReader(), records, cancellation.Token).RunAsync();
-			var writerTask = csv.WriteChunksAsync(records, chunks, toString);
+			var writerTask = csv.WriteChunksAsync(records, chunks, view);
 
 			writerTask.ContinueWith(x => {
 				if (x.IsFaulted) 
@@ -422,10 +413,10 @@ namespace DataBoss.DataPackage
 		public static void WriteCsv(this TabularDataResource self, TextWriter writer) {
 			using var reader = self.Read();
 			var desc = self.GetDescription();
-			var toString = DataPackage.GetFieldFormatters(desc.Schema.Fields, reader, null);
+			var view = DataRecordStringView.Create(desc.Schema.Fields, reader, null);
 			var csv = new CsvRecordWriter(";", writer.Encoding);
 			csv.WriteHeaderRecord(writer, reader);
-			csv.WriteRecords(writer, reader, toString);
+			csv.WriteRecords(writer, reader, view);
 		}
 	}
 }
