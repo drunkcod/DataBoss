@@ -344,7 +344,7 @@ namespace DataBoss.DataPackage
 				SingleWriter = true,
 			});
 
-			var chunks = Channel.CreateBounded<MemoryStream>(new BoundedChannelOptions(1024) {
+			var chunks = Channel.CreateBounded<Stream>(new BoundedChannelOptions(1024) {
 				SingleWriter = false,
 				SingleReader = true,
 			});
@@ -361,44 +361,10 @@ namespace DataBoss.DataPackage
 			return Task.WhenAll(
 				readerTask, 
 				writerTask,
-				chunks.Reader.ForEachAsync(x => x.CopyTo(output)));
-		}
-
-		class RecordReader : WorkItem
-		{
-			public const int BufferRows = 8192;
-
-			readonly IDataRecordReader reader;
-			readonly ChannelWriter<IReadOnlyCollection<IDataRecord>> writer;
-			readonly CancellationToken cancellation;
- 
-			public RecordReader(IDataRecordReader reader, ChannelWriter<IReadOnlyCollection<IDataRecord>> writer, CancellationToken cancellation) {
-				this.reader = reader;
-				this.writer = writer;
-				this.cancellation = cancellation;
-			}
-
-			protected override void DoWork() {
-				var values = CreateBuffer();
-				var n = 0;
-				while(!cancellation.IsCancellationRequested && reader.Read()) {
-					values.Add(reader.GetRecord());
-
-					if (++n == BufferRows) {
-						writer.Write(values);
-						n = 0;
-						values = CreateBuffer();
-					}
-				}
-
-				if (n != 0)
-					writer.Write(values);
-			}
-
-			List<IDataRecord> CreateBuffer() => new List<IDataRecord>(BufferRows);
-
-			protected override void Cleanup() =>
-				writer.Complete();
+				chunks.Reader.ForEachAsync(x => {
+					try { x.CopyTo(output); }
+					finally { x.Dispose();  }
+				}));
 		}
 	}
 
@@ -418,5 +384,80 @@ namespace DataBoss.DataPackage
 			csv.WriteHeaderRecord(writer, reader);
 			csv.WriteRecords(writer, reader, view);
 		}
+
+		public static async Task WriteCsvAsync(this TabularDataResource self, Stream output) {
+			using var reader = self.Read();
+			var desc = self.GetDescription();
+			var view = DataRecordStringView.Create(desc.Schema.Fields, reader, null);
+
+			var csvDialect = new CsvDialectDescription { Delimiter = ";" };
+
+			var csv = new CsvRecordWriter(csvDialect.Delimiter, Encoding.UTF8);
+			if (csvDialect.HasHeaderRow)
+				csv.WriteHeaderRecord(output, reader);
+
+			var records = Channel.CreateBounded<IReadOnlyCollection<IDataRecord>>(new BoundedChannelOptions(1024) {
+				SingleWriter = true,
+			});
+
+			var chunks = Channel.CreateBounded<Stream>(new BoundedChannelOptions(1024) {
+				SingleWriter = false,
+				SingleReader = true,
+			});
+
+			var cancellation = new CancellationTokenSource();
+			var readerTask = new RecordReader(reader.AsDataRecordReader(), records, cancellation.Token).RunAsync();
+			var writerTask = csv.WriteChunksAsync(records, chunks, view);
+
+			await Task.WhenAll(
+				readerTask,
+				writerTask, 
+				writerTask.ContinueWith(x => {
+					if (x.IsFaulted)
+						cancellation.Cancel();
+				}, TaskContinuationOptions.ExecuteSynchronously),
+				chunks.Reader.ForEachAsync(x => {
+					try { x.CopyTo(output); }
+					finally { x.Dispose(); }
+				}));
+		}
 	}
+
+	class RecordReader : WorkItem
+	{
+		public const int BufferRows = 8192;
+
+		readonly IDataRecordReader reader;
+		readonly ChannelWriter<IReadOnlyCollection<IDataRecord>> writer;
+		readonly CancellationToken cancellation;
+
+		public RecordReader(IDataRecordReader reader, ChannelWriter<IReadOnlyCollection<IDataRecord>> writer, CancellationToken cancellation) {
+			this.reader = reader;
+			this.writer = writer;
+			this.cancellation = cancellation;
+		}
+
+		protected override void DoWork() {
+			var values = CreateBuffer();
+			var n = 0;
+			while (!cancellation.IsCancellationRequested && reader.Read()) {
+				values.Add(reader.GetRecord());
+
+				if (++n == BufferRows) {
+					writer.Write(values);
+					n = 0;
+					values = CreateBuffer();
+				}
+			}
+
+			if (n != 0)
+				writer.Write(values);
+		}
+
+		List<IDataRecord> CreateBuffer() => new List<IDataRecord>(BufferRows);
+
+		protected override void Cleanup() =>
+			writer.Complete();
+	}
+
 }

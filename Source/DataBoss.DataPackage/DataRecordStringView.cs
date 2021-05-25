@@ -6,7 +6,7 @@ using DataBoss.DataPackage.Types;
 
 namespace DataBoss.DataPackage
 {
-	class DataRecordStringView
+	readonly struct DataRecordStringView
 	{
 		readonly (Func<IDataRecord, int, NumberFormatInfo, string>, NumberFormatInfo)[] formatField;
 

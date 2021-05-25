@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using DataBoss.Data;
+using DataBoss.IO;
 using DataBoss.Threading;
 using DataBoss.Threading.Channels;
 
@@ -48,9 +49,9 @@ namespace DataBoss.DataPackage
 				csv.WriteRecord(reader, view);
 		}
 
-		public Task WriteChunksAsync(ChannelReader<IReadOnlyCollection<IDataRecord>> records, ChannelWriter<MemoryStream> chunks, DataRecordStringView view) {
+		public Task WriteChunksAsync(ChannelReader<IReadOnlyCollection<IDataRecord>> records, ChannelWriter<Stream> chunks, DataRecordStringView view) {
 			var writer = new ChunkWriter(records, chunks, this) {
-				ReaderStringView= view,
+				ReaderStringView = view,
 			};
 			return writer.RunAsync();
 		}
@@ -84,12 +85,12 @@ namespace DataBoss.DataPackage
 		class ChunkWriter : WorkItem
 		{
 			readonly ChannelReader<IReadOnlyCollection<IDataRecord>> records;
-			readonly ChannelWriter<MemoryStream> chunks;
+			readonly ChannelWriter<Stream> chunks;
 			readonly CsvRecordWriter csv;
 			readonly int bomLength;
-			int chunkCapacity = 4 * 4096;
+			int chunkCapacity = DataPackage.StreamBufferSize;
 
-			public ChunkWriter(ChannelReader<IReadOnlyCollection<IDataRecord>> records, ChannelWriter<MemoryStream> chunks, CsvRecordWriter csv) {
+			public ChunkWriter(ChannelReader<IReadOnlyCollection<IDataRecord>> records, ChannelWriter<Stream> chunks, CsvRecordWriter csv) {
 				this.records = records;
 				this.chunks = chunks;
 				this.csv = csv;
@@ -100,8 +101,16 @@ namespace DataBoss.DataPackage
 			public int MaxWorkers = 1;
 
 			protected override void DoWork() {
-				if (MaxWorkers == 1)
-					records.ForEach(WriteRecords);
+				if (MaxWorkers == 1) {
+					using var ps = new ProducerStream();
+					using var result = csv.NewFragmentWriter(ps);
+					chunks.Write(ps.OpenConsumer());
+					foreach(var item in records.GetConsumingEnumerable())
+					foreach (var r in item)
+						result.WriteRecord(r, ReaderStringView);
+					ps.Flush();
+					//records.ForEach(WriteRecords);
+				}
 				else
 					records.GetConsumingEnumerable().AsParallel()
 						.WithDegreeOfParallelism(MaxWorkers)
