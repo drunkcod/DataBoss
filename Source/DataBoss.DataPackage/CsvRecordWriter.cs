@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Data;
 using System.IO;
@@ -27,13 +28,13 @@ namespace DataBoss.DataPackage
 			NewFragmentWriter(NewTextWriter(stream));
 
 		CsvFragmentWriter NewFragmentWriter(TextWriter writer) =>
-			new CsvFragmentWriter(new CsvWriter(writer, delimiter, leaveOpen: true));
+			new(new CsvWriter(writer, delimiter, leaveOpen: true));
 
 		public void WriteHeaderRecord(Stream stream, IDataRecord data) =>
 			WriteHeaderRecord(NewTextWriter(stream), data);
 
 		TextWriter NewTextWriter(Stream stream) =>
-			new StreamWriter(stream, Encoding, DataPackage.StreamBufferSize);
+			new StreamWriter(stream, Encoding, DataPackage.StreamBufferSize, leaveOpen: true);
 		
 		public void WriteHeaderRecord(TextWriter writer, IDataRecord data) {
 			using var csv = NewFragmentWriter(writer);
@@ -49,7 +50,7 @@ namespace DataBoss.DataPackage
 				csv.WriteRecord(reader, view);
 		}
 
-		public Task WriteChunksAsync(ChannelReader<IReadOnlyCollection<IDataRecord>> records, ChannelWriter<Stream> chunks, DataRecordStringView view) {
+		public Task WriteChunksAsync(ChannelReader<(IMemoryOwner<IDataRecord>, int)> records, ChannelWriter<Stream> chunks, DataRecordStringView view) {
 			var writer = new ChunkWriter(records, chunks, this) {
 				ReaderStringView = view,
 			};
@@ -70,7 +71,7 @@ namespace DataBoss.DataPackage
 			public void NextField() => csv.NextField();
 
 			public void WriteRecord(IDataRecord r, DataRecordStringView view) {
-				for (var i = 0; i != r.FieldCount; ++i) {
+				for (var i = 0; i != view.FieldCount; ++i) {
 					if (r.IsDBNull(i))
 						NextField();
 					else
@@ -84,56 +85,68 @@ namespace DataBoss.DataPackage
 
 		class ChunkWriter : WorkItem
 		{
-			readonly ChannelReader<IReadOnlyCollection<IDataRecord>> records;
+			readonly ChannelReader<(IMemoryOwner<IDataRecord> Rows, int Count)> records;
 			readonly ChannelWriter<Stream> chunks;
 			readonly CsvRecordWriter csv;
-			readonly int bomLength;
 			int chunkCapacity = DataPackage.StreamBufferSize;
 
-			public ChunkWriter(ChannelReader<IReadOnlyCollection<IDataRecord>> records, ChannelWriter<Stream> chunks, CsvRecordWriter csv) {
+			public ChunkWriter(ChannelReader<(IMemoryOwner<IDataRecord>, int)> records, ChannelWriter<Stream> chunks, CsvRecordWriter csv) {
 				this.records = records;
 				this.chunks = chunks;
 				this.csv = csv;
-				this.bomLength = csv.Encoding.GetPreamble().Length;
 			}
 
 			public DataRecordStringView ReaderStringView;
 			public int MaxWorkers = 1;
 
 			protected override void DoWork() {
-				if (MaxWorkers == 1) {
-					using var ps = new ProducerStream();
-					using var result = csv.NewFragmentWriter(ps);
-					chunks.Write(ps.OpenConsumer());
-					foreach(var item in records.GetConsumingEnumerable())
-					foreach (var r in item)
-						result.WriteRecord(r, ReaderStringView);
-					ps.Flush();
-					//records.ForEach(WriteRecords);
-				}
+				if (MaxWorkers == 1)
+					WriteAllRecords();
 				else
 					records.GetConsumingEnumerable().AsParallel()
 						.WithDegreeOfParallelism(MaxWorkers)
 						.ForAll(WriteRecords);
 			}
 
-			void WriteRecords(IReadOnlyCollection<IDataRecord> item) {
-				if (item.Count == 0)
-					return;
+			void WriteAllRecords() {
+				//records.ForEach(WriteRecords);
+				using var ps = new ProducerStream();
+				chunks.Write(ps.OpenConsumer());
 
-				var chunk = new MemoryStream(chunkCapacity);
-				using (var fragment = csv.NewFragmentWriter(chunk))
-					foreach (var r in item)
-						fragment.WriteRecord(r, ReaderStringView);
+				using var result = csv.NewFragmentWriter(ps);
+				do {
+					while (records.TryRead(out var item))
+						try {
+							foreach (var r in item.Rows.Memory.Slice(0, item.Count).Span)
+								result.WriteRecord(r, ReaderStringView);
+						} finally {
+							item.Rows.Dispose();
+						}
+				} while (records.WaitToRead());
+			}
 
-				if (chunk.Position != 0) {
-					chunkCapacity = Math.Max(chunkCapacity, chunk.Capacity);
-					WriteChunk(chunk);
+			void WriteRecords((IMemoryOwner<IDataRecord> Items, int Count) item) {
+				try {
+					var rows = item.Items.Memory.Slice(0, item.Count).Span;
+					if (rows.Length == 0)
+						return;
+
+					var chunk = new MemoryStream(chunkCapacity);
+					using (var fragment = csv.NewFragmentWriter(chunk))
+						foreach (var r in rows)
+							fragment.WriteRecord(r, ReaderStringView);
+
+					if (chunk.Position != 0) {
+						chunkCapacity = Math.Max(chunkCapacity, chunk.Capacity);
+						WriteChunk(chunk);
+					}
+				} finally {
+					item.Items.Dispose();
 				}
 			}
 
 			void WriteChunk(MemoryStream chunk) {
-				chunk.Position = bomLength;
+				chunk.Position = 0;
 				chunks.Write(chunk);
 			}
 
@@ -141,5 +154,4 @@ namespace DataBoss.DataPackage
 				chunks.Complete();
 		}
 	}
-
 }

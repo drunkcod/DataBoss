@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
@@ -336,15 +337,17 @@ namespace DataBoss.DataPackage
 		}
 
 		static Task WriteRecordsAsync(Stream output, CsvDialectDescription csvDialect, IDataReader data, DataRecordStringView view) {
-			var csv = new CsvRecordWriter(csvDialect.Delimiter, Encoding.UTF8);
+			var encoding = Encoding.UTF8;
+			var bom = encoding.GetPreamble();
+			var csv = new CsvRecordWriter(csvDialect.Delimiter, encoding);
 			if (csvDialect.HasHeaderRow)
 				csv.WriteHeaderRecord(output, data);
 
-			var records = Channel.CreateBounded<IReadOnlyCollection<IDataRecord>>(new BoundedChannelOptions(1024) {
+			var records = Channel.CreateBounded<(IMemoryOwner<IDataRecord>, int)>(new BoundedChannelOptions(16) {
 				SingleWriter = true,
 			});
 
-			var chunks = Channel.CreateBounded<Stream>(new BoundedChannelOptions(1024) {
+			var chunks = Channel.CreateBounded<Stream>(new BoundedChannelOptions(16) {
 				SingleWriter = false,
 				SingleReader = true,
 			});
@@ -361,10 +364,31 @@ namespace DataBoss.DataPackage
 			return Task.WhenAll(
 				readerTask, 
 				writerTask,
-				chunks.Reader.ForEachAsync(x => {
-					try { x.CopyTo(output); }
-					finally { x.Dispose();  }
-				}));
+				CopyChunks(chunks.Reader, output, bom));
+		}
+
+		internal static Task CopyChunks(ChannelReader<Stream> chunks, Stream output, byte[] bom) =>
+			chunks.ForEachAsync(x => {
+				try {
+					if (!TryReadBom(x, bom))
+						throw new InvalidOperationException("Missing BOM in fragment.");
+					x.CopyTo(output);
+				}
+				finally {
+					x.Dispose();
+				}
+			});
+
+		static bool TryReadBom(Stream stream, byte[] bom) {
+			var fragmentBom = new byte[bom.Length];
+			var read = 0;
+			while (read != fragmentBom.Length) {
+				var n = stream.Read(fragmentBom, 0, fragmentBom.Length);
+				if (n == 0)
+					return false;
+				read += n;
+			}
+			return fragmentBom.SequenceEqual(bom);
 		}
 	}
 
@@ -392,15 +416,17 @@ namespace DataBoss.DataPackage
 
 			var csvDialect = new CsvDialectDescription { Delimiter = ";" };
 
-			var csv = new CsvRecordWriter(csvDialect.Delimiter, Encoding.UTF8);
+			var encoding = Encoding.UTF8;
+			var bom = encoding.GetPreamble();
+			var csv = new CsvRecordWriter(csvDialect.Delimiter, encoding);
 			if (csvDialect.HasHeaderRow)
 				csv.WriteHeaderRecord(output, reader);
 
-			var records = Channel.CreateBounded<IReadOnlyCollection<IDataRecord>>(new BoundedChannelOptions(1024) {
+			var records = Channel.CreateBounded<(IMemoryOwner<IDataRecord>, int)>(new BoundedChannelOptions(16) {
 				SingleWriter = true,
 			});
 
-			var chunks = Channel.CreateBounded<Stream>(new BoundedChannelOptions(1024) {
+			var chunks = Channel.CreateBounded<Stream>(new BoundedChannelOptions(16) {
 				SingleWriter = false,
 				SingleReader = true,
 			});
@@ -416,45 +442,45 @@ namespace DataBoss.DataPackage
 					if (x.IsFaulted)
 						cancellation.Cancel();
 				}, TaskContinuationOptions.ExecuteSynchronously),
-				chunks.Reader.ForEachAsync(x => {
-					try { x.CopyTo(output); }
-					finally { x.Dispose(); }
-				}));
+				DataPackage.CopyChunks(chunks.Reader, output, bom));
 		}
 	}
 
 	class RecordReader : WorkItem
 	{
-		public const int BufferRows = 8192;
+		public const int BufferRows = 256;
 
 		readonly IDataRecordReader reader;
-		readonly ChannelWriter<IReadOnlyCollection<IDataRecord>> writer;
+		readonly ChannelWriter<(IMemoryOwner<IDataRecord>, int)> writer;
 		readonly CancellationToken cancellation;
 
-		public RecordReader(IDataRecordReader reader, ChannelWriter<IReadOnlyCollection<IDataRecord>> writer, CancellationToken cancellation) {
+		public RecordReader(IDataRecordReader reader, ChannelWriter<(IMemoryOwner<IDataRecord>, int)> writer, CancellationToken cancellation) {
 			this.reader = reader;
 			this.writer = writer;
 			this.cancellation = cancellation;
 		}
 
 		protected override void DoWork() {
-			var values = CreateBuffer();
+			var buffer = CreateBuffer();
+			var rows = buffer.Memory.Span;
 			var n = 0;
+
 			while (!cancellation.IsCancellationRequested && reader.Read()) {
-				values.Add(reader.GetRecord());
+				rows[n] = reader.GetRecord();
 
 				if (++n == BufferRows) {
-					writer.Write(values);
+					writer.Write((buffer, n));
 					n = 0;
-					values = CreateBuffer();
+					buffer = CreateBuffer();
+					rows = buffer.Memory.Span;
 				}
 			}
 
 			if (n != 0)
-				writer.Write(values);
+				writer.Write((buffer, n));
 		}
 
-		List<IDataRecord> CreateBuffer() => new List<IDataRecord>(BufferRows);
+		IMemoryOwner<IDataRecord> CreateBuffer() => MemoryPool<IDataRecord>.Shared.Rent(BufferRows);
 
 		protected override void Cleanup() =>
 			writer.Complete();

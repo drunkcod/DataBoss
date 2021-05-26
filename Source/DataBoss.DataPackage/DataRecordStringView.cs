@@ -14,6 +14,8 @@ namespace DataBoss.DataPackage
 			this.formatField = formatField;
 		}
 
+		public int FieldCount => formatField.Length;
+
 		public string GetString(IDataRecord r, int i) {
 			var (getter, format) = formatField[i];
 			return getter(r, i, format);
@@ -67,54 +69,54 @@ namespace DataBoss.DataPackage
 			}
 		}
 
-		public static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatInt16 =
-			(IDataRecord r, int i, NumberFormatInfo format) => r.GetInt16(i).ToString(format);
+		static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatString = StringFrom.String;
+		static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatBoolean = StringFrom.Boolean;
 
-		public static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatInt32 =
-			(IDataRecord r, int i, NumberFormatInfo format) => r.GetInt32(i).ToString(format);
+		static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatInt16 = StringFrom.Int16;
+		static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatInt32 = StringFrom.Int32;
+		static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatInt64 = StringFrom.Int64;
 
-		public static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatInt64 =
-			(IDataRecord r, int i, NumberFormatInfo format) => r.GetInt64(i).ToString(format);
+		static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatFloat = StringFrom.Float;
+		static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatDouble = StringFrom.Double;
+		static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatDecimal = StringFrom.Decimal;
 
-		public static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatFloat =
-			(IDataRecord r, int i, NumberFormatInfo format) => r.GetFloat(i).ToString(format);
+		static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatDate = StringFrom.Date;
+		static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatDateTime = StringFrom.DateTime;
+		static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatTimeSpan = StringFrom.TimeSpan;
+		static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatBinary = StringFrom.Binary;
+		static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatGuid = StringFrom.Guid;
+		static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatObject = StringFrom.Object;
 
-		public static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatDouble =
-			(IDataRecord r, int i, NumberFormatInfo format) => r.GetDouble(i).ToString(format);
+		static class StringFrom
+		{
+			public static string Int16(IDataRecord r, int i, NumberFormatInfo format) => r.GetInt16(i).ToString(format);
+			public static string Int32(IDataRecord r, int i, NumberFormatInfo format) => r.GetInt32(i).ToString(format);
+			public static string Int64(IDataRecord r, int i, NumberFormatInfo format) => r.GetInt64(i).ToString(format);
 
-		public static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatDecimal =
-			(IDataRecord r, int i, NumberFormatInfo format) => r.GetDouble(i).ToString(format);
+			public static string Float(IDataRecord r, int i, NumberFormatInfo format) => r.GetFloat(i).ToString(format);
+			public static string Double(IDataRecord r, int i, NumberFormatInfo format) => r.GetDouble(i).ToString(format);
+			public static string Decimal(IDataRecord r, int i, NumberFormatInfo format) => r.GetDouble(i).ToString(format);
+			
+			public static string Date(IDataRecord r, int i, NumberFormatInfo _) => ((DataPackageDate)r.GetDateTime(i)).ToString();
 
-		static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatObject =
-			(IDataRecord r, int i, NumberFormatInfo format) => {
-				var obj = r.GetValue(i);
-				return obj is IFormattable x ? x.ToString(null, format) : obj?.ToString();
-			};
-
-		static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatDate =
-			(IDataRecord r, int i, NumberFormatInfo _) => ((DataPackageDate)r.GetDateTime(i)).ToString();
-
-		static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatDateTime =
-			(IDataRecord r, int i, NumberFormatInfo _) => {
+			public static string DateTime(IDataRecord r, int i, NumberFormatInfo _) {
 				var value = r.GetDateTime(i);
 				if (value.Kind == DateTimeKind.Unspecified)
 					throw new InvalidOperationException("DateTimeKind.Unspecified not supported.");
 				return value.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ssK");
-			};
+			}
 
-		static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatTimeSpan =
-			(IDataRecord r, int i, NumberFormatInfo _) => r.IsDBNull(i) ? null : ((TimeSpan)r.GetValue(i)).ToString("hh\\:mm\\:ss");
+			public static string TimeSpan(IDataRecord r, int i, NumberFormatInfo _) => r.IsDBNull(i) ? null : ((TimeSpan)r.GetValue(i)).ToString("hh\\:mm\\:ss");
 
-		static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatBinary =
-			(IDataRecord r, int i, NumberFormatInfo _) => r.IsDBNull(i) ? null : Convert.ToBase64String((byte[])r.GetValue(i));
+			public static string Object(IDataRecord r, int i, NumberFormatInfo format) {
+				var obj = r.GetValue(i);
+				return obj is IFormattable x ? x.ToString(null, format) : obj?.ToString();
+			}
 
-		static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatString =
-			(IDataRecord r, int i, NumberFormatInfo _) => r.GetString(i);
-
-		static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatBoolean =
-			(IDataRecord r, int i, NumberFormatInfo _) => r.GetBoolean(i).ToString();
-
-		public static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatGuid =
-			(IDataRecord r, int i, NumberFormatInfo _) => r.GetGuid(i).ToString();
+			public static string Boolean(IDataRecord r, int i, NumberFormatInfo _) => r.GetBoolean(i).ToString();
+			public static string Binary(IDataRecord r, int i, NumberFormatInfo _) => r.IsDBNull(i) ? null : Convert.ToBase64String((byte[])r.GetValue(i));
+			public static string String(IDataRecord r, int i, NumberFormatInfo _) => r.GetString(i);
+			public static string Guid(IDataRecord r, int i, NumberFormatInfo _) => r.GetGuid(i).ToString();
+		}
 	}
 }

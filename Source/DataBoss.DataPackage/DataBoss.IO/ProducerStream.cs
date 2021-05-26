@@ -2,11 +2,13 @@ using System;
 using System.Buffers;
 using System.Collections.Concurrent;
 using System.IO;
+using DataBoss.Buffers;
 
 namespace DataBoss.IO
 {
 	public class ProducerStream : Stream
 	{
+		readonly ArrayPool<byte> chunkPool;
 		readonly BlockingCollection<(byte[], int)> chunks;
 		readonly int chunkSize;
 
@@ -15,15 +17,17 @@ namespace DataBoss.IO
 		int writeBytesLeft;
 
 		class ConsumerStream : Stream {
+			readonly ArrayPool<byte> chunkPool;
 			readonly BlockingCollection<(byte[] Bytes, int Length)> chunks;
 
 			byte[] chunk;
 			int chunkOffset;
 			int chunkLength;
 
-			public ConsumerStream(BlockingCollection<(byte[], int)> chunks) {
+			public ConsumerStream(ArrayPool<byte> chunkPool, BlockingCollection<(byte[], int)> chunks) {
+				this.chunkPool = chunkPool;
 				this.chunks = chunks;
-				this.chunk = null;
+				this.chunk = chunkPool.Rent(0);
 			}
 
 			public override bool CanRead => true;
@@ -66,7 +70,7 @@ namespace DataBoss.IO
 				while (chunkLength == chunkOffset) {
 					if (!chunks.TryTake(out var nextChunk, millisecondsTimeout))
 						return false;
-					
+					chunkPool.Return(chunk);
 					chunk = nextChunk.Bytes;
 					chunkLength = nextChunk.Length;
 					chunkOffset = 0;
@@ -79,16 +83,19 @@ namespace DataBoss.IO
 			public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
 		}
 
-		public ProducerStream(int chunkSize = 4096) {
+		public ProducerStream(int chunkSize = 8092) : this(ArrayPool<byte>.Create(), chunkSize) { }
+
+		public ProducerStream(ArrayPool<byte> chunkPool, int chunkSize) {
+			this.chunkPool = chunkPool;
 			this.chunks = new();
 			this.chunkSize = chunkSize;
 			NewWriteChunk();
 		}
 
-		public Stream OpenConsumer() => new ConsumerStream(chunks);
+		public Stream OpenConsumer() => new ConsumerStream(chunkPool, chunks);
 
 		void NewWriteChunk() {
-			this.writeChunk = new byte[chunkSize];
+			this.writeChunk = chunkPool.Rent(chunkSize);
 			this.writeOffset = 0;
 			this.writeBytesLeft = writeChunk.Length;
 		}

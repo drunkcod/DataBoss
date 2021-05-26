@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using CheckThat;
+using DataBoss.Buffers;
 using Xunit;
 
 namespace DataBoss.IO
@@ -12,7 +13,7 @@ namespace DataBoss.IO
 	{
 		[Fact]
 		public void ignores_empty_writes() {
-			using var ps = new ProducerStream(chunkSize: 1024);
+			using var ps = new ProducerStream(NullArrayPool<byte>.Instance, chunkSize: 1024);
 
 			WriteBuffers(ps, 
 				new byte[0],
@@ -38,7 +39,7 @@ namespace DataBoss.IO
 
 		[Fact]
 		public void read_merges_available_chunks() {
-			using var ps = new ProducerStream(chunkSize: 1);
+			using var ps = new ProducerStream(NullArrayPool<byte>.Instance, chunkSize: 1);
 
 			WriteBuffers(ps,
 				GetBytes("1"),
@@ -52,7 +53,7 @@ namespace DataBoss.IO
 
 		[Fact]
 		public void read_continous_parts() {
-			using var ps = new ProducerStream(chunkSize: 1024);
+			using var ps = new ProducerStream(NullArrayPool<byte>.Instance, chunkSize: 1024);
 			var source = GetBytes("123");
 			WriteBuffers(ps, source);
 			ps.Close();
