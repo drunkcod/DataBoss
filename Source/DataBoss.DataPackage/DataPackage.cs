@@ -145,7 +145,6 @@ namespace DataBoss.DataPackage
 			}
 		}
 
-
 		static DataPackageDescription LoadZipPackageDescription(Func<Stream> openZip) {
 			using var zip = new ZipArchive(openZip(), ZipArchiveMode.Read);
 			return LoadPackageDescription(zip.GetEntry("datapackage.json").Open());
@@ -305,18 +304,20 @@ namespace DataBoss.DataPackage
 				desc.Dialect.Delimiter ??= DefaultDelimiter;
 
 				description.Resources.Add(desc);
-				if (options.ResourceCompression.TryGetOutputPath(desc.Path, out var outputPath) && !writtenPaths.Contains(outputPath)) {
-					desc.Path = outputPath;
-					var output = options.ResourceCompression.WrapWrite(createOutput(outputPath));
-					try {
-						var view = DataRecordStringView.Create(desc.Schema.Fields, data, options.Culture);
-						await WriteRecordsAsync(output, desc.Dialect, data, view);
-					} catch (Exception ex) {
-						throw new Exception($"Failed writing {item.Name}.", ex);
-					} finally {
-						writtenPaths.Add(outputPath);
-						output.Dispose();
-					}
+
+				if (!desc.Path.TryGetOutputPath(out var partPath) || writtenPaths.Contains(partPath))
+					continue;
+
+				var (outputPath, output) = options.ResourceCompression.OpenWrite(partPath, createOutput);
+				desc.Path = outputPath;
+				try {
+					var view = DataRecordStringView.Create(desc.Schema.Fields, data, options.Culture);
+					await WriteRecordsAsync(output, desc.Dialect, data, view);
+				} catch (Exception ex) {
+					throw new Exception($"Failed writing {item.Name}.", ex);
+				} finally {
+					writtenPaths.Add(outputPath);
+					output.Dispose();
 				}
 			}
 
@@ -381,14 +382,13 @@ namespace DataBoss.DataPackage
 
 		static bool TryReadBom(Stream stream, byte[] bom) {
 			var fragmentBom = new byte[bom.Length];
-			var read = 0;
-			while (read != fragmentBom.Length) {
-				var n = stream.Read(fragmentBom, 0, fragmentBom.Length);
+			for (var read = 0;  read != fragmentBom.Length;) {
+				var n = stream.Read(fragmentBom, read, fragmentBom.Length - read);
 				if (n == 0)
 					return false;
 				read += n;
 			}
-			return fragmentBom.SequenceEqual(bom);
+			return new Span<byte>(fragmentBom).SequenceEqual(bom);
 		}
 	}
 

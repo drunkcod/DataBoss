@@ -49,7 +49,7 @@ namespace DataBoss.IO
 
 				var read = 0;
 				do {
-					if (!TryGetChunkBytes(-1))
+					if (!TryGetChunkBytes(millisecondsTimeout: -1))
 						return read;
 
 					var sliceSize = Math.Min(count - read, chunkLength - chunkOffset);
@@ -61,7 +61,7 @@ namespace DataBoss.IO
 					read += sliceSize;
 					chunkOffset += sliceSize;
 
-				} while((read != count && TryGetChunkBytes(0)) || read == 0);
+				} while((read != count && TryGetChunkBytes(millisecondsTimeout: 0)) || read == 0);
 
 				return read;
 			}

@@ -448,4 +448,24 @@ namespace DataBoss.DataPackage
 
 		NumberFormatInfo GetNumbersFormat(DataPackage data) => data.GetResource("numbers").Schema.Fields.Single().GetNumberFormat();
 	}
+
+	public class DataPackage_ResourceCompressionSpec
+	{
+		[Fact]
+		public void zip() {
+			var dp = new DataPackage();
+			dp.AddResource(x => x.WithName("data").WithData(new[] { new { Value = 1 } }));
+
+			var store = new InMemoryDataPackageStore();
+			dp.Save(store.OpenWrite, new DataPackageSaveOptions { 
+				ResourceCompression = ResourceCompression.Zip,
+			});
+
+			Check.That(
+				() => store.Contains("data.zip"),
+				() => store.Load().GetResource("data").Read<ValueRow>().Single().Value == 1);
+		}
+
+		class ValueRow { public int Value;  }
+	}
 }

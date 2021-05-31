@@ -15,6 +15,10 @@ namespace DataBoss.DataPackage
 			data.Save(OpenWrite, culture);
 		}
 
+		public IEnumerable<string> Files => files.Keys;
+
+		public bool Contains(string path) => files.ContainsKey(path);
+
 		public DataPackage Load() => DataPackage.Load(OpenRead);
 
 		public byte[] ReadAllBytes(string path) => files[path].ToArray();
