@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using CheckThat;
@@ -11,7 +12,7 @@ using Xunit;
 
 namespace DataBoss.DataPackage
 {
-	public class DataPackageSpec
+	public partial class DataPackageSpec
 	{
 		struct IdValueRow
 		{
@@ -449,23 +450,41 @@ namespace DataBoss.DataPackage
 		NumberFormatInfo GetNumbersFormat(DataPackage data) => data.GetResource("numbers").Schema.Fields.Single().GetNumberFormat();
 	}
 
-	public class DataPackage_ResourceCompressionSpec
+	public partial class DataPackageSpec
 	{
-		[Fact]
-		public void zip() {
-			var dp = new DataPackage();
-			dp.AddResource(x => x.WithName("data").WithData(new[] { new { Value = 1 } }));
+		public class ZipResourceCompression
+		{
+			InMemoryDataPackageStore store = new InMemoryDataPackageStore();
 
-			var store = new InMemoryDataPackageStore();
-			dp.Save(store.OpenWrite, new DataPackageSaveOptions { 
-				ResourceCompression = ResourceCompression.Zip,
-			});
+			public ZipResourceCompression() {
+				var dp = new DataPackage();
+				dp.AddResource(x => x.WithName("data").WithData(new[] { new { Value = 1 } }));
+				dp.Save(store.OpenWrite, new DataPackageSaveOptions {
+					ResourceCompression = ResourceCompression.Zip,
+				});
 
-			Check.That(
-				() => store.Contains("data.zip"),
-				() => store.Load().GetResource("data").Read<ValueRow>().Single().Value == 1);
+			}
+
+			[Fact]
+			public void contains_data_zip() => Check.That(() => store.Contains("data.zip"));
+
+			[Fact]
+			public void zip_contains_csv() {
+				var zip = new ZipArchive(store.OpenRead("data.zip"), ZipArchiveMode.Read);
+
+				Check.That(
+					() => zip.Entries.Count == 1,
+					() => zip.Entries[0].Name == "data.csv");
+			}
+
+			[Fact]
+			public void can_read_data() {
+				var dp = store.Load();
+				Check.That(
+					() => dp.GetResource("data").Read<ValueRow>().Single().Value == 1);
+			}
+
+			class ValueRow { public int Value; }
 		}
-
-		class ValueRow { public int Value;  }
 	}
 }
