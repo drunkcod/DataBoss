@@ -9,7 +9,7 @@ namespace DataBoss.DataPackage
 		public string Delimiter;
 		public bool HasHeaderRow;
 
-		public CsvDataResource(DataPackageResourceDescription description, Func<IDataReader> getData) : base(description, getData, "csv") {
+		public CsvDataResource(DataPackageResourceDescription description, ResourcePath path, Func<IDataReader> getData) : base(description, path, getData, "csv") {
 			this.HasHeaderRow = description.Dialect?.HasHeaderRow ?? true;
 		}
 
@@ -17,7 +17,7 @@ namespace DataBoss.DataPackage
 			new CsvDataResource(new DataPackageResourceDescription {
 				Name = name,
 				Schema = schema,
-			}, getData) { Delimiter = Delimiter };
+			}, ResourcePath, getData) { Delimiter = Delimiter };
 
 		protected override void UpdateDescription(DataPackageResourceDescription description) {
 			description.Dialect = new CsvDialectDescription { 

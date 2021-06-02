@@ -71,6 +71,6 @@ namespace DataBoss.DataPackage
 					Path = options.Path,
 					Schema = schema.Clone(),
 					Dialect = dialect,
-				}, getData ?? throw new InvalidOperationException("No data available, call WithData."));
+				}, options.Path, getData ?? throw new InvalidOperationException("No data available, call WithData."));
 	}
 }

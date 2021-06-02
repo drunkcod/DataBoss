@@ -7,8 +7,10 @@ namespace DataBoss.DataPackage.Schema
 	{
 		[JsonProperty("name")]
 		public string Name;
+
 		[JsonProperty("path", DefaultValueHandling = DefaultValueHandling.Ignore)]
 		public ResourcePath Path;
+
 		[JsonProperty("format")]
 		public string Format;
 

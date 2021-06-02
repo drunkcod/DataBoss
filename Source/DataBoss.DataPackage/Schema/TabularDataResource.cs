@@ -12,25 +12,27 @@ namespace DataBoss.DataPackage
 {
 	public class TabularDataResource
 	{
+		readonly ResourcePath resourcePath;
 		readonly DataPackageResourceDescription description;
 		readonly Func<IDataReader> getData;
 		public string Name => description.Name;
-		public ResourcePath Path => description.Path;
+		public ResourcePath ResourcePath => resourcePath.IsEmpty ? description.Path : resourcePath;
 		public TabularDataSchema Schema => description.Schema;
 		public readonly string Format;
 
-		protected TabularDataResource(DataPackageResourceDescription description, Func<IDataReader> getData, string format) {
+		protected TabularDataResource(DataPackageResourceDescription description, ResourcePath resourcePath, Func<IDataReader> getData, string format) {
 			if(!Regex.IsMatch(description.Name, @"^[a-z0-9-._]+$"))
 				throw new NotSupportedException($"name MUST consist only of lowercase alphanumeric characters plus '.', '-' and '_' was '{description.Name}'");
 			this.description = description;
+			this.resourcePath = resourcePath;
 			this.getData = getData;
 			this.Format = format;
 		}
 
-		public static TabularDataResource From(DataPackageResourceDescription desc, Func<IDataReader> getData) {
+		public static TabularDataResource From(DataPackageResourceDescription desc, ResourcePath path, Func<IDataReader> getData) {
 			if (desc.Format == "csv" || (desc.Format == null && (desc.Path.All(x => x.EndsWith(".csv")))))
-				return new CsvDataResource(desc, getData) { Delimiter = desc.Dialect?.Delimiter };
-			return new TabularDataResource(desc, getData, desc.Format);
+				return new CsvDataResource(desc, path, getData) { Delimiter = desc.Dialect?.Delimiter };
+			return new TabularDataResource(desc, path, getData, desc.Format);
 		}
 
 		public DataPackageResourceDescription GetDescription() => GetDescription(null);
@@ -114,8 +116,8 @@ namespace DataBoss.DataPackage
 			new(new DataPackageResourceDescription {
 				Name = name,
 				Schema = schema,
-				Path = Path,
-			}, getData, Format);
+				Path = description.Path,
+			}, ResourcePath, getData, Format);
 
 		static List<TabularDataSchemaFieldDescription> GetFieldInfo(IDataReader reader) {
 			var r = new List<TabularDataSchemaFieldDescription>(reader.FieldCount);

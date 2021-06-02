@@ -36,13 +36,15 @@ namespace DataBoss.DataPackage
 				return (outputPath, WrapWrite(createDestination(outputPath)));
 			}
 
-			protected override bool TryOpenRead(string path, Func<string, Stream> open, out Stream stream) {
+			public override Stream OpenRead(string path, Func<string, Stream> open) => WrapRead(open(path));
+
+			protected override bool TryMatch(string path, Func<string, Stream> _, out string resourcePath) {
 				var ext = Path.GetExtension(path);
 				if (ExtensionSuffix == ext) {
-					stream = WrapRead(open(path));
+					resourcePath = path.Substring(0, path.Length - ext.Length);
 					return true;
 				}
-				stream = null;
+				resourcePath = null;
 				return false;
 			}
 
@@ -79,19 +81,31 @@ namespace DataBoss.DataPackage
 				return (zipPath, stream);
 			}
 
-			protected override bool TryOpenRead(string path, Func<string, Stream> open, out Stream stream) {
+			protected override bool TryMatch(string path, Func<string, Stream> open, out string resourcePath) {
 				if(Path.GetExtension(path) != ".zip") {
-					stream = null;
+					resourcePath = null;
 					return false;
 				}
 
-				var zip = new ZipArchive(open(path), ZipArchiveMode.Read);
-				if (zip.Entries.Count != 1)
-					throw new InvalidOperationException("Zip must contain exactly one entry.");
+				using var zip = EnsureValidArchive(path, open);
+				resourcePath = zip.Entries[0].FullName;
+				return true;
+			}
+
+			public override Stream OpenRead(string path, Func<string, Stream> open) {
+				var zip = EnsureValidArchive(path, open);
 				var entry = new StreamDecorator(zip.Entries[0].Open());
 				entry.Closed += zip.Dispose;
-				stream = entry;
-				return true;
+				return entry;
+			}
+
+			static ZipArchive EnsureValidArchive(string path, Func<string, Stream> open) {
+				var zip = new ZipArchive(open(path), ZipArchiveMode.Read);
+				if (zip.Entries.Count != 1) {
+					zip.Dispose();
+					throw new InvalidOperationException("Zip must contain exactly one entry.");
+				}
+				return zip;
 			}
 
 			public override ResourceCompression WithCompressionLevel(CompressionLevel compressionLevel) => 
@@ -153,19 +167,20 @@ namespace DataBoss.DataPackage
 
 		public abstract ResourceCompression WithCompressionLevel(CompressionLevel compressionLevel);
 
-		public static Stream OpenRead(string path, Func<string, Stream> open) {
+		public static (string ResourcePath, ResourceCompression ResourceCompression) Match(string path, Func<string, Stream> open) {
 			foreach (var item in new[] { GZip, Brotli, Zip })
-				if (item.TryOpenRead(path, open, out var stream))
-					return stream;
+				if (item.TryMatch(path, open, out var found))
+					return (found, item);
 
-			return open(path);
+			return (path, None);
 		}
 
-		protected virtual bool TryOpenRead(string path, Func<string, Stream> open, out Stream stream) {
-			stream = null;
+		protected virtual bool TryMatch(string path, Func<string, Stream> open, out string resourcePath) {
+			resourcePath = null;
 			return false;
 		} 
 
 		public abstract (string Path, Stream Stream) OpenWrite(string path, Func<string, Stream> createDestination);
+		public abstract Stream OpenRead(string path, Func<string, Stream> open);
 	}
 }

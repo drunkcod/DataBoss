@@ -94,15 +94,6 @@ namespace DataBoss.DataPackage
 			this.state = state;
 		}
 
-		public Stream OpenStream(Func<string, Stream> open) {
-			if (Count == 1)
-				return OpenResourceStream(this.First(), open);
-			return new ConcatStream(this.Select(x => OpenResourceStream(x, open)).GetEnumerator());
-		}
-
-		static Stream OpenResourceStream(string path, Func<string, Stream> open) =>
-			ResourceCompression.OpenRead(path, open);
-
 		public bool TryGetOutputPath(out string outputPath) {
 			if (Count != 1) {
 				outputPath = null;

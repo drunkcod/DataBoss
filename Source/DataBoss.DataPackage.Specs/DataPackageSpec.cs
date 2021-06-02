@@ -1,5 +1,6 @@
 using System;
 using System.Globalization;
+using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
@@ -49,7 +50,7 @@ namespace DataBoss.DataPackage
 
 			var r = dp.Serialize();
 
-			Check.That(() => r.Resources[0].Path.Single() == "some/path.csv");
+			Check.That(() => r.Resources[0].ResourcePath.Single() == "some/path.csv");
 		}
 
 		[Fact]
@@ -452,9 +453,32 @@ namespace DataBoss.DataPackage
 
 	public partial class DataPackageSpec
 	{
+		public class ResourceCompressionSpec
+		{
+			[Fact]
+			public void normalize_gzip_resource_names() {
+				var store = new InMemoryDataPackageStore();
+
+				var dp = new DataPackage();
+				dp.AddResource(x => x.WithName("data").WithData(new[] { new { Value = 1 } }));
+				dp.Save(store.OpenWrite, new DataPackageSaveOptions {
+					ResourceCompression = ResourceCompression.GZip,
+				});
+
+				var loaded = store.Load();
+				var store2 = new InMemoryDataPackageStore();
+				loaded.Save(store2.OpenWrite);
+				var load2 = store2.Load();
+				Check.That(() => load2.GetResource("data").ResourcePath == "data.csv");
+			}
+		}
+	}
+
+	public partial class DataPackageSpec
+	{
 		public class ZipResourceCompression
 		{
-			InMemoryDataPackageStore store = new InMemoryDataPackageStore();
+			InMemoryDataPackageStore store = new();
 
 			public ZipResourceCompression() {
 				var dp = new DataPackage();
@@ -462,7 +486,6 @@ namespace DataBoss.DataPackage
 				dp.Save(store.OpenWrite, new DataPackageSaveOptions {
 					ResourceCompression = ResourceCompression.Zip,
 				});
-
 			}
 
 			[Fact]
@@ -478,10 +501,9 @@ namespace DataBoss.DataPackage
 			}
 
 			[Fact]
-			public void can_read_data() {
+			public void data_resource() {
 				var dp = store.Load();
-				Check.That(
-					() => dp.GetResource("data").Read<ValueRow>().Single().Value == 1);
+				Check.That(() => dp.GetResource("data").Read<ValueRow>().Single().Value == 1);
 			}
 
 			class ValueRow { public int Value; }

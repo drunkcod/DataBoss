@@ -60,7 +60,6 @@ namespace DataBoss.IO
 
 					read += sliceSize;
 					chunkOffset += sliceSize;
-
 				} while((read != count && TryGetChunkBytes(millisecondsTimeout: 0)) || read == 0);
 
 				return read;

@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 using CsvHelper.Configuration;
 using DataBoss.Data;
 using DataBoss.DataPackage.Schema;
+using DataBoss.IO;
 using DataBoss.Linq;
 using DataBoss.Threading;
 using DataBoss.Threading.Channels;
@@ -100,9 +101,7 @@ namespace DataBoss.DataPackage
 			} else {
 				var description = LoadPackageDescription(WebResponseStream.Get(url));
 				var r = new DataPackage();
-				r.AddResources(description.Resources.Select(x =>
-					TabularDataResource.From(x, () =>
-						CreateCsvDataReader(x, WebResponseStream.Get))));
+				AddCsvSources(r, WebResponseStream.Get, description.Resources);
 				return r;
 			}
 		}
@@ -110,10 +109,55 @@ namespace DataBoss.DataPackage
 		public static DataPackage Load(Func<string, Stream> openRead) {
 			var description = LoadPackageDescription(openRead("datapackage.json"));
 			var r = new DataPackage();
-			r.AddResources(description.Resources.Select(x =>
-				TabularDataResource.From(x, () => CreateCsvDataReader(x, openRead))));
-
+			AddCsvSources(r, openRead, description.Resources);
 			return r;
+		}
+
+		static void AddCsvSources(DataPackage r, Func<string, Stream> openRead, IEnumerable<DataPackageResourceDescription> items) {
+			foreach(var item in items) {
+				var source = new CsvDataSource(item, openRead);
+				r.AddResource(TabularDataResource.From(item, source.ResourcePath, source.CreateCsvDataReader));
+			}
+		}
+
+		class CsvDataSource
+		{
+			readonly DataPackageResourceDescription desc;
+			readonly Func<string, Stream> openRead;
+			readonly List<(string PhysicalPath, string ResourcePath, ResourceCompression Compression)> parts;
+
+			public CsvDataSource(DataPackageResourceDescription desc, Func<string, Stream> openRead) {
+				this.desc = desc;
+				this.openRead = openRead;
+				this.parts = desc.Path.Select(x => {
+					var r = ResourceCompression.Match(x, openRead);
+					return (x, r.ResourcePath, r.ResourceCompression);
+				}).ToList();
+			}
+
+			public ResourcePath ResourcePath => parts.Select(x => x.ResourcePath).ToArray();
+
+			public CsvDataReader CreateCsvDataReader() =>
+			CreateCsvDataReader(new StreamReader(OpenStream(openRead), Encoding.UTF8, true, StreamBufferSize),
+				desc.Dialect, desc.Schema);
+
+			public Stream OpenStream(Func<string, Stream> open) {
+				if (parts.Count == 1)
+					return parts[0].Compression.OpenRead(parts[0].PhysicalPath, open);
+				return new ConcatStream(parts.Select(x => x.Compression.OpenRead(x.PhysicalPath, open)).GetEnumerator());
+			}
+
+
+			static CsvDataReader CreateCsvDataReader(TextReader reader, CsvDialectDescription csvDialect, TabularDataSchema schema) =>
+				new CsvDataReader(
+					new CsvHelper.CsvReader(
+						reader,
+						new CsvConfiguration(CultureInfo.InvariantCulture) {
+							Delimiter = csvDialect.Delimiter ?? CsvDialectDescription.DefaultDelimiter
+						}),
+					schema,
+					hasHeaderRow: csvDialect.HasHeaderRow);
+
 		}
 
 		public static DataPackage LoadZip(string path) =>
@@ -123,7 +167,7 @@ namespace DataBoss.DataPackage
 			var r = new DataPackage();
 			var description = LoadZipPackageDescription(openZip);
 			r.AddResources(description.Resources.Select(x =>
-				TabularDataResource.From(x, new ZipResource(openZip, x).GetData)));
+				TabularDataResource.From(x, x.Path, new ZipResource(openZip, x).GetData)));
 
 			return r;
 		}
@@ -139,7 +183,7 @@ namespace DataBoss.DataPackage
 
 			public IDataReader GetData() {
 				var source = new ZipArchive(openZip(), ZipArchiveMode.Read);
-				var csv = CreateCsvDataReader(resource, x => source.GetEntry(x).Open());
+				var csv = new CsvDataSource(resource, x => source.GetEntry(x).Open()).CreateCsvDataReader();
 				csv.Disposed += delegate { source.Dispose(); };
 				return csv;
 			}
@@ -156,20 +200,6 @@ namespace DataBoss.DataPackage
 			return json.Deserialize<DataPackageDescription>(reader);
 		}
 
-		static CsvDataReader CreateCsvDataReader(DataPackageResourceDescription resource, Func<string, Stream> open) =>
-			CreateCsvDataReader(new StreamReader(resource.Path.OpenStream(open), Encoding.UTF8, true, StreamBufferSize),
-				resource.Dialect, resource.Schema);
-
-		static CsvDataReader CreateCsvDataReader(TextReader reader, CsvDialectDescription csvDialect, TabularDataSchema schema) =>
-			new CsvDataReader(
-				new CsvHelper.CsvReader(
-					reader,
-					new CsvConfiguration(CultureInfo.InvariantCulture) {
-						Delimiter = csvDialect.Delimiter ?? CsvDialectDescription.DefaultDelimiter
-					}),
-				schema,
-				hasHeaderRow: csvDialect.HasHeaderRow);
-
 		public IDataPackageResourceBuilder AddResource(string name, Func<IDataReader> getData) =>
 			AddResource(new CsvResourceOptions {
 				Name = name,
@@ -178,7 +208,7 @@ namespace DataBoss.DataPackage
 
 		public IDataPackageResourceBuilder AddResource(CsvResourceOptions item) {
 			var parts = item.Path
-				.Select(path => resources.First(x => x.Path.Count == 1 && x.Path == path))
+				.Select(path => resources.First(x => x.ResourcePath.Count == 1 && x.ResourcePath == path))
 				.Select(x => x.Read());
 
 			return AddResource(item, () => new MultiDataReader(parts));
@@ -197,7 +227,7 @@ namespace DataBoss.DataPackage
 					Dialect = new CsvDialectDescription {
 						HasHeaderRow = item.HasHeaderRow,
 					}
-				}, getData);
+				}, item.Path, getData);
 			AddResource(resource);
 			return new DataPackageResourceBuilder(this, resource);
 		}
@@ -297,9 +327,12 @@ namespace DataBoss.DataPackage
 			foreach (var item in resources) {
 				using var data = item.Read();
 				var desc = item.GetDescription(options.Culture);
-				desc.Path = item.Path;
+				desc.Path = item.ResourcePath;
 				if (desc.Path.IsEmpty)
 					desc.Path = $"{item.Name}.csv";
+				else if(desc.Path.TryGetOutputPath(out var basePath)) {
+					
+				}
 
 				desc.Dialect.Delimiter ??= DefaultDelimiter;
 
