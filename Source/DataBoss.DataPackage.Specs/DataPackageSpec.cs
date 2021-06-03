@@ -471,6 +471,20 @@ namespace DataBoss.DataPackage
 				var load2 = store2.Load();
 				Check.That(() => load2.GetResource("data").ResourcePath == "data.csv");
 			}
+
+			[Fact]
+			public void zip_source_normalize_gzip_resource_names() {
+				var bytes = new MemoryStream();
+
+				var dp = new DataPackage();
+				dp.AddResource(x => x.WithName("data").WithData(new[] { new { Value = 1 } }));
+				dp.SaveZip(bytes, new DataPackageSaveOptions {
+					ResourceCompression = ResourceCompression.GZip,
+				});
+
+				var loaded = DataPackage.LoadZip(() => new MemoryStream(bytes.ToArray()));
+				Check.That(() => loaded.GetResource("data").ResourcePath == "data.csv");
+			}
 		}
 	}
 

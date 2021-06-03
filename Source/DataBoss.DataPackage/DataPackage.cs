@@ -116,7 +116,9 @@ namespace DataBoss.DataPackage
 		static void AddCsvSources(DataPackage r, Func<string, Stream> openRead, IEnumerable<DataPackageResourceDescription> items) {
 			foreach(var item in items) {
 				var source = new CsvDataSource(item, openRead);
-				r.AddResource(TabularDataResource.From(item, source.ResourcePath, source.CreateCsvDataReader));
+				var resource = TabularDataResource.From(item, source.CreateCsvDataReader);
+				resource.ResourcePath = source.ResourcePath;
+				r.AddResource(resource);
 			}
 		}
 
@@ -166,26 +168,23 @@ namespace DataBoss.DataPackage
 		public static DataPackage LoadZip(Func<Stream> openZip) {
 			var r = new DataPackage();
 			var description = LoadZipPackageDescription(openZip);
-			r.AddResources(description.Resources.Select(x =>
-				TabularDataResource.From(x, x.Path, new ZipResource(openZip, x).GetData)));
-
+			var zip = new ZipResource(openZip);
+			AddCsvSources(r, zip.OpenEntry, description.Resources);
 			return r;
 		}
 
 		class ZipResource {
 			readonly Func<Stream> openZip;
-			readonly DataPackageResourceDescription resource;
 
-			public ZipResource(Func<Stream> openZip, DataPackageResourceDescription resource) {
+			public ZipResource(Func<Stream> openZip) {
 				this.openZip = openZip;
-				this.resource = resource;
 			}
 
-			public IDataReader GetData() {
+			public Stream OpenEntry(string path) {
 				var source = new ZipArchive(openZip(), ZipArchiveMode.Read);
-				var csv = new CsvDataSource(resource, x => source.GetEntry(x).Open()).CreateCsvDataReader();
-				csv.Disposed += delegate { source.Dispose(); };
-				return csv;
+				var stream = new StreamDecorator(source.GetEntry(path).Open());
+				stream.Closed += source.Dispose;
+				return stream;
 			}
 		}
 
@@ -227,7 +226,7 @@ namespace DataBoss.DataPackage
 					Dialect = new CsvDialectDescription {
 						HasHeaderRow = item.HasHeaderRow,
 					}
-				}, item.Path, getData);
+				}, getData);
 			AddResource(resource);
 			return new DataPackageResourceBuilder(this, resource);
 		}
@@ -327,15 +326,7 @@ namespace DataBoss.DataPackage
 			foreach (var item in resources) {
 				using var data = item.Read();
 				var desc = item.GetDescription(options.Culture);
-				desc.Path = item.ResourcePath;
-				if (desc.Path.IsEmpty)
-					desc.Path = $"{item.Name}.csv";
-				else if(desc.Path.TryGetOutputPath(out var basePath)) {
-					
-				}
-
 				desc.Dialect.Delimiter ??= DefaultDelimiter;
-
 				description.Resources.Add(desc);
 
 				if (!desc.Path.TryGetOutputPath(out var partPath) || writtenPaths.Contains(partPath))
@@ -478,45 +469,4 @@ namespace DataBoss.DataPackage
 				DataPackage.CopyChunks(chunks.Reader, output, bom));
 		}
 	}
-
-	class RecordReader : WorkItem
-	{
-		public const int BufferRows = 256;
-
-		readonly IDataRecordReader reader;
-		readonly ChannelWriter<(IMemoryOwner<IDataRecord>, int)> writer;
-		readonly CancellationToken cancellation;
-
-		public RecordReader(IDataRecordReader reader, ChannelWriter<(IMemoryOwner<IDataRecord>, int)> writer, CancellationToken cancellation) {
-			this.reader = reader;
-			this.writer = writer;
-			this.cancellation = cancellation;
-		}
-
-		protected override void DoWork() {
-			var buffer = CreateBuffer();
-			var rows = buffer.Memory.Span;
-			var n = 0;
-
-			while (!cancellation.IsCancellationRequested && reader.Read()) {
-				rows[n] = reader.GetRecord();
-
-				if (++n == BufferRows) {
-					writer.Write((buffer, n));
-					n = 0;
-					buffer = CreateBuffer();
-					rows = buffer.Memory.Span;
-				}
-			}
-
-			if (n != 0)
-				writer.Write((buffer, n));
-		}
-
-		IMemoryOwner<IDataRecord> CreateBuffer() => MemoryPool<IDataRecord>.Shared.Rent(BufferRows);
-
-		protected override void Cleanup() =>
-			writer.Complete();
-	}
-
 }
