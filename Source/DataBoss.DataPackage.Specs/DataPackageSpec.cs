@@ -13,7 +13,7 @@ using Xunit;
 
 namespace DataBoss.DataPackage
 {
-	public partial class DataPackageSpec
+	public partial class DataPackage_
 	{
 		struct IdValueRow
 		{
@@ -310,6 +310,16 @@ namespace DataBoss.DataPackage
 		}
 
 		[Fact]
+		public void ReadT_can_be_enumerated_multiple_times() {
+			var dp = new DataPackage();			
+			dp.AddResource(x => x.WithName("data").WithData(new[] { new { Value = 1 } }));
+
+			var rows = dp.GetResource("data").Read<MyRow<int>>();
+
+			Check.That(() => rows.Count() == rows.Count());
+		}
+
+		[Fact]
 		public void custom_resource_delimiter() {
 			var dp = new DataPackage()
 				.AddResource(x => x
@@ -451,76 +461,70 @@ namespace DataBoss.DataPackage
 		NumberFormatInfo GetNumbersFormat(DataPackage data) => data.GetResource("numbers").Schema.Fields.Single().GetNumberFormat();
 	}
 
-	public partial class DataPackageSpec
+	public class DataPackage_ResourceCompression
 	{
-		public class ResourceCompressionSpec
-		{
-			[Fact]
-			public void normalize_gzip_resource_names() {
-				var store = new InMemoryDataPackageStore();
+		[Fact]
+		public void normalize_gzip_resource_names() {
+			var store = new InMemoryDataPackageStore();
 
-				var dp = new DataPackage();
-				dp.AddResource(x => x.WithName("data").WithData(new[] { new { Value = 1 } }));
-				dp.Save(store.OpenWrite, new DataPackageSaveOptions {
-					ResourceCompression = ResourceCompression.GZip,
-				});
+			var dp = new DataPackage();
+			dp.AddResource(x => x.WithName("data").WithData(new[] { new { Value = 1 } }));
+			dp.Save(store.OpenWrite, new DataPackageSaveOptions {
+				ResourceCompression = ResourceCompression.GZip,
+			});
 
-				var loaded = store.Load();
-				var store2 = new InMemoryDataPackageStore();
-				loaded.Save(store2.OpenWrite);
-				var load2 = store2.Load();
-				Check.That(() => load2.GetResource("data").ResourcePath == "data.csv");
-			}
+			var loaded = store.Load();
+			var store2 = new InMemoryDataPackageStore();
+			loaded.Save(store2.OpenWrite);
+			var load2 = store2.Load();
+			Check.That(() => load2.GetResource("data").ResourcePath == "data.csv");
+		}
 
-			[Fact]
-			public void zip_source_normalize_gzip_resource_names() {
-				var bytes = new MemoryStream();
+		[Fact]
+		public void zip_source_normalize_gzip_resource_names() {
+			var bytes = new MemoryStream();
 
-				var dp = new DataPackage();
-				dp.AddResource(x => x.WithName("data").WithData(new[] { new { Value = 1 } }));
-				dp.SaveZip(bytes, new DataPackageSaveOptions {
-					ResourceCompression = ResourceCompression.GZip,
-				});
+			var dp = new DataPackage();
+			dp.AddResource(x => x.WithName("data").WithData(new[] { new { Value = 1 } }));
+			dp.SaveZip(bytes, new DataPackageSaveOptions {
+				ResourceCompression = ResourceCompression.GZip,
+			});
 
-				var loaded = DataPackage.LoadZip(() => new MemoryStream(bytes.ToArray()));
-				Check.That(() => loaded.GetResource("data").ResourcePath == "data.csv");
-			}
+			var loaded = DataPackage.LoadZip(() => new MemoryStream(bytes.ToArray()));
+			Check.That(() => loaded.GetResource("data").ResourcePath == "data.csv");
 		}
 	}
 
-	public partial class DataPackageSpec
+	public class DataPackage_ZipResourceCompression
 	{
-		public class ZipResourceCompression
-		{
-			InMemoryDataPackageStore store = new();
+		InMemoryDataPackageStore store = new();
 
-			public ZipResourceCompression() {
-				var dp = new DataPackage();
-				dp.AddResource(x => x.WithName("data").WithData(new[] { new { Value = 1 } }));
-				dp.Save(store.OpenWrite, new DataPackageSaveOptions {
-					ResourceCompression = ResourceCompression.Zip,
-				});
-			}
-
-			[Fact]
-			public void contains_data_zip() => Check.That(() => store.Contains("data.zip"));
-
-			[Fact]
-			public void zip_contains_csv() {
-				var zip = new ZipArchive(store.OpenRead("data.zip"), ZipArchiveMode.Read);
-
-				Check.That(
-					() => zip.Entries.Count == 1,
-					() => zip.Entries[0].Name == "data.csv");
-			}
-
-			[Fact]
-			public void data_resource() {
-				var dp = store.Load();
-				Check.That(() => dp.GetResource("data").Read<ValueRow>().Single().Value == 1);
-			}
-
-			class ValueRow { public int Value; }
+		public DataPackage_ZipResourceCompression() {
+			var dp = new DataPackage();
+			dp.AddResource(x => x.WithName("data").WithData(new[] { new { Value = 1 } }));
+			dp.Save(store.OpenWrite, new DataPackageSaveOptions {
+				ResourceCompression = ResourceCompression.Zip,
+			});
 		}
+
+		[Fact]
+		public void contains_data_zip() => Check.That(() => store.Contains("data.zip"));
+
+		[Fact]
+		public void zip_contains_csv() {
+			var zip = new ZipArchive(store.OpenRead("data.zip"), ZipArchiveMode.Read);
+
+			Check.That(
+				() => zip.Entries.Count == 1,
+				() => zip.Entries[0].Name == "data.csv");
+		}
+
+		[Fact]
+		public void data_resource() {
+			var dp = store.Load();
+			Check.That(() => dp.GetResource("data").Read<ValueRow>().Single().Value == 1);
+		}
+
+		class ValueRow { public int Value; }
 	}
 }

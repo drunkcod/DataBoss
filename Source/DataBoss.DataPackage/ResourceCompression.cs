@@ -6,30 +6,37 @@ using DataBoss.IO;
 
 namespace DataBoss.DataPackage
 {
-
 	public abstract class ResourceCompression
 	{
+		class NoResourceCompression : ResourceCompression
+		{
+			public override CompressionLevel ArchiveCompressionLevel => CompressionLevel.Optimal;
+
+			public override Stream OpenRead(string path, Func<string, Stream> open) => open(path);
+
+			public override (string Path, Stream Stream) OpenWrite(string path, Func<string, Stream> createDestination) => (path, createDestination(path));
+
+			public override ResourceCompression WithCompressionLevel(CompressionLevel compressionLevel) => throw new NotSupportedException();
+		}
+
 		class StreamDecoroatorResourceCompression : ResourceCompression
 		{
+			readonly Func<Stream, CompressionMode, Stream> wrapOpen;
 			readonly Func<Stream, CompressionLevel, Stream> wrapWrite;
-			readonly Func<Stream, CompressionMode, Stream> open;
-			readonly CompressionLevel archiveCompressionLevel;
 
 			public StreamDecoroatorResourceCompression(
-				CompressionLevel archiveCompression,
 				CompressionLevel resourceCompression,
 				string ext,
-				Func<Stream, CompressionMode, Stream> open,
+				Func<Stream, CompressionMode, Stream> wrapOpen,
 				Func<Stream, CompressionLevel, Stream> wrapWrite) {
-					this.archiveCompressionLevel = archiveCompression;
 					this.ResourceCompressionLevel = resourceCompression;
 					this.ExtensionSuffix = ext;
-					this.open = open;
+					this.wrapOpen = wrapOpen;
 					this.wrapWrite = wrapWrite;
 				}
 
 			public override ResourceCompression WithCompressionLevel(CompressionLevel compressionLevel) =>
-				new StreamDecoroatorResourceCompression(ArchiveCompressionLevel, compressionLevel, ExtensionSuffix, open, wrapWrite);
+				new StreamDecoroatorResourceCompression(compressionLevel, ExtensionSuffix, wrapOpen, wrapWrite);
 
 			public override (string Path, Stream Stream) OpenWrite(string path, Func<string, Stream> createDestination) {
 				var outputPath = GetOutputPath(path);
@@ -55,11 +62,11 @@ namespace DataBoss.DataPackage
 				return Path.ChangeExtension(path, Path.GetExtension(path) + ExtensionSuffix);
 			}
 
-			public override CompressionLevel ArchiveCompressionLevel => archiveCompressionLevel;
+			public override CompressionLevel ArchiveCompressionLevel => CompressionLevel.NoCompression;
 			public readonly CompressionLevel ResourceCompressionLevel;
 			public readonly string ExtensionSuffix;
 			Stream WrapWrite(Stream stream) => wrapWrite(stream, ResourceCompressionLevel);
-			Stream WrapRead(Stream stream) => open(stream, CompressionMode.Decompress);
+			Stream WrapRead(Stream stream) => wrapOpen(stream, CompressionMode.Decompress);
 		}
 
 		class ZipResourceCompression : ResourceCompression
@@ -75,8 +82,7 @@ namespace DataBoss.DataPackage
 			public override (string Path, Stream Stream) OpenWrite(string path, Func<string, Stream> createDestination) {
 				var zipPath = Path.ChangeExtension(path, "zip");
 				var zip = new ZipArchive(createDestination(zipPath), ZipArchiveMode.Create);
-				var e = zip.CreateEntry(path, compressionLevel);
-				var stream = new StreamDecorator(e.Open());
+				var stream = new StreamDecorator(zip.CreateEntry(path, compressionLevel).Open());
 				stream.Closed += zip.Dispose;
 				return (zipPath, stream);
 			}
@@ -112,17 +118,10 @@ namespace DataBoss.DataPackage
 				new ZipResourceCompression(compressionLevel);
 		}
 
-		public static readonly ResourceCompression None = new StreamDecoroatorResourceCompression(
-			CompressionLevel.Optimal,
-			CompressionLevel.NoCompression,
-			string.Empty,
-			(x, _) => x,
-			(x, _) => x);
+		public static readonly ResourceCompression None = new NoResourceCompression();
 
 		public static ResourceCompression GZip = new StreamDecoroatorResourceCompression(
-			CompressionLevel.NoCompression, 
-			CompressionLevel.Optimal,
-			".gz", 
+			CompressionLevel.Optimal, ".gz", 
 			(x, mode) => new GZipStream(x, mode),
 			(x, level) => new GZipStream(x, level));
 
@@ -131,15 +130,13 @@ namespace DataBoss.DataPackage
 		public static ResourceCompression Brotli = BindBrotli();
 
 		static ResourceCompression BindBrotli() {
-			var (open, wrapWrite) = GetWrappers(
+			var (openRead, openWrite) = GetWrappers(
 				typeName: "System.IO.Compression.BrotliStream, System.IO.Compression.Brotli",
 				errorMessage: "Brotli requires netstandard2.1+");
 			return new StreamDecoroatorResourceCompression(
-				CompressionLevel.NoCompression,
-				(CompressionLevel)7,
-				".br",
-				open,
-				wrapWrite);
+				(CompressionLevel)7, ".br",
+				openRead,
+				openWrite);
 		}
 
 		public abstract CompressionLevel ArchiveCompressionLevel { get; }

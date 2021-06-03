@@ -100,58 +100,69 @@ namespace DataBoss.DataPackage
 				}
 			} else {
 				var description = LoadPackageDescription(WebResponseStream.Get(url));
-				var r = new DataPackage();
-				AddCsvSources(r, WebResponseStream.Get, description.Resources);
-				return r;
+				return AddCsvSources(new DataPackage(), WebResponseStream.Get, description.Resources);
 			}
 		}
 
 		public static DataPackage Load(Func<string, Stream> openRead) {
 			var description = LoadPackageDescription(openRead("datapackage.json"));
-			var r = new DataPackage();
-			AddCsvSources(r, openRead, description.Resources);
-			return r;
+			return AddCsvSources(new DataPackage(), openRead, description.Resources);
 		}
 
-		static void AddCsvSources(DataPackage r, Func<string, Stream> openRead, IEnumerable<DataPackageResourceDescription> items) {
+		static DataPackage AddCsvSources(DataPackage r, Func<string, Stream> openRead, IEnumerable<DataPackageResourceDescription> items) {
 			foreach(var item in items) {
 				var source = new CsvDataSource(item, openRead);
 				var resource = TabularDataResource.From(item, source.CreateCsvDataReader);
 				resource.ResourcePath = source.ResourcePath;
 				r.AddResource(resource);
 			}
+
+			return r;
 		}
 
 		class CsvDataSource
 		{
+			readonly struct CsvPart
+			{
+				public readonly string PhysicalPath;
+				public readonly string ResourcePath;
+				public readonly ResourceCompression Compression;
+
+				public CsvPart(string physicalPath, string resourcePath, ResourceCompression compression) {
+					this.PhysicalPath = physicalPath;
+					this.ResourcePath = resourcePath;
+					this.Compression = compression;
+				}
+			}
 			readonly DataPackageResourceDescription desc;
 			readonly Func<string, Stream> openRead;
-			readonly List<(string PhysicalPath, string ResourcePath, ResourceCompression Compression)> parts;
+			readonly CsvPart[] parts;
 
 			public CsvDataSource(DataPackageResourceDescription desc, Func<string, Stream> openRead) {
 				this.desc = desc;
 				this.openRead = openRead;
 				this.parts = desc.Path.Select(x => {
 					var r = ResourceCompression.Match(x, openRead);
-					return (x, r.ResourcePath, r.ResourceCompression);
-				}).ToList();
+					return new CsvPart(x, r.ResourcePath, r.ResourceCompression);
+				}).ToArray();
 			}
 
-			public ResourcePath ResourcePath => parts.Select(x => x.ResourcePath).ToArray();
+			public ResourcePath ResourcePath => Array.ConvertAll(parts, x => x.ResourcePath);
 
 			public CsvDataReader CreateCsvDataReader() =>
 			CreateCsvDataReader(new StreamReader(OpenStream(openRead), Encoding.UTF8, true, StreamBufferSize),
 				desc.Dialect, desc.Schema);
 
 			public Stream OpenStream(Func<string, Stream> open) {
-				if (parts.Count == 1)
-					return parts[0].Compression.OpenRead(parts[0].PhysicalPath, open);
-				return new ConcatStream(parts.Select(x => x.Compression.OpenRead(x.PhysicalPath, open)).GetEnumerator());
+				if (parts.Length == 1)
+					return OpenPart(parts[0], open);
+				return new ConcatStream(parts.Select(x => OpenPart(x, open)).GetEnumerator());
 			}
 
+			static Stream OpenPart(in CsvPart part, Func<string, Stream> open) => part.Compression.OpenRead(part.PhysicalPath, open);
 
 			static CsvDataReader CreateCsvDataReader(TextReader reader, CsvDialectDescription csvDialect, TabularDataSchema schema) =>
-				new CsvDataReader(
+				new(
 					new CsvHelper.CsvReader(
 						reader,
 						new CsvConfiguration(CultureInfo.InvariantCulture) {
@@ -159,21 +170,18 @@ namespace DataBoss.DataPackage
 						}),
 					schema,
 					hasHeaderRow: csvDialect.HasHeaderRow);
-
 		}
 
 		public static DataPackage LoadZip(string path) =>
 			LoadZip(BoundMethod.Bind(File.OpenRead, path));
 
 		public static DataPackage LoadZip(Func<Stream> openZip) {
-			var r = new DataPackage();
-			var description = LoadZipPackageDescription(openZip);
 			var zip = new ZipResource(openZip);
-			AddCsvSources(r, zip.OpenEntry, description.Resources);
-			return r;
+			return Load(zip.OpenEntry);
 		}
 
-		class ZipResource {
+		class ZipResource 
+		{
 			readonly Func<Stream> openZip;
 
 			public ZipResource(Func<Stream> openZip) {
@@ -186,11 +194,6 @@ namespace DataBoss.DataPackage
 				stream.Closed += source.Dispose;
 				return stream;
 			}
-		}
-
-		static DataPackageDescription LoadZipPackageDescription(Func<Stream> openZip) {
-			using var zip = new ZipArchive(openZip(), ZipArchiveMode.Read);
-			return LoadPackageDescription(zip.GetEntry("datapackage.json").Open());
 		}
 
 		static DataPackageDescription LoadPackageDescription(Stream stream) {
@@ -243,9 +246,6 @@ namespace DataBoss.DataPackage
 			resources.Add(item);
 			return this;
 		}
-
-		void AddResources(IEnumerable<TabularDataResource> items) =>
-			resources.AddRange(items);
 
 		DataPackage IDataPackageBuilder.Done() => this;
 

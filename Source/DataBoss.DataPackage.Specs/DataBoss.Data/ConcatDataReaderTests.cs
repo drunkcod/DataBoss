@@ -5,6 +5,7 @@ using System.Linq;
 using CheckThat;
 using DataBoss.Data.Common;
 using DataBoss.DataPackage;
+using DataBoss.Linq;
 using Xunit;
 
 namespace DataBoss.Data

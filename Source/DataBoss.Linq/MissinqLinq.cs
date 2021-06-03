@@ -35,8 +35,54 @@ namespace DataBoss.Linq
 		public static EmptyCollection<T> Empty<T>() => new EmptyCollection<T>();
 	}
 
+	public static class Enumerators
+	{
+		public static List<T> ToList<T>(this IEnumerator<T> self) {
+			var r = new List<T>();
+			while (self.MoveNext())
+				r.Add(self.Current);
+			return r;
+		}
+
+		public static T[] ToArray<T>(this IEnumerator<T> self) {
+			var items = new T[16];
+			var n = 0;
+			while(self.MoveNext()) {
+				if (n == items.Length)
+					Array.Resize(ref items, items.Length * 2);
+				items[n++] = self.Current;
+			}
+			Array.Resize(ref items, n);
+			return items;			
+		}
+
+		public static int Count<T>(this IEnumerator<T> self) {
+			var n = 0;
+			while (self.MoveNext())
+				++n;
+			return n;
+		}
+
+		public static T First<T>(this IEnumerator<T> self) {
+			if (!self.MoveNext())
+				return MissingLinq.ThrowNoElements<T>();
+			return self.Current;
+		}
+
+		public static T Single<T>(this IEnumerator<T> self) {
+			if (!self.MoveNext())
+				return MissingLinq.ThrowNoElements<T>();
+			var found = self.Current;
+			if (self.MoveNext())
+				return MissingLinq.ThrowMoreThanOneElement<T>();
+			return found;
+		}
+	}
+
 	public static class MissingLinq
 	{
+		static internal T ThrowNoElements<T>() => new T[0].Single();
+		static internal T ThrowMoreThanOneElement<T>() => Enumerable.Repeat(default(T), 2).Single();
 		class CollectionAdapter<T, TItem> : IReadOnlyCollection<TItem>, ICollection<TItem>
 		{
 			readonly IReadOnlyCollection<T> items;

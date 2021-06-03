@@ -8,6 +8,7 @@ using System.Text;
 using CheckThat;
 using CheckThat.Formatting;
 using DataBoss.Data.SqlServer;
+using DataBoss.Linq;
 using DataBoss.Migrations;
 using DataBoss.Specs;
 using Xunit;

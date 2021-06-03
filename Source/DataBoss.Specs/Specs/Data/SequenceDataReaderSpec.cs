@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using CheckThat;
+using DataBoss.Linq;
 using Xunit;
 
 namespace DataBoss.Data
