@@ -81,11 +81,7 @@ namespace DataBoss.DataPackage
 			return reader;
 		}
 
-		public IEnumerable<T> Read<T>() {
-			using var items = ObjectReader.Read<T>(Read(), CustomConverters);
-			while (items.MoveNext())
-				yield return items.Current;
-		}
+		public IEnumerable<T> Read<T>() => ObjectReader.Enumerable<T>(Read, CustomConverters);
 
 		static readonly ConverterCollection CustomConverters = new() {
 			new Func<string, char>(StringToChar),

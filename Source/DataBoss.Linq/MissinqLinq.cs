@@ -45,16 +45,18 @@ namespace DataBoss.Linq
 		}
 
 		public static T[] ToArray<T>(this IEnumerator<T> self) {
-			var items = new T[16];
+			var items = new T[32];
 			var n = 0;
 			while(self.MoveNext()) {
 				if (n == items.Length)
-					Array.Resize(ref items, items.Length * 2);
+					Array.Resize(ref items, NextBufferSize(items.Length));
 				items[n++] = self.Current;
 			}
 			Array.Resize(ref items, n);
-			return items;			
+			return items;
 		}
+
+		static int NextBufferSize(int size) => checked(size + size);
 
 		public static int Count<T>(this IEnumerator<T> self) {
 			var n = 0;
