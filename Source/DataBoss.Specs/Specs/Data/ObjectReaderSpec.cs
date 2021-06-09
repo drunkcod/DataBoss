@@ -25,7 +25,7 @@ namespace DataBoss.Data
 				{ 1L, "", "First" },
 				{ 2L, "", "Second" }
 			};
-			Check.That(() => ObjectReader.For(source).Read<DataBossMigrationInfo>().Count() == source.Count);
+			Check.That(() => ObjectReader.Read<DataBossMigrationInfo>(source).Count() == source.Count);
 		}
 
 		[Fact]
@@ -34,13 +34,13 @@ namespace DataBoss.Data
 				{ 1L, "", "First" },
 				{ 2L, "", "Second" }
 			};
-			Check.That(() => ObjectReader.For(source as IDataReader).Read<DataBossMigrationInfo>().Count() == source.Count);
+			Check.That(() => ObjectReader.Read<DataBossMigrationInfo>(source as IDataReader).Count() == source.Count);
 		}
 
 		[Fact]
 		public void reads_public_fields() {
 			var source = new SimpleDataReader(Col<long>("Id"), Col<string>("Context"), Col<string>("Name")) { { 1L, "", "First" } };
-			var read = ObjectReader.For(source).Read<DataBossMigrationInfo>().Single();
+			var read = ObjectReader.Read<DataBossMigrationInfo>(source).Single();
 			Check.That(
 				() => read.Id == 1,
 				() => read.Context == "",
@@ -76,7 +76,7 @@ namespace DataBoss.Data
 			var source = new SimpleDataReader(Col<T>("Value"));
 			var expected = new ValueRow<T> { Value = (T)value };
 			source.Add(expected.Value);
-			Check.With(() => ObjectReader.For(source).Read<ValueRow<T>>().ToArray())
+			Check.With(() => ObjectReader.Read<ValueRow<T>>(source).ToArray())
 			.That(
 				rows => rows.Length == 1,
 				rows => rows[0].Value.Equals(expected.Value));
@@ -86,7 +86,7 @@ namespace DataBoss.Data
 		public void supports_binary_field() {
 			var expected = new ValueRow<byte[]> { Value = Encoding.UTF8.GetBytes("Hello World!") };
 			var source = new SimpleDataReader(Col<byte[]>("Value")) { expected.Value };
-			Check.With(() => ObjectReader.For(source).Read<ValueRow<byte[]>>().ToArray())
+			Check.With(() => ObjectReader.Read<ValueRow<byte[]>>(source).ToArray())
 			.That(
 				rows => rows.Length == 1,
 				rows => rows[0].Value == expected.Value);
@@ -96,7 +96,7 @@ namespace DataBoss.Data
 		public void supports_timespan() {
 			var expected = new ValueRow<TimeSpan> { Value = TimeSpan.FromSeconds(42) };
 			var source = new SimpleDataReader(Col<TimeSpan>("Value")) { expected.Value };
-			Check.With(() => ObjectReader.For(source).Read<ValueRow<TimeSpan>>().ToArray())
+			Check.With(() => ObjectReader.Read<ValueRow<TimeSpan>>(source).ToArray())
 			.That(
 				rows => rows.Length == 1,
 				rows => rows[0].Value == expected.Value);
@@ -109,7 +109,7 @@ namespace DataBoss.Data
 			var source = new SimpleDataReader(Col<MyEnum32>("Value"));
 			var expected = new ValueRow<MyEnum32> { Value = MyEnum32.Something };
 			source.Add(expected.Value);
-			Check.With(() => ObjectReader.For(source).Read<ValueRow<MyEnum32>>().ToArray())
+			Check.With(() => ObjectReader.Read<ValueRow<MyEnum32>>(source).ToArray())
 			.That(
 				rows => rows.Length == 1,
 				rows => rows[0].Value.Equals(expected.Value));
@@ -120,7 +120,7 @@ namespace DataBoss.Data
 		public void supports_nested_fields() {
 			var expected = new ValueRow<ValueRow<int>> { Value = new ValueRow<int> { Value = 42 } };
 			var source = new SimpleDataReader(Col<int>("Value.Value")) { expected.Value.Value };
-			Check.With(() => ObjectReader.For(source).Read<ValueRow<ValueRow<int>>>().ToArray())
+			Check.With(() => ObjectReader.Read<ValueRow<ValueRow<int>>>(source).ToArray())
 			.That(
 				rows => rows.Length == 1,
 				rows => rows[0].Value.Value == expected.Value.Value);
@@ -130,7 +130,7 @@ namespace DataBoss.Data
 		public void supports_deeply_nested_fields() {
 			var expected = new ValueRow<ValueRow<ValueRow<int>>> { Value = new ValueRow<ValueRow<int>> { Value = new ValueRow<int> { Value = 42 } } };
 			var source = new SimpleDataReader(Col<int>("Value.Value.Value")) { expected.Value.Value.Value };
-			Check.With(() => ObjectReader.For(source).Read<ValueRow<ValueRow<ValueRow<int>>>>().ToArray())
+			Check.With(() => ObjectReader.Read<ValueRow<ValueRow<ValueRow<int>>>>(source).ToArray())
 			.That(
 				rows => rows.Length == 1,
 				rows => rows[0].Value.Value.Value == expected.Value.Value.Value
@@ -142,13 +142,13 @@ namespace DataBoss.Data
 			var source = new SimpleDataReader(Col<float>("Value.Value")) {
 				3.14f,
 			};
-			Check.With(() => ObjectReader.For(source).Read<ValueRow<StructRow<float>>>())
+			Check.With(() => ObjectReader.Read<ValueRow<StructRow<float>>>(source))
 			.That(rows => rows.First().Value.Value == 3.14f);
 		}
 
 		[Fact]
 		public void null_source_becomes_default_value() {
-			var rows = ObjectReader.For(SequenceDataReader.Create(new[] { new StructRow<int?> { Value = null }, new StructRow<int?> { Value = 1 } }, x => x.MapAll()));
+			var rows = ObjectReader.For(() => SequenceDataReader.Create(new[] { new StructRow<int?> { Value = null }, new StructRow<int?> { Value = 1 } }, x => x.MapAll()));
 			Check.With(() => rows.Read<StructRow<int>>().ToArray())
 				.That(xs => xs[0].Value == default(int), xs => xs[1].Value == 1);		
 		}
@@ -164,7 +164,7 @@ namespace DataBoss.Data
 		public void can_read_structs() {
 			var expected = new StructRow<float> { Value = 3.14f };
 			var source = new SimpleDataReader(Col<float>("Value")) { expected.Value };
-			Check.With(() => ObjectReader.For(source).Read<StructRow<float>>().ToArray())
+			Check.With(() => ObjectReader.Read<StructRow<float>>(source).ToArray())
 			.That(
 				rows => rows.Length == 1,
 				rows => rows[0].Value == expected.Value);	
@@ -174,7 +174,7 @@ namespace DataBoss.Data
 		public void can_read_nullable_struct() {
 			var expected = 3.14f;
 			var source = new SimpleDataReader(Col<float>("Value.ctorValue")) { expected };
-			Check.With(() => ObjectReader.For(source).Read<StructRow<StructRow<float>?>>().ToArray())
+			Check.With(() => ObjectReader.Read<StructRow<StructRow<float>?>>(source).ToArray())
 			.That(
 				rows => rows.Length == 1,
 				rows => rows[0].Value.Value.Value == expected);
@@ -184,7 +184,7 @@ namespace DataBoss.Data
 		public void null_nullable_struct() {
 			var source = new SimpleDataReader(Col<float>("Value.ctorValue")) { new object[]{ null } };
 			source.SetNullable(0, true);
-			var r = ObjectReader.For(source).Read<StructRow<StructRow<float>?>>().ToArray();
+			var r = ObjectReader.Read<StructRow<StructRow<float>?>>(source).ToArray();
 			Check.With(() => r)
 			.That(
 				rows => rows.Length == 1,
@@ -203,7 +203,7 @@ namespace DataBoss.Data
 		public void nullable_nullable() {
 			var source = new SimpleDataReader(Col<int>("Value.CanBeNull"), Col<int>("Value.NotNull")) { new object[] { null, 1 } };
 			source.SetNullable(0, true);
-			var r = ObjectReader.For(source).Read<StructRow<WithNullable?>>().ToArray();
+			var r = ObjectReader.Read<StructRow<WithNullable?>>(source).ToArray();
 			Check.With(() => r)
 			.That(
 				rows => rows.Length == 1,
@@ -221,7 +221,7 @@ namespace DataBoss.Data
 		public void row_with_nullable_missing_field() {
 			var source = new SimpleDataReader(Col<int>("Item.ctorValue")) { new object[] { null } };
 			source.SetNullable(0, true);
-			var r = ObjectReader.For(source).Read<RowOf<StructRow<int>?>>().ToArray();
+			var r = ObjectReader.Read<RowOf<StructRow<int>?>>(source).ToArray();
 			Check.With(() => r)
 			.That(
 				rows => rows.Length == 1,
@@ -234,7 +234,7 @@ namespace DataBoss.Data
 			var source = new SimpleDataReader(Col<int>("Item.key"), Col<int>("Item.value")) { new object[] { null, null} };
 			source.SetNullable(0, true);
 			source.SetNullable(1, true);
-			var r = ObjectReader.For(source).Read<RowOf<KeyValuePair<int,int?>?>>().ToArray();
+			var r = ObjectReader.Read<RowOf<KeyValuePair<int,int?>?>>(source).ToArray();
 			Check.With(() => r)
 			.That(
 				rows => rows.Length == 1,
@@ -251,7 +251,7 @@ namespace DataBoss.Data
 		public void can_use_parameterized_ctor() {
 			var expected = new MyThing<int>(42);
 			var source = new SimpleDataReader(Col<int>("value")) { expected.Value };
-			Check.With(() => ObjectReader.For(source).Read<MyThing<int>>().ToArray())
+			Check.With(() => ObjectReader.Read<MyThing<int>>(source).ToArray())
 			.That(
 				rows => rows.Length == 1,
 				rows => rows[0].Value == expected.Value);
@@ -261,7 +261,7 @@ namespace DataBoss.Data
 		public void ctors_can_have_complex_arguments() {
 			var expected = new MyThing<MyThing<int>> (new MyThing<int>(42));
 			var source = new SimpleDataReader(Col<int>("value.value")) { expected.Value.Value };
-			Check.With(() => ObjectReader.For(source).Read<MyThing<MyThing<int>>>().ToArray())
+			Check.With(() => ObjectReader.Read<MyThing<MyThing<int>>>(source).ToArray())
 			.That(
 				rows => rows.Length == 1,
 				rows => rows[0].Value.Value == expected.Value.Value);
@@ -272,7 +272,7 @@ namespace DataBoss.Data
 			var expected = new MyThing<int>(42);
 			var source = new SimpleDataReader(Col<int>("value")) { expected.Value };
 			MyThing<int> actual = null;
-			ObjectReader.For(source).Read((MyThing<int> x) => actual = x);
+			ObjectReader.Read(source, (MyThing<int> x) => actual = x);
 			Check.That(() => actual != null);
 			Check.That(() => actual.Value == expected.Value); 
 		}
@@ -286,7 +286,7 @@ namespace DataBoss.Data
 		public void can_read_props() {
 			var expected = new ValueProp<float> { Value = 2.78f };
 			var source = new SimpleDataReader(Col<float>("Value")) { expected.Value };
-			Check.With(() => ObjectReader.For(source).Read<ValueProp<float>>().ToArray())
+			Check.With(() => ObjectReader.Read<ValueProp<float>>(source).ToArray())
 			.That(
 				rows => rows.Length == 1,
 				rows => rows[0].Value == expected.Value);
@@ -296,7 +296,7 @@ namespace DataBoss.Data
 		public void provides_type_context_on_type_missmatch() {
 			var expected = new ValueProp<float> { Value = 2.78f };
 			var source = new SimpleDataReader(Col<int>("Value")) { expected.Value };
-			var ex = Check.Exception<InvalidConversionException>(() => ObjectReader.For(source).Read<ValueProp<float>>().ToArray());
+			var ex = Check.Exception<InvalidConversionException>(() => ObjectReader.Read<ValueProp<float>>(source).ToArray());
 			Check.That(() => ex.Type == typeof(ValueProp<float>));
 		}
 
@@ -304,15 +304,14 @@ namespace DataBoss.Data
 		public void detect_type_mismatch() {
 			var expected = new ValueProp<float> { Value = 2.78f };
 			var source = new SimpleDataReader(Col<float>("Value")) { expected.Value };
-			Check.Exception<InvalidOperationException>(() => ObjectReader.For(source).Read<ValueProp<int>>().Count());
+			Check.Exception<InvalidOperationException>(() => ObjectReader.Read<ValueProp<int>>(source).Count());
 		}
 
 		[Fact]
 		public void custom_converter() {
 			var expected = new ValueProp<int> { Value = 42 };
-			var source = new SimpleDataReader(Col<int>("Value")) { expected.Value };
 			var reader = ObjectReader
-				.For(source)
+				.For(() => new SimpleDataReader(Col<int>("Value")) { expected.Value })
 				.WithConverter((int x) => x.ToString());
 			Check
 				.With(() => reader.Read<ValueProp<string>>().ToArray())
@@ -322,9 +321,8 @@ namespace DataBoss.Data
 		[Fact]
 		public void custom_converter_nullable_handling() {
 			var expected = new ValueProp<int?> { Value = 12345 };
-			var source = new SimpleDataReader(Col<int>("Value")) { expected.Value };
 			var reader = ObjectReader
-				.For(source)
+				.For(() => new SimpleDataReader(Col<int>("Value")) { expected.Value })
 				.WithConverter((int x) => (long)x);
 			Check
 				.With(() => reader.Read<ValueProp<long?>>().ToArray())
@@ -334,9 +332,8 @@ namespace DataBoss.Data
 		[Fact]
 		public void custom_converter_null_item_handling() {
 			var expected = new ValueProp<int?> { Value = 12345 };
-			var source = new SimpleDataReader(Col<int>("Value")) { expected.Value };
 			var reader = ObjectReader
-				.For(source)
+				.For(() => new SimpleDataReader(Col<int>("Value")) { expected.Value })
 				.WithConverter((int x) => (long)x);
 			Check
 				.With(() => reader.Read<ValueProp<long?>>().ToArray())
@@ -350,7 +347,7 @@ namespace DataBoss.Data
 				Col<int>("ReadonlyValue"));
 			source.Add(0, 1);
 			Check
-				.With(() => ObjectReader.For(source).Read<StructRow<int>>().ToArray())
+				.With(() => ObjectReader.Read<StructRow<int>>(source).ToArray())
 				.That(x => x[0].Value == 0);
 		}
 
@@ -367,7 +364,7 @@ namespace DataBoss.Data
 		public void ensures_required_fields_are_present() {
 			var source = new SimpleDataReader(Col<int>($"Not{nameof(MyRequiredValue<int>.Value)}"));
 			source.Add(1);
-			Check.Exception<ArgumentException>(() => ObjectReader.For(source).Read<MyRequiredValue<int>>().ToArray());
+			Check.Exception<ArgumentException>(() => ObjectReader.Read<MyRequiredValue<int>>(source).ToArray());
 		}
 
 		[Fact]
@@ -375,7 +372,7 @@ namespace DataBoss.Data
 			var source = new SimpleDataReader(Col<int>("Value"));
 			source.Add(1);
 			Check
-				.With(() => ObjectReader.For(source).Read<ValueRow<IdOf<ValueRow<int>>>>().ToArray())
+				.With(() => ObjectReader.Read<ValueRow<IdOf<ValueRow<int>>>>(source).ToArray())
 				.That(x => x[0].Value == new IdOf<ValueRow<int>>(1));
 		}
 
@@ -384,7 +381,7 @@ namespace DataBoss.Data
 			var source = new SimpleDataReader(Col<byte[]>("Value.value"));
 			source.Add(new byte[]{ 1, 2, 3, 4, 5, 6, 7, 8 });
 			Check
-				.With(() => ObjectReader.For(source).Read<ValueRow<RowVersion>>().ToArray())
+				.With(() => ObjectReader.Read<ValueRow<RowVersion>>(source).ToArray())
 				.That(x => x[0].Value == new RowVersion(new byte[]{ 1, 2, 3, 4, 5, 6, 7, 8, }));
 		}
 
@@ -401,7 +398,7 @@ namespace DataBoss.Data
 			var source = new SimpleDataReader(Col<int>("Value"));
 			source.Add(10);
 			Check
-				.With(() => ObjectReader.For(source).Read<MyRequiredValue<MyCastable>>().ToArray())
+				.With(() => ObjectReader.Read<MyRequiredValue<MyCastable>>(source).ToArray())
 				.That(x => x[0].Value.Value == 10);
 		}
 
@@ -410,7 +407,7 @@ namespace DataBoss.Data
 			var source = new SimpleDataReader(Col<long>("Value"));
 			source.Add(10L);
 			Check
-				.With(() => ObjectReader.For(source).Read<MyRequiredValue<MyCastable>>().ToArray())
+				.With(() => ObjectReader.Read<MyRequiredValue<MyCastable>>(source).ToArray())
 				.That(x => x[0].Value.Value == 10);
 		}
 	}

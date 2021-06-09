@@ -214,8 +214,8 @@ namespace DataBoss.DataPackage
 		readonly CsvDataRecord current;
 		readonly IFormatProvider[] fieldFormat;
 		readonly CsvTypeCode[] csvFieldType;
-		readonly CsvReader csv;
 		readonly DataReaderSchemaTable schema;
+		CsvReader csv;
 		int rowNumber;
 
 		public event EventHandler Disposed;
@@ -309,17 +309,22 @@ namespace DataBoss.DataPackage
 		public object this[int i] => GetValue(i);
 		public object this[string name] => GetValue(GetOrdinal(name));
 
-		public void Close() { }
-		public void Dispose() {
+		public void Close() {
 			csv.Dispose();
+			csv = null;
+		}
+
+		public void Dispose() {
+			csv?.Dispose();
 			Disposed?.Invoke(this, EventArgs.Empty);
 		}
 
 		public object GetValue(int i) => current.GetValue(i);
 		public bool IsDBNull(int i) => current.IsDBNull(i);
 
+		bool IDataReader.IsClosed => csv == null;
+
 		int IDataReader.Depth => throw new NotSupportedException();
-		bool IDataReader.IsClosed => throw new NotSupportedException();
 		int IDataReader.RecordsAffected => throw new NotSupportedException();
 
 		public bool GetBoolean(int i) => current.GetBoolean(i);

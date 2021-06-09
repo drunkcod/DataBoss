@@ -102,11 +102,10 @@ namespace DataBoss.Data
 			
 					drop table {TempTableName}";
 				var ids = new List<int>(n);
-				using (var reader = ObjectReader.For(cmd.ExecuteReader(CommandBehavior.SingleResult | CommandBehavior.SequentialAccess))) { 
-					reader.Read<IdRow<int>>(x => ids.Add(x.Id));
-					ids.Sort();
-					return ids;
-				}
+				var reader = ObjectReader.For(() => cmd.ExecuteReader(CommandBehavior.SingleResult | CommandBehavior.SequentialAccess)); 
+				reader.Read<IdRow<int>>(x => ids.Add(x.Id));
+				ids.Sort();
+				return ids;
 			}
 		}
 	}

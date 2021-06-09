@@ -48,7 +48,7 @@ namespace DataBoss.Data
 			var expectedCommand = "select Id = 2 union all select 3";
 			var q = con.CreateCommand(expectedCommand);
 
-			Check.With(() => ObjectReader.For(q.ExecuteReader()).Read<IdRow<int>>().ToList())
+			Check.With(() => ObjectReader.For(() => q.ExecuteReader()).Read<IdRow<int>>().ToList())
 				.That(r => r.Count == 2);
 			commandExecuting.Check((_, e) => e.Command.CommandText == expectedCommand);
 		}
@@ -63,7 +63,7 @@ namespace DataBoss.Data
 			con.CommandExecuted += commandExecuted;
 
 			var q = con.CreateCommand("select Id = 2 union all select 3 union all select 1");
-			using (var r = ObjectReader.For(q.ExecuteReader()))
+			var r = ObjectReader.For(() => q.ExecuteReader());
 				r.Read<IdRow<int>>().ToList();
 			readerClosed.Check((_, e) => e.RowCount == 3);
 			commandExecuted.Check((_, e) => e.RowCount == 0);

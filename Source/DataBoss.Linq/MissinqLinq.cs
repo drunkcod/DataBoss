@@ -6,81 +6,6 @@ using DataBoss.Collections;
 
 namespace DataBoss.Linq
 {
-	public class EmptyCollection<T> : ICollection<T>, IReadOnlyCollection<T>, IEnumerator<T>
-	{
-		T IEnumerator<T>.Current => throw new InvalidOperationException();
-		object IEnumerator.Current => throw new InvalidOperationException();
-		bool IEnumerator.MoveNext() => false;
-		void IEnumerator.Reset() { }
-		void IDisposable.Dispose() { }
-
-		public int Count => 0;
-		public bool IsReadOnly => true;
-
-		public void Add(T item) => throw new InvalidOperationException();
-		public void Clear() => throw new InvalidOperationException();
-		public bool Remove(T item) => throw new InvalidOperationException();
-
-		public bool Contains(T item) => false;
-		public void CopyTo(T[] array, int arrayIndex) { }
-
-		public IEnumerator<T> GetEnumerator() => this;
-		IEnumerator IEnumerable.GetEnumerator() => this;
-
-		internal EmptyCollection() { }
-	}
-
-	public static class Collection
-	{
-		public static EmptyCollection<T> Empty<T>() => new EmptyCollection<T>();
-	}
-
-	public static class Enumerators
-	{
-		public static List<T> ToList<T>(this IEnumerator<T> self) {
-			var r = new List<T>();
-			while (self.MoveNext())
-				r.Add(self.Current);
-			return r;
-		}
-
-		public static T[] ToArray<T>(this IEnumerator<T> self) {
-			var items = new T[32];
-			var n = 0;
-			while(self.MoveNext()) {
-				if (n == items.Length)
-					Array.Resize(ref items, NextBufferSize(items.Length));
-				items[n++] = self.Current;
-			}
-			Array.Resize(ref items, n);
-			return items;
-		}
-
-		static int NextBufferSize(int size) => checked(size + size);
-
-		public static int Count<T>(this IEnumerator<T> self) {
-			var n = 0;
-			while (self.MoveNext())
-				++n;
-			return n;
-		}
-
-		public static T First<T>(this IEnumerator<T> self) {
-			if (!self.MoveNext())
-				return MissingLinq.ThrowNoElements<T>();
-			return self.Current;
-		}
-
-		public static T Single<T>(this IEnumerator<T> self) {
-			if (!self.MoveNext())
-				return MissingLinq.ThrowNoElements<T>();
-			var found = self.Current;
-			if (self.MoveNext())
-				return MissingLinq.ThrowMoreThanOneElement<T>();
-			return found;
-		}
-	}
-
 	public static class MissingLinq
 	{
 		static internal T ThrowNoElements<T>() => new T[0].Single();
@@ -141,26 +66,12 @@ namespace DataBoss.Linq
 			new CollectionAdapter<T, TItem>(self, selector);
 
 		public static IEnumerable<IReadOnlyList<T>> Batch<T>(this IEnumerable<T> items, int batchSize) =>
-			Batch(items, () => new T[batchSize]);
+			Batch(items, () => new T[batchSize]).Cast<IReadOnlyList<T>>();
 
-		public static IEnumerable<IReadOnlyList<T>> Batch<T>(this IEnumerable<T> items, Func<T[]> newBucket) {
-			T[] bucket = null;
-			var n = 0;
-			using (var it = items.GetEnumerator()) {
-				if (!it.MoveNext())
-					yield break;
-				bucket = newBucket();
-				do {
-					bucket[n++] = it.Current;
-					if (n == bucket.Length) {
-						yield return bucket;
-						bucket = newBucket();
-						n = 0;
-					}
-				} while (it.MoveNext());
-			}
-			if (n != 0)
-				yield return new ArraySegment<T>(bucket, 0, n);
+		public static IEnumerable<ArraySegment<T>> Batch<T>(this IEnumerable<T> self, Func<T[]> newBucket) {			
+			using var it = self.GetEnumerator();
+			for(var items = it.Batch(newBucket); items.MoveNext();)
+				yield return items.Current;
 		}
 
 		public static IEnumerable<IGrouping<TKey, TElement>> ChunkBy<TElement, TKey>(this IEnumerable<TElement> items, Func<TElement, TKey> selector) =>
@@ -267,7 +178,9 @@ namespace DataBoss.Linq
 			return c;
 		}
 
+#if NETSTANDARD2_0
 		public static HashSet<T> ToHashSet<T>(this IEnumerable<T> items) => new HashSet<T>(items);
+#endif
 
 		static void ThrowTooManyElementsException() => Enumerable.Range(0, 2).SingleOrDefault(x => true);
 	}

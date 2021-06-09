@@ -26,7 +26,7 @@ namespace DataBoss.DataPackage
 					}
 				}, hasHeaderRow: false);
 
-			var schema = ObjectReader.For(csv.GetSchemaTable().CreateDataReader()).Read<DataReaderSchemaRow>().ToList();
+			var schema = ObjectReader.For(csv.GetSchemaTable().CreateDataReader).Read<DataReaderSchemaRow>().ToList();
 			Check.That(
 				() => schema.Single(x => x.ColumnName == "boolean").AllowDBNull == true,
 				() => schema.Single(x => x.ColumnName == "datetime").AllowDBNull == true,
@@ -47,7 +47,7 @@ namespace DataBoss.DataPackage
 					}
 				}, hasHeaderRow: false);
 
-			var schema = ObjectReader.For(csv.GetSchemaTable().CreateDataReader()).Read<DataReaderSchemaRow>().ToList();
+			var schema = ObjectReader.For(csv.GetSchemaTable().CreateDataReader).Read<DataReaderSchemaRow>().ToList();
 			Check.That(
 				() => schema.Single(x => x.ColumnName == "integer").AllowDBNull == false);
 		}
@@ -63,7 +63,7 @@ namespace DataBoss.DataPackage
 					PrimaryKey = new List<string>{ "id" },
 				}, hasHeaderRow: false);
 
-			var schema = ObjectReader.For(csv.GetSchemaTable().CreateDataReader()).Read<DataReaderSchemaRow>().ToList();
+			var schema = ObjectReader.For(csv.GetSchemaTable().CreateDataReader).Read<DataReaderSchemaRow>().ToList();
 			Check.That(() => schema.Single(x => x.ColumnName == "id").AllowDBNull == false);
 		}
 
@@ -80,7 +80,7 @@ namespace DataBoss.DataPackage
 					}
 				}, hasHeaderRow: false);
 
-			Check.Exception<InvalidOperationException>(() => ObjectReader.For(csv).Read<IdRow<int>>().ToList());
+			Check.Exception<InvalidOperationException>(() => ObjectReader.Read<IdRow<int>>(csv).ToList());
 		}
 
 		[Fact]
@@ -97,7 +97,7 @@ namespace DataBoss.DataPackage
 					}
 				}, hasHeaderRow: false);
 
-			Check.With(() => ObjectReader.For(csv).Read<ValueRow<double>>().ToList()).That(				
+			Check.With(() => ObjectReader.Read<ValueRow<double>>(csv).ToList()).That(				
 				xs => xs.Count == 1,
 				xs => xs[0].Value == 3.1415);
 		}

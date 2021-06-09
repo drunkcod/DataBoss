@@ -14,7 +14,7 @@ namespace DataBoss.Data
 				SequenceDataReader.Create(new[]{ 1, 3, 5 }.Select(x => new IdRow<int> { Id = x })),
 				SequenceDataReader.Create(new[]{ 2, 4 }.Select(x => new IdRow<int> { Id = x })));
 
-			Check.With(() => ObjectReader.For(reader).Read<IdRow<int>>().ToList()).That(
+			Check.With(() => ObjectReader.Read<IdRow<int>>(reader).ToList()).That(
 				xs => xs.Count == 5,
 				xs => xs[0].Id == 1,
 				xs => xs[1].Id == 2);
@@ -27,11 +27,10 @@ namespace DataBoss.Data
 				SequenceDataReader.Create(new[] { 2 }.Select(x => new IdRow<int> { Id = x })),
 				SequenceDataReader.Create(new[] { 3, 5, 6 }.Select(x => new IdRow<int> { Id = x })));
 
-			Check.With(() => ObjectReader.For(reader).Read<IdRow<int>>().ToList()).That(
+			Check.With(() => ObjectReader.Read<IdRow<int>>(reader).ToList()).That(
 				xs => xs.Count == 6,
 				xs => xs[0].Id == 1,
 				xs => xs[5].Id == 6);
 		}
 	}
 }
- 

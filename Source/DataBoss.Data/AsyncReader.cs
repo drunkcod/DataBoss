@@ -72,8 +72,8 @@ namespace DataBoss.Data
 
 		static void ProduceRows<TReader>(AsyncReader<T> self, object obj, ref IDisposable cleanup) where TReader : IDataReader {
 			var getReader = (Func<TReader>)obj;
-			var reader = ObjectReader.For(getReader());
-			cleanup = reader;
+			var reader = ObjectReader.For(getReader);
+			cleanup = null;
 			reader.Read<T>(self.items.Add);
 		}
 	}

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Linq;
 using CheckThat;
 using DataBoss.Linq;
@@ -120,20 +121,20 @@ namespace DataBoss.Data
 		[Fact]
 		public void roundtrip_nullable_field() {
 			var items = new[] { new MyRow<int?> { Value = 42 } };	
-			var reader = SequenceDataReader.Create(items, x => x.MapAll());
 	
-			Check.With(() => ObjectReader.For(reader).Read<MyRow<int?>>().ToList())
+			Check.With(() => ObjectReader.For(Rows(items)).Read<MyRow<int?>>().ToList())
 				.That(rows => rows[0].Value == items[0].Value);
 		}
 
 		[Fact]
 		public void roundtrip_nullable_field_null() {
 			var items = new[] { new MyRow<float?> { Value = null } };	
-			var reader = SequenceDataReader.Create(items, x => x.MapAll());
 	
-			Check.With(() => ObjectReader.For(reader).Read<MyRow<float?>>().ToList())
+			Check.With(() => ObjectReader.For(Rows(items)).Read<MyRow<float?>>().ToList())
 				.That(rows => rows[0].Value == null);
 		}
+
+		static Func<IDataReader> Rows<T>(IEnumerable<T> rows) => () => SequenceDataReader.Create(rows, x => x.MapAll());
 
 		[Fact]
 		public void treats_IdOf_as_int() {

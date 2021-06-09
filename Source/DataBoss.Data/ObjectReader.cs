@@ -19,7 +19,7 @@ namespace DataBoss.Data
 			public static ItemReader<T> GetReader(Type readerType) => readers.GetOrAdd(readerType, x => MakeReaderOfT<T>(x));
 		}
 
-		public static ObjectReader<TReader> For<TReader>(TReader reader) where TReader : IDataReader => new(reader);
+		public static ObjectReader<TReader> For<TReader>(Func<TReader> reader) where TReader : IDataReader => new(reader);
 
 		public static Func<TReader, T> GetConverter<TReader, T>(TReader reader) where TReader : IDataReader =>
 			GetConverter<TReader, T>(reader, null);
@@ -39,7 +39,17 @@ namespace DataBoss.Data
 		public static IEnumerator<T> Read<T>(this IDataReader reader, ConverterCollection converters) =>
 			ItemReaderCache<T>.GetReader(reader.GetType())(reader, converters);
 
+		public static void Read<TReader, T>(this TReader reader, Action<T> handleItem) where TReader : IDataReader =>
+			Read(reader, handleItem, null);
+
+		public static void Read<TReader, T>(this TReader reader, Action<T> handleItem, ConverterCollection converters) where TReader : IDataReader {
+			using var items = new ConvertingEnumerator<TReader, T>(reader, GetConverter<TReader, T>(reader, converters));
+			while (items.MoveNext())
+				handleItem(items.Current);
+		}
+
 		public static IEnumerable<T> Enumerable<T>(Func<IDataReader> getData, ConverterCollection converters) {
+
 			using var items = Read<T>(getData(), converters);
 			while (items.MoveNext())
 				yield return items.Current;
@@ -58,38 +68,41 @@ namespace DataBoss.Data
 		static ConverterFactory ConverterFactory(ConverterCollection customConversions) => new(customConversions, NullConverterCache.Instance);
 	}
 
-	public struct ObjectReader<TReader> : IDisposable where TReader : IDataReader
+	public struct ObjectReader<TReader> where TReader : IDataReader
 	{
-		readonly TReader reader;
+		readonly Func<TReader> getReader;
 
-		public ObjectReader(TReader reader) { 
-			this.reader = reader; 
+		public ObjectReader(Func<TReader> getReader) { 
+			this.getReader = getReader; 
 		}
-
-		void IDisposable.Dispose() => reader.Dispose();
 
 		public ConvertingObjectReader<TReader> WithConverter<TFrom, TTo>(Func<TFrom, TTo> convert) =>
 			new ConvertingObjectReader<TReader>(this).WithConverter(convert);
 
 		public IEnumerator<T> Read<T>() => Read<T>((ConverterCollection)null);
-		
-		public IEnumerator<T> Read<T>(ConverterCollection converters) => 
-			new ConvertingEnumerator<TReader, T>(reader, GetConverter<T>(converters));
 
-		public IEnumerator<T> Read<T>(ConverterFactory converters) =>
-			new ConvertingEnumerator<TReader, T>(reader, converters.GetConverter<TReader, T>(reader).Compiled);
+		public IEnumerator<T> Read<T>(ConverterCollection converters) {
+			var reader = getReader();
+			return new ConvertingEnumerator<TReader, T>(reader, GetConverter<T>(reader, converters));
+		}
+
+		public IEnumerator<T> Read<T>(ConverterFactory converters) {
+			var reader = getReader();
+			return new ConvertingEnumerator<TReader, T>(reader, converters.GetConverter<TReader, T>(reader).Compiled);
+		}
 
 		public void Read<T>(Action<T> handleItem) => Read(null, handleItem);
+
 		public void Read<T>(ConverterCollection converters, Action<T> handleItem) {
-			var converter = GetConverter<T>(converters);
-			while(reader.Read())
+			using var reader = getReader();
+			Func<TReader, T> converter = GetConverter<T>(reader, converters);
+			while (reader.Read())
 				handleItem(converter(reader));
 		}
 
-		Func<TReader, T> GetConverter<T>(ConverterCollection converters) => 
-			ObjectReader.GetConverter<TReader, T>(reader, converters);
-
-		public bool NextResult() => reader.NextResult();
+		private static Func<TReader, T> GetConverter<T>(TReader reader, ConverterCollection converters) {
+			return ObjectReader.GetConverter<TReader, T>(reader, converters);
+		}
 	}
 
 	sealed class ConvertingEnumerator<TReader, T> : IEnumerator<T> where TReader : IDataReader
@@ -105,14 +118,15 @@ namespace DataBoss.Data
 		public T Current { get; private set; }
 		object IEnumerator.Current => Current;
 
-		void IDisposable.Dispose() { }
+		void IDisposable.Dispose() => reader.Dispose();
 
 		public bool MoveNext() {
-			if (reader.Read()) {
+			if (!reader.IsClosed && reader.Read()) {
 				Current = convert(reader);
 				return true;
 			}
 			else {
+				reader.Close();
 				Current = default;
 				return false;
 			}
@@ -121,8 +135,7 @@ namespace DataBoss.Data
 		public void Reset() => throw new NotSupportedException();
 	}
 
-
-	public sealed class ConvertingObjectReader<TReader> : IDisposable where TReader : IDataReader
+	public sealed class ConvertingObjectReader<TReader> where TReader : IDataReader
 	{
 		readonly ObjectReader<TReader> reader;
 		readonly ConverterCollection customConversions;
@@ -132,8 +145,6 @@ namespace DataBoss.Data
 			this.customConversions = new ConverterCollection();
 		}
 
-		void IDisposable.Dispose() => (reader as IDisposable).Dispose();
-
 		public ConvertingObjectReader<TReader> WithConverter<TFrom, TTo>(Func<TFrom, TTo> convert) {
 			customConversions.Add(convert);
 			return this;
@@ -141,7 +152,5 @@ namespace DataBoss.Data
 
 		public IEnumerator<T> Read<T>() => reader.Read<T>(customConversions);
 		public void Read<T>(Action<T> handleItem) => reader.Read(customConversions, handleItem);
-
-		public bool NextResult() => reader.NextResult();
 	}
 }
