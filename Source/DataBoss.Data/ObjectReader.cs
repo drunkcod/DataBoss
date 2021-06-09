@@ -10,7 +10,7 @@ namespace DataBoss.Data
 {
 	public static class ObjectReader
 	{
-		delegate IEnumerator<T> ItemReader<T>(IDataReader reader, ConverterCollection converters);
+		delegate IEnumerator<T> ItemReader<T>(IDataReader reader, ConverterCollection converters, bool leaveOpen);
 
 		static class ItemReaderCache<T>
 		{
@@ -36,8 +36,14 @@ namespace DataBoss.Data
 		public static IEnumerator<T> Read<T>(this IDataReader reader) => 
 			Read<T>(reader, null);
 
+		public static IEnumerator<T> Read<T>(this IDataReader reader, bool leaveOpen) =>
+			Read<T>(reader, null, leaveOpen: leaveOpen);
+
 		public static IEnumerator<T> Read<T>(this IDataReader reader, ConverterCollection converters) =>
-			ItemReaderCache<T>.GetReader(reader.GetType())(reader, converters);
+			Read<T>(reader, converters, false);
+
+		public static IEnumerator<T> Read<T>(this IDataReader reader, ConverterCollection converters, bool leaveOpen) =>
+			ItemReaderCache<T>.GetReader(reader.GetType())(reader, converters, leaveOpen);
 
 		public static void Read<TReader, T>(this TReader reader, Action<T> handleItem) where TReader : IDataReader =>
 			Read(reader, handleItem, null);
@@ -60,9 +66,9 @@ namespace DataBoss.Data
 			return Lambdas.CreateDelegate<ItemReader<T>>(m.MakeGenericMethod(readerType, typeof(T)));
 		}
 
-		static IEnumerator<T> ReaderOfT<TReader, T>(IDataReader reader, ConverterCollection converters) where TReader : IDataReader {
+		static IEnumerator<T> ReaderOfT<TReader, T>(IDataReader reader, ConverterCollection converters, bool leaveOpen) where TReader : IDataReader {
 			var readerOfT = (TReader)reader;
-			return new ConvertingEnumerator<TReader, T>(readerOfT, GetConverter<TReader, T>(readerOfT, converters));
+			return new ConvertingEnumerator<TReader, T>(readerOfT, GetConverter<TReader, T>(readerOfT, converters), leaveOpen);
 		}
 
 		static ConverterFactory ConverterFactory(ConverterCollection customConversions) => new(customConversions, NullConverterCache.Instance);
@@ -103,36 +109,6 @@ namespace DataBoss.Data
 		private static Func<TReader, T> GetConverter<T>(TReader reader, ConverterCollection converters) {
 			return ObjectReader.GetConverter<TReader, T>(reader, converters);
 		}
-	}
-
-	sealed class ConvertingEnumerator<TReader, T> : IEnumerator<T> where TReader : IDataReader
-	{
-		readonly TReader reader;
-		readonly Func<TReader, T> convert;
-
-		public ConvertingEnumerator(TReader reader, Func<TReader, T> convert) {
-			this.reader = reader;
-			this.convert = convert;
-		}
-
-		public T Current { get; private set; }
-		object IEnumerator.Current => Current;
-
-		void IDisposable.Dispose() => reader.Dispose();
-
-		public bool MoveNext() {
-			if (!reader.IsClosed && reader.Read()) {
-				Current = convert(reader);
-				return true;
-			}
-			else {
-				reader.Close();
-				Current = default;
-				return false;
-			}
-		}
-
-		public void Reset() => throw new NotSupportedException();
 	}
 
 	public sealed class ConvertingObjectReader<TReader> where TReader : IDataReader

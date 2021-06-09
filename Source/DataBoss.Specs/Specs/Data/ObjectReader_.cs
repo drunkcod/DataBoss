@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Text;
 using CheckThat;
 using CheckThat.Formatting;
+using CheckThat.Helpers;
 using DataBoss.Data.SqlServer;
 using DataBoss.Linq;
 using DataBoss.Migrations;
@@ -15,7 +16,16 @@ using Xunit;
 
 namespace DataBoss.Data
 {
-	public class ObjectReaderSpec
+	class ValueRow<T> { public T Value; }
+
+	class ValueProp<T>
+	{
+		public T Value { get; set; }
+	}
+
+
+	public class ObjectReader_
+
 	{
 		static KeyValuePair<string, Type> Col<T>(string name) => new KeyValuePair<string, Type>(name, typeof(T));
 
@@ -59,8 +69,6 @@ namespace DataBoss.Data
 			"x => new DataBossMigrationInfo { Id = x.GetInt64(0), Context = x.IsDBNull(1) ? default(string) : x.GetString(1), Name = x.IsDBNull(2) ? default(string) : x.GetString(2) }");
 		}
 
-		class ValueRow<T> { public T Value; }
-
 		[Theory]
 		[InlineData(typeof(float), 3.14f)]
 		[InlineData(typeof(double), 42.17)]
@@ -68,7 +76,7 @@ namespace DataBoss.Data
 		[InlineData(typeof(short), short.MaxValue)]
 		[InlineData(typeof(byte), byte.MaxValue)]
 		public void supports_field_of_type(Type type, object value) {
-			var check = (Action<object>)Delegate.CreateDelegate(typeof(Action<object>), GetType().GetMethod("CheckTSupport", BindingFlags.Static | BindingFlags.NonPublic).MakeGenericMethod(type));
+			var check = (Action<object>)Delegate.CreateDelegate(typeof(Action<object>), GetType().GetMethod(nameof(CheckTSupport), BindingFlags.Static | BindingFlags.NonPublic).MakeGenericMethod(type));
 			check(value);
 		}
 
@@ -113,7 +121,6 @@ namespace DataBoss.Data
 			.That(
 				rows => rows.Length == 1,
 				rows => rows[0].Value.Equals(expected.Value));
-
 		}
 
 		[Fact]
@@ -133,8 +140,7 @@ namespace DataBoss.Data
 			Check.With(() => ObjectReader.Read<ValueRow<ValueRow<ValueRow<int>>>>(source).ToArray())
 			.That(
 				rows => rows.Length == 1,
-				rows => rows[0].Value.Value.Value == expected.Value.Value.Value
-			);
+				rows => rows[0].Value.Value.Value == expected.Value.Value.Value);
 		}
 
 		[Fact]
@@ -277,10 +283,7 @@ namespace DataBoss.Data
 			Check.That(() => actual.Value == expected.Value); 
 		}
 
-		class ValueProp<T>
-		{
-			public T Value { get; set; }
-		}
+
 
 		[Fact]
 		public void can_read_props() {
@@ -359,7 +362,6 @@ namespace DataBoss.Data
 		}
 		#pragma warning restore CS0649
 
-
 		[Fact]
 		public void ensures_required_fields_are_present() {
 			var source = new SimpleDataReader(Col<int>($"Not{nameof(MyRequiredValue<int>.Value)}"));
@@ -409,6 +411,32 @@ namespace DataBoss.Data
 			Check
 				.With(() => ObjectReader.Read<MyRequiredValue<MyCastable>>(source).ToArray())
 				.That(x => x[0].Value.Value == 10);
+		}
+	}
+
+	public class ObjectReader_multiple_results
+	{
+		static KeyValuePair<string, Type> Col<T>(string name) => new KeyValuePair<string, Type>(name, typeof(T));
+
+		[Fact]
+		public void is_supported() {
+			var reader = new SimpleDataReader(Col<int>("Value"));
+			reader.Add(1);
+			reader.AddResult(Col<int>("Value"));
+			reader.Add(2);
+
+			var first = ObjectReader.Read<ValueRow<int>>(reader, leaveOpen: true).ToList();
+			reader.NextResult();
+			var second = ObjectReader.Read<ValueProp<int>>(reader).ToList();
+
+			var closed = new EventSpy<EventArgs>();
+			reader.Closed += closed;
+
+			Check.That(
+				() => closed.HasBeenCalled == false,
+				() => first.Count == 1,
+				() => second.Count == 1);
+
 		}
 	}
 }
