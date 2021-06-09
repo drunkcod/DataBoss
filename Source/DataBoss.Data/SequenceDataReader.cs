@@ -11,11 +11,15 @@ namespace DataBoss.Data
 	public static class SequenceDataReader
 	{
 		public static DbDataReader Items<T>(params T[] data) => Create(data);
+
+		public static DbDataReader Create<T>(IEnumerator<T> data) => Create(data, x => x.MapAll());
+
 		public static DbDataReader Create<T>(IEnumerable<T> data) => Create(data, x => x.MapAll());
-		public static DbDataReader Create<T>(IEnumerable<T> data, Action<FieldMapping<T>> mapFields) {
+		public static DbDataReader Create<T>(IEnumerable<T> data, Action<FieldMapping<T>> mapFields) => Create(data?.GetEnumerator(), mapFields);
+		public static DbDataReader Create<T>(IEnumerator<T> data, Action<FieldMapping<T>> mapFields) {
 			var fieldMapping = new FieldMapping<T>();
 			mapFields(fieldMapping);
-			return new SequenceDataReader<T>(data?.GetEnumerator(), fieldMapping);
+			return new SequenceDataReader<T>(data, fieldMapping);
 		}
 
 		public static DbDataReader Create<T>(IEnumerable<T> data, params string[] members) =>
@@ -141,8 +145,8 @@ namespace DataBoss.Data
 			public int GetOrdinal(string name) => schema.GetOrdinal(name);
 		}
 
+		IEnumerator<T> data;
 		readonly FieldAccessor[] fields;
-		readonly IEnumerator<T> data;
 		readonly DataReaderSchemaTable schema;
 		bool hasData;
 
@@ -194,18 +198,21 @@ namespace DataBoss.Data
 
 		public override int Depth => throw new NotSupportedException();
 		public override bool HasRows => throw new NotSupportedException();
-		public override bool IsClosed => false;
+		public override bool IsClosed => data is null;
 		public override int RecordsAffected => throw new NotSupportedException();
 
 		public override bool Read() => (hasData = data.MoveNext());
 
 		public override bool NextResult() => false;
 
-		public override void Close() { }
+		public override void Close() {
+			data?.Dispose();
+			data = null;
+		}
 
 		protected override void Dispose(bool disposing) {
-			if(disposing)
-				data.Dispose();
+			if (disposing)
+				Close();
 		}
 
 		public override DataTable GetSchemaTable() => schema.ToDataTable();
@@ -241,7 +248,6 @@ namespace DataBoss.Data
 		TValue GetCurrentValue<TValue>(int i) => fields[i].GetFieldValue<TValue>(Current);
 		T Current => hasData ? data.Current : NoData();
 		static T NoData() => throw new InvalidOperationException("Invalid attempt to read when no data is present, call Read()");
-
 
 		public override long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
 		public override long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) => throw new NotImplementedException();

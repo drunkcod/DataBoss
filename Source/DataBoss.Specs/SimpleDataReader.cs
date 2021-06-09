@@ -79,13 +79,13 @@ namespace DataBoss.Specs
 		object IDataRecord.this[int i] => records[i];
 		object IDataRecord.this[string name] => GetValue(GetOrdinal(name));
 
-
 		public DataTable GetSchemaTable() => schema;
 
 		public bool NextResult() => false;
 
+		public bool IsClosed => false;
+
 		public int Depth { get { throw new NotImplementedException(); } }
-		public bool IsClosed { get { throw new NotImplementedException(); } }
 		public int RecordsAffected { get { throw new NotImplementedException(); } }
 
 		IEnumerator<object[]> IEnumerable<object[]>.GetEnumerator() => records.GetEnumerator();

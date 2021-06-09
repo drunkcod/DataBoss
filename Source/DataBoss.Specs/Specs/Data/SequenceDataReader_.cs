@@ -1,14 +1,16 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
 using CheckThat;
+using CheckThat.Helpers;
 using DataBoss.Linq;
 using Xunit;
 
 namespace DataBoss.Data
 {
-	public class SequenceDataReaderSpec
+	public class SequenceDataReader_
 	{
 		class DataThingy
 		{
@@ -153,5 +155,49 @@ namespace DataBoss.Data
 				() => rows.IsDBNull(0),
 				() => rows.GetValue(0) is DBNull);
 		}
+
+		[Fact]
+		public void Close_disposes_enumerator() {
+			var rows = new[] { new { Value = 1 } };
+			var items = Wrap(rows.AsEnumerable().GetEnumerator());
+			var reader = SequenceDataReader.Create(items);
+
+			var itemsDisposed = new ActionSpy();
+			items.Disposed += itemsDisposed;
+
+			reader.Close();
+			Check.That(() => itemsDisposed.HasBeenCalled);
+
+		}
+
+		static TestableEnumerator<T> Wrap<T>(IEnumerator<T> inner) => new TestableEnumerator<T>(inner);
+
+		class TestableEnumerator<T> : IEnumerator<T> 
+		{
+			public readonly IEnumerator<T> Enumerator;
+
+			public TestableEnumerator(IEnumerator<T> enumerator) {
+				this.Enumerator = enumerator;
+			}
+
+			public T Current => Enumerator.Current;
+			object IEnumerator.Current => Enumerator.Current;
+
+			public Action Disposed;
+
+			public void Dispose() {
+				Enumerator.Dispose();
+				Disposed?.Invoke();
+			}
+
+			public bool MoveNext() {
+				return Enumerator.MoveNext();
+			}
+
+			public void Reset() {
+				Enumerator.Reset();
+			}
+		}
+
 	}
 }
