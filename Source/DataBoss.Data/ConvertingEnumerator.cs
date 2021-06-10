@@ -29,8 +29,7 @@ namespace DataBoss.Data
 			if (!reader.IsClosed && reader.Read()) {
 				Current = convert(reader);
 				return true;
-			}
-			else {
+			} else {
 				if(!leaveOpen)
 					reader.Close();
 				Current = default;

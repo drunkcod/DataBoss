@@ -16,19 +16,20 @@ using Xunit;
 
 namespace DataBoss.Data
 {
-	class ValueRow<T> { public T Value; }
-
-	class ValueProp<T>
+	public class ObjectReaderFixture
 	{
-		public T Value { get; set; }
+		public class ValueRow<T> { public T Value; }
+
+		public class ValueProp<T>
+		{
+			public T Value { get; set; }
+		}
+
+		public static KeyValuePair<string, Type> Col<T>(string name) => new KeyValuePair<string, Type>(name, typeof(T));
 	}
 
-
-	public class ObjectReader_
-
+	public class ObjectReader_ : ObjectReaderFixture
 	{
-		static KeyValuePair<string, Type> Col<T>(string name) => new KeyValuePair<string, Type>(name, typeof(T));
-
 		[Fact]
 		public void converts_all_rows() {
 			var source = new SimpleDataReader(Col<long>("Id"), Col<string>("Context"), Col<string>("Name")) {
@@ -414,10 +415,8 @@ namespace DataBoss.Data
 		}
 	}
 
-	public class ObjectReader_multiple_results
+	public class ObjectReader_multiple_results : ObjectReaderFixture
 	{
-		static KeyValuePair<string, Type> Col<T>(string name) => new KeyValuePair<string, Type>(name, typeof(T));
-
 		[Fact]
 		public void is_supported() {
 			var reader = new SimpleDataReader(Col<int>("Value"));
@@ -425,18 +424,17 @@ namespace DataBoss.Data
 			reader.AddResult(Col<int>("Value"));
 			reader.Add(2);
 
-			var first = ObjectReader.Read<ValueRow<int>>(reader, leaveOpen: true).ToList();
-			reader.NextResult();
-			var second = ObjectReader.Read<ValueProp<int>>(reader).ToList();
-
 			var closed = new EventSpy<EventArgs>();
 			reader.Closed += closed;
+
+			var first = ObjectReader.Read<ValueRow<int>>(reader, leaveOpen: true).ToList();
+			reader.NextResult();
+			var second = ObjectReader.Read<ValueProp<int>>(reader, leaveOpen:true).ToList();
 
 			Check.That(
 				() => closed.HasBeenCalled == false,
 				() => first.Count == 1,
 				() => second.Count == 1);
-
 		}
 	}
 }

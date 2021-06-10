@@ -26,30 +26,6 @@ namespace DataBoss.Linq
 		}
 
 		[Fact]
-		public void Batch() {
-			var batchSize = 3;
-			var items = new[] { 1, 2, 3, 4, 5 };
-			Check.With(() => items.Batch(batchSize).ToList())
-			.That(
-				xs => xs[0].Count() == batchSize,
-				xs => xs[0].SequenceEqual(items.Take(batchSize)),
-				xs => xs[1].Count() == items.Length - batchSize,
-				xs => xs[1].SequenceEqual(items.Skip(batchSize)));
-		}
-
-		[Fact]
-		public void Batch_with_own_bucket() {
-			var items = new[] { "A", "B", "C", "D" };
-			var myBucket = new string[2];
-
-			Check.With(() => items.Batch(() => myBucket))
-			.That(
-				xs => xs.First().Count() == myBucket.Length,
-				xs => xs.First().SequenceEqual(items.Take(myBucket.Length)),
-				xs => myBucket.SequenceEqual(items.Take(myBucket.Length)));
-		}
-
-		[Fact]
 		public void ChunkBy() {
 			var items = new [] { 
 				new { id = 1, value = "A" },
@@ -119,5 +95,45 @@ namespace DataBoss.Linq
 		[Fact]
 		public void SingleOrDefault_with_selector() =>
 			Check.That(() => new[] { "A", "BB", "CCC"}.SingleOrDefault(x => x.StartsWith("C"), x => x.Length) == 3);
+	}
+
+	public class MissingLinq_Batch
+	{
+		[Fact]
+		public void batchSize_items() {
+			var batchSize = 3;
+			var items = new[] { 1, 2, 3, 4, 5 };
+			Check.With(() => items.Batch(batchSize).ToList())
+			.That(
+				xs => xs[0].Count() == batchSize,
+				xs => xs[0].SequenceEqual(items.Take(batchSize)),
+				xs => xs[1].Count() == items.Length - batchSize,
+				xs => xs[1].SequenceEqual(items.Skip(batchSize)));
+		}
+
+		[Fact]
+		public void with_own_bucket() {
+			var items = new[] { "A", "B", "C", "D" };
+			var myBucket = new string[2];
+
+			Check.With(() => items.Batch(() => myBucket))
+			.That(
+				xs => xs.First().Count() == myBucket.Length,
+				xs => xs.First().SequenceEqual(items.Take(myBucket.Length)),
+				xs => myBucket.SequenceEqual(items.Take(myBucket.Length)));
+		}
+
+		[Fact]
+		public void MemoryPooled() {
+			var itemCount = 97;
+			var items = Enumerable.Range(0, itemCount).Select(x => x);
+			var memory = new TestMemoryPool<int> { DefaultBufferSize = 10 };
+			var batches = items.Batch(memory).ToList();
+			Check.That(
+				() => batches.Count == 10,
+				() => batches.Sum(x => x.Memory.Length) == itemCount,
+				() => batches.SelectMany(x => x.Memory.ToArray()).SequenceEqual(items));
+
+		}
 	}
 }

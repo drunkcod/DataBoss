@@ -1,12 +1,12 @@
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using DataBoss.Collections;
-
 namespace DataBoss.Linq
 {
-	public static class MissingLinq
+	using System;
+	using System.Collections;
+	using System.Collections.Generic;
+	using System.Linq;
+	using DataBoss.Collections;
+
+	static public partial class MissingLinq
 	{
 		static internal T ThrowNoElements<T>() => new T[0].Single();
 		static internal T ThrowMoreThanOneElement<T>() => Enumerable.Repeat(default(T), 2).Single();
@@ -185,3 +185,21 @@ namespace DataBoss.Linq
 		static void ThrowTooManyElementsException() => Enumerable.Range(0, 2).SingleOrDefault(x => true);
 	}
 }
+
+#if NETSTANDARD2_1_OR_GREATER
+namespace DataBoss.Linq
+{
+	using System.Buffers;
+	using System.Collections.Generic;
+
+	static public partial class MissingLinq
+	{
+		public static IEnumerable<IMemoryOwner<T>> Batch<T>(this IEnumerable<T> self, MemoryPool<T> memory) => Batch(self, memory, -1);
+		public static IEnumerable<IMemoryOwner<T>> Batch<T>(this IEnumerable<T> self, MemoryPool<T> memory, int minBufferSize = -1) {
+			using var it = self.GetEnumerator();
+			for (var items = it.Batch(memory, minBufferSize); items.MoveNext();)
+				yield return items.Current;
+		}
+	}
+}
+#endif
