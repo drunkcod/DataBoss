@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
@@ -123,14 +123,12 @@ namespace DataBoss.Data
 		public DataTable GetSchemaTable() => schema.ToDataTable();
 		public Type GetProviderSpecificFieldType(int i) => schema[i].ProviderSpecificDataType;
 
-		public object GetProviderSpecificValue(int i) {
-			if(getProviderSpecificValue == null) {
-				var m = current.GetType().GetMethod(nameof(GetProviderSpecificValue), new[] { typeof(int) });
-				if (m == null)
-					throw new MissingMethodException($"Missing method {nameof(GetProviderSpecificValue)} on {current.GetType()}.");
-				getProviderSpecificValue = Lambdas.CreateDelegate<Func<int, object>>(current, m);
-			}
-			return getProviderSpecificValue(i);
+		public object GetProviderSpecificValue(int i) =>
+			(getProviderSpecificValue ??= CreateGetProviderSpecificValueDelegate())(i);
+
+		Func<int, object> CreateGetProviderSpecificValueDelegate() {
+			var m = current.GetType().GetMethod(nameof(GetProviderSpecificValue), new[] { typeof(int) });
+			return Lambdas.CreateDelegate<Func<int, object>>(current, m ?? throw new MissingMethodException($"Missing method {nameof(GetProviderSpecificValue)} on {current.GetType()}."));
 		}
 
 		public bool NextResult() => false;

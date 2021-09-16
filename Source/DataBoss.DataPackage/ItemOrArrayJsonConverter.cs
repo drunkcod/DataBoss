@@ -73,8 +73,7 @@ namespace DataBoss.DataPackage
 				if (!items.MoveNext()) {
 					writer.WriteStartArray();
 					writer.WriteEndArray();
-				}
-				else {
+				} else {
 					var first = items.Current;
 					if (items.MoveNext()) {
 						writer.WriteStartArray();

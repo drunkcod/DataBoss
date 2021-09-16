@@ -16,7 +16,7 @@ namespace DataBoss.DataPackage
 		[JsonProperty("foreignKeys", DefaultValueHandling = DefaultValueHandling.Ignore)]
 		public List<DataPackageForeignKey> ForeignKeys;
 
-		public TabularDataSchema Clone() => new TabularDataSchema {
+		public TabularDataSchema Clone() => new() {
 			Fields = Fields?.ToList(),
 			PrimaryKey = PrimaryKey?.ToList(),
 			ForeignKeys = ForeignKeys?.ToList(),

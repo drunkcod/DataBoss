@@ -31,8 +31,8 @@ namespace DataBoss.Linq
 	{
 		[Fact]
 		public void ToArray() => Check.That(
-			() => GetEnumerator(Items(1)).ToArray().SequenceEqual(Items(1)),
-			() => GetEnumerator(Items(117)).ToArray().SequenceEqual(Items(117)));
+			() => Items(1).GetEnumerator().ToArray().SequenceEqual(Items(1)),
+			() => Items(17).GetEnumerator().ToArray().SequenceEqual(Items(17)));
 
 		[Fact]
 		public void Batch_MemoryPool() {
@@ -46,7 +46,5 @@ namespace DataBoss.Linq
 		}
 
 		static ICollection<int> Items(int count) => Enumerable.Range(0, count).Select(x => x).ToList();
-
-		static IEnumerator<T> GetEnumerator<T>(IEnumerable<T> items) => items.GetEnumerator();
 	}
 }

@@ -2,13 +2,14 @@ using System;
 using System.Collections;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
+using System.Data.Common;
 using System.Reflection;
 using CsvHelper;
 using DataBoss.Data;
 
 namespace DataBoss.DataPackage
 {
-	public class CsvDataReader : IDataReader, IDataRecordReader
+	public class CsvDataReader : DbDataReader, IDataRecordReader
 	{
 		enum CsvTypeCode : byte
 		{
@@ -174,14 +175,14 @@ namespace DataBoss.DataPackage
 		class FieldToDbTypeConverter
 		{
 			readonly Type Nullable = typeof(Nullable<>);
-			readonly string[] PrimaryKey;
+			readonly Func<string, bool> IsPrimaryKey;
 
-			public FieldToDbTypeConverter(string[] primaryKey) {
-				this.PrimaryKey = primaryKey;
+			public FieldToDbTypeConverter(Func<string, bool> isPrimaryKey) {
+				this.IsPrimaryKey = isPrimaryKey;
 			}
 
 			public (Type, DataBossDbType, CsvTypeCode) ToDbType(TabularDataSchemaFieldDescription field) {
-				var required = field.Constraints?.IsRequired ?? Array.IndexOf(PrimaryKey, field.Name) != -1;
+				var required = field.Constraints?.IsRequired ?? IsPrimaryKey(field.Name);
 				return MakeType(required, field.Type switch {
 					"boolean" => (typeof(bool), CsvTypeCode.None),
 					"datetime" => (typeof(DateTime), CsvTypeCode.None),
@@ -236,8 +237,7 @@ namespace DataBoss.DataPackage
 		}
 
 		void TranslateSchema(TabularDataSchema tabularSchema) {
-			var primaryKey = tabularSchema.PrimaryKey?.ToArray() ?? Empty<string>.Array;
-			var fieldTypeConverter = new FieldToDbTypeConverter(primaryKey);
+			var fieldTypeConverter = new FieldToDbTypeConverter(tabularSchema.PrimaryKey == null ? _ => false : tabularSchema.PrimaryKey.Contains);
 			for (var i = 0; i != tabularSchema.Fields.Count; ++i) {
 				var field = tabularSchema.Fields[i];
 				var (fieldType, dbType, csvType) = fieldTypeConverter.ToDbType(field);
@@ -274,11 +274,15 @@ namespace DataBoss.DataPackage
 			return true;
 		}
 
-		public int FieldCount => schema.Count;
+		public override int FieldCount => schema.Count;
+		public override bool IsClosed => csv == null;
+		public override int Depth => throw new NotSupportedException();
+		public override int RecordsAffected => throw new NotSupportedException();
+		public override bool HasRows => throw new NotSupportedException();
 
-		public DataTable GetSchemaTable() => schema.ToDataTable();
+		public override DataTable GetSchemaTable() => schema.ToDataTable();
 		
-		public bool Read() {
+		public override bool Read() {
 			var ok = ReadRow();
 			if(!ok)
 				return false;
@@ -286,11 +290,11 @@ namespace DataBoss.DataPackage
 			return true;
 		}
 
+		public override bool NextResult() => false;
+
 		static bool IsNull(string input) => string.IsNullOrEmpty(input);
 
 		bool IsNullable(int i) => schema[i].AllowDBNull;
-
-		public bool NextResult() => false;
 
 		static object ChangeType(string input, Type type, IFormatProvider format) =>
 			Type.GetTypeCode(type) switch {
@@ -300,51 +304,49 @@ namespace DataBoss.DataPackage
 				_ => Convert.ChangeType(input, type, format),
 			};
 
-		public Type GetFieldType(int i) => schema[i].ColumnType;
-		public Type GetProviderSpecificFieldType(int i) => schema[i].ProviderSpecificDataType;
-		public string GetDataTypeName(int i) => schema[i].DataTypeName;
-		public string GetName(int i) => schema[i].ColumnName;
-		public int GetOrdinal(string name) => schema.GetOrdinal(name);
+		public override Type GetFieldType(int i) => schema[i].ColumnType;
+		public override Type GetProviderSpecificFieldType(int i) => schema[i].ProviderSpecificDataType;
+		public override string GetDataTypeName(int i) => schema[i].DataTypeName;
+		public override string GetName(int i) => schema[i].ColumnName;
+		public override int GetOrdinal(string name) => schema.GetOrdinal(name);
 
-		public object this[int i] => GetValue(i);
-		public object this[string name] => GetValue(GetOrdinal(name));
+		public override object this[int i] => GetValue(i);
+		public override object this[string name] => GetValue(GetOrdinal(name));
 
-		public void Close() {
+		public override void Close() {
 			csv.Dispose();
 			csv = null;
 		}
 
-		public void Dispose() {
+		protected override void Dispose(bool disposing) {
+			if(!disposing)
+				return;
+
 			csv?.Dispose();
 			Disposed?.Invoke(this, EventArgs.Empty);
 		}
 
-		public object GetValue(int i) => current.GetValue(i);
-		public bool IsDBNull(int i) => current.IsDBNull(i);
+		public override object GetValue(int i) => current.GetValue(i);
+		public override bool IsDBNull(int i) => current.IsDBNull(i);
 
-		bool IDataReader.IsClosed => csv == null;
-
-		int IDataReader.Depth => throw new NotSupportedException();
-		int IDataReader.RecordsAffected => throw new NotSupportedException();
-
-		public bool GetBoolean(int i) => current.GetBoolean(i);
-		public byte GetByte(int i) => current.GetByte(i);
-		public char GetChar(int i) => current.GetChar(i);
-		public Guid GetGuid(int i) => current.GetGuid(i);
-		public short GetInt16(int i) => current.GetInt16(i);
-		public int GetInt32(int i) => current.GetInt32(i);
-		public long GetInt64(int i) => current.GetInt64(i);
-		public float GetFloat(int i) => current.GetFloat(i);
-		public double GetDouble(int i) => current.GetDouble(i);
-		public string GetString(int i) => current.GetString(i);
-		public decimal GetDecimal(int i) => current.GetDecimal(i);
-		public DateTime GetDateTime(int i) => current.GetDateTime(i);
+		public override bool GetBoolean(int i) => current.GetBoolean(i);
+		public override byte GetByte(int i) => current.GetByte(i);
+		public override char GetChar(int i) => current.GetChar(i);
+		public override Guid GetGuid(int i) => current.GetGuid(i);
+		public override short GetInt16(int i) => current.GetInt16(i);
+		public override int GetInt32(int i) => current.GetInt32(i);
+		public override long GetInt64(int i) => current.GetInt64(i);
+		public override float GetFloat(int i) => current.GetFloat(i);
+		public override double GetDouble(int i) => current.GetDouble(i);
+		public override string GetString(int i) => current.GetString(i);
+		public override decimal GetDecimal(int i) => current.GetDecimal(i);
+		public override DateTime GetDateTime(int i) => current.GetDateTime(i);
 		public TimeSpan GetTimeSpan(int i) => current.GetTimeSpan(i);
 
 		public CsvInteger GetCsvInteger(int i) => current.GetCsvInteger(i);
 		public CsvNumber GetCsvNumber(int i) => current.GetCsvNumber(i);
 
-		public object GetProviderSpecificValue(int i) =>
+		public override object GetProviderSpecificValue(int i) =>
 			csvFieldType[i] switch {
 				CsvTypeCode.None => throw new InvalidCastException(),
 				CsvTypeCode.CsvInteger => GetCsvInteger(i),
@@ -352,17 +354,18 @@ namespace DataBoss.DataPackage
 				_ => throw new InvalidOperationException(),
 			};
 
-		public int GetValues(object[] values) {
+		public override int GetValues(object[] values) {
 			var n = Math.Min(FieldCount, values.Length);
 			for(var i = 0; i != n; ++i)
 				values[i] = GetValue(i);
 			return n;
 		}
 
-		public IDataReader GetData(int i) => throw new NotSupportedException();
-		public long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
-		public long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
+		public override long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
+		public override long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
 
 		public IDataRecord GetRecord() => current.Clone();
+
+		public override IEnumerator GetEnumerator() => new DataReaderEnumerator(this);
 	}
 }

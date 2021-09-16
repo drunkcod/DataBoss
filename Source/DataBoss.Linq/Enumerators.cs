@@ -82,12 +82,12 @@ namespace DataBoss.Linq
 
 	static public partial class Enumerators
 	{
-		class MemorySegment<T> : IMemoryOwner<T>
+		class MemorySliceOwner<T> : IMemoryOwner<T>
 		{
 			readonly Memory<T> slice;
 			readonly IDisposable source;
 
-			public MemorySegment(Memory<T> slice, IDisposable source) {
+			public MemorySliceOwner(Memory<T> slice, IDisposable source) {
 				this.slice = slice;
 				this.source = source;
 			}
@@ -115,7 +115,7 @@ namespace DataBoss.Linq
 			} while (items.MoveNext());
 
 			if (n != 0)
-				yield return new MemorySegment<T>(bucket.Memory.Slice(0, n), bucket);
+				yield return new MemorySliceOwner<T>(bucket.Memory.Slice(0, n), bucket);
 		}
 	}
 }

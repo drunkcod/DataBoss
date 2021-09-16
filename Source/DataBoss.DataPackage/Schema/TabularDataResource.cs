@@ -107,13 +107,10 @@ namespace DataBoss.DataPackage
 			Rebind(name, SchemaWithSameKeys(), getData);
 
 		TabularDataSchema SchemaWithSameKeys() =>
-			new TabularDataSchema {
+			new() {
 				PrimaryKey = Schema.PrimaryKey?.ToList(),
 				ForeignKeys = Schema.ForeignKeys?.ToList()
 			};
-
-		public TabularDataResource Rebind(string name, Func<IDataReader> getData) =>
-			Rebind(name, new TabularDataSchema(), getData);
 
 		protected virtual TabularDataResource Rebind(string name, TabularDataSchema schema, Func<IDataReader> getData) =>
 			new(new DataPackageResourceDescription {

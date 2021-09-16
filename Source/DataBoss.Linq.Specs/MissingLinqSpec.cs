@@ -133,7 +133,6 @@ namespace DataBoss.Linq
 				() => batches.Count == 10,
 				() => batches.Sum(x => x.Memory.Length) == itemCount,
 				() => batches.SelectMany(x => x.Memory.ToArray()).SequenceEqual(items));
-
 		}
 	}
 }

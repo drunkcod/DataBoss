@@ -7,9 +7,7 @@ namespace DataBoss.Linq
 	using DataBoss.Collections;
 
 	static public partial class MissingLinq
-	{
-		static internal T ThrowNoElements<T>() => new T[0].Single();
-		static internal T ThrowMoreThanOneElement<T>() => Enumerable.Repeat(default(T), 2).Single();
+	{		
 		class CollectionAdapter<T, TItem> : IReadOnlyCollection<TItem>, ICollection<TItem>
 		{
 			readonly IReadOnlyCollection<T> items;
@@ -165,11 +163,15 @@ namespace DataBoss.Linq
 						var found = it.Current;
 						while (it.MoveNext())
 							if (predicate(it.Current))
-								ThrowTooManyElementsException();
+								ThrowMoreThanOneMatch();
 						return selector(found);
 					}
-			return default(TValue);
+			return default;
 		}
+
+		static internal T ThrowNoElements<T>() => new T[0].Single();
+		static internal T ThrowMoreThanOneElement<T>() => new T[2].Single();
+		static void ThrowMoreThanOneMatch() => new int[2].SingleOrDefault(x => true);
 
 		public static BlockCollection<T> ToCollection<T>(this IEnumerable<T> items) {
 			var c = new BlockCollection<T>();
@@ -177,14 +179,20 @@ namespace DataBoss.Linq
 				c.Add(item);
 			return c;
 		}
-
-#if NETSTANDARD2_0
-		public static HashSet<T> ToHashSet<T>(this IEnumerable<T> items) => new HashSet<T>(items);
-#endif
-
-		static void ThrowTooManyElementsException() => Enumerable.Range(0, 2).SingleOrDefault(x => true);
 	}
 }
+
+#if NETSTANDARD2_0
+namespace DataBoss.Linq
+{
+	using System.Collections.Generic;
+	
+	public partial class MissingLinq
+	{
+		public static HashSet<T> ToHashSet<T>(this IEnumerable<T> items) => new HashSet<T>(items);
+	}
+}
+#endif
 
 #if NETSTANDARD2_1_OR_GREATER
 namespace DataBoss.Linq

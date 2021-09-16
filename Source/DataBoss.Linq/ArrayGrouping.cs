@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,9 +20,9 @@ namespace DataBoss.Linq
 		public int Count => items.Length;
 		public bool IsReadOnly => true;
 
-		public void Add(TElement item) => throw NotSupported();
-		public void Clear() => throw NotSupported();
-		public bool Remove(TElement item) => throw NotSupported();
+		public void Add(TElement item) => NotSupported();
+		public void Clear() => NotSupported();
+		public bool Remove(TElement item) => NotSupported();
 
 		public bool Contains(TElement item) => Array.IndexOf(items, item) != -1;
 		public void CopyTo(TElement[] array, int arrayIndex) => items.CopyTo(array, arrayIndex);
@@ -30,6 +30,6 @@ namespace DataBoss.Linq
 		public IEnumerator<TElement> GetEnumerator() => ((IEnumerable<TElement>)items).GetEnumerator();
 		IEnumerator IEnumerable.GetEnumerator() => items.GetEnumerator();
 
-		static InvalidOperationException NotSupported() => new InvalidOperationException("ArrayGrouping IsReadonly");
+		static bool NotSupported() => throw new InvalidOperationException("ArrayGrouping IsReadonly");
 	}
 }

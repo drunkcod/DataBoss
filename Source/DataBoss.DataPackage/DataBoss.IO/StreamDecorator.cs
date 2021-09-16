@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace DataBoss.IO
 {
-	class StreamDecorator : Stream
+	public class StreamDecorator : Stream
 	{
 		readonly Stream inner;
 
