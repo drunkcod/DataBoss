@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Data;
 using System.Data.Common;
@@ -8,11 +8,17 @@ using System.Threading.Tasks;
 
 namespace DataBoss.Data
 {
-	class DataReaderDecoratorBase : DbDataReader
+	public class DataReaderDecoratorBase : DbDataReader
 	{
 		readonly DbDataReader inner;
 
-		public DataReaderDecoratorBase(DbDataReader inner) { this.inner = inner; }
+		public DataReaderDecoratorBase(IDataReader inner) : 
+			this(inner is DbDataReader dbDataReader ? dbDataReader : new DbDataReaderAdapter(inner))
+		{ }
+
+		public DataReaderDecoratorBase(DbDataReader inner) { 
+			this.inner = inner ?? throw new ArgumentNullException(nameof(inner));
+		}
 
 		public override object this[int ordinal] => inner[ordinal];
 		public override object this[string name] => inner[name];

@@ -4,6 +4,8 @@ using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Data.Common;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 using CsvHelper;
 using DataBoss.Data;
 
@@ -266,9 +268,11 @@ namespace DataBoss.DataPackage
 			}
 		}
 
-		bool ReadRow() {
-			var ok = csv.Read();
-			if(!ok)
+		bool ReadRow() => UpdateRowNumber(csv.Read());
+		async Task<bool> ReadRowAsync() => UpdateRowNumber(await csv.ReadAsync());
+
+		bool UpdateRowNumber(bool ok) {
+			if (!ok)
 				return false;
 			++rowNumber;
 			return true;
@@ -282,9 +286,11 @@ namespace DataBoss.DataPackage
 
 		public override DataTable GetSchemaTable() => schema.ToDataTable();
 		
-		public override bool Read() {
-			var ok = ReadRow();
-			if(!ok)
+		public override bool Read() => FillOnRead(ReadRow());
+		public override async Task<bool> ReadAsync(CancellationToken cancellationToken) => FillOnRead(await ReadRowAsync());
+
+		bool FillOnRead(bool rowRead) {
+			if (!rowRead)
 				return false;
 			current.Fill(rowNumber, csv);
 			return true;
@@ -354,6 +360,14 @@ namespace DataBoss.DataPackage
 				_ => throw new InvalidOperationException(),
 			};
 
+		public override T GetFieldValue<T>(int ordinal) {
+			if(typeof(T) == typeof(CsvInteger))
+				return (T)(object)GetCsvInteger(ordinal);
+			if(typeof(T) == typeof(CsvNumber))
+				return (T)(object)GetCsvNumber(ordinal);
+			return current.GetFieldValue<T>(ordinal);
+		}
+
 		public override int GetValues(object[] values) {
 			var n = Math.Min(FieldCount, values.Length);
 			for(var i = 0; i != n; ++i)
@@ -367,5 +381,6 @@ namespace DataBoss.DataPackage
 		public IDataRecord GetRecord() => current.Clone();
 
 		public override IEnumerator GetEnumerator() => new DataReaderEnumerator(this);
+
 	}
 }
