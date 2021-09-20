@@ -134,41 +134,83 @@ namespace DataBoss.DataPackage
 						constraints = new TabularDataSchemaFieldConstraints(constraints?.IsRequired ?? false, found.ColumnSize);
 				}
 
-				var (type, format) = ToTableSchemaType(reader.GetFieldType(i));
+				var tableType = TableSchemaType.From(reader.GetFieldType(i));
 				var field = new TabularDataSchemaFieldDescription(
 					reader.GetName(i),
-					type, format,
+					tableType.TableTypeName, tableType.Format,
 					constraints);
 
 				r.Add(field);
 			}
 			return r;
 		}
+	}
 
-		static (string Type, string Format) ToTableSchemaType(Type type) {
+	class TableSchemaType
+	{
+		public readonly Type Type;
+		public readonly string TableTypeName;
+		public readonly string Format;
+		public readonly CsvTypeCode CsvTypeCode;
 
-			switch(Type.GetTypeCode(type)) {
-				case TypeCode.Boolean: return ("boolean", null);
-				case TypeCode.DateTime: return ("datetime", null);
-
-				case TypeCode.Single:
-				case TypeCode.Double: 
-				case TypeCode.Decimal: return ("number", null);
-
-				case TypeCode.Byte:
-				case TypeCode.Int16:
-				case TypeCode.Int32:
-				case TypeCode.Int64: return ("integer", null);
-				case TypeCode.Char:
-				case TypeCode.String: return ("string", null);
-			}
-
-			return type.FullName switch {
-				"System.TimeSpan" => ("time", null),
-				"System.Byte[]" => ("string", "binary"),
-				"System.Guid" => ("string", "uuid"),
-				_ => (type.SingleOrDefault<FieldAttribute>()?.SchemaType ?? throw new NotSupportedException($"Can't map {type}"), null),
-			};
+		TableSchemaType(Type type, string typeName, string format, CsvTypeCode csvTypeCode) { 
+			this.Type = type;
+			this.TableTypeName = typeName;
+			this.Format = format;
+			this.CsvTypeCode = csvTypeCode;
 		}
+
+		static readonly TableSchemaType Boolean = new(typeof(bool), "boolean", null, CsvTypeCode.None);
+		static readonly TableSchemaType Binary = new(typeof(byte[]), "string", "binary", CsvTypeCode.None);
+		static readonly TableSchemaType Char = new(typeof(char), "string", null, CsvTypeCode.None);
+		static readonly TableSchemaType Date = new(typeof(DateTime), "date", null, CsvTypeCode.None);
+		static readonly TableSchemaType DateTime = new(typeof(DateTime), "datetime", null, CsvTypeCode.None);
+		static readonly TableSchemaType Uuid = new(typeof(Guid), "string", "uuid", CsvTypeCode.None);
+		static readonly TableSchemaType String = new(typeof(string), "string", null, CsvTypeCode.None);
+		static readonly TableSchemaType Time = new(typeof(TimeSpan), "time", null, CsvTypeCode.None);
+
+		static readonly TableSchemaType Single = new(typeof(float), "number", null, CsvTypeCode.CsvNumber);
+		static readonly TableSchemaType Double = new(typeof(double), "number", null, CsvTypeCode.CsvNumber);
+		static readonly TableSchemaType Decimal = new(typeof(decimal), "number", null, CsvTypeCode.CsvNumber);
+
+		static readonly TableSchemaType Byte = new(typeof(byte), "integer", null, CsvTypeCode.CsvInteger);
+		static readonly TableSchemaType Int16 = new(typeof(short), "integer", null, CsvTypeCode.CsvInteger);
+		static readonly TableSchemaType Int32 = new(typeof(int), "integer", null, CsvTypeCode.CsvInteger);
+		static readonly TableSchemaType Int64 = new(typeof(long), "integer", null, CsvTypeCode.CsvInteger);
+
+		public static TableSchemaType From(Type type)=>
+			Type.GetTypeCode(type) switch {
+				TypeCode.Boolean => Boolean,
+				TypeCode.DateTime => DateTime,
+				TypeCode.Single => Single,
+				TypeCode.Double => Double,
+				TypeCode.Decimal => Decimal,
+				TypeCode.Byte => Byte,
+				TypeCode.Int16 => Int16,
+				TypeCode.Int32 => Int32,
+				TypeCode.Int64 => Int64,
+				TypeCode.Char => Char,
+				TypeCode.String => String,
+				_ => type.FullName switch {
+					"System.TimeSpan" => Time,
+					"System.Byte[]" => Binary,
+					"System.Guid" => Uuid,
+					_ => new(type, type.SingleOrDefault<FieldAttribute>()?.SchemaType ?? throw new NotSupportedException($"Can't map {type}"), null, CsvTypeCode.None),
+				},
+			};
+
+		public static TableSchemaType From(string typeName, string format) =>
+			(typeName, format) switch {
+				("boolean", _) => Boolean,
+				("datetime", _) => DateTime,
+				("date", _) => Date,
+				("time", _) => Time,
+				("integer", _) => Int32,
+				("number", _) => Double,
+				("string", "binary") => Binary,
+				("string", "uuid") => Uuid,
+				("string", _) => String,
+				_ => throw new NotSupportedException($"Don't know how to map '{typeName}'"),
+			};
 	}
 }
