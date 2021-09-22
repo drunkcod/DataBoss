@@ -10,28 +10,46 @@ namespace DataBoss.Data
 	{
 		readonly IDataReader inner;
 		readonly IFieldValueReader fieldValueReader;
-		Func<int, Type> getProviderSpecificFieldType;
-		Func<int, object> getProviderSpecificValue;
-		Func<object[], int> getProviderSpecificValues;
 
 		interface IFieldValueReader
 		{
 			T GetFieldValue<T>(int ordinal);
+			Type GetProviderSpecificFieldType(int ordinal);
+			object GetProviderSpecificValue(int ordinal);
+			int GetProviderSpecificValues(object[] values);
 		}
 
 		class FieldValueReader<TReader> : IFieldValueReader
 		{
+			static class FieldValueOfT<T>
+			{
+				public static readonly Func<TReader, int, T> GetT = FieldValueReader.MakeFieldReader<TReader, T>();
+			}
+
+			static readonly Func<TReader, int, Type> getProviderSpecificFieldType;
+			static readonly Func<TReader, int, object> getProviderSpecificValue;
+			static readonly Func<TReader, object[], int> getProviderSpecificValues;
+
 			readonly TReader instance;
+
+			static FieldValueReader() {
+				SetTargetDelegate(ref getProviderSpecificFieldType, nameof(GetProviderSpecificFieldType), nameof(GetFieldType));
+				SetTargetDelegate(ref getProviderSpecificValue, nameof(GetProviderSpecificValue), nameof(GetValue));
+				SetTargetDelegate(ref getProviderSpecificValues, nameof(GetProviderSpecificValues), nameof(GetValues));
+			}
 
 			public FieldValueReader(TReader reader) { 
 				this.instance = reader;
 			}
 
 			public T GetFieldValue<T>(int ordinal) => FieldValueOfT<T>.GetT(instance, ordinal);
+			public Type GetProviderSpecificFieldType(int ordinal) => getProviderSpecificFieldType(instance, ordinal);
+			public object GetProviderSpecificValue(int ordinal) => getProviderSpecificValue(instance, ordinal);
+			public int GetProviderSpecificValues(object[] values) => getProviderSpecificValues(instance, values);
 
-			static class FieldValueOfT<T>
-			{
-				public static readonly Func<TReader, int, T> GetT = FieldValueReader.MakeFieldReader<TReader, T>();
+			static void SetTargetDelegate<T>(ref T target, string optional, string fallback) where T : Delegate {
+				var method = typeof(TReader).GetMethod(optional) ?? typeof(TReader).GetMethod(fallback);
+				target = Lambdas.CreateDelegate<T>(null, method);
 			}
 		}
 
@@ -42,11 +60,16 @@ namespace DataBoss.Data
 			public FieldValueReader(IDataReader reader) { this.reader = reader; }
 
 			public T GetFieldValue<T>(int ordinal) => reader.GetFieldValue<T>(ordinal);
+			public Type GetProviderSpecificFieldType(int ordinal) => reader.GetFieldType(ordinal);
+			public object GetProviderSpecificValue(int ordinal) => reader.GetValue(ordinal);
+			public int GetProviderSpecificValues(object[] values) => reader.GetValues(values);
 
 			public static IFieldValueReader For(IDataReader reader) {
 				var readerType = reader.GetType();
 				if(readerType.GetMethod(nameof(GetFieldValue)) != null)
-					return (IFieldValueReader)Activator.CreateInstance(typeof(FieldValueReader<>).MakeGenericType(readerType), reader);
+					return (IFieldValueReader)Activator.CreateInstance(
+						typeof(FieldValueReader<>).MakeGenericType(readerType), 
+						reader);
 				return new FieldValueReader(reader);
 			}
 
@@ -62,23 +85,6 @@ namespace DataBoss.Data
 		public DbDataReaderAdapter(IDataReader inner) { 
 			this.inner = inner;
 			this.fieldValueReader = FieldValueReader.For(inner);
-			this.getProviderSpecificFieldType = InitGetProviderSpecificFiledType;
-			this.getProviderSpecificValue = InitGetProvilderSpecificFieldValue;
-			this.getProviderSpecificValues = InitGetProviderSpecificValues;
-		}
-
-		Type InitGetProviderSpecificFiledType(int ordinal) => 
-			UpdateTargetDelegate(ref getProviderSpecificFieldType, inner, nameof(GetProviderSpecificFieldType), nameof(GetFieldType))(ordinal);
-
-		object InitGetProvilderSpecificFieldValue(int ordinal) => 
-			UpdateTargetDelegate(ref getProviderSpecificValue, inner, nameof(GetProviderSpecificValue), nameof(GetValue))(ordinal);
-
-		int InitGetProviderSpecificValues(object[] values) =>
-			UpdateTargetDelegate(ref getProviderSpecificValues, inner, nameof(GetProviderSpecificValues), nameof(GetValues))(values);
-
-		static T UpdateTargetDelegate<T>(ref T target, object instance, string optional, string fallback) where T : Delegate {
-			var type = target.GetType();
-			return target = Lambdas.CreateDelegate<T>(instance, type.GetMethod(optional) ?? type.GetMethod(fallback));
 		}
 
 		public override object this[int ordinal] => inner[ordinal];
@@ -112,16 +118,17 @@ namespace DataBoss.Data
 		public override string GetString(int ordinal) => inner.GetString(ordinal);
 		public override object GetValue(int ordinal) => inner.GetValue(ordinal);
 		public override int GetValues(object[] values) => inner.GetValues(values);
-		public override object GetProviderSpecificValue(int ordinal) => getProviderSpecificValue(ordinal);
-		public override int GetProviderSpecificValues(object[] values) => getProviderSpecificValues(values);
-		public override T GetFieldValue<T>(int ordinal) => fieldValueReader.GetFieldValue<T>(ordinal);
 
 		public override DataTable GetSchemaTable() => inner.GetSchemaTable();
 		public override string GetDataTypeName(int ordinal) => inner.GetDataTypeName(ordinal);
 		public override Type GetFieldType(int ordinal) => inner.GetFieldType(ordinal);
-		public override Type GetProviderSpecificFieldType(int ordinal) => getProviderSpecificFieldType(ordinal);
 		public override string GetName(int ordinal) => inner.GetName(ordinal);
 		public override int GetOrdinal(string name) => inner.GetOrdinal(name);
+
+		public override object GetProviderSpecificValue(int ordinal) => fieldValueReader.GetProviderSpecificValue(ordinal);
+		public override int GetProviderSpecificValues(object[] values) => fieldValueReader.GetProviderSpecificValues(values);
+		public override T GetFieldValue<T>(int ordinal) => fieldValueReader.GetFieldValue<T>(ordinal);
+		public override Type GetProviderSpecificFieldType(int ordinal) => fieldValueReader.GetProviderSpecificFieldType(ordinal);
 
 		public override bool IsDBNull(int ordinal) => inner.IsDBNull(ordinal);
 

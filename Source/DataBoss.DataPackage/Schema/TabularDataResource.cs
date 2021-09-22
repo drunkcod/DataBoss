@@ -152,6 +152,12 @@ namespace DataBoss.DataPackage
 		public readonly string TableTypeName;
 		public readonly string Format;
 		public readonly CsvTypeCode CsvTypeCode;
+		public Type CsvType => CsvTypeCode switch {
+			CsvTypeCode.None => null,
+			CsvTypeCode.CsvInteger => typeof(CsvInteger),
+			CsvTypeCode.CsvNumber => typeof(CsvNumber),
+			_ => throw new InvalidOperationException($"{CsvTypeCode} not mapped to a Type."),
+		};
 
 		TableSchemaType(Type type, string typeName, string format, CsvTypeCode csvTypeCode) { 
 			this.Type = type;

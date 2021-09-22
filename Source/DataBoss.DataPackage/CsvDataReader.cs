@@ -1,9 +1,7 @@
 using System;
 using System.Collections;
-using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Data.Common;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using CsvHelper;
@@ -11,57 +9,6 @@ using DataBoss.Data;
 
 namespace DataBoss.DataPackage
 {
-	enum CsvTypeCode : byte
-	{
-		None = 0,
-		CsvInteger,
-		CsvNumber,
-	}
-
-	class RequiredAttributeProvider : ICustomAttributeProvider
-	{
-		readonly RequiredAttribute[] RequiredAttribute = new[] { new RequiredAttribute() };
-
-		RequiredAttributeProvider() { }
-
-		public static readonly RequiredAttributeProvider Instance = new();
-
-		public object[] GetCustomAttributes(bool inherit) => RequiredAttribute;
-
-		public object[] GetCustomAttributes(Type attributeType, bool inherit) =>
-			attributeType == typeof(RequiredAttribute) ? RequiredAttribute : Array.Empty<object>();
-
-		public bool IsDefined(Type attributeType, bool inherit) =>
-			attributeType == typeof(RequiredAttribute);
-	}
-
-	class FieldToDbTypeConverter
-	{
-		readonly Type Nullable = typeof(Nullable<>);
-		readonly Func<string, bool> IsPrimaryKey;
-
-		public FieldToDbTypeConverter(Func<string, bool> isPrimaryKey) {
-			this.IsPrimaryKey = isPrimaryKey;
-		}
-
-		public (Type, DataBossDbType, CsvTypeCode) ToDbType(TabularDataSchemaFieldDescription field) {
-			var required = field.Constraints?.IsRequired ?? IsPrimaryKey(field.Name);
-			return MakeType(required, TableSchemaType.From(field.Type, field.Format));
-		}
-
-		(Type, DataBossDbType, CsvTypeCode) MakeType(bool isRequired, TableSchemaType tableType) {
-			var type = tableType.Type;
-			var dbType = isRequired ? GetDbTypeRequired(type) : GetDbType(type);
-			return (type, dbType, tableType.CsvTypeCode);
-		}
-
-		static DataBossDbType GetDbTypeRequired(Type type) =>
-			DataBossDbType.From(type, RequiredAttributeProvider.Instance);
-
-		DataBossDbType GetDbType(Type type) =>
-			DataBossDbType.From(type.IsValueType ? Nullable.MakeGenericType(type) : type);
-	}
-
 	public class CsvDataReader : DbDataReader, IDataRecordReader
 	{		
 		class CsvDataRecord : IDataRecord
@@ -201,21 +148,30 @@ namespace DataBoss.DataPackage
 			public int GetOrdinal(string name) => parent.GetOrdinal(name);
 		}
 
-		class RequiredAttributeProvider : ICustomAttributeProvider
+		class FieldToDbTypeConverter
 		{
-			readonly RequiredAttribute[] RequiredAttribute = new[] { new RequiredAttribute() };
+			readonly Type Nullable = typeof(Nullable<>);
+			readonly Func<string, bool> IsPrimaryKey;
 
-			RequiredAttributeProvider() { }
+			public FieldToDbTypeConverter(Func<string, bool> isPrimaryKey) {
+				this.IsPrimaryKey = isPrimaryKey;
+			}
 
-			public static readonly RequiredAttributeProvider Instance = new RequiredAttributeProvider();
+			public (TableSchemaType TableType, DataBossDbType DbType) ToDbType(TabularDataSchemaFieldDescription field) {
+				var isRequired = field.Constraints?.IsRequired ?? IsPrimaryKey(field.Name);
+				var tableType = TableSchemaType.From(field.Type, field.Format);
+				return (tableType, GetDbType(isRequired, tableType.Type));
+			}
 
-			public object[] GetCustomAttributes(bool inherit) => RequiredAttribute;
+			DataBossDbType GetDbType(bool isRequired, Type type) {
+				if (isRequired)
+					return DataBossDbType.From(type, RequiredAttributeProvider.Instance);
 
-			public object[] GetCustomAttributes(Type attributeType, bool inherit) =>
-				attributeType == typeof(RequiredAttribute) ? RequiredAttribute : Array.Empty<object>();
+				if (type.IsValueType)
+					return DataBossDbType.From(Nullable.MakeGenericType(type));
 
-			public bool IsDefined(Type attributeType, bool inherit) =>
-				attributeType == typeof(RequiredAttribute);
+				return DataBossDbType.From(type);
+			}
 		}
 
 		readonly CsvDataRecord current;
@@ -246,15 +202,17 @@ namespace DataBoss.DataPackage
 			var fieldTypeConverter = new FieldToDbTypeConverter(tabularSchema.PrimaryKey == null ? _ => false : tabularSchema.PrimaryKey.Contains);
 			for (var i = 0; i != tabularSchema.Fields.Count; ++i) {
 				var field = tabularSchema.Fields[i];
-				var (fieldType, dbType, csvType) = fieldTypeConverter.ToDbType(field);
-				csvFieldType[i] = csvType;
-				schema.Add(field.Name, i, fieldType, dbType.IsNullable, field.Constraints?.MaxLength ?? dbType.ColumnSize, dbType.TypeName,
-					csvType switch {
-						CsvTypeCode.None => null,
-						CsvTypeCode.CsvInteger => typeof(CsvInteger),
-						CsvTypeCode.CsvNumber => typeof(CsvNumber),
-						_ => throw new InvalidOperationException($"{csvType} not mapped to a Type."),
-					}); ;
+				var (tableType, dbType) = fieldTypeConverter.ToDbType(field);
+				csvFieldType[i] = tableType.CsvTypeCode;
+				schema.Add(
+					field.Name, 
+					i, 
+					tableType.Type, 
+					dbType.IsNullable, 
+					field.Constraints?.MaxLength ?? dbType.ColumnSize, 
+					dbType.TypeName,
+					tableType.CsvType);
+				
 				if (field.IsNumber())
 					fieldFormat[i] = field.GetNumberFormat();
 			}

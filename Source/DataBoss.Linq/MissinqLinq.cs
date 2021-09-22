@@ -143,17 +143,19 @@ namespace DataBoss.Linq
 		public static bool IsSorted<T>(this IEnumerable<T> self) where T : IComparable<T> => IsSortedBy(self, id => id);
 
 		public static bool IsSortedBy<T,TKey>(this IEnumerable<T> self, Func<T,TKey> selector) where TKey : IComparable<TKey> {
-			using (var e = self.GetEnumerator()) {
-				if (!e.MoveNext())
-					return true;
-				for (var prev = selector(e.Current); e.MoveNext();) {
-					var c = selector(e.Current);
-					if (prev.CompareTo(c) > 0)
-						return false;
-					prev = c;
-				}
+			using var e = self.GetEnumerator(); 
+			
+			if (!e.MoveNext())
 				return true;
+			
+			for (var prev = selector(e.Current); e.MoveNext();) {
+				var c = selector(e.Current);
+				if (prev.CompareTo(c) > 0)
+					return false;
+				prev = c;
 			}
+			
+			return true;
 		}
 
 		public static TValue SingleOrDefault<T, TValue>(this IEnumerable<T> items, Func<T, bool> predicate, Func<T, TValue> selector) {

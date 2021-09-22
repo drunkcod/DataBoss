@@ -9,7 +9,7 @@ namespace DataBoss.Data
 			this.GetName = inner.GetName;
 		}
 
-		public Func<int, string> GetName; 
+		public new Func<int, string> GetName; 
 		public event Action<IDataRecord> RecordRead;
 		public event Action Closed;
 		public event Action Disposed;
