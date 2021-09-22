@@ -211,9 +211,9 @@ namespace DataBoss.DataPackage
 		public IDataPackageResourceBuilder AddResource(CsvResourceOptions item) {
 			var parts = item.Path
 				.Select(path => resources.First(x => x.ResourcePath.Count == 1 && x.ResourcePath == path))
-				.Select(x => x.Read());
+				.Select(x => x.Read().AsDbDataReader());
 
-			return AddResource(item, () => new MultiDataReader(parts));
+			return AddResource(item, () => ConcatDataReader.Create(parts.ToArray()));
 		}
 
 		public IDataPackageResourceBuilder AddResource(CsvResourceOptions item, Func<IDataReader> getData) {

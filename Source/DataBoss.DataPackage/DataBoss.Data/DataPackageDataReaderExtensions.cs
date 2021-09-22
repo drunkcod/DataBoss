@@ -8,8 +8,6 @@ namespace DataBoss.Data
 	public static class DataPackageDataReaderExtensions
 	{
 		public static IDataReader AsBuffered(this IDataReader reader) => new BufferedDataReader(reader);
-		public static DbDataReader AsDbDataReader(this IDataReader reader) => reader is DbDataReader dbDataReader ? dbDataReader : new DbDataReaderAdapter(reader);
-
 		public static IDataReader Concat(this IDataReader first, IDataReader second) => ConcatDataReader.Create(new[] { first, second });
 		public static IDataReader Concat<T>(this IDataReader first, IEnumerable<T> second) => first.Concat(second.ToDataReader());
 

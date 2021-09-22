@@ -1,11 +1,15 @@
 using System;
 using System.Data;
+using System.Data.Common;
 using System.Runtime.CompilerServices;
 
 namespace DataBoss.Data
 {
 	public static class DataReaderExtensions
 	{
+		public static DbDataReader AsDbDataReader(this IDataReader reader) =>
+			reader is DbDataReader dbDataReader ? dbDataReader : new DbDataReaderAdapter(reader);
+
 		public static void ForAll<TReader, T>(this TReader self, Action<T> action) where TReader : IDataReader => CallForAll(self, action);
 		public static void ForAll<TReader, T1, T2>(this TReader self, Action<T1, T2> action) where TReader : IDataReader => CallForAll(self, action);
 		public static void ForAll<TReader, T1, T2, T3>(this TReader self, Action<T1, T2, T3> action) where TReader : IDataReader => CallForAll(self, action);

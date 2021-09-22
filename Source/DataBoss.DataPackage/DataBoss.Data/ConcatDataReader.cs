@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.Common;
 using System.Linq;
 
 namespace DataBoss.Data
@@ -8,22 +9,25 @@ namespace DataBoss.Data
 	public class ConcatDataReader : DataReaderDecoratorBase
 	{
 		readonly DataReaderSchemaTable schema;
-		readonly IDataReader[] readers;
+		readonly DbDataReader[] readers;
 		int next;
 
-		ConcatDataReader(DataReaderSchemaTable schema, IDataReader[] readers) : base(GetFirst(readers)) {
+		ConcatDataReader(DataReaderSchemaTable schema, DbDataReader[] readers) : base(GetFirst(readers)) {
 			this.readers = readers;
 			this.next = 1;
 			this.schema = schema;
 		}
 
-		static IDataReader GetFirst(IDataReader[] readers) {
+		static DbDataReader GetFirst(DbDataReader[] readers) {
 			if (readers.Length == 0)
-				throw new InvalidOperationException();
+				throw new InvalidOperationException("Can't concatenate zero readers.");
 			return readers[0];
 		}
 
-		public static ConcatDataReader Create(IDataReader[] readers) {
+		public static ConcatDataReader Create(IDataReader[] readers) =>
+			Create(Array.ConvertAll(readers, DataReaderExtensions.AsDbDataReader));
+
+		public static ConcatDataReader Create(DbDataReader[] readers) {
 			if (readers.Length == 0)
 				throw new InvalidOperationException();
 
@@ -51,7 +55,7 @@ namespace DataBoss.Data
 			}
 
 			if(readers.Any(x => x is ConcatDataReader)) {
-				var allReaders = new List<IDataReader>();
+				var allReaders = new List<DbDataReader>();
 				foreach (var item in readers)
 					if (item is ConcatDataReader cat)
 						allReaders.AddRange(cat.readers);
@@ -75,8 +79,8 @@ namespace DataBoss.Data
 			} while (NextReader());
 		}
 
-		protected override void Dispose(bool isDisposing) {
-			if(!isDisposing)
+		protected override void Dispose(bool disposing) {
+			if(!disposing)
 				return;
 
 			while (NextReader())
@@ -87,7 +91,7 @@ namespace DataBoss.Data
 		bool NextReader() {
 			if(next != readers.Length) {
 				Inner.Dispose();
-				Inner = readers[next++].AsDbDataReader();
+				Inner = readers[next++];
 				return true;
 			}
 			return false;
