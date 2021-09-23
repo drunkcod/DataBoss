@@ -17,9 +17,6 @@ namespace DataBoss
 			this.info = memberInfo.SingleOrDefault<PowerArgAttribute>();
 		}
 
-		static PowerArg FromMember(Type type, string memberName) =>
-			 new PowerArg(type.GetMember(memberName).Single());
-
 		public string Name => memberInfo.Name;
 		public int? Order => info?.GetSortOrder();
 		public string Hint => info?.Hint

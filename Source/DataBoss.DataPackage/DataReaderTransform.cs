@@ -1,19 +1,16 @@
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.Common;
 using System.Linq;
 using System.Linq.Expressions;
 using DataBoss.Data;
 
 namespace DataBoss.DataPackage
 {
-	public interface ITransformedDataRecord : IDataRecord
-	{
-		IDataRecord Source { get; }
-	}
-
-	public class DataReaderTransform : IDataReader, ITransformedDataRecord
+	public class DataReaderTransform : DbDataReader, ITransformedDataRecord
 	{
 		public static class FieldInfo<T>
 		{
@@ -179,7 +176,7 @@ namespace DataBoss.DataPackage
 			TRecord ReadRecord(DataReaderTransform reader) {
 				if(readRecord == null) {
 					var self = reader.fields.IndexOf(this);
-					var fields = FieldMap.Create(reader, x => x.Ordinal < self || reader.fields[x.Ordinal] is SourceFieldAccessor);
+					var fields = FieldMap.Create(reader.AsDbDataReader(), x => x.Ordinal < self || reader.fields[x.Ordinal] is SourceFieldAccessor);
 					readRecord = ConverterFactory.Default.BuildConverter<IDataReader, TRecord>(fields).Compiled;
 				}
 				return readRecord(reader);
@@ -285,46 +282,50 @@ namespace DataBoss.DataPackage
 				x.Reset();
 		}
 
-		public T GetFieldValue<T>(int i) => fields[i].GetFieldValue<T>(this);
-		public object GetValue(int i) => fields[i].GetValue(this);
+		public override T GetFieldValue<T>(int i) => fields[i].GetFieldValue<T>(this);
+		public override object GetValue(int i) => fields[i].GetValue(this);
 
-		object IDataRecord.this[int i] => GetValue(i);
-		object IDataRecord.this[string name] => GetValue(GetOrdinal(name));
-		object IDataRecord.GetValue(int i) => GetValue(i);
+		public override object this[int i] => GetValue(i);
+		public override object this[string name] => GetValue(GetOrdinal(name));
 
-		int IDataReader.Depth => inner.Depth;
-		bool IDataReader.IsClosed => inner.IsClosed;
-		int IDataReader.RecordsAffected => inner.RecordsAffected;
-		public int FieldCount => fields.Count;
+		public override int Depth => inner.Depth;
+		public override bool IsClosed => inner.IsClosed;
+		public override int RecordsAffected => inner.RecordsAffected;
+		public override int FieldCount => fields.Count;
 
-		void IDataReader.Close() => inner.Close();
-		void IDisposable.Dispose() => inner.Dispose();
+		public override bool HasRows => throw new NotSupportedException();
 
-		public Type GetFieldType(int i) => fields[i].FieldType;
-		bool IDataRecord.GetBoolean(int i) => GetFieldValue<bool>(i);
-		byte IDataRecord.GetByte(int i) => GetFieldValue<byte>(i);
-		char IDataRecord.GetChar(int i) => GetFieldValue<char>(i);
-		DateTime IDataRecord.GetDateTime(int i) => GetFieldValue<DateTime>(i);
-		decimal IDataRecord.GetDecimal(int i) => GetFieldValue<decimal>(i);
-		double IDataRecord.GetDouble(int i) => GetFieldValue<double>(i);
-		float IDataRecord.GetFloat(int i) => GetFieldValue<float>(i);
-		Guid IDataRecord.GetGuid(int i) => GetFieldValue<Guid>(i);
-		short IDataRecord.GetInt16(int i) => GetFieldValue<short>(i);
-		int IDataRecord.GetInt32(int i) => GetFieldValue<int>(i);
-		long IDataRecord.GetInt64(int i) => GetFieldValue<long>(i);
-		string IDataRecord.GetString(int i) => GetFieldValue<string>(i);
+		public override void Close() => inner.Close();
+		protected override void Dispose(bool disposing) {
+			if(disposing)
+				inner.Dispose();
+		}
 
-		int IDataRecord.GetValues(object[] values) {
+		public override Type GetFieldType(int i) => fields[i].FieldType;
+		public override bool GetBoolean(int i) => GetFieldValue<bool>(i);
+		public override byte GetByte(int i) => GetFieldValue<byte>(i);
+		public override char GetChar(int i) => GetFieldValue<char>(i);
+		public override DateTime GetDateTime(int i) => GetFieldValue<DateTime>(i);
+		public override decimal GetDecimal(int i) => GetFieldValue<decimal>(i);
+		public override double GetDouble(int i) => GetFieldValue<double>(i);
+		public override float GetFloat(int i) => GetFieldValue<float>(i);
+		public override Guid GetGuid(int i) => GetFieldValue<Guid>(i);
+		public override short GetInt16(int i) => GetFieldValue<short>(i);
+		public override int GetInt32(int i) => GetFieldValue<int>(i);
+		public override long GetInt64(int i) => GetFieldValue<long>(i);
+		public override string GetString(int i) => GetFieldValue<string>(i);
+
+		public override int GetValues(object[] values) {
 			var n = Math.Min(FieldCount, values.Length);
 			for (var i = 0; i != n; ++i)
 				values[i] = GetValue(i);
 			return n;
 		}
 
-		public string GetName(int i) => fields[i].Name;
-		public int GetOrdinal(string name) => fields.FindIndex(x => x.Name == name);
+		public override string GetName(int i) => fields[i].Name;
+		public override int GetOrdinal(string name) => fields.FindIndex(x => x.Name == name);
 
-		DataTable IDataReader.GetSchemaTable() {
+		public override DataTable GetSchemaTable() {
 			var schema = new DataReaderSchemaTable();
 			for (var i = 0; i != FieldCount; ++i) {
 				var item = fields[i];
@@ -333,18 +334,19 @@ namespace DataBoss.DataPackage
 			return schema.ToDataTable();
 		}
 
-		string IDataRecord.GetDataTypeName(int i) => DataBossDbType.From(GetFieldType(i)).TypeName;
+		public override string GetDataTypeName(int i) => DataBossDbType.From(GetFieldType(i)).TypeName;
 
-		public bool IsDBNull(int i) => fields[i].IsDBNull(this);
-		bool IDataReader.NextResult() => inner.NextResult();
-		bool IDataReader.Read() {
+		public override bool IsDBNull(int i) => fields[i].IsDBNull(this);
+		public override bool NextResult() => false;
+		public override bool Read() {
 			onRead?.Invoke();
 			return inner.Read();
 		}
 
-		long IDataRecord.GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) => throw new NotSupportedException();
-		long IDataRecord.GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) => throw new NotSupportedException();
-		IDataReader IDataRecord.GetData(int i) => throw new NotSupportedException();
+		public override long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) => throw new NotSupportedException();
+		public override long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) => throw new NotSupportedException();
+
+		public override IEnumerator GetEnumerator() => new DataReaderEnumerator(this);
 	}
 
 	public static class DataReaderTransformExtensions

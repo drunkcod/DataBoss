@@ -12,15 +12,14 @@ namespace DataBoss.Data
 		readonly Dictionary<string, FieldMapItem> fields = new Dictionary<string, FieldMapItem>(StringComparer.InvariantCultureIgnoreCase);
 		Dictionary<string, FieldMap> subFields;
 
-		public static FieldMap Create(IDataReader reader) => Create(reader, _ => true);
-		public static FieldMap Create(IDataReader reader, Predicate<DataReaderSchemaRow> include) {
+		public static FieldMap Create(IDataReader reader) => Create(reader.AsDbDataReader(), _ => true);
+		public static FieldMap Create(DbDataReader dbReader) => Create(dbReader, _ => true);
+		public static FieldMap Create(DbDataReader dbReader, Predicate<DataReaderSchemaRow> include) {
 			var fieldMap = new FieldMap();
-			var schema = reader.GetSchemaTable();
+			var schema = dbReader.GetSchemaTable();
 			var ordinalColumn = schema.Columns[DataReaderSchemaColumns.ColumnOrdinal.Name];
 			var allowDBNullColumn = schema.Columns[DataReaderSchemaColumns.AllowDBNull.Name];
 			
-			var dbReader = reader.AsDbDataReader();
-
 			for(var i = 0; i != dbReader.FieldCount; ++i) {
 				var item = new DataReaderSchemaRow {
 					ColumnName = dbReader.GetName(i),
