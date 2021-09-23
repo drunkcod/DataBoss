@@ -3,6 +3,7 @@ using System.Collections;
 using System.Data;
 using System.Data.Common;
 using System.Linq.Expressions;
+using System.Reflection;
 
 namespace DataBoss.Data
 {
@@ -33,9 +34,9 @@ namespace DataBoss.Data
 			readonly TReader instance;
 
 			static FieldValueReader() {
-				SetTargetDelegate(ref getProviderSpecificFieldType, nameof(GetProviderSpecificFieldType), nameof(GetFieldType));
-				SetTargetDelegate(ref getProviderSpecificValue, nameof(GetProviderSpecificValue), nameof(GetValue));
-				SetTargetDelegate(ref getProviderSpecificValues, nameof(GetProviderSpecificValues), nameof(GetValues));
+				SetTargetDelegate(ref getProviderSpecificFieldType, nameof(GetProviderSpecificFieldType), () => typeof(IDataRecord).GetMethod(nameof(IDataRecord.GetFieldType)));
+				SetTargetDelegate(ref getProviderSpecificValue, nameof(GetProviderSpecificValue), () => typeof(IDataRecord).GetMethod(nameof(IDataRecord.GetValue)));
+				SetTargetDelegate(ref getProviderSpecificValues, nameof(GetProviderSpecificValues), () => typeof(IDataRecord).GetMethod(nameof(IDataRecord.GetValues)));
 			}
 
 			public FieldValueReader(TReader reader) { 
@@ -47,8 +48,8 @@ namespace DataBoss.Data
 			public object GetProviderSpecificValue(int ordinal) => getProviderSpecificValue(instance, ordinal);
 			public int GetProviderSpecificValues(object[] values) => getProviderSpecificValues(instance, values);
 
-			static void SetTargetDelegate<T>(ref T target, string optional, string fallback) where T : Delegate {
-				var method = typeof(TReader).GetMethod(optional) ?? typeof(TReader).GetMethod(fallback);
+			static void SetTargetDelegate<T>(ref T target, string optional, Func<MethodInfo> getFallback) where T : Delegate {
+				var method = typeof(TReader).GetMethod(optional) ?? getFallback();
 				target = Lambdas.CreateDelegate<T>(null, method);
 			}
 		}

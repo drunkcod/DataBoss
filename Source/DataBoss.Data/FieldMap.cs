@@ -18,13 +18,15 @@ namespace DataBoss.Data
 			var schema = reader.GetSchemaTable();
 			var ordinalColumn = schema.Columns[DataReaderSchemaColumns.ColumnOrdinal.Name];
 			var allowDBNullColumn = schema.Columns[DataReaderSchemaColumns.AllowDBNull.Name];
-			var getProviderSpecificFieldType = GetGetProviderSpecificFieldType(reader);
-			for(var i = 0; i != reader.FieldCount; ++i) {
+			
+			var dbReader = reader.AsDbDataReader();
+
+			for(var i = 0; i != dbReader.FieldCount; ++i) {
 				var item = new DataReaderSchemaRow {
-					ColumnName = reader.GetName(i),
+					ColumnName = dbReader.GetName(i),
 					Ordinal = i,
-					ColumnType = reader.GetFieldType(i),
-					ProviderSpecificDataType = getProviderSpecificFieldType(i),
+					ColumnType = dbReader.GetFieldType(i),
+					ProviderSpecificDataType = dbReader.GetProviderSpecificFieldType(i),
 					AllowDBNull = ordinalColumn != null
 						&& allowDBNullColumn != null
 						&& (bool)schema.Rows.Cast<DataRow>().Single(x => (int)x[ordinalColumn] == i)[allowDBNullColumn]	
@@ -33,13 +35,6 @@ namespace DataBoss.Data
 					fieldMap.Add(item.ColumnName, item.Ordinal, item.ColumnType, item.ProviderSpecificDataType, item.AllowDBNull);
 			}
 			return fieldMap;
-		}
-
-		static Func<int, Type> GetGetProviderSpecificFieldType(IDataReader reader) {
-			var getter = reader.GetType().GetMethod(nameof(DbDataReader.GetProviderSpecificFieldType), new[] { typeof(int) });
-			if(getter == null)
-				return _ => null;
-			return (Func<int, Type>)Delegate.CreateDelegate(typeof(Func<int, Type>), reader, getter);
 		}
 
 		public int Count => fields.Count;

@@ -1,9 +1,10 @@
-﻿namespace DataBoss.Data
+namespace DataBoss.Data
 {
 	public struct ByteSize
 	{
-		static string[] Unit = new[] { "KiB", "MiB", "GiB", "TiB", "PiB" };
-		static long[] Threshold = new[] { 1L << 10, 1L << 20, 1L << 30, 1L << 40, 1L << 50 };
+		static readonly string[] Unit = new[] { "KiB", "MiB", "GiB", "TiB", "PiB" };
+		static readonly long[] Threshold = new[] { 1L << 10, 1L << 20, 1L << 30, 1L << 40, 1L << 50 };
+		
 		public readonly long TotalBytes;
 
 		public ByteSize(long totalBytes) { this.TotalBytes = totalBytes; }

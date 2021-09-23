@@ -13,6 +13,7 @@
   </Target>
 
   <ItemGroup>
+    <ProjectReference Include="..\DataBoss.PowerArgs\DataBoss.PowerArgs.csproj" />
     <ProjectReference Include="..\DataBoss\DataBoss.csproj" />
   </ItemGroup>
 </Project>

@@ -18,6 +18,7 @@
   <ItemGroup>
     <ProjectReference Include="..\DataBoss.Data.SqlClient\DataBoss.Data.SqlClient.csproj" />
     <ProjectReference Include="..\DataBoss.Data\DataBoss.Data.csproj" />
+    <ProjectReference Include="..\DataBoss.PowerArgs\DataBoss.PowerArgs.csproj" />
     <ProjectReference Include="..\DataBoss\DataBoss.csproj" />
     <ProjectReference Include="..\DataBoss.Testing.SqlServer\DataBoss.Testing.SqlServer.csproj" />
     <PackageReference Include="System.ValueTuple" Version="4.5.0" />

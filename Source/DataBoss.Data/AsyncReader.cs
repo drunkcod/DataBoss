@@ -48,8 +48,7 @@ namespace DataBoss.Data
 				ExceptionDispatchInfo.Capture(Exception).Throw();
 		}
 
-		static void RunProducer(object obj)
-		{
+		static void RunProducer(object obj) {
 			var (reader, producer, state) = (Tuple<AsyncReader<T>, ItemProducer, object>)obj;
 			IDisposable cleanup = null;
 			try {

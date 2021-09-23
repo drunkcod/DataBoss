@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace DataBoss
 {
-	static class DictionaryExtensions
+	public static class DictionaryExtensions
 	{
 		public static TValue GetOrAdd<TKey,TValue>(this IDictionary<TKey,TValue> self, TKey key, Func<TKey,TValue> valueFactory) {
 			TValue found;

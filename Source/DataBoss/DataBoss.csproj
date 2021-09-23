@@ -16,6 +16,7 @@
   <ItemGroup>
     <ProjectReference Include="..\DataBoss.Data.SqlClient\DataBoss.Data.SqlClient.csproj" />
     <ProjectReference Condition="'$(DataBossPackageVersion)'==''" Include="..\DataBoss.Data\DataBoss.Data.csproj" />
+    <ProjectReference Include="..\DataBoss.PowerArgs\DataBoss.PowerArgs.csproj" />
     <PackageReference Condition="'$(DataBossPackageVersion)'!=''" Include="DataBoss.Data" Version="$(DataBossPackageVersion)" /> 
   </ItemGroup>
 </Project>
