@@ -172,7 +172,7 @@ namespace DataBoss.Data
 		public bool IsDBNull(int i) => ItemIsNull(Current, i);
 
 		public string GetName(int i) => Schema[i].ColumnName;
-		public Type GetFieldType(int i) => Schema[i].ColumnType;
+		public Type GetFieldType(int i) => Schema[i].DataType;
 		public int GetOrdinal(string name) => Schema.GetOrdinal(name);
 
 		public bool GetBoolean(int i) => GetValue<bool>(i);

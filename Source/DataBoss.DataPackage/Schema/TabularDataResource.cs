@@ -130,7 +130,7 @@ namespace DataBoss.DataPackage
 				if (schema.TryGetValue(i, out var found)) {
 					if(!found.AllowDBNull)
 						constraints = new TabularDataSchemaFieldConstraints(true, constraints?.MaxLength);
-					if ((found.ColumnType == typeof(string) || found.ColumnType == typeof(char)) && found.ColumnSize != int.MaxValue)
+					if ((found.DataType == typeof(string) || found.DataType == typeof(char)) && found.ColumnSize != int.MaxValue)
 						constraints = new TabularDataSchemaFieldConstraints(constraints?.IsRequired ?? false, found.ColumnSize);
 				}
 

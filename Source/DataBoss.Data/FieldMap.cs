@@ -24,14 +24,14 @@ namespace DataBoss.Data
 				var item = new DataReaderSchemaRow {
 					ColumnName = dbReader.GetName(i),
 					Ordinal = i,
-					ColumnType = dbReader.GetFieldType(i),
+					DataType = dbReader.GetFieldType(i),
 					ProviderSpecificDataType = dbReader.GetProviderSpecificFieldType(i),
 					AllowDBNull = ordinalColumn != null
 						&& allowDBNullColumn != null
 						&& (bool)schema.Rows.Cast<DataRow>().Single(x => (int)x[ordinalColumn] == i)[allowDBNullColumn]	
 				};
 				if(include(item))
-					fieldMap.Add(item.ColumnName, item.Ordinal, item.ColumnType, item.ProviderSpecificDataType, item.AllowDBNull);
+					fieldMap.Add(item.ColumnName, item.Ordinal, item.DataType, item.ProviderSpecificDataType, item.AllowDBNull);
 			}
 			return fieldMap;
 		}

@@ -63,7 +63,7 @@ namespace DataBoss.Data
 
 			var all = r0.Concat(r1);
 			var schema = all.GetDataReaderSchemaTable();
-			Check.That(() => schema[0].ProviderSpecificDataType == schema[0].ColumnType);
+			Check.That(() => schema[0].ProviderSpecificDataType == schema[0].DataType);
 		}
 
 		[Fact]

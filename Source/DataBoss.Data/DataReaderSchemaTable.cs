@@ -6,20 +6,20 @@ using System.Data;
 namespace DataBoss.Data
 {
 	public class DataReaderSchemaTable : IEnumerable<DataReaderSchemaRow>
-	{		
-		readonly List<DataReaderSchemaRow> rows = new List<DataReaderSchemaRow>();
+	{
+		readonly List<DataReaderSchemaRow> rows = new();
 
 		public int Count => rows.Count;
 
 		public DataReaderSchemaRow this[int index] => rows[index];
 
-		public void Add(string name, int ordinal, Type columnType, bool allowDBNull, int? columnSize = null, string dataTypeName = null, Type providerSpecificDataType = null) {
+		public void Add(string name, int ordinal, Type dataType, bool allowDBNull, int? columnSize = null, string dataTypeName = null, Type providerSpecificDataType = null) {
 			var o = rows.Count;
 			rows.Add(new DataReaderSchemaRow {
 				ColumnName = name,
 				Ordinal = ordinal,
-				ColumnType = columnType,
-				ProviderSpecificDataType = providerSpecificDataType ?? columnType,
+				DataType = dataType,
+				ProviderSpecificDataType = providerSpecificDataType ?? dataType,
 				AllowDBNull = allowDBNull,
 				ColumnSize = columnSize,
 				DataTypeName = dataTypeName,
@@ -49,7 +49,7 @@ namespace DataBoss.Data
 				r[columnOrdinal] = item.Ordinal;
 				r[columnSize] = item.ColumnSize ?? (object)DBNull.Value;
 				r[allowDBNull] = item.AllowDBNull;
-				r[dataType] = item.ColumnType;
+				r[dataType] = item.DataType;
 				r[providerSpecificDataType] = item.ProviderSpecificDataType;
 				r[dataTypeName] = item.DataTypeName;
 				r[isKey] = false;

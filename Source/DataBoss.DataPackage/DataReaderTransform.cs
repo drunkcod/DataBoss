@@ -212,7 +212,7 @@ namespace DataBoss.DataPackage
 					field.Ordinal,
 					field.AllowDBNull, 
 					field.ColumnSize ?? -1, 
-					field.ColumnType,
+					field.DataType,
 					field.ProviderSpecificDataType);
 				accessor.Name = field.ColumnName;
 				sourceFields[field.Ordinal] = accessor;

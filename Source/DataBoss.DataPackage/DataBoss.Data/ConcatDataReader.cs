@@ -43,8 +43,8 @@ namespace DataBoss.Data
 					if (actual.ColumnName != expected.ColumnName)
 						ColumnMismatch(o, nameof(DataReaderSchemaRow.ColumnName), expected.ColumnName, actual.ColumnName);
 					
-					if (actual.ColumnType != expected.ColumnType)
-						ColumnMismatch(o, nameof(DataReaderSchemaRow.ColumnType), expected.ColumnType, actual.ColumnType);
+					if (actual.DataType != expected.DataType)
+						ColumnMismatch(o, nameof(DataReaderSchemaRow.DataType), expected.DataType, actual.DataType);
 
 					if(actual.AllowDBNull && !expected.AllowDBNull)
 						ColumnMismatch(o, nameof(DataReaderSchemaRow.AllowDBNull), expected.AllowDBNull, actual.AllowDBNull);
@@ -98,7 +98,7 @@ namespace DataBoss.Data
 		}
 
 		public override string GetDataTypeName(int i) => schema[i].DataTypeName;
-		public override Type GetFieldType(int i) => schema[i].ColumnType;
+		public override Type GetFieldType(int i) => schema[i].DataType;
 		public override string GetName(int i) => schema[i].ColumnName;
 		public override int GetOrdinal(string name) => schema.GetOrdinal(name);
 		public override DataTable GetSchemaTable() => schema.ToDataTable();

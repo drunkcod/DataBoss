@@ -140,7 +140,7 @@ namespace DataBoss.Data
 			public IDataReader GetData(int i) => throw new NotImplementedException();
 
 			public string GetDataTypeName(int i) => schema[i].DataTypeName;
-			public Type GetFieldType(int i) => schema[i].ColumnType;
+			public Type GetFieldType(int i) => schema[i].DataType;
 			public string GetName(int i) => schema[i].ColumnName;
 			public int GetOrdinal(string name) => schema.GetOrdinal(name);
 		}
@@ -165,7 +165,7 @@ namespace DataBoss.Data
 				schema.Add(
 					ordinal: i,
 					name: mapping.GetFieldName(i),
-					columnType: mapping.GetFieldType(i),
+					dataType: mapping.GetFieldType(i),
 					allowDBNull: dbType.IsNullable,
 					columnSize: dbType.ColumnSize,
 					dataTypeName: dbType.TypeName);
@@ -217,7 +217,7 @@ namespace DataBoss.Data
 
 		public override DataTable GetSchemaTable() => schema.ToDataTable();
 		public override string GetDataTypeName(int i) => schema[i].DataTypeName;
-		public override Type GetFieldType(int i) => schema[i].ColumnType;
+		public override Type GetFieldType(int i) => schema[i].DataType;
 		public override string GetName(int i) => schema[i].ColumnName;
 		public override int GetOrdinal(string name) => schema.GetOrdinal(name);
 

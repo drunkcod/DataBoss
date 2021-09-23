@@ -75,7 +75,7 @@ namespace DataBoss.Data
 			Add(schema.Single(x => x.ColumnName == name));
 
 		void Add(DataReaderSchemaRow columnSchema) {
-			var data = CreateDataSeries(columnSchema.ColumnName, columnSchema.ColumnType, columnSchema.AllowDBNull);
+			var data = CreateDataSeries(columnSchema.ColumnName, columnSchema.DataType, columnSchema.AllowDBNull);
 			Add(data, columnSchema.Ordinal);
 		}
 

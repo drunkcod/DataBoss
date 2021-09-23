@@ -4,15 +4,15 @@ namespace DataBoss.Data
 {
 	public class DataReaderSchemaRow
 	{
-		Type columnType;
+		Type dataType;
 
 		public string ColumnName;
 		public int Ordinal;
-		public Type ColumnType 
+		public Type DataType 
 		{
-			get => columnType;
+			get => dataType;
 			set {
-				this.columnType = value;
+				this.dataType = value;
 				this.IsValueType = value.IsValueType;
 			}
 		}
@@ -27,6 +27,6 @@ namespace DataBoss.Data
 		/// If this was a field what would type be then? 
 		/// When nulls are allowed it's a Nullable<T> rather than T 
 		public Type GetFieldType() => 
-			ColumnType.IsPrimitive && AllowDBNull ? typeof(Nullable<>).MakeGenericType(ColumnType) : ColumnType;
+			DataType.IsPrimitive && AllowDBNull ? typeof(Nullable<>).MakeGenericType(DataType) : DataType;
 	}
 }

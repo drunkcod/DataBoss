@@ -278,7 +278,7 @@ namespace DataBoss.DataPackage
 				_ => Convert.ChangeType(input, type, format),
 			};
 
-		public override Type GetFieldType(int i) => schema[i].ColumnType;
+		public override Type GetFieldType(int i) => schema[i].DataType;
 		public override Type GetProviderSpecificFieldType(int i) => schema[i].ProviderSpecificDataType;
 		public override string GetDataTypeName(int i) => schema[i].DataTypeName;
 		public override string GetName(int i) => schema[i].ColumnName;

@@ -44,7 +44,7 @@ namespace DataBoss.Data
 				schema.Add(
 					name: (string)item[columns.ColumnName],
 					ordinal: (int)item[columns.ColumnOrdinal],
-					columnType: (Type)item[columns.DataType],
+					dataType: (Type)item[columns.DataType],
 					dataTypeName: DefaultIfDBNull<string>(item[columns.DataTypeName]),
 					providerSpecificDataType: DefaultIfDBNull<Type>(item[columns.ProviderSpecificDataType]),
 					allowDBNull: (bool)item[columns.AllowDBNull],
