@@ -19,7 +19,7 @@ namespace DataBoss.Data
 				ColumnName = name,
 				Ordinal = ordinal,
 				ColumnType = columnType,
-				ProviderSpecificDataType = providerSpecificDataType,
+				ProviderSpecificDataType = providerSpecificDataType ?? columnType,
 				AllowDBNull = allowDBNull,
 				ColumnSize = columnSize,
 				DataTypeName = dataTypeName,
