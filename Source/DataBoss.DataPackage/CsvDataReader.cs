@@ -2,6 +2,8 @@ using System;
 using System.Collections;
 using System.Data;
 using System.Data.Common;
+using System.Globalization;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using CsvHelper;
@@ -182,6 +184,10 @@ namespace DataBoss.DataPackage
 		int rowNumber;
 
 		public event EventHandler Disposed;
+
+		public CsvDataReader(TextReader csv, CultureInfo cultureInfo, TabularDataSchema tabularSchema, bool hasHeaderRow = true) :
+			this(new CsvReader(csv, cultureInfo), tabularSchema, hasHeaderRow) 
+		{ }
 
 		public CsvDataReader(CsvReader csv, TabularDataSchema tabularSchema, bool hasHeaderRow = true) {
 			var fieldCount = tabularSchema.Fields.Count;

@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
 using CheckThat;
 using DataBoss.Data;
 using Xunit;
@@ -31,6 +33,29 @@ namespace DataBoss.DataPackage
 				() => xform.GetFieldType(0) == typeof(int),
 				() => xform.GetDataReaderSchemaTable()[0].AllowDBNull == true);
 		}
+
+		[Fact]
+		public void ProviderSpecificType_is_kept_for_untransformed_column()
+		{
+			var schema = new TabularDataSchema
+			{
+				Fields = new List<TabularDataSchemaFieldDescription>
+				{
+					new TabularDataSchemaFieldDescription("Id", "integer"),
+				}
+			};
+			var csv = new CsvDataReader(new StringReader("1"), CultureInfo.InvariantCulture, schema, hasHeaderRow: false);			
+			Check.That(
+				() => csv.Read(),
+				() => csv.GetFieldType(0) != csv.GetProviderSpecificFieldType(0),
+				() => csv.WithTransform(NoTransform).GetProviderSpecificFieldType(0) == csv.GetProviderSpecificFieldType(0),
+				() => csv.GetProviderSpecificValue(0) is CsvInteger,
+				() => csv.WithTransform(NoTransform).GetProviderSpecificValue(0) is CsvInteger,
+				() => csv.GetFieldValue<CsvInteger>(0).Value == "1",
+				() => csv.WithTransform(NoTransform).GetFieldValue<CsvInteger>(0).Value == "1");
+		}
+
+		static void NoTransform(DataReaderTransform xform){ }
 
 		[Fact]
 		public void Transform_to_non_nullable() {

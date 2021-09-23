@@ -35,14 +35,14 @@ namespace DataBoss.DataPackage
 
 		delegate IFieldAccessor AccessorBuilder(int ordinal, bool allowDBNull, int columnSize);
 
-		static readonly ConcurrentDictionary<Type, AccessorBuilder> fieldAccessorCtorCache = new();
+		static readonly ConcurrentDictionary<(Type Type, Type ProviderSpecificType), AccessorBuilder> fieldAccessorCtorCache = new();
 
-		static IFieldAccessor CreateFieldAccessor(int ordinal, bool isNullable, int columnSize, Type type) {
-			var ctor = fieldAccessorCtorCache.GetOrAdd(type, fieldType => {
+		static IFieldAccessor CreateFieldAccessor(int ordinal, bool isNullable, int columnSize, Type type, Type providerSpecificType) {
+			var ctor = fieldAccessorCtorCache.GetOrAdd((type, providerSpecificType), key => {
 				var ps = Array.ConvertAll(
 					typeof(AccessorBuilder).GetMethod("Invoke").GetParameters(),
 					x => Expression.Parameter(x.ParameterType, x.Name));
-				var c = typeof(SourceFieldAccessor<>).MakeGenericType(fieldType).GetConstructor(Array.ConvertAll(ps, x => x.Type));
+				var c = typeof(SourceFieldAccessor<,>).MakeGenericType(key.Type, key.ProviderSpecificType).GetConstructor(Array.ConvertAll(ps, x => x.Type));
 				return Expression.Lambda<AccessorBuilder>(Expression.New(c, ps), ps).Compile();
 			});
 
@@ -54,11 +54,13 @@ namespace DataBoss.DataPackage
 			bool AllowDBNull { get; }
 			int ColumnSize { get; }
 			Type FieldType { get; }
+			Type ProviderSpecificFieldType { get; }
 			string Name { get; set; }
 
 			bool IsDBNull(DataReaderTransform record);
 
 			object GetValue(DataReaderTransform record);
+			object GetProviderSpecificValue(DataReaderTransform record);
 			T GetFieldValue<T>(DataReaderTransform record);
 		}
 
@@ -74,21 +76,25 @@ namespace DataBoss.DataPackage
 			public int ColumnSize { get; }
 			public int Ordinal { get; }
 			public abstract Type FieldType { get; }
+			public abstract Type ProviderSpecificFieldType { get; }
 			public string Name { get; set; }
 
-			public bool IsDBNull(DataReaderTransform record) => record.Source.IsDBNull(Ordinal);
+			public bool IsDBNull(DataReaderTransform record) => record.inner.IsDBNull(Ordinal);
 
 			public abstract object GetValue(DataReaderTransform record);
-			public T GetFieldValue<T>(DataReaderTransform record) => record.Source.GetFieldValue<T>(Ordinal);
+			public abstract object GetProviderSpecificValue(DataReaderTransform record);
+			public T GetFieldValue<T>(DataReaderTransform record) => record.inner.GetFieldValue<T>(Ordinal);
 		}
 
-		class SourceFieldAccessor<TField> : SourceFieldAccessor
+		class SourceFieldAccessor<TField, TProviderType> : SourceFieldAccessor
 		{
 			public SourceFieldAccessor(int ordinal, bool allowDBNull, int columnSize) : base(ordinal, allowDBNull, columnSize) 
 			{ }
 
 			public override Type FieldType => FieldInfo<TField>.FieldType;
+			public override Type ProviderSpecificFieldType => typeof(TProviderType);
 			public override object GetValue(DataReaderTransform record) => GetFieldValue<TField>(record);
+			public override object GetProviderSpecificValue(DataReaderTransform record) => GetFieldValue<TProviderType>(record);
 		}
 
 		abstract class UserFieldAccessor<TField> : IFieldAccessor
@@ -103,6 +109,7 @@ namespace DataBoss.DataPackage
 			public virtual bool AllowDBNull => FieldInfo<TField>.IsNullable;
 			public int ColumnSize => FieldInfo<TField>.ColumnSize;
 			public Type FieldType => FieldInfo<TField>.FieldType;
+			public Type ProviderSpecificFieldType => FieldType;
 			public string Name { get; set; }
 
 			public T GetFieldValue<T>(DataReaderTransform record) =>
@@ -112,6 +119,8 @@ namespace DataBoss.DataPackage
 				var value = GetCurrentValue(record);
 				return FieldInfo<TField>.IsNull(value) ? DBNull.Value : value;
 			}
+
+			public object GetProviderSpecificValue(DataReaderTransform record) => GetValue(record);
 
 			public bool IsDBNull(DataReaderTransform record) => AllowDBNull && FieldInfo<TField>.IsNull(GetCurrentValue(record));
 
@@ -187,12 +196,14 @@ namespace DataBoss.DataPackage
 			}
 		}
 
-		readonly IDataReader inner;
+		readonly DbDataReader inner;
 		readonly List<IFieldAccessor> fields = new();
 		Action onRead;
 
-		public DataReaderTransform(IDataReader inner) {
+		public DataReaderTransform(IDataReader inner) : this(inner.AsDbDataReader()) { }
+		public DataReaderTransform(DbDataReader inner) {
 			this.inner = inner;
+
 			var schema = inner.GetDataReaderSchemaTable();
 			var sourceFields = new IFieldAccessor[schema.Count];
 			for(var i = 0; i != schema.Count; ++i) {
@@ -201,7 +212,8 @@ namespace DataBoss.DataPackage
 					field.Ordinal,
 					field.AllowDBNull, 
 					field.ColumnSize ?? -1, 
-					field.ColumnType);
+					field.ColumnType,
+					field.ProviderSpecificDataType);
 				accessor.Name = field.ColumnName;
 				sourceFields[field.Ordinal] = accessor;
 			}
@@ -284,6 +296,7 @@ namespace DataBoss.DataPackage
 
 		public override T GetFieldValue<T>(int i) => fields[i].GetFieldValue<T>(this);
 		public override object GetValue(int i) => fields[i].GetValue(this);
+		public override object GetProviderSpecificValue(int i) => fields[i].GetProviderSpecificValue(this);
 
 		public override object this[int i] => GetValue(i);
 		public override object this[string name] => GetValue(GetOrdinal(name));
@@ -302,6 +315,8 @@ namespace DataBoss.DataPackage
 		}
 
 		public override Type GetFieldType(int i) => fields[i].FieldType;
+		public override Type GetProviderSpecificFieldType(int i) => fields[i].ProviderSpecificFieldType;
+
 		public override bool GetBoolean(int i) => GetFieldValue<bool>(i);
 		public override byte GetByte(int i) => GetFieldValue<byte>(i);
 		public override char GetChar(int i) => GetFieldValue<char>(i);
@@ -329,7 +344,8 @@ namespace DataBoss.DataPackage
 			var schema = new DataReaderSchemaTable();
 			for (var i = 0; i != FieldCount; ++i) {
 				var item = fields[i];
-				schema.Add(item.Name, i, item.FieldType, item.AllowDBNull, item.ColumnSize);
+				schema.Add(item.Name, i, item.FieldType, item.AllowDBNull, item.ColumnSize, 
+					providerSpecificDataType: item.ProviderSpecificFieldType);
 			}
 			return schema.ToDataTable();
 		}
@@ -351,7 +367,7 @@ namespace DataBoss.DataPackage
 
 	public static class DataReaderTransformExtensions
 	{
-		public static IDataReader WithTransform(this IDataReader self, Action<DataReaderTransform> defineTransfrom) {
+		public static DbDataReader WithTransform(this IDataReader self, Action<DataReaderTransform> defineTransfrom) {
 			var r = new DataReaderTransform(self);
 			defineTransfrom(r);
 			return r;
