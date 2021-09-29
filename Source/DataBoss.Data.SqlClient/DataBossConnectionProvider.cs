@@ -20,16 +20,20 @@ namespace DataBoss.Data
 		static readonly EventHandler DisposeConnection = (sender, _) => ((SqlCommand)sender).Connection.Dispose();
 
 		readonly string connectionString;
-		readonly ConcurrentDictionary<int, SqlConnection> connections = new ConcurrentDictionary<int, SqlConnection>();
-		readonly ConcurrentDictionary<string, long> accumulatedStats = new ConcurrentDictionary<string, long>();
+		readonly ConcurrentDictionary<int, SqlConnection> connections = new();
+		readonly ConcurrentDictionary<string, long> accumulatedStats = new();
+
 		int nextConnectionId = 0;
 		int resetAt = 0;
 		bool statisticsEnabled = false;
 		
 		public DataBossConnectionProvider(SqlConnectionStringBuilder connectionString) : this(connectionString.ToString()) { }
+
 		public DataBossConnectionProvider(string connectionString) {
 			this.connectionString = connectionString;
 		}
+
+		public string ConnectionString => connectionString;
 
 		public SqlConnection OpenConnection() {
 			var c = NewConnection(connectionString);
@@ -46,7 +50,7 @@ namespace DataBoss.Data
 			};
 			var id = Interlocked.Increment(ref nextConnectionId);
 			connections.TryAdd(id, db);
-			db.Disposed += (s, e) => {
+			db.Disposed += delegate {
 				connections.TryRemove(id, out var dead);
 				var stats = dead.RetrieveStatistics().GetEnumerator();
 				while(stats.MoveNext())
@@ -86,26 +90,31 @@ namespace DataBoss.Data
 			return cmd;
 		}
 
-		public int ExecuteNonQuery(string commandText, CommandType commandType = CommandType.Text) =>
-			Execute(commandText, commandType, DbOps<SqlCommand, SqlDataReader>.ExecuteNonQuery);
-
-		public object ExecuteNonQuery<TArgs>(string commandText, TArgs args, CommandType commandType = CommandType.Text) =>
-			Execute(commandText, args, commandType, DbOps<SqlCommand, SqlDataReader>.ExecuteNonQuery);
-
-		public object ExecuteScalar(string commandText, CommandType commandType = CommandType.Text) => 
-			Execute(commandText, commandType, DbOps<SqlCommand, SqlDataReader>.ExecuteScalar);
-		public object ExecuteScalar<TArgs>(string commandText, TArgs args, CommandType commandType = CommandType.Text) =>
-			Execute(commandText, args, commandType, DbOps<SqlCommand, SqlDataReader>.ExecuteScalar);
-
-		T Execute<T>(string commandText, CommandType commandType, Func<SqlCommand, T> @do) {
-			using (var c = NewCommand(commandText, CommandOptions.DisposeConnection | CommandOptions.OpenConnection, commandType))
-				return @do(c);
+		public int ExecuteNonQuery(string commandText, CommandType commandType = CommandType.Text) {
+			using var c = NewAutoCommand(commandText, commandType);
+			return c.ExecuteNonQuery();
 		}
 
-		T Execute<T,TArgs>(string commandText, TArgs args, CommandType commandType, Func<SqlCommand, T> @do) {
-			using (var c = NewCommand(commandText, args, CommandOptions.DisposeConnection | CommandOptions.OpenConnection, commandType))
-				return @do(c);
+		public object ExecuteNonQuery<TArgs>(string commandText, TArgs args, CommandType commandType = CommandType.Text) {
+			using var c = NewAutoCommand(commandText, args, commandType);
+			return c.ExecuteNonQuery();
 		}
+
+		public object ExecuteScalar(string commandText, CommandType commandType = CommandType.Text) {
+			using var c = NewAutoCommand(commandText, commandType);
+			return c.ExecuteScalar();
+		}
+
+		public object ExecuteScalar<TArgs>(string commandText, TArgs args, CommandType commandType = CommandType.Text) {
+			using var c = NewAutoCommand(commandText, args, commandType);
+			return c.ExecuteScalar();
+		}
+
+		SqlCommand NewAutoCommand(string commandText, CommandType commandType) =>
+			NewCommand(commandText, CommandOptions.DisposeConnection | CommandOptions.OpenConnection, commandType);
+
+		SqlCommand NewAutoCommand<TArgs>(string commandText, TArgs args, CommandType commandType) =>
+			NewCommand(commandText, args, CommandOptions.DisposeConnection | CommandOptions.OpenConnection, commandType);
 
 		public SqlDataReader ExecuteReader(string commandText, int? commandTimeout = null) => 
 			ExecuteReaderWithCleanup(NewCommand(commandText, CommandOptions.None), commandTimeout);

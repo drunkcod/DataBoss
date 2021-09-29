@@ -1,7 +1,7 @@
-﻿using System;
-
 namespace DataBoss.Data
 {
+	using System;
+
 	public struct FieldMapItem
 	{
 		public readonly int Ordinal;

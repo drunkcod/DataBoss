@@ -37,17 +37,25 @@ namespace DataBoss.Data
 		public static IDbCommand CreateCommand<T>(this IDbConnection connection, string cmdText, T args) =>
 			Wrap(connection).CreateCommand(cmdText, args);
 
-		public static object ExecuteScalar<T>(this IDbConnection connection, string commandText, T args) =>
-			CreateCommand(connection, commandText, args).Use(DbOps<IDbCommand, IDataReader>.ExecuteScalar);
+		public static object ExecuteScalar<T>(this IDbConnection connection, string commandText, T args) {
+			using var c = CreateCommand(connection, commandText, args);
+			return c.ExecuteScalar();
+		}
 
-		public static int ExecuteNonQuery<T>(this IDbConnection connection, string commandText, T args) =>
-			CreateCommand(connection, commandText, args).Use(DbOps<IDbCommand, IDataReader>.ExecuteNonQuery);
+		public static object ExecuteScalar(this IDbConnection connection, string commandText) {
+			using var c = CreateCommand(connection, commandText);
+			return c.ExecuteScalar();
+		}
 
-		public static object ExecuteScalar(this IDbConnection connection, string commandText) =>
-			CreateCommand(connection, commandText).Use(DbOps<IDbCommand, IDataReader>.ExecuteScalar);
+		public static int ExecuteNonQuery<T>(this IDbConnection connection, string commandText, T args) {
+			using var c = CreateCommand(connection, commandText, args);
+			return c.ExecuteNonQuery();
+		}
 
-		public static int ExecuteNonQuery(this IDbConnection connection, string commandText) =>
-			CreateCommand(connection, commandText).Use(DbOps<IDbCommand, IDataReader>.ExecuteNonQuery);
+		public static int ExecuteNonQuery(this IDbConnection connection, string commandText) {
+			using var c = CreateCommand(connection, commandText);
+			return c.ExecuteNonQuery();
+		}
 
 		public static void Into<T>(this IDbConnection connection, string destinationTable, IEnumerable<T> rows) =>
 			Into(connection, destinationTable, rows, new DataBossBulkCopySettings());

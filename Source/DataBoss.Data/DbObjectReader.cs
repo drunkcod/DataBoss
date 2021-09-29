@@ -12,6 +12,7 @@ namespace DataBoss.Data
 		where TReader : IDataReader
 	{
 		static readonly Regex FormatEx = new Regex(@"(@[A-Za-z_]+)");
+		static readonly Func<TCommand, TReader> ExecuteReader = Lambdas.Func<TCommand, TReader>(nameof(IDbCommand.ExecuteReader));
 
 		readonly Func<TCommand> newCommand;
 
@@ -33,7 +34,7 @@ namespace DataBoss.Data
 				cmd.CommandText = command;
 				AddParameters(cmd, args);
 				return cmd;
-			}, DbOps<TCommand, TReader>.ExecuteReader);
+			}, ExecuteReader);
 
 		public DbObjectQuery<TCommand, TReader> Query<T, T2>(string command, IEnumerable<T> args, Func<T, T2> toArg) =>
 			new DbObjectQuery<TCommand, TReader>(() => {
@@ -51,7 +52,7 @@ namespace DataBoss.Data
 					}
 				cmd.CommandText = q.ToString();
 				return cmd;
-			}, DbOps<TCommand, TReader>.ExecuteReader);
+			}, ExecuteReader);
 
 		public abstract void AddParameters<T>(TCommand cmd, T args);
 

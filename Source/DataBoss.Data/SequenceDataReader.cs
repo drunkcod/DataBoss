@@ -12,10 +12,11 @@ namespace DataBoss.Data
 	{
 		public static DbDataReader Items<T>(params T[] data) => Create(data);
 
-		public static DbDataReader Create<T>(IEnumerator<T> data) => Create(data, x => x.MapAll());
 
 		public static DbDataReader Create<T>(IEnumerable<T> data) => Create(data, x => x.MapAll());
 		public static DbDataReader Create<T>(IEnumerable<T> data, Action<FieldMapping<T>> mapFields) => Create(data?.GetEnumerator(), mapFields);
+
+		public static DbDataReader Create<T>(IEnumerator<T> data) => Create(data, x => x.MapAll());
 		public static DbDataReader Create<T>(IEnumerator<T> data, Action<FieldMapping<T>> mapFields) {
 			var fieldMapping = new FieldMapping<T>();
 			mapFields(fieldMapping);

@@ -59,6 +59,9 @@ namespace DataBoss.Data
 			return e;
 		}
 
+		Func<TReader, T> CreateMaterializer(TReader reader) => converterFactory(reader, factoryState);
+		TReader ExecuteReader(TCommand command) => executeReader(command);
+
 		class DbReaderEnumerator : IEnumerator<T>
 		{
 			readonly DbCommandEnumerable<TCommand, TReader, T> parent;
@@ -88,7 +91,7 @@ namespace DataBoss.Data
 				read: if(reader.Read()) 
 					return true;
 				if(reader.NextResult()) {
-					materialize = parent.converterFactory(reader, parent.factoryState);
+					materialize = parent.CreateMaterializer(reader);
 					goto read;
 				}
 				reader.Dispose();
@@ -97,9 +100,9 @@ namespace DataBoss.Data
 			}
 
 			public void Reset() { 
-				reader = parent.executeReader(command);
+				reader = parent.ExecuteReader(command);
 				try { 
-					materialize = parent.converterFactory(reader, parent.factoryState);
+					materialize = parent.CreateMaterializer(reader);
 				} catch {
 					reader.Dispose();
 					throw;

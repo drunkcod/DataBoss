@@ -8,7 +8,7 @@ namespace DataBoss.Data
 	public static class DbObjectQuery
 	{
 		public static DbObjectQuery<IDbCommand, IDataReader> Create(Func<IDbCommand> getCommand) =>
-			new DbObjectQuery<IDbCommand, IDataReader>(getCommand, DbOps<IDbCommand, IDataReader>.ExecuteReader);
+			new DbObjectQuery<IDbCommand, IDataReader>(getCommand, x => x.ExecuteReader());
 
 		internal static Func<TReader, TOutput> NewFuncConverter<TReader, TFun, TOutput> (TReader reader, object state) 
 			where TReader : IDataReader
