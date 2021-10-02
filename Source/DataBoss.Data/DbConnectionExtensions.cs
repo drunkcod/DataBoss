@@ -11,22 +11,22 @@ namespace DataBoss.Data
 	public static class DbConnectionExtensions
 	{
 		static Func<IDbConnection, IDataBossConnection> WrapConnection = _ => null;
-		static readonly ConcurrentBag<Delegate> connectionWrapers = new ConcurrentBag<Delegate>();
+		static readonly ConcurrentStack<Delegate> connectionWrapers = new();
 
 		public static void Register<T>(Func<T, IDataBossConnection> wrap) =>
-			connectionWrapers.Add(wrap);
+			connectionWrapers.Push(wrap);
 
 		public static void DisposeOnClose(this DbConnection connection) {
-			connection.StateChange += DisposeOnClose;
+			connection.StateChange += DisposeOnCloseHandler;
 		}
 
-		static void DisposeOnClose(object obj, StateChangeEventArgs e) {
+		static readonly StateChangeEventHandler DisposeOnCloseHandler = (obj, e) => {
 			if (e.CurrentState == ConnectionState.Closed) {
 				var c = (DbConnection)obj;
-				c.StateChange -= DisposeOnClose;
+				c.StateChange -= DisposeOnCloseHandler;
 				c.Dispose();
 			}
-		}
+		};
 
 		public static IDbCommand CreateCommand(this IDbConnection connection, string commandText) {
 			var c = connection.CreateCommand();
@@ -84,8 +84,6 @@ namespace DataBoss.Data
 		public static void CreateTable(this IDbConnection connection, string tableName, IDataReader data) =>
 			Wrap(connection).CreateTable(tableName, data);
 
-		static ConcurrentDictionary<Type, Action<IDbCommand, object>> CommandFactory = new ConcurrentDictionary<Type, Action<IDbCommand, object>>();
-
 		public static IEnumerable<T> Query<T>(this IDbConnection db, string sql) => Query<T>(db, sql, new DataBossQueryOptions { Parameters = null, Buffered = true });
 		public static IEnumerable<T> Query<T>(this IDbConnection db, string sql, object args = null, bool buffered = true) => Query<T>(db, sql, new DataBossQueryOptions { Parameters = args, Buffered = buffered });
 		public static IEnumerable<TResult> Query<T, TResult>(this IDbConnection db, Func<T, TResult> selector, string sql, object args = null, bool buffered = true) => Query(Wrap(db), sql, args, buffered).Read(selector);
@@ -110,6 +108,8 @@ namespace DataBoss.Data
 
 		class DbQuery
 		{
+			static readonly ConcurrentDictionary<Type, Action<IDbCommand, object>> CommandFactory = new();
+
 			public readonly IDataBossConnection Connection;
 			public readonly string CommandText;
 			public readonly DataBossQueryOptions Options;
@@ -130,17 +130,15 @@ namespace DataBoss.Data
 				return cmd;
 			}
 
-			public IEnumerable<T> Read<T>() => BufferOrNot(DbObjectQuery.Create(GetCommand).Read<T>());
+			public IEnumerable<T> Read<T>() => DbObjectQuery.Create(GetCommand, Options.Buffered).Read<T>();
 
-			public IEnumerable<TResult> Read<T1, TResult>(Func<T1, TResult> selector) => BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
-			public IEnumerable<TResult> Read<T1, T2, TResult>(Func<T1, T2, TResult> selector) => BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
-			public IEnumerable<TResult> Read<T1, T2, T3, TResult>(Func<T1, T2, T3, TResult> selector) => BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
-			public IEnumerable<TResult> Read<T1, T2, T3, T4, TResult>(Func<T1, T2, T3, T4, TResult> selector) => BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
-			public IEnumerable<TResult> Read<T1, T2, T3, T4, T5, TResult>(Func<T1, T2, T3, T4, T5, TResult> selector) => BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
-			public IEnumerable<TResult> Read<T1, T2, T3, T4, T5, T6, TResult>(Func<T1, T2, T3, T4, T5, T6, TResult> selector) => BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
-			public IEnumerable<TResult> Read<T1, T2, T3, T4, T5, T6, T7, TResult>(Func<T1, T2, T3, T4, T5, T6, T7, TResult> selector) => BufferOrNot(DbObjectQuery.Create(GetCommand).Read(selector));
-
-			IEnumerable<T> BufferOrNot<T>(IEnumerable<T> xs) => Options.Buffered ? xs.ToList() : xs;
+			public IEnumerable<TResult> Read<T1, TResult>(Func<T1, TResult> selector) => DbObjectQuery.Create(GetCommand, Options.Buffered).Read<Func<T1, TResult>, TResult>(selector);
+			public IEnumerable<TResult> Read<T1, T2, TResult>(Func<T1, T2, TResult> selector) => DbObjectQuery.Create(GetCommand, Options.Buffered).Read<Func<T1, T2, TResult>, TResult>(selector);
+			public IEnumerable<TResult> Read<T1, T2, T3, TResult>(Func<T1, T2, T3, TResult> selector) => DbObjectQuery.Create(GetCommand, Options.Buffered).Read<Func<T1, T2, T3, TResult>, TResult>(selector);
+			public IEnumerable<TResult> Read<T1, T2, T3, T4, TResult>(Func<T1, T2, T3, T4, TResult> selector) => DbObjectQuery.Create(GetCommand, Options.Buffered).Read<Func<T1, T2, T3, T4, TResult>, TResult>(selector);
+			public IEnumerable<TResult> Read<T1, T2, T3, T4, T5, TResult>(Func<T1, T2, T3, T4, T5, TResult> selector) => DbObjectQuery.Create(GetCommand, Options.Buffered).Read<Func<T1, T2, T3, T4, T5, TResult>, TResult>(selector);
+			public IEnumerable<TResult> Read<T1, T2, T3, T4, T5, T6, TResult>(Func<T1, T2, T3, T4, T5, T6, TResult> selector) => DbObjectQuery.Create(GetCommand, Options.Buffered).Read<Func<T1, T2, T3, T4, T5, T6, TResult>, TResult>(selector);
+			public IEnumerable<TResult> Read<T1, T2, T3, T4, T5, T6, T7, TResult>(Func<T1, T2, T3, T4, T5, T6, T7, TResult> selector) => DbObjectQuery.Create(GetCommand, Options.Buffered).Read<Func<T1, T2, T3, T4, T5, T6, T7, TResult>, TResult>(selector);
 
 			static Action<IDbCommand, object> AddParameters(Type t, ISqlDialect dialect) =>
 				CommandFactory.GetOrAdd(t,
@@ -153,7 +151,6 @@ namespace DataBoss.Data
 		class DbConnectionDecorator : IDbConnection, IDataBossConnection
 		{
 			readonly IDbConnection InnerConnection;
-
 
 			public DbConnectionDecorator(IDbConnection inner, ISqlDialect dialect) {
 				this.InnerConnection = inner;
@@ -180,7 +177,6 @@ namespace DataBoss.Data
 			public void ChangeDatabase(string databaseName) => InnerConnection.ChangeDatabase(databaseName);
 
 			public void Close() => InnerConnection.Close();
-
 
 			public void Dispose() => InnerConnection.Dispose();
 
@@ -240,7 +236,7 @@ namespace DataBoss.Data
 					Expression.Convert(Expression.New(ctor, asTarget), typeof(IDataBossConnection)));
 			}
 
-			foreach(var item in connectionWrapers.Reverse()) {
+			foreach(var item in connectionWrapers) {
 				var asTarget = Expression.TypeAs(con, item.Method.GetParameters().Single().ParameterType);
 				body = Expression.Condition(
 					Expression.ReferenceEqual(asTarget, Expression.Constant(null)),
