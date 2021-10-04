@@ -20,30 +20,37 @@ namespace DataBoss.Data
 		public override string ToString() => Key;
 
 		public static ConverterCacheKey Create(IDataReader reader, Type readerType, Type resultType) =>
-			new ConverterCacheKey(resultType, FormatReader(reader, readerType, "⇒ ").ToString());
+			new(resultType, FormatReader(reader, readerType, "⇒").ToString());
 
 		public static ConverterCacheKey Into(IDataReader reader, Type readerType, Type result) =>
-			new ConverterCacheKey(result, FormatReader(reader, readerType, "↻ ").ToString());
+			new(result, FormatReader(reader, readerType, "↻").ToString());
 
 		static StringBuilder FormatReader(IDataReader reader, Type readerType, string prefix = null) {
 			var key = new StringBuilder(prefix, 128);
 			key.Append(readerType).Append('(');
-			return FieldKey(key, reader).Append(")");
+			return FieldKey(key, reader).Append(')');
 		}
 
 		public static ConverterCacheKey Create<T>(T reader, Delegate exemplar) where T : IDataReader =>
-			new ConverterCacheKey(exemplar.Method.ReturnType, $"{typeof(T)}({FieldKey(reader)})->Invoke({ParameterKey(exemplar)})");
+			new(exemplar.Method.ReturnType, $"{typeof(T)}({FieldKey(reader)})⇒Invoke({ParameterKey(exemplar)})");
 
 		public static bool TryCreate<T>(T reader, LambdaExpression e, out ConverterCacheKey key) where T : IDataReader { 
 			var b = e.Body;
-			if(b.NodeType == ExpressionType.New && (b is NewExpression c) && c.Arguments.All(x => x.NodeType == ExpressionType.Parameter)) {
-				var args = string.Join(", ", 
-					Enumerable.Range(0, c.Arguments.Count)
-					.Select(x => $"{c.Arguments[x].Type} _{e.Parameters.IndexOf(c.Arguments[0] as ParameterExpression)}"));
-				key = new ConverterCacheKey(e.Type, $"{typeof(T)}({FieldTypeKey(reader)})->.ctor({args})");
+			if(b.NodeType == ExpressionType.New && (b is NewExpression c)) {
+				var keyBuilder = new StringBuilder($"{typeof(T)}({FieldTypeKey(reader)})⇒.ctor(");
+
+				var sep = "$";
+				for(var i = 0; i != c.Arguments.Count; ++i) {
+					if(c.Arguments[i] is not ParameterExpression p)
+						goto nope;
+					keyBuilder.Append(sep).Append(e.Parameters.IndexOf(p));
+					sep = ", $";
+				}
+
+				key = new(b.Type, keyBuilder.Append(')').ToString());
 				return true;
 			}
-			key = default(ConverterCacheKey);
+			nope: key = default;
 			return false;	
 		}
 
@@ -86,14 +93,20 @@ namespace DataBoss.Data
 			type.IsPrimitive && allowNull ? typeof(Nullable<>).MakeGenericType(type) : type;
 
 		static string FieldTypeKey(IDataReader reader) =>
-			string.Join(", ", Enumerable.Range(0, reader.FieldCount).Select(ordinal => $"{reader.GetFieldType(ordinal)}"));
+			string.Join(", ", Enumerable.Range(0, reader.FieldCount).Select(ordinal => $"{reader.GetFieldType(ordinal)} ${ordinal}"));
 
 		static string ParameterKey(Delegate exemplar) =>
 			string.Join(", ", exemplar.Method.GetParameters().Select(x => $"{x.ParameterType} {x.Name}"));
 
 		public override int GetHashCode() => ResultType.GetHashCode();
+		
 		public override bool Equals(object obj) => Equals((ConverterCacheKey)obj);
+		
 		public bool Equals(ConverterCacheKey other) => other.Key == this.Key && other.ResultType == this.ResultType;
+
+		public static bool operator ==(ConverterCacheKey left, ConverterCacheKey right) => left.Equals(right);
+
+		public static bool operator !=(ConverterCacheKey left, ConverterCacheKey right) => !(left == right);
 	}
 
 	public interface IConverterCache
@@ -105,7 +118,7 @@ namespace DataBoss.Data
 	{
 		NullConverterCache() { }
 
-		public static IConverterCache Instance = new NullConverterCache();
+		public static readonly IConverterCache Instance = new NullConverterCache();
 
 		public DataRecordConverter GetOrAdd<TReader>(TReader reader, ConverterCacheKey result, Func<FieldMap, DataRecordConverter> createConverter) where TReader : IDataReader =>
 			createConverter(FieldMap.Create(reader));
@@ -113,7 +126,7 @@ namespace DataBoss.Data
 
 	public class ConcurrentConverterCache : IConverterCache
 	{
-		readonly ConcurrentDictionary<ConverterCacheKey, DataRecordConverter> converterCache = new ConcurrentDictionary<ConverterCacheKey, DataRecordConverter>(); 
+		readonly ConcurrentDictionary<ConverterCacheKey, DataRecordConverter> converterCache = new(); 
 
 		public DataRecordConverter GetOrAdd<TReader>(TReader reader, ConverterCacheKey key, Func<FieldMap, DataRecordConverter> createConverter) where TReader : IDataReader { 
 			if(!converterCache.TryGetValue(key, out var found)) { 
