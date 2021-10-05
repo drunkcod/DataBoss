@@ -421,7 +421,7 @@ namespace DataBoss.Data
 		{
 			readonly ConverterCollection customConversions;
 
-			public DataRecordConverterFactory(ConverterCollection customConversions) { this.customConversions = customConversions; }
+			public DataRecordConverterFactory(ConverterCollection customConversions) { this.customConversions = customConversions ?? new ConverterCollection(); }
 
 			public DataRecordConverter BuildConverter(Type readerType, FieldMap map, Type result) {
 				var context = ConverterContext.Create(readerType, result, customConversions);
@@ -468,11 +468,16 @@ namespace DataBoss.Data
 		{ }
 
 		public ConverterFactory(ConverterCollection customConversions, IConverterCache converterCache) {
-			this.recordConverterFactory = new DataRecordConverterFactory(new ConverterCollection(customConversions));
+			this.recordConverterFactory = new DataRecordConverterFactory(customConversions);
 			this.converterCache = converterCache;
 		}
 
-		public static ConverterFactory Default = new ConverterFactory(null, new ConcurrentConverterCache());
+		public static ConverterFactory Default = new(null, new ConcurrentConverterCache());
+
+		public static DataRecordConverter<TReader, T> GetConverter<TReader, T>(TReader reader, ConverterCollection customConversions) where TReader : IDataReader {
+			var recordConverterFactory = new DataRecordConverterFactory(customConversions);
+			return recordConverterFactory.BuildConverter(typeof(TReader), FieldMap.Create(reader), typeof(T)).ToTyped<TReader, T>();
+		}
 
 		public Func<TReader, TResult> Compile<TReader, T1, TResult>(TReader reader, Expression<Func<T1, TResult>> selector) where TReader : IDataReader =>
 			(Func<TReader, TResult>)GetConverter(reader, selector).Compile();

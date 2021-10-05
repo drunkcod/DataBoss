@@ -51,7 +51,7 @@ namespace DataBoss.Data
 			new ConverterCollectionItem(typeof(float), typeof(double), To<double>));
 
 		readonly ConverterCollection inner;
-		ICollection<ConverterCollectionItem> converters;
+		readonly ICollection<ConverterCollectionItem> converters;
 
 		public ConverterCollection() {
 			this.converters = new List<ConverterCollectionItem>();

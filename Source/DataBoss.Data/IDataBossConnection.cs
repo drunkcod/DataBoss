@@ -8,7 +8,7 @@ namespace DataBoss.Data
 		string ParameterPrefix { get; }
 
 		string GetTypeName(DataBossDbType dbType);
-		bool TryCreateParameter(string name, Expression readMember, out Expression create);
+		bool TryCreateDialectSpecificParameter(string name, Expression readMember, out Expression create);
 	}
 
 	public interface IDataBossConnection
@@ -19,5 +19,6 @@ namespace DataBoss.Data
 		void Insert(string destinationTable, IDataReader rows, DataBossBulkCopySettings settings);
 		IDbCommand CreateCommand(string cmdText);
 		IDbCommand CreateCommand<T>(string cmdText, T args);
+		IDbCommand CreateCommand(string cmdText, object args);
 	}
 }

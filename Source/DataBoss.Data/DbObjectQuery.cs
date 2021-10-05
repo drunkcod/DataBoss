@@ -49,15 +49,17 @@ namespace DataBoss.Data
 		}
 
 		public IEnumerable<TResult> Read<TResult>() => 
-			BufferOrNot(MakeEnumerable(DefaultReader<TResult>, null));
+			BufferOrNot(MakeEnumerable(GetReader<TResult>, null));
 
 		public IEnumerable<TOutput> Read<TFun, TOutput>(TFun fun) where TFun : Delegate => 
 			BufferOrNot(MakeEnumerable<TFun, TOutput>(fun));
 
 		IEnumerable<T> BufferOrNot<T>(IEnumerable<T> xs) => bufferResult ? xs.ToList() : xs;
 
-		static Func<TReader, T> DefaultReader<T>(TReader reader, object _) =>
-			ConverterFactory.Default.GetConverter<TReader, T>(reader).Compiled;
+		static Func<TReader, T> GetReader<T>(TReader reader, object state) =>
+			state is not ConverterCollection customConversions 
+			? ConverterFactory.Default.GetConverter<TReader, T>(reader).Compiled
+			: ConverterFactory.GetConverter<TReader, T>(reader, customConversions).Compiled;
 
 		public DbCommandEnumerable<TCommand, TReader, TOutput> Read<TOutput>(ConverterCollection converters) => MakeEnumerable(GetConverter<TOutput>, converters);
 		
@@ -70,10 +72,10 @@ namespace DataBoss.Data
 		public DbCommandEnumerable<TCommand, TReader, TOutput> MakeEnumerable<TFun, TOutput>(TFun fun) where TFun : Delegate => 
 			new(getCommand, executeReader, DbObjectQuery.NewFuncConverter<TReader, TFun,TOutput>, fun);
 		
-		public List<TOutput> ReadWithRetry<TOutput>(RetryStrategy retry) => MakeEnumerable(DefaultReader<TOutput>, null).ToList(retry);
-		public List<TOutput> ReadWithRetry<TOutput>(RetryStrategy retry, ConverterCollection converters) => MakeEnumerable(DefaultReader<TOutput>, converters).ToList(retry);
+		public List<TOutput> ReadWithRetry<TOutput>(RetryStrategy retry) => MakeEnumerable(GetReader<TOutput>, null).ToList(retry);
+		public List<TOutput> ReadWithRetry<TOutput>(RetryStrategy retry, ConverterCollection converters) => MakeEnumerable(GetReader<TOutput>, converters).ToList(retry);
 
 		public TOutput Single<TOutput>() where TOutput : new() =>
-			MakeEnumerable(DefaultReader<TOutput>, null).Single();
+			MakeEnumerable(GetReader<TOutput>, null).Single();
 	}
 }

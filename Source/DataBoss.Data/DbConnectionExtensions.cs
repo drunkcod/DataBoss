@@ -37,6 +37,9 @@ namespace DataBoss.Data
 		public static IDbCommand CreateCommand<T>(this IDbConnection connection, string cmdText, T args) =>
 			Wrap(connection).CreateCommand(cmdText, args);
 
+		public static IDbCommand CreateCommand(this IDbConnection connection, string cmdText, object args) =>
+			Wrap(connection).CreateCommand(cmdText, args);
+
 		public static object ExecuteScalar<T>(this IDbConnection connection, string commandText, T args) {
 			using var c = CreateCommand(connection, commandText, args);
 			return c.ExecuteScalar();
@@ -195,6 +198,9 @@ namespace DataBoss.Data
 				Adorn(InnerConnection.CreateCommand(cmdText));
 
 			public IDbCommand CreateCommand<T>(string cmdText, T args) =>
+				Adorn(InnerConnection.CreateCommand(cmdText, args));
+
+			public IDbCommand CreateCommand(string cmdText, object args) =>
 				Adorn(InnerConnection.CreateCommand(cmdText, args));
 
 			IDbCommand Adorn(IDbCommand c) {

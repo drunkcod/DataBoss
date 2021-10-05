@@ -61,6 +61,9 @@ namespace DataBoss.Data
 		IDbCommand IDataBossConnection.CreateCommand<T>(string cmdText, T args) =>
 			new ProfiledSqlCommand(this, inner.CreateCommand(cmdText, args));
 
+		IDbCommand IDataBossConnection.CreateCommand(string cmdText, object args) =>
+			new ProfiledSqlCommand(this, inner.CreateCommand(cmdText, args));
+
 		protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel) => inner.BeginTransaction(isolationLevel);
 		public override void Close() => inner.Close();
 		public override void ChangeDatabase(string databaseName) => inner.ChangeDatabase(databaseName);

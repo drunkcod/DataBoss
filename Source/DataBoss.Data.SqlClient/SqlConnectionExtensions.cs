@@ -34,12 +34,24 @@ namespace DataBoss.Data
 			cmd.AddParameters(args);
 			return cmd;
 		}
+
+		public IDbCommand CreateCommand(string cmdText, object args) {
+			var cmd = new SqlCommand(cmdText, connection);
+			cmd.AddParameters(args);
+			return cmd;
+		}
 	}
 
 	public static class SqlConnectionExtensions
 	{
 		public static SqlCommand CreateCommand(this SqlConnection connection, string cmdText) => 
 			new SqlCommand(cmdText, connection);
+
+		public static SqlCommand CreateCommand(this SqlConnection connection, string cmdText, object args) {
+			var cmd = CreateCommand(connection, cmdText);
+			cmd.AddParameters(args);
+			return cmd;
+		}
 
 		public static SqlCommand CreateCommand<T>(this SqlConnection connection, string cmdText, T args) {
 			var cmd = CreateCommand(connection, cmdText);
@@ -54,30 +66,39 @@ namespace DataBoss.Data
 		}
 
 		public static object ExecuteScalar(this SqlConnection connection, string cmdText) {
-			using(var q = connection.CreateCommand(cmdText))
-				return q.ExecuteScalar();
+			using var q = connection.CreateCommand(cmdText);
+			return q.ExecuteScalar();
+		}
+
+		public static object ExecuteScalar(this SqlConnection connection, string cmdText, object args) {
+			using var q = CreateCommand(connection, cmdText, args);
+			return q.ExecuteScalar();
 		}
 
 		public static object ExecuteScalar<T>(this SqlConnection connection, string cmdText, T args) {
-			using(var q = CreateCommand(connection, cmdText, args))
-				return q.ExecuteScalar();
+			using var q = CreateCommand(connection, cmdText, args);
+			return q.ExecuteScalar();
 		}
 
 		public static int ExecuteNonQuery(this SqlConnection connection, string cmdText) {
-			using(var q = connection.CreateCommand(cmdText))
-				return q.ExecuteNonQuery();
+			using var q = connection.CreateCommand(cmdText);
+			return q.ExecuteNonQuery();
 		}
 
-		public static int ExecuteNonQuery(this SqlConnection connection, SqlTransaction transaction, string cmdText) {
-			using (var q = connection.CreateCommand(cmdText)) {
-				q.Transaction = transaction;
-				return q.ExecuteNonQuery();
-			}
+		public static int ExecuteNonQuery(this SqlConnection connection, string cmdText, object args) {
+			using var q = CreateCommand(connection, cmdText, args);
+			return q.ExecuteNonQuery();
 		}
 
 		public static int ExecuteNonQuery<T>(this SqlConnection connection, string cmdText, T args) {
-			using(var q = CreateCommand(connection, cmdText, args))
-				return q.ExecuteNonQuery();
+			using var q = CreateCommand(connection, cmdText, args);
+			return q.ExecuteNonQuery();
+		}
+
+		public static int ExecuteNonQuery(this SqlConnection connection, SqlTransaction transaction, string cmdText) {
+			using var q = connection.CreateCommand(cmdText);
+			q.Transaction = transaction;
+			return q.ExecuteNonQuery();
 		}
 
 		public static void Into<T>(this SqlConnection connection, string destinationTable, IEnumerable<T> rows) =>
@@ -125,8 +146,8 @@ namespace DataBoss.Data
 			new DataBossBulkCopy(connection, transaction).InsertAndGetIdentities(destinationTable, rows);
 
 		public static void WithCommand(this SqlConnection connection, Action<SqlCommand> useCommand) {
-			using(var cmd = connection.CreateCommand())
-				useCommand(cmd);
+			using var cmd = connection.CreateCommand();
+			useCommand(cmd);
 		}
 	}
 }

@@ -100,7 +100,7 @@ namespace DataBoss.Data
 			foreach (var value in inputValues)  {
 				var name = prefix + value.Name;
 				var readMember = Expression.MakeMemberAccess(input, value);
-				if(dialect.TryCreateParameter(name, readMember, out var dialectParameter)) {
+				if(dialect.TryCreateDialectSpecificParameter(name, readMember, out var dialectParameter)) {
 					extractor.AddParameter(dialectParameter);
 					continue;
 				}
