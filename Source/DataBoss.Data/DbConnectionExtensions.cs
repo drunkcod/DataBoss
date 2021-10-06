@@ -149,18 +149,19 @@ namespace DataBoss.Data
 		}
 
 		public static IDbConnection WithCommandTimeout(this IDbConnection db, int commandTimeout) =>
-			new DbConnectionDecorator(db, Wrap(db).Dialect) { CommandTimeout = commandTimeout };
+			new DbConnectionDecorator(db) { CommandTimeout = commandTimeout };
 
 		class DbConnectionDecorator : IDbConnection, IDataBossConnection
 		{
 			readonly IDbConnection InnerConnection;
+			readonly IDataBossConnection DataBossConnection;
 
-			public DbConnectionDecorator(IDbConnection inner, ISqlDialect dialect) {
+			public DbConnectionDecorator(IDbConnection inner) {
 				this.InnerConnection = inner;
-				this.Dialect = dialect;
+				this.DataBossConnection = Wrap(inner);
 			}
 
-			public ISqlDialect Dialect { get; }
+			public ISqlDialect Dialect => DataBossConnection.Dialect;
 			public int? CommandTimeout;
 
 			public string ConnectionString {
@@ -186,22 +187,22 @@ namespace DataBoss.Data
 			public void Open() => InnerConnection.Open();
 
 			public void CreateTable(string destinationTable, IDataReader rows) =>
-				InnerConnection.CreateTable(destinationTable, rows);
+				DataBossConnection.CreateTable(destinationTable, rows);
 
 			public void Insert(string destinationTable, IDataReader rows, DataBossBulkCopySettings settings) =>
-				InnerConnection.Insert(destinationTable, rows, settings.CommandTimeout.HasValue ? settings : settings.WithCommandTimeout(CommandTimeout));
+				DataBossConnection.Insert(destinationTable, rows, settings.CommandTimeout.HasValue ? settings : settings.WithCommandTimeout(CommandTimeout));
 
 			public IDbCommand CreateCommand() =>
 				Adorn(InnerConnection.CreateCommand());
 
 			public IDbCommand CreateCommand(string cmdText) =>
-				Adorn(InnerConnection.CreateCommand(cmdText));
+				Adorn(DataBossConnection.CreateCommand(cmdText));
 
 			public IDbCommand CreateCommand<T>(string cmdText, T args) =>
-				Adorn(InnerConnection.CreateCommand(cmdText, args));
+				Adorn(DataBossConnection.CreateCommand(cmdText, args));
 
 			public IDbCommand CreateCommand(string cmdText, object args) =>
-				Adorn(InnerConnection.CreateCommand(cmdText, args));
+				Adorn(DataBossConnection.CreateCommand(cmdText, args));
 
 			IDbCommand Adorn(IDbCommand c) {
 				if (CommandTimeout.HasValue)
@@ -210,14 +211,11 @@ namespace DataBoss.Data
 			}
 		}
 
-		public static IDataBossConnection Wrap(IDbConnection connection) {
-			var x = WrapConnection(connection);
+		public static IDataBossConnection Wrap(IDbConnection connection) {			
+			var x = WrapConnection(connection) ?? connection as IDataBossConnection;
 			if(x != null)
 				return x;
 			
-			if(connection is IDataBossConnection db)
-				return db;
-
 			BuildWrapperFactory();
 			return WrapConnection(connection) ?? throw new NotSupportedException($"Failed to wrap {connection.GetType().FullName} missing NuGet reference to DataBoss.Data.SqlClient or DataBoss.Data.MsSql?");
 		}
@@ -227,13 +225,14 @@ namespace DataBoss.Data
 			var con = Expression.Parameter(typeof(IDbConnection), "c");
 
 			Expression body = Expression.Constant(null, typeof(IDataBossConnection));
-			foreach(var item in new[]{
+			foreach(var item in new [] {
 				"DataBoss.Data.MsSql.DataBossSqlConnection, DataBoss.Data.MsSql",
 				"DataBoss.Data.DataBossSqlConnection, DataBoss.Data.SqlClient", }) {
 
 				var type = Type.GetType(item);
 				if(type == null)
 					continue;
+
 				var ctor = type.GetConstructors().Single();
 				var asTarget = Expression.TypeAs(con, ctor.GetParameters()[0].ParameterType);
 				body = Expression.Condition(
