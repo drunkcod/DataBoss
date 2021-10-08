@@ -5,6 +5,7 @@ using System.Data;
 using System.Data.Common;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace DataBoss.Data
 {
@@ -250,16 +251,17 @@ namespace DataBoss.Data
 		T Current => hasData ? data.Current : NoData();
 		static T NoData() => throw new InvalidOperationException("Invalid attempt to read when no data is present, call Read()");
 
-		public override long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) {
-			if (GetValue(i) is not byte[] bytes)
-				throw new NotSupportedException($"Can't GetBytes from {GetFieldType(i)}.");
+		public override long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferOffset, int length) => GetArray(i, fieldOffset, buffer, bufferOffset, length);
+		public override long GetChars(int i, long fieldOffset, char[] buffer, int bufferOffset, int length) => GetArray(i, fieldOffset, buffer, bufferOffset, length);
 
-			var bytesToCopy = Math.Min(length, bytes.LongLength - fieldOffset);
-			Array.Copy(bytes, fieldOffset, buffer, bufferoffset, bytesToCopy);
-			return bytesToCopy;
+		long GetArray<TItem>(int i, long fieldOffset, TItem[] buffer, int bufferOffset, int length, [CallerMemberName] string callingMethod = null) {
+			if (GetValue(i) is not TItem[] items)
+				throw new NotSupportedException($"Can't {callingMethod} from {GetFieldType(i)}.");
+
+			var copyCount = Math.Min(length, items.LongLength - fieldOffset);
+			Array.Copy(items, fieldOffset, buffer, bufferOffset, copyCount);
+			return copyCount;
 		}
-
-		public override long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
 
 		public IDataRecord GetRecord() => new DataRecord(schema, fields, Current);
 
