@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
+using System.Text;
 using CheckThat;
 using CheckThat.Helpers;
 using DataBoss.Linq;
@@ -112,27 +113,22 @@ namespace DataBoss.Data
 
 			[Fact]
 			public void cant_create_reader_from_null_sequence() =>
-				Check.Exception<ArgumentNullException>(() => SequenceDataReader.Create((IEnumerable<MyRow<int>>)null, x => x.MapAll()));
-		}
-
-		class MyRow<T>
-		{
-			public T Value;
+				Check.Exception<ArgumentNullException>(() => SequenceDataReader.Create((IEnumerable<ValueRow<int>>)null, x => x.MapAll()));
 		}
 
 		[Fact]
 		public void roundtrip_nullable_field() {
-			var items = new[] { new MyRow<int?> { Value = 42 } };	
+			var items = new[] { new ValueRow<int?> { Value = 42 } };	
 	
-			Check.With(() => ObjectReader.For(Rows(items)).Read<MyRow<int?>>().ToList())
+			Check.With(() => ObjectReader.For(Rows(items)).Read<ValueRow<int?>>().ToList())
 				.That(rows => rows[0].Value == items[0].Value);
 		}
 
 		[Fact]
 		public void roundtrip_nullable_field_null() {
-			var items = new[] { new MyRow<float?> { Value = null } };	
+			var items = new[] { new ValueRow<float?> { Value = null } };	
 	
-			Check.With(() => ObjectReader.For(Rows(items)).Read<MyRow<float?>>().ToList())
+			Check.With(() => ObjectReader.For(Rows(items)).Read<ValueRow<float?>>().ToList())
 				.That(rows => rows[0].Value == null);
 		}
 
@@ -140,7 +136,7 @@ namespace DataBoss.Data
 
 		[Fact]
 		public void treats_IdOf_as_int() {
-			var items = new[] { new MyRow<IdOf<float>> { Value = (IdOf<float>)1 } };
+			var items = new[] { new ValueRow<IdOf<float>> { Value = (IdOf<float>)1 } };
 
 			Check.With(() => SequenceDataReader.Create(items, x => x.MapAll())).That(
 				x => x.GetFieldType(0) == typeof(int),
@@ -155,6 +151,26 @@ namespace DataBoss.Data
 			Check.That(
 				() => rows.IsDBNull(0),
 				() => rows.GetValue(0) is DBNull);
+		}
+
+		[Fact]
+		public void byte_array_GetBytes() {
+			var bytes = new byte[] { 1, 2, 3, 4 };
+			var row = SequenceDataReader.Items(new { Bytes = bytes });
+			
+			var byte1 = new byte[256];
+			var allBytes = new byte[256];
+			var shortBuffer = new byte[2];
+
+			row.Read();
+			Check.That(
+				() => row.GetFieldType(0) == typeof(byte[]),
+				() => row.GetBytes(0, 1, byte1, 0, 1) == 1,
+				() => byte1[0] == bytes[1],
+				() => row.GetBytes(0, 0, allBytes, 0, allBytes.Length) == bytes.Length,
+				() => allBytes.Take(bytes.Length).SequenceEqual(bytes),
+				() => row.GetBytes(0, 0, shortBuffer, 0, shortBuffer.Length) == shortBuffer.Length,
+				() => shortBuffer.SequenceEqual(bytes.Take(shortBuffer.Length)));
 		}
 
 		[Fact]
@@ -199,6 +215,23 @@ namespace DataBoss.Data
 				Enumerator.Reset();
 			}
 		}
+	}
 
+	public class SequenceDataReader_database_integration : IClassFixture<TemporaryDatabaseFixture>
+	{
+		readonly TemporaryDatabaseFixture db;
+
+		public SequenceDataReader_database_integration(TemporaryDatabaseFixture db) {
+			this.db = db;
+		}
+
+		[Fact]
+		public void byte_array_roundtrip() {
+			var row = new ValueRow<byte[]> { Value = Encoding.UTF8.GetBytes("hello world.") };
+
+			using var c = db.Open();
+			c.Into("#Stuff", SequenceDataReader.Items(row));
+			Check.That(() => c.Query<ValueRow<byte[]>>("select * from #Stuff").Single().Value.SequenceEqual(row.Value));
+		}
 	}
 }

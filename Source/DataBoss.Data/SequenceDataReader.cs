@@ -250,7 +250,15 @@ namespace DataBoss.Data
 		T Current => hasData ? data.Current : NoData();
 		static T NoData() => throw new InvalidOperationException("Invalid attempt to read when no data is present, call Read()");
 
-		public override long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
+		public override long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) {
+			if (GetValue(i) is not byte[] bytes)
+				throw new NotSupportedException($"Can't GetBytes from {GetFieldType(i)}.");
+
+			var bytesToCopy = Math.Min(length, bytes.LongLength - fieldOffset);
+			Array.Copy(bytes, fieldOffset, buffer, bufferoffset, bytesToCopy);
+			return bytesToCopy;
+		}
+
 		public override long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
 
 		public IDataRecord GetRecord() => new DataRecord(schema, fields, Current);
