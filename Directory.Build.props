@@ -9,9 +9,9 @@
         <Description>Your data. Like a Boss.</Description>
         <RepositoryUrl>https://github.com/drunkcod/DataBoss</RepositoryUrl>
         <VersionPrefix>0.0.98</VersionPrefix>
-		    <VersionSuffix>rc</VersionSuffix>
+		    <VersionSuffix>rc.2</VersionSuffix>
         <AssemblyVersion>$(VersionPrefix)</AssemblyVersion>
         <AssemblyInformationalVersion>$(VersionPrefix)</AssemblyInformationalVersion>
-        <AssemblyFileVersion>2021.10.05</AssemblyFileVersion>
+        <AssemblyFileVersion>2021.10.08</AssemblyFileVersion>
     </PropertyGroup>
 </Project>
