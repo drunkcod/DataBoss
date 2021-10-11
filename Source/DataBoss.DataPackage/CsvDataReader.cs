@@ -139,8 +139,8 @@ namespace DataBoss.DataPackage
 			}
 
 			public IDataReader GetData(int i) => throw new NotSupportedException();
-			public long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
-			public long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
+			public long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferOffset, int length) => this.GetArray(i, fieldOffset, buffer, bufferOffset, length);
+			public long GetChars(int i, long fieldOffset, char[] buffer, int bufferOffset, int length) => this.GetArray(i, fieldOffset, buffer, bufferOffset, length);
 
 			public string GetDataTypeName(int i) => parent.GetDataTypeName(i);
 			public Type GetFieldType(int i) => parent.GetFieldType(i);

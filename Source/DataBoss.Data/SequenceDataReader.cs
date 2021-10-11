@@ -137,8 +137,9 @@ namespace DataBoss.Data
 			public object this[int i] => GetValue(i);
 			public object this[string name] => GetValue(GetOrdinal(name));
 
-			public long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
-			public long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
+			public long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferOffset, int length) => this.GetArray(i, fieldOffset, buffer, bufferOffset, length);
+			public long GetChars(int i, long fieldOffset, char[] buffer, int bufferOffset, int length) => this.GetArray(i, fieldOffset, buffer, bufferOffset, length);
+
 			public IDataReader GetData(int i) => throw new NotImplementedException();
 
 			public string GetDataTypeName(int i) => schema[i].DataTypeName;
