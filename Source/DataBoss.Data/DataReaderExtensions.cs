@@ -88,5 +88,16 @@ namespace DataBoss.Data
 			else
 				return (T)record.GetValue(i);
 		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static long GetArray<TItem>(this IDataReader reader, int i, long fieldOffset, TItem[] buffer, int bufferOffset, int length, [CallerMemberName] string callingMethod = null) {
+			if (reader.GetValue(i) is not TItem[] items)
+				throw new NotSupportedException($"Can't {callingMethod} from {reader.GetFieldType(i)}.");
+
+			var copyCount = Math.Min(length, items.LongLength - fieldOffset);
+			Array.Copy(items, fieldOffset, buffer, bufferOffset, copyCount);
+			return copyCount;
+		}
+
 	}
 }

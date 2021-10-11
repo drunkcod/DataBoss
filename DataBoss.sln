@@ -29,13 +29,14 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	ProjectSection(SolutionItems) = preProject
 		DataBoss.props = DataBoss.props
 		Directory.Build.props = Directory.Build.props
+		Package-Release.ps1 = Package-Release.ps1
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss.Labs", "DataBoss.Labs\DataBoss.Labs.csproj", "{0FDBCC8C-9526-4A7E-BAAD-8047F1A719FB}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss.Linq.Specs", "Source\DataBoss.Linq.Specs\DataBoss.Linq.Specs.csproj", "{5888A9F9-F039-46B9-A08A-66C66C887A18}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataBoss.PowerArgs", "Source\DataBoss.PowerArgs\DataBoss.PowerArgs.csproj", "{0DE4EA9C-7BA4-4992-9B67-2F674CEE25BD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss.PowerArgs", "Source\DataBoss.PowerArgs\DataBoss.PowerArgs.csproj", "{0DE4EA9C-7BA4-4992-9B67-2F674CEE25BD}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -9,7 +9,7 @@ $PackArgs = $BuildArgs + (Args /t:Pack /p:PackageOutputPath="..\..\Build")
 function NuPack {
     param([parameter(ValueFromRemainingArguments=$true)] [String[]] $args)
     & dotnet msbuild "Source/$args/$args.csproj" $PackArgs
-}D
+}
 
 dotnet msbuild ((Args DataBoss.sln /t:Restore /t:Clean /t:Build) + $BuildArgs)
 NuPack DataBoss.Linq

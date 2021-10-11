@@ -8,11 +8,11 @@ using Xunit;
 
 namespace DataBoss.Data
 {
-	public class SqlConnectionExtensionsSpec : IDisposable
+	public class SqlConnectionExtensions_ : IDisposable
 	{
 		SqlConnection Connection;
 
-		public SqlConnectionExtensionsSpec() { 
+		public SqlConnectionExtensions_() { 
 			Connection = new SqlConnection(SqlServerTestDb.GetOrCreate("DataBoss").ConnectionString);
 			Connection.Open();
 		}
@@ -57,8 +57,8 @@ namespace DataBoss.Data
 
 		[Fact]
 		public void ExecuteNonQuery_flows_local_transaction() {
-			using (var t = Connection.BeginTransaction())
-				Connection.ExecuteNonQuery(t, "select 42");
+			using var t = Connection.BeginTransaction();
+			Connection.ExecuteNonQuery(t, "select 42");
 		}
 	}
 }

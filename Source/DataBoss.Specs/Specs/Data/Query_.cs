@@ -5,11 +5,12 @@ using Xunit;
 
 namespace DataBoss.Data
 {
-	public class QuerySpec : IClassFixture<TemporaryDatabaseFixture>
+	public class Query_
+		: IClassFixture<TemporaryDatabaseFixture>
 	{
-		DataBossConnectionProvider Connections;
+		readonly DataBossConnectionProvider Connections;
 
-		public QuerySpec(TemporaryDatabaseFixture db) {
+		public Query_(TemporaryDatabaseFixture db) {
 			Connections = new DataBossConnectionProvider(db.ConnectionString);
 		}
 

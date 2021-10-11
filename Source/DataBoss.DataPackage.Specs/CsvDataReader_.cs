@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Text;
 using CheckThat;
 using DataBoss.Data;
 using DataBoss.Data.Common;
@@ -11,7 +12,7 @@ using Xunit;
 
 namespace DataBoss.DataPackage
 {
-	public class CsvDataReaderSpec
+	public class CsvDataReader_
 	{
 		[Fact]
 		public void field_nullability_defaults_to_true() {
@@ -113,6 +114,26 @@ namespace DataBoss.DataPackage
 			var r = dp.GetResource("numbers").Read();
 
 			Check.Exception<InvalidOperationException>(() => r.GetInt32(0));
+		}
+
+		[Fact]
+		public void bytes() {
+			var dp = new DataPackage();
+			var bytes = Encoding.UTF8.GetBytes("Hello Byte World!");
+			dp.AddResource(x => x.WithName("data").WithData(() => SequenceDataReader.Items(new ValueRow<byte[]> { Value = bytes })));
+
+			var data = dp.Serialize().GetResource("data").Read();
+			data.Read();
+
+			var bigBuffer = new byte[bytes.Length * 2];
+			var smallBuffer = new byte[bytes.Length / 2];
+			Check.That(
+				() => data is CsvDataReader,
+				() => data.GetFieldType(0) == typeof(byte[]),
+				() => data.GetBytes(0, 0, bigBuffer, 0, bigBuffer.Length) == bytes.Length,
+				() => bigBuffer.Take(bytes.Length).SequenceEqual(bytes),
+				() => data.GetBytes(0, 0, smallBuffer, 0, smallBuffer.Length) == smallBuffer.Length,
+				() => bytes.Take(smallBuffer.Length).SequenceEqual(smallBuffer));
 		}
 
 		class ValueRow<T> { public T Value { get; set; } }

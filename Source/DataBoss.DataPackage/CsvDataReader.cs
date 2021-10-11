@@ -35,7 +35,7 @@ namespace DataBoss.DataPackage
 				this.checkedIsNull = rowNumber == -1 ? NoData : CheckedIsNullUnsafe;
 			}
 
-			public CsvDataRecord Clone() => new CsvDataRecord(parent, rowNumber, new BitArray(isNull), (string[])fieldValue.Clone());
+			public CsvDataRecord Clone() => new(parent, rowNumber, new BitArray(isNull), (string[])fieldValue.Clone());
 
 			public void Fill(int rowNumber, CsvReader csv) {
 				this.rowNumber = rowNumber;
@@ -337,8 +337,8 @@ namespace DataBoss.DataPackage
 			return n;
 		}
 
-		public override long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
-		public override long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) => throw new NotImplementedException();
+		public override long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferOffset, int length) => this.GetArray(i, fieldOffset, buffer, bufferOffset, length);
+		public override long GetChars(int i, long fieldOffset, char[] buffer, int bufferOffset, int length) => this.GetArray(i, fieldOffset, buffer, bufferOffset, length);
 
 		public IDataRecord GetRecord() => current.Clone();
 

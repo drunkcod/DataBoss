@@ -251,17 +251,8 @@ namespace DataBoss.Data
 		T Current => hasData ? data.Current : NoData();
 		static T NoData() => throw new InvalidOperationException("Invalid attempt to read when no data is present, call Read()");
 
-		public override long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferOffset, int length) => GetArray(i, fieldOffset, buffer, bufferOffset, length);
-		public override long GetChars(int i, long fieldOffset, char[] buffer, int bufferOffset, int length) => GetArray(i, fieldOffset, buffer, bufferOffset, length);
-
-		long GetArray<TItem>(int i, long fieldOffset, TItem[] buffer, int bufferOffset, int length, [CallerMemberName] string callingMethod = null) {
-			if (GetValue(i) is not TItem[] items)
-				throw new NotSupportedException($"Can't {callingMethod} from {GetFieldType(i)}.");
-
-			var copyCount = Math.Min(length, items.LongLength - fieldOffset);
-			Array.Copy(items, fieldOffset, buffer, bufferOffset, copyCount);
-			return copyCount;
-		}
+		public override long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferOffset, int length) => this.GetArray(i, fieldOffset, buffer, bufferOffset, length);
+		public override long GetChars(int i, long fieldOffset, char[] buffer, int bufferOffset, int length) => this.GetArray(i, fieldOffset, buffer, bufferOffset, length);
 
 		public IDataRecord GetRecord() => new DataRecord(schema, fields, Current);
 
