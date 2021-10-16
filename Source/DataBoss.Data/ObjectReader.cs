@@ -55,7 +55,6 @@ namespace DataBoss.Data
 		}
 
 		public static IEnumerable<T> Enumerable<T>(Func<IDataReader> getData, ConverterCollection converters) {
-
 			using var items = Read<T>(getData(), converters);
 			while (items.MoveNext())
 				yield return items.Current;

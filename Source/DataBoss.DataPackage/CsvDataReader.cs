@@ -343,6 +343,5 @@ namespace DataBoss.DataPackage
 		public IDataRecord GetRecord() => current.Clone();
 
 		public override IEnumerator GetEnumerator() => new DataReaderEnumerator(this);
-
 	}
 }
