@@ -20,7 +20,7 @@ namespace DataBoss
 					new DataBossConfiguration {
 						ServerInstance = ".",
 						Database = "MyDB"
-					}.GetConnectionString() == "Server=.;Database=MyDB;Integrated Security=SSPI");
+					}.GetConnectionString().Contains("Integrated Security=SSPI"));
 			}
 
 			[Fact]
@@ -28,7 +28,7 @@ namespace DataBoss
 				Check.That(() =>
 					new DataBossConfiguration { 
 						Database = "MyDB", 
-					}.GetConnectionString().StartsWith("Server=."));
+					}.GetConnectionString().Contains("Server=."));
 			}
 		}
 

@@ -103,7 +103,7 @@ namespace DataBoss
 		public string GetConnectionString() {
 			if(string.IsNullOrEmpty(Database))
 				throw new InvalidOperationException("No database specified");
-			return $"Server={ServerInstance ?? "."};Database={Database};{GetCredentials()}";
+			return $"Application Name=DataBoss;Server={ServerInstance ?? "."};Database={Database};{GetCredentials()}";
 		}
 
 		public string GetCredentials() {
