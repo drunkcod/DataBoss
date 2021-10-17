@@ -103,15 +103,25 @@ namespace DataBoss
 		public string GetConnectionString() {
 			if(string.IsNullOrEmpty(Database))
 				throw new InvalidOperationException("No database specified");
-			return $"Application Name=DataBoss;Server={ServerInstance ?? "."};Database={Database};{GetCredentials()}";
+			var cs = new SqlConnectionStringBuilder {
+				Pooling = false,
+				ApplicationName = "DataBoss",
+				DataSource = ServerInstance ?? ".",
+				InitialCatalog = Database,
+			};
+			AddCredentials(cs);
+			return cs.ToString();
 		}
 
-		public string GetCredentials() {
+		void AddCredentials(SqlConnectionStringBuilder cs) {
 			if(UseIntegratedSecurity)
-				return "Integrated Security=SSPI";
-			if(string.IsNullOrEmpty(Password))
+				cs.IntegratedSecurity = true;
+			else if(string.IsNullOrEmpty(Password))
 				throw new ArgumentException("No Password given for user '" + User + "'");
-			return $"User={User};Password={Password}";
+			else {
+				cs.UserID = User;
+				cs.Password = Password;
+			}
 		}
 	}
 }

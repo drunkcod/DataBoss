@@ -27,7 +27,7 @@ namespace DataBoss
 			this.scripter = db.GetScripter();
 		}
 
-		void IDisposable.Dispose() => db.Dispose();
+		public void Dispose() => db.Dispose();
 
 		public static DataBoss Create(IDataBossConfiguration config, IDataBossLog log) =>
 			new DataBoss(config, log, new SqlConnection(config.GetConnectionString()));

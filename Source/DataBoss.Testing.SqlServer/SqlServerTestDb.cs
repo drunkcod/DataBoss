@@ -14,8 +14,9 @@ namespace DataBoss.Testing.SqlServer
 			+ "declare @now datetime = getdate();\n"
 			+ "exec [{0}]..sp_addextendedproperty @name='testdb_created_at', @value=@now;\n";
 
-		const string DropInstanceQuery = 
+		const string DropInstanceQuery =
 			  "alter database [{0}] set single_user with rollback immediate;\n"
+			+ "use master;\n"
 			+ "drop database [{0}];\n";
 
 		static readonly ConcurrentDictionary<string, SqlServerTestDb> DatabaseInstances = new ConcurrentDictionary<string, SqlServerTestDb>();
@@ -76,15 +77,21 @@ namespace DataBoss.Testing.SqlServer
 
 		static void ForceDropDatabase(TestDbConfig config) {
 			DatabaseInstances.TryRemove(config.Name, out _);
-			ExecuteServerCommands(config, cmd => cmd.ExecuteNonQuery(string.Format(DropInstanceQuery, config.Name)));
+			//clearing the pool substantially reduces the time to drop.
+			using var c = new SqlConnection(config.ToString());
+			SqlConnection.ClearPool(c);
+			c.Open();
+			c.ExecuteNonQuery(string.Format(DropInstanceQuery, config.Name));
 		}
 
 		public static void RegisterForAutoCleanup() =>
 			AppDomain.CurrentDomain.DomainUnload += delegate { DeleteInstances(); };
 
 		static void ExecuteServerCommands(TestDbConfig config, Action<SqlCommand> execute) {
+			var cs = config.GetServerConnectionString();
+			cs.Pooling = false;
 			var cmd = new SqlCommand { 
-				Connection = config.GetServerConnection(),
+				Connection = new SqlConnection(cs.ToString()),
 			};
 			try {
 				cmd.Connection.Open();

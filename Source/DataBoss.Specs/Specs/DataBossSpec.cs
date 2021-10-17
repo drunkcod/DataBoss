@@ -13,14 +13,16 @@ using Xunit;
 
 namespace DataBoss
 {
-	public class DataBossTestsFixture 
+	public class DataBossTestsFixture : IDisposable
 	{
-		public string DatabaseName;
+		readonly SqlServerTestDb db;
+		public string DatabaseName => db.Name;
 
 		public DataBossTestsFixture() {
-			DatabaseName = SqlServerTestDb.GetOrCreate("DataBoss Tests").Name;
-			SqlServerTestDb.RegisterForAutoCleanup();
+			this.db = SqlServerTestDb.GetOrCreate("DataBoss Tests");
 		}
+
+		public void Dispose() => db.Dispose();
 	}
 
 	public class DataBossSpec : IClassFixture<DataBossTestsFixture>, IDisposable
@@ -47,6 +49,7 @@ namespace DataBoss
 		}
 
 		void IDisposable.Dispose() {
+			DataBoss.Dispose();
 			DataBoss = null;
 			Context.Dispose();
 			Context = null;

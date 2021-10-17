@@ -9,16 +9,16 @@ namespace DataBoss.Testing.SqlServer
 		public string Username;
 		public string Password;
 		
-		public override string ToString() {
+		public SqlConnectionStringBuilder GetConnectionString() {
 			var cs = GetServerConnectionString();
 			cs.InitialCatalog = Name ?? string.Empty;
-			return cs.ToString();
+			return cs;
 		}
 
-		internal SqlConnection GetServerConnection() => 
-			new SqlConnection(GetServerConnectionString().ToString());
+		public override string ToString() => 
+			GetConnectionString().ToString();
 
-		SqlConnectionStringBuilder GetServerConnectionString() {
+		internal SqlConnectionStringBuilder GetServerConnectionString() {
 			var cs = new SqlConnectionStringBuilder {
 				ApplicationName = typeof(SqlServerTestDb).FullName,
 				DataSource = Server ?? ".",

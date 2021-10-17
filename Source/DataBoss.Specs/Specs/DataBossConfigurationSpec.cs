@@ -20,7 +20,7 @@ namespace DataBoss
 					new DataBossConfiguration {
 						ServerInstance = ".",
 						Database = "MyDB"
-					}.GetConnectionString().Contains("Integrated Security=SSPI"));
+					}.GetConnectionString().Contains("Integrated Security=True"));
 			}
 
 			[Fact]
@@ -28,7 +28,7 @@ namespace DataBoss
 				Check.That(() =>
 					new DataBossConfiguration { 
 						Database = "MyDB", 
-					}.GetConnectionString().Contains("Server=."));
+					}.GetConnectionString().Contains("Data Source=."));
 			}
 		}
 
@@ -60,9 +60,11 @@ namespace DataBoss
 		}
 
 		[Fact]
-		public void uses_supplied_user_and_password_if_available() {
-			Check.That(() => new DataBossConfiguration{ Database = ".", User = "sa", Password = "pass" }.GetConnectionString().EndsWith("User=sa;Password=pass"));
-		}
+		public void uses_supplied_user_and_password_if_available() => Check
+			.With(() => new DataBossConfiguration{ Database = ".", User = "sa", Password = "pass" }.GetConnectionString())
+			.That(
+				cs => cs.Contains("User ID=sa"),
+				cs => cs.Contains("Password=pass"));
 
 		[Fact]
 		public void requires_Database_to_be_set_when_getting_connection_string() {
@@ -72,7 +74,7 @@ namespace DataBoss
 
 		[Fact]
 		public void GetCredentials_requires_password_when_user_given() {
-			Check.Exception<ArgumentException>(() => new DataBossConfiguration { User = "sa" }.GetCredentials());
+			Check.Exception<ArgumentException>(() => new DataBossConfiguration { Database = ".", User = "sa" }.GetConnectionString());
 		}
 
 		[Fact]
