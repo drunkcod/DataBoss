@@ -111,8 +111,6 @@ namespace DataBoss.Data
 
 		class DbQuery
 		{
-			static readonly ConcurrentDictionary<Type, Action<IDbCommand, object>> CommandFactory = new();
-
 			public readonly IDataBossConnection Connection;
 			public readonly string CommandText;
 			public readonly DataBossQueryOptions Options;
@@ -142,11 +140,13 @@ namespace DataBoss.Data
 			public IEnumerable<TResult> Read<T1, T2, T3, T4, T5, TResult>(Func<T1, T2, T3, T4, T5, TResult> selector) => DbObjectQuery.Create(GetCommand, Options.Buffered).Read<Func<T1, T2, T3, T4, T5, TResult>, TResult>(selector);
 			public IEnumerable<TResult> Read<T1, T2, T3, T4, T5, T6, TResult>(Func<T1, T2, T3, T4, T5, T6, TResult> selector) => DbObjectQuery.Create(GetCommand, Options.Buffered).Read<Func<T1, T2, T3, T4, T5, T6, TResult>, TResult>(selector);
 			public IEnumerable<TResult> Read<T1, T2, T3, T4, T5, T6, T7, TResult>(Func<T1, T2, T3, T4, T5, T6, T7, TResult> selector) => DbObjectQuery.Create(GetCommand, Options.Buffered).Read<Func<T1, T2, T3, T4, T5, T6, T7, TResult>, TResult>(selector);
-
-			static Action<IDbCommand, object> AddParameters(Type t, ISqlDialect dialect) =>
-				CommandFactory.GetOrAdd(t,
-					type => (Action<IDbCommand, object>)ToParams.CreateExtractor(dialect, typeof(IDbCommand), type, typeof(object)).Compile());
 		}
+
+		static readonly ConcurrentDictionary<Type, Action<IDbCommand, object>> CommandFactory = new();
+
+		internal static Action<IDbCommand, object> AddParameters(Type t, ISqlDialect dialect) =>
+			CommandFactory.GetOrAdd(t,
+				type => (Action<IDbCommand, object>)ToParams.CreateExtractor(dialect, typeof(IDbCommand), type, typeof(object)).Compile());
 
 		public static IDbConnection WithCommandTimeout(this IDbConnection db, int commandTimeout) =>
 			new DbConnectionDecorator(db) { CommandTimeout = commandTimeout };
@@ -253,6 +253,31 @@ namespace DataBoss.Data
 			WrapConnection = Expression.Lambda<Func<IDbConnection, IDataBossConnection>>(body, con)
 				.Compile();
 
+		}
+	}
+
+	public static class DbCommandExtensions
+	{
+		public static IEnumerator<T> ExecuteQuery<T>(this IDbCommand self, string query) {
+			self.CommandText = query;
+
+			return MakeEnumerator<T>(self);
+		}
+	
+		public static IEnumerator<T> ExecuteQuery<T>(this IDbCommand self, string query, object args) {
+			self.CommandText = query;
+			self.Parameters.Clear();
+			if(args != null)
+				DbConnectionExtensions.AddParameters(args.GetType(), DbConnectionExtensions.Wrap(self.Connection).Dialect)(self, args);
+
+			return MakeEnumerator<T>(self);
+		}
+
+		static IEnumerator<T> MakeEnumerator<T>(IDbCommand cmd) {
+			using var reader = cmd.ExecuteReader();
+			var convert = ConverterFactory.Default.GetConverter<IDataReader, T>(reader).Compiled;
+			while (reader.Read())
+				yield return convert(reader);
 		}
 	}
 }
