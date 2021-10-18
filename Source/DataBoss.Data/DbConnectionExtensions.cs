@@ -274,10 +274,9 @@ namespace DataBoss.Data
 		}
 
 		static IEnumerator<T> MakeEnumerator<T>(IDbCommand cmd) {
-			using var reader = cmd.ExecuteReader();
-			var convert = ConverterFactory.Default.GetConverter<IDataReader, T>(reader).Compiled;
-			while (reader.Read())
-				yield return convert(reader);
+			var reader = cmd.ExecuteReader();
+			var converter = ConverterFactory.Default.GetConverter<IDataReader, T>(reader).Compiled;
+			return new ConvertingEnumerator<IDataReader, T>(reader, converter);
 		}
 	}
 }
