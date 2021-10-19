@@ -142,6 +142,7 @@ namespace DataBoss.Linq
 		}
 
 		public static IEnumerator<IMemoryOwner<T>> Batch<T>(this IEnumerator<T> items, MemoryPool<T> memory) => items.Batch(memory, -1);
+		
 		public static IEnumerator<IMemoryOwner<T>> Batch<T>(this IEnumerator<T> items, MemoryPool<T> memory, int minBufferSize = -1) {
 			try {
 				if (!items.MoveNext())
