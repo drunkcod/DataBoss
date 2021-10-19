@@ -7,18 +7,26 @@ namespace DataBoss.Linq
 	{
 		public static List<T> ToList<T>(this IEnumerator<T> self) {
 			var r = new List<T>();
-			while (self.MoveNext())
-				r.Add(self.Current);
-			return r;
+			try {
+				while (self.MoveNext())
+					r.Add(self.Current);
+				return r;
+			} finally {
+				self.Dispose();
+			}
 		}
 
 		public static T[] ToArray<T>(this IEnumerator<T> self) {
 			var items = new T[32];
 			var n = 0;
-			while(self.MoveNext()) {
-				if (n == items.Length)
-					Array.Resize(ref items, NextBufferSize(items.Length));
-				items[n++] = self.Current;
+			try {
+				while(self.MoveNext()) {
+					if (n == items.Length)
+						Array.Resize(ref items, NextBufferSize(items.Length));
+					items[n++] = self.Current;
+				}
+			} finally {
+				self.Dispose();
 			}
 			Array.Resize(ref items, n);
 			return items;
@@ -32,43 +40,60 @@ namespace DataBoss.Linq
 		}
 
 		public static IEnumerator<ArraySegment<T>> Batch<T>(this IEnumerator<T> items, Func<T[]> newBucket) {
-			if (!items.MoveNext())
-				yield break;
-			var n = 0;
-			var bucket = newBucket();
-			do {
-				bucket[n++] = items.Current;
-				if (n == bucket.Length) {
-					yield return new ArraySegment<T>(bucket);
-					bucket = newBucket();
-					n = 0;
-				}
-			} while (items.MoveNext());
+			try {
+				if (!items.MoveNext())
+					yield break;
 
-			if (n != 0)
-				yield return new ArraySegment<T>(bucket, 0, n);
+				var n = 0;
+				var bucket = newBucket();
+				do {
+					bucket[n++] = items.Current;
+					if (n == bucket.Length) {
+						yield return new ArraySegment<T>(bucket);
+						bucket = newBucket();
+						n = 0;
+					}
+				} while (items.MoveNext());
+
+				if (n != 0)
+					yield return new ArraySegment<T>(bucket, 0, n);
+			} finally {
+				items.Dispose();
+			}
 		}
 
 		public static int Count<T>(this IEnumerator<T> self) {
 			var n = 0;
-			while (self.MoveNext())
-				++n;
+			try {
+				while (self.MoveNext())
+					++n;
+			} finally {
+				self.Dispose();
+			}
 			return n;
 		}
 
 		public static T First<T>(this IEnumerator<T> self) {
-			if (!self.MoveNext())
-				return MissingLinq.ThrowNoElements<T>();
-			return self.Current;
+			try {
+				if (!self.MoveNext())
+					return MissingLinq.ThrowNoElements<T>();
+				return self.Current;
+			} finally {
+				self.Dispose();
+			}
 		}
 
 		public static T Single<T>(this IEnumerator<T> self) {
-			if (!self.MoveNext())
-				return MissingLinq.ThrowNoElements<T>();
-			var found = self.Current;
-			if (self.MoveNext())
-				return MissingLinq.ThrowMoreThanOneElement<T>();
-			return found;
+			try {
+				if (!self.MoveNext())
+					return MissingLinq.ThrowNoElements<T>();
+				var found = self.Current;
+				if (self.MoveNext())
+					return MissingLinq.ThrowMoreThanOneElement<T>();
+				return found;
+			} finally {
+				self.Dispose();
+			}
 		}
 	}
 }
@@ -99,23 +124,27 @@ namespace DataBoss.Linq
 
 		public static IEnumerator<IMemoryOwner<T>> Batch<T>(this IEnumerator<T> items, MemoryPool<T> memory) => items.Batch(memory, -1);
 		public static IEnumerator<IMemoryOwner<T>> Batch<T>(this IEnumerator<T> items, MemoryPool<T> memory, int minBufferSize = -1) {
-			if (!items.MoveNext())
-				yield break;
-			var n = 0;
-			var bucket = memory.Rent(minBufferSize);
-			var buffer = bucket.Memory.Span;
-			do {
-				buffer[n++] = items.Current;
-				if (n == buffer.Length) {
-					yield return bucket;
-					bucket = memory.Rent(minBufferSize);
-					buffer = bucket.Memory.Span;
-					n = 0;
-				}
-			} while (items.MoveNext());
+			try {
+				if (!items.MoveNext())
+					yield break;
+				var n = 0;
+				var bucket = memory.Rent(minBufferSize);
+				var buffer = bucket.Memory.Span;
+				do {
+					buffer[n++] = items.Current;
+					if (n == buffer.Length) {
+						yield return bucket;
+						bucket = memory.Rent(minBufferSize);
+						buffer = bucket.Memory.Span;
+						n = 0;
+					}
+				} while (items.MoveNext());
 
-			if (n != 0)
-				yield return new MemorySliceOwner<T>(bucket.Memory.Slice(0, n), bucket);
+				if (n != 0)
+					yield return new MemorySliceOwner<T>(bucket.Memory.Slice(0, n), bucket);
+			} finally {
+				items.Dispose();
+			}
 		}
 	}
 }
