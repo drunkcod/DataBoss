@@ -148,6 +148,26 @@ namespace DataBoss.Linq
 			Check.That(() => xs.IsDisposed);
 		}
 
+		[Fact]
+		public void Select() {
+			var items = Items(3);
+			var xs = GetEnumerator(items);
+
+			Check.That(
+				() => xs.Select(x => x + x).ToList().SequenceEqual(items.Select(x => x + x)),
+				() => xs.IsDisposed);
+		}
+
+		[Fact]
+		public void Select_with_index() {
+			var items = Items(3);
+			var xs = GetEnumerator(items);
+
+			Check.That(
+				() => xs.Select((x, n) => x * n).ToList().SequenceEqual(items.Select((x, n) => x * n)),
+				() => xs.IsDisposed);
+		}
+
 		static Enumerator<T> GetEnumerator<T>(IEnumerable<T> xs) => new(xs.GetEnumerator());
 
 		static ICollection<int> Items(int count) => Enumerable.Range(0, count).Select(x => x).ToList();

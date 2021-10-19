@@ -95,6 +95,25 @@ namespace DataBoss.Linq
 				self.Dispose();
 			}
 		}
+
+		public static IEnumerator<TResult> Select<T, TResult>(this IEnumerator<T> self, Func<T, TResult> selector) {
+			try {
+				while(self.MoveNext())
+					yield return selector(self.Current);
+			} finally {
+				self.Dispose();
+			}
+		}
+
+		public static IEnumerator<TResult> Select<T, TResult>(this IEnumerator<T> self, Func<T, int, TResult> selector) {
+			try {
+				for(var n = 0; self.MoveNext(); ++n)
+					yield return selector(self.Current, n);
+			}
+			finally {
+				self.Dispose();
+			}
+		}
 	}
 }
 
