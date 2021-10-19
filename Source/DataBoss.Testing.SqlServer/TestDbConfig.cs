@@ -20,7 +20,6 @@ namespace DataBoss.Testing.SqlServer
 
 		internal SqlConnectionStringBuilder GetServerConnectionString() {
 			var cs = new SqlConnectionStringBuilder {
-				ApplicationName = typeof(SqlServerTestDb).FullName,
 				DataSource = Server ?? ".",
 			};
 			if (Username != null) {

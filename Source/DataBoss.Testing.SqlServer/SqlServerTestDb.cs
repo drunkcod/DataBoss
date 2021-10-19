@@ -89,6 +89,7 @@ namespace DataBoss.Testing.SqlServer
 
 		static void ExecuteServerCommands(TestDbConfig config, Action<SqlCommand> execute) {
 			var cs = config.GetServerConnectionString();
+			cs.ApplicationName = typeof(SqlServerTestDb).FullName;
 			cs.Pooling = false;
 			var cmd = new SqlCommand { 
 				Connection = new SqlConnection(cs.ToString()),
