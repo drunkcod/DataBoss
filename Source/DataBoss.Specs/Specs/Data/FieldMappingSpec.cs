@@ -44,7 +44,7 @@ namespace DataBoss.Data
 			var fieldMapping = new FieldMapping<MyThing>();
 			fieldMapping.Map("Empty", MakeLambda((MyThing x) => string.Empty));
 
-			Check.That(() => fieldMapping.GetAccessorExpression().Body.ToString() == "(target[0] = Convert(String.Empty))");
+			Check.That(() => fieldMapping.GetAccessorExpression().Body.ToString() == "(target[0] = Convert(String.Empty, Object))");
 		}
 
 		[Fact]
@@ -55,7 +55,7 @@ namespace DataBoss.Data
 			fieldMapping.MapAll();
 
 			Check.That(
-				() => fieldMapping.GetSelector(0).ToString() == "IIF(source.Value.HasValue, Convert(source.Value.Value), )",
+				() => fieldMapping.GetSelector(0).ToString() == "IIF(source.Value.HasValue, Convert(source.Value.Value, Object), )",
 				() => fieldMapping.Invoke(nullItem).Single() == DBNull.Value,
 				() => fieldMapping.Invoke(item1).Single() == (object)item1.Value);
 		}

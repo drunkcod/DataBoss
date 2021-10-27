@@ -224,6 +224,9 @@ namespace DataBoss.Data
 				?? throw new InvalidConversionException($"No suitable way found to init {item.Name ?? "$"} of type {item.Type}", ResultType);
 
 			MemberReader? GetCtor(FieldMap map, in ItemInfo item) {
+				if(item.Type == typeof(string))
+					return null;
+
 				var ctors = item.Type.GetConstructors()
 					.Select(ctor => (ctor, p: Array.ConvertAll(ctor.GetParameters(), x => new ItemInfo(x.Name, x.ParameterType))))
 					.OrderByDescending(x => x.p.Length);
