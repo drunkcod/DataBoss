@@ -425,9 +425,9 @@ namespace DataBoss.DataPackage
 		[Fact]
 		public void AddOrUpdateResource_update_updates() {
 			var dp = new DataPackage();
-			Action<CsvResourceBuilder> create = x => x.WithData(() => SequenceDataReader.Items(new { Id = 1 }));
-			dp.AddOrUpdateResource("stuff", create, x => x);
-			dp.AddOrUpdateResource("stuff", create, x => x.WithData(() => x.Read().Concat(new[] { new { Id = 2 } })));
+			static void Create(CsvResourceBuilder x) => x.WithData(() => SequenceDataReader.Items(new { Id = 1 }));
+			dp.AddOrUpdateResource("stuff", Create, x => x);
+			dp.AddOrUpdateResource("stuff", Create, x => x.WithData(() => x.Read().Concat(new[] { new { Id = 2 } })));
 
 			var rows = dp.Serialize().GetResource("stuff").Read<IdRow<int>>().ToList();
 			Check.That(() => rows.Count == 2);
@@ -458,7 +458,7 @@ namespace DataBoss.DataPackage
 			#pragma warning restore CS0649
 		}
 
-		NumberFormatInfo GetNumbersFormat(DataPackage data) => data.GetResource("numbers").Schema.Fields.Single().GetNumberFormat();
+		static NumberFormatInfo GetNumbersFormat(DataPackage data) => data.GetResource("numbers").Schema.Fields.Single().GetNumberFormat();
 	}
 
 	public class DataPackage_ResourceCompression
@@ -497,7 +497,7 @@ namespace DataBoss.DataPackage
 
 	public class DataPackage_ZipResourceCompression
 	{
-		InMemoryDataPackageStore store = new();
+		readonly InMemoryDataPackageStore store = new();
 
 		public DataPackage_ZipResourceCompression() {
 			var dp = new DataPackage();
@@ -525,6 +525,6 @@ namespace DataBoss.DataPackage
 			Check.That(() => dp.GetResource("data").Read<ValueRow>().Single().Value == 1);
 		}
 
-		class ValueRow { public int Value; }
+		class ValueRow { public int Value { get; set; } }
 	}
 }

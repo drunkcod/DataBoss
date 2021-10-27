@@ -232,8 +232,8 @@ namespace DataBoss.DataPackage
 				() => xform.GetString(2) == item.Id.ToString());
 		}
 
-		struct ValueRow { public int Value; }
-		struct ValueTextRow { public int Value; public string Text; };
-		struct IdValueTextRow { public int Id;  public int Value; public string Text; };
+		struct ValueRow { public int Value { get; set; } }
+		struct ValueTextRow { public int Value { get; set; } public string Text { get; set; } };
+		struct IdValueTextRow { public int Id { get; set; } public int Value { get; set; } public string Text { get; set; } };
 	}
 }
