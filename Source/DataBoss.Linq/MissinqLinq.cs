@@ -35,11 +35,38 @@ namespace DataBoss.Linq
 			}
 
 			public IEnumerator<TItem> GetEnumerator() => items.Select(selector).GetEnumerator();
-
-			IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
-			
-			static void ThrowInsufficientSpaceException() => new int[1].CopyTo(new int[0], 0);
+			IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();			
 		}
+
+		class CollectionReadOnlyAdapter<T> : IReadOnlyCollection<T>, ICollection<T>
+		{
+			readonly ICollection<T> items;
+
+			public CollectionReadOnlyAdapter(ICollection<T> items) {
+				this.items = items;
+			}
+
+			public int Count => items.Count;
+			public bool IsReadOnly => true;
+
+			public void Add(T item) => throw new NotSupportedException();
+			public void Clear() => throw new NotSupportedException();
+			public bool Remove(T item) => throw new NotSupportedException();
+
+			public bool Contains(T item) => items.Any(x => x.Equals(item));
+
+			public void CopyTo(T[] array, int arrayIndex) {
+				if (array.Length < arrayIndex + items.Count)
+					ThrowInsufficientSpaceException();
+				foreach (var item in items)
+					array[arrayIndex++] = item;
+			}
+
+			public IEnumerator<T> GetEnumerator() => items.GetEnumerator();
+			IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+		}
+
+		static void ThrowInsufficientSpaceException() => new int[1].CopyTo(new int[0], 0);
 
 		static KeyValuePair<TKey, TValue> KeyValuePair<TKey, TValue>(TKey key, TValue value) => new KeyValuePair<TKey, TValue>(key, value);
 
@@ -62,6 +89,9 @@ namespace DataBoss.Linq
 		public static IReadOnlyCollection<T> AsReadOnly<T>(this IReadOnlyCollection<T> self) => self;
 		public static IReadOnlyCollection<TItem> AsReadOnly<T, TItem>(this IReadOnlyCollection<T> self, Func<T, TItem> selector) =>
 			new CollectionAdapter<T, TItem>(self, selector);
+
+		public static IReadOnlyCollection<T> ToReadOnly<T>(this ICollection<T> self) => 
+			self is IReadOnlyCollection<T> xs ? xs : new CollectionReadOnlyAdapter<T>(self);
 
 		public static IEnumerable<IReadOnlyList<T>> Batch<T>(this IEnumerable<T> items, int batchSize) =>
 			Batch(items, () => new T[batchSize]).Cast<IReadOnlyList<T>>();
