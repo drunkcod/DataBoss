@@ -17,13 +17,13 @@ namespace DataBoss
 	{
 		readonly IDataBossConfiguration config;
 		readonly IDataBossLog log;
-		readonly SqlConnection db;
+		readonly IDataBossConnection db;
 		readonly DataBossScripter scripter;
 
 		DataBoss(IDataBossConfiguration config, IDataBossLog log, SqlConnection db) {
 			this.config = config;
 			this.log = log;
-			this.db = db;
+			this.db = DbConnectionExtensions.Wrap(db);
 			this.scripter = db.GetScripter();
 		}
 
@@ -35,12 +35,12 @@ namespace DataBoss
 		[DataBossCommand("init")]
 		public int Initialize() {
 			EnsureDataBase(config.GetConnectionString());
-			using(var cmd = new SqlCommand(scripter.CreateMissing(typeof(DataBossHistory)), db))
+			using(var cmd = db.CreateCommand(scripter.CreateMissing(typeof(DataBossHistory))))
 			{
 				Open();
-				using(var r = cmd.ExecuteReader())
-					while(r.Read())
-						log.Info("{0}", r.GetValue(0));
+				using var r = cmd.ExecuteReader();
+				while (r.Read())
+					log.Info("{0}", r.GetValue(0));
 			}
 			return 0;
 		}
@@ -103,7 +103,7 @@ namespace DataBoss
 		}
 
 		IDataBossMigrationScope GetTargetScope(IDataBossConfiguration config) {
-			var scopeContext = DataBossMigrationScopeContext.From(db);
+			var scopeContext = DataBossMigrationScopeContext.From(config.GetConnectionString());
 
 			if (!string.IsNullOrEmpty(config.Script))
 				return config.Script == "con:"
@@ -127,13 +127,15 @@ namespace DataBoss
 		}
 
 		public List<DataBossMigrationInfo> GetAppliedMigrations() {
-			using(var cmd = new SqlCommand("select object_id('__DataBossHistory', 'U')", db)) {
-				if(cmd.ExecuteScalar() is DBNull)
-					throw new InvalidOperationException($"DataBoss has not been initialized, run: init <target>");
-				cmd.CommandText = scripter.Select(typeof(DataBossMigrationInfo), typeof(DataBossHistory));
-				using(var reader = cmd.ExecuteReader())
-					return reader.Read<DataBossMigrationInfo>().ToList();
-			}
+			using var cmd = db.CreateCommand("select object_id('__DataBossHistory', 'U')"); 
+			
+			if (cmd.ExecuteScalar() is DBNull)
+				throw new InvalidOperationException($"DataBoss has not been initialized, run: init <target>");
+			
+			cmd.CommandText = scripter.Select(typeof(DataBossMigrationInfo), typeof(DataBossHistory));
+			
+			using var reader = cmd.ExecuteReader();
+			return reader.Read<DataBossMigrationInfo>().ToList();
 		}
 	}
 }

@@ -1,4 +1,4 @@
-﻿using System.Data.SqlClient;
+using System.Data.SqlClient;
 
 namespace DataBoss.Migrations
 {
@@ -14,10 +14,12 @@ namespace DataBoss.Migrations
 			this.Server = server;
 		}
 
-		public static DataBossMigrationScopeContext From(SqlConnection db) =>
-			new DataBossMigrationScopeContext(
-				db.ConnectionString,
-				db.Database,
-				string.IsNullOrEmpty(db.DataSource) ? "." : db.DataSource);
+		public static DataBossMigrationScopeContext From(string connectionString) {
+			var cs = new SqlConnectionStringBuilder(connectionString);
+			return new DataBossMigrationScopeContext(
+				connectionString,
+				cs.InitialCatalog,
+				string.IsNullOrEmpty(cs.DataSource) ? "." : cs.DataSource);
+		}
 	}
 }

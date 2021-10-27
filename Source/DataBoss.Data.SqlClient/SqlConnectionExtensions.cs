@@ -12,13 +12,22 @@ namespace DataBoss.Data
 	using System.Data;
 	using DataBoss.Data.Scripting;
 
-	public class DataBossSqlConnection : IDataBossConnection
+	public sealed class DataBossSqlConnection : IDataBossConnection
 	{
 		readonly SqlConnection connection;
 
 		public DataBossSqlConnection(SqlConnection connection) { this.connection = connection; }
 
 		public ISqlDialect Dialect => MsSqlDialect.Instance;
+
+		public ConnectionState State => connection.State;
+
+		public void Dispose() => connection.Dispose();
+
+		public void Open() => connection.Open();
+
+		public IDbTransaction BeginTransaction(string transactionName) =>
+			connection.BeginTransaction(transactionName);
 
 		public void CreateTable(string destinationTable, IDataReader data) =>
 			connection.CreateTable(destinationTable, data);

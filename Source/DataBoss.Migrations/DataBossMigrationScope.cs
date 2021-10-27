@@ -1,7 +1,8 @@
 using System;
-using System.Collections.Generic;
+using System.Data;
 using System.Data.SqlClient;
 using System.IO;
+using DataBoss.Data;
 using DataBoss.Linq;
 
 namespace DataBoss.Migrations
@@ -9,14 +10,14 @@ namespace DataBoss.Migrations
 	public class DataBossMigrationScope : IDataBossMigrationScope
 	{
 		readonly DataBossMigrationScopeContext scopeContext;
-		readonly SqlConnection db;
+		readonly IDataBossConnection db;
 		readonly DataBossShellExecute shellExecute;
-		SqlCommand cmd;
+		IDbCommand cmd;
 		bool isFaulted;
 
 		public DataBossMigrationScope(
 			DataBossMigrationScopeContext scopeContext,
-			SqlConnection db, 
+			IDataBossConnection db, 
 			DataBossShellExecute shellExecute) {
 			this.scopeContext = scopeContext;
 			this.db = db;
@@ -26,15 +27,13 @@ namespace DataBoss.Migrations
 		public event EventHandler<ErrorEventArgs> OnError;
 
 		public void Begin(DataBossMigrationInfo info) {
-			cmd = new SqlCommand(
-				"insert __DataBossHistory(Id, Context, Name, StartedAt, [User]) values(@id, @context, @name, getdate(), @user)",
-				db, 
-				db.BeginTransaction("LikeABoss"));
-
-			cmd.Parameters.AddWithValue("@id", info.Id);
-			cmd.Parameters.AddWithValue("@context", info.Context ?? string.Empty);
-			cmd.Parameters.AddWithValue("@name", info.Name);
-			cmd.Parameters.AddWithValue("@user", Environment.UserName);
+			cmd = db.CreateCommand("insert __DataBossHistory(Id, Context, Name, StartedAt, [User]) values(@id, @context, @name, getdate(), @user)", new {
+				id = info.Id,
+				context = info.Context ?? string.Empty,
+				name = info.Name,
+				user = Environment.UserName
+			});
+			cmd.Transaction = db.BeginTransaction("LikeABoss");
 			cmd.ExecuteNonQuery();
 		}
 
@@ -55,10 +54,11 @@ namespace DataBoss.Migrations
 		}
 
 		private bool ExecuteQuery(DataBossQueryBatch query) {
-			using (var q = new SqlCommand(query.ToString(), db, cmd.Transaction) { CommandTimeout = 0 }) {
-					q.ExecuteNonQuery();
-					return true;
-			}
+			using var q = db.CreateCommand(query.ToString());
+			q.CommandTimeout = 0;
+			q.Transaction = cmd.Transaction;			
+			q.ExecuteNonQuery();
+			return true;
 		}
 
 		private bool ExecuteCommand(DataBossQueryBatch command) =>

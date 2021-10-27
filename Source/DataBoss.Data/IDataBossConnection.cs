@@ -1,3 +1,4 @@
+using System;
 using System.Data;
 using System.Linq.Expressions;
 
@@ -11,9 +12,14 @@ namespace DataBoss.Data
 		bool TryCreateDialectSpecificParameter(string name, Expression readMember, out Expression create);
 	}
 
-	public interface IDataBossConnection
+	public interface IDataBossConnection : IDisposable
 	{
 		ISqlDialect Dialect { get; }
+		ConnectionState State { get; }
+
+		void Open();
+
+		IDbTransaction BeginTransaction(string transactionName);
 
 		void CreateTable(string destinationTable, IDataReader data);
 		void Insert(string destinationTable, IDataReader rows, DataBossBulkCopySettings settings);
