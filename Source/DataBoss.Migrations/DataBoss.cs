@@ -105,10 +105,10 @@ namespace DataBoss
 		IDataBossMigrationScope GetTargetScope(IDataBossConfiguration config) {
 			var scopeContext = DataBossMigrationScopeContext.From(db);
 
-			if (config is DataBossConfiguration  x && !string.IsNullOrEmpty(x.Script))
-				return x.Script == "con:"
+			if (!string.IsNullOrEmpty(config.Script))
+				return config.Script == "con:"
 					? new DataBossScriptMigrationScope(scopeContext, Console.Out, false) 
-					: new DataBossScriptMigrationScope(scopeContext, new StreamWriter(File.Create(x.Script)), true);
+					: new DataBossScriptMigrationScope(scopeContext, new StreamWriter(File.Create(config.Script)), true);
 			
 			var shell = new DataBossShellExecute();
 			shell.OutputDataReceived += (_, e) => Console.WriteLine(e.Data);

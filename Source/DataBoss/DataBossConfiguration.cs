@@ -9,12 +9,6 @@ using System.Xml.Serialization;
 
 namespace DataBoss
 {
-	public interface IDataBossConfiguration
-	{
-		string GetConnectionString();
-		IDataBossMigration GetTargetMigration();
-	}
-
 	[XmlRoot("db")]
 	public class DataBossConfiguration : IDataBossConfiguration
 	{
@@ -34,7 +28,7 @@ namespace DataBoss
 		public DataBossMigrationPath[] Migrations;
 
 		[XmlIgnore]
-		public string Script;
+		public string Script { get; set; }
 
 		[XmlIgnore]
 		public bool UseIntegratedSecurity => string.IsNullOrEmpty(User);

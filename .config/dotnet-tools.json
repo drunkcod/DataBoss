@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "isRoot": true,
+  "tools": {
+    "databoss": {
+      "version": "0.0.100",
+      "commands": [
+        "databoss"
+      ]
+    }
+  }
+}

@@ -1,13 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net452;net472</TargetFrameworks>
-    <LangVersion>7.3</LangVersion>
+    <TargetFrameworks>netcoreapp3.1;net5.0</TargetFrameworks>
+    <OutputType>exe</OutputType>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>databoss</ToolCommandName>
+    <PackageOutputPath>$(MSBuildThisFileDirectory)..\..\Build</PackageOutputPath>
+    <LangVersion>latest</LangVersion>
   </PropertyGroup>
-  <ItemGroup>
-    <Compile Remove="Properties\**" />
-    <EmbeddedResource Remove="Properties\**" />
-    <None Remove="Properties\**" />
-  </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Usage.txt">
       <LogicalName>Usage</LogicalName>
@@ -15,8 +14,8 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DataBoss.Data.SqlClient\DataBoss.Data.SqlClient.csproj" />
-    <ProjectReference Condition="'$(DataBossPackageVersion)'==''" Include="..\DataBoss.Data\DataBoss.Data.csproj" />
+    <ProjectReference Include="..\DataBoss.Data\DataBoss.Data.csproj" />
+    <ProjectReference Include="..\DataBoss.Migrations\DataBoss.Migrations.csproj" />
     <ProjectReference Include="..\DataBoss.PowerArgs\DataBoss.PowerArgs.csproj" />
-    <PackageReference Condition="'$(DataBossPackageVersion)'!=''" Include="DataBoss.Data" Version="$(DataBossPackageVersion)" /> 
   </ItemGroup>
 </Project>

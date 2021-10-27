@@ -13,7 +13,7 @@ namespace DataBoss.Testing
 			SqlServerTestDb.RegisterForAutoCleanup();
 	}
 
-	public class SqlServerTestDbSpec : IClassFixture<DatabaseAutoCleanupRegistration>
+	public class SqlServerTestDb_ : IClassFixture<DatabaseAutoCleanupRegistration>
 	{
 		[Fact]
 		public void creates_instance_on_first_request() {

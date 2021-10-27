@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace DataBoss.Migrations
 {
-	class DataBossCompositeMigration : IDataBossMigration
+	public class DataBossCompositeMigration : IDataBossMigration
 	{
 		readonly IDataBossMigration[] migrations;
 

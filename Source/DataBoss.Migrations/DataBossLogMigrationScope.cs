@@ -4,7 +4,7 @@ using System.IO;
 
 namespace DataBoss.Migrations
 {
-	class DataBossLogMigrationScope : IDataBossMigrationScope
+	public class DataBossLogMigrationScope : IDataBossMigrationScope
 	{
 		readonly IDataBossLog log;
 		readonly IDataBossMigrationScope inner;

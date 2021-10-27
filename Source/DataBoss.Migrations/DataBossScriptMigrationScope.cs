@@ -3,7 +3,7 @@ using System.IO;
 
 namespace DataBoss.Migrations
 {
-	class DataBossScriptMigrationScope : IDataBossMigrationScope
+	public class DataBossScriptMigrationScope : IDataBossMigrationScope
 	{
 		const string BatchSeparator = "GO";
 

@@ -1,5 +1,11 @@
+#if MSSQLCLIENT
+using DataBoss.Data.MsSql;
+using Microsoft.Data.SqlClient;
+#else
+	using System.Data.SqlClient;
+#endif
+
 using System.Collections.Generic;
-using System.Data.SqlClient;
 using DataBoss.Data;
 
 namespace DataBoss.Diagnostics

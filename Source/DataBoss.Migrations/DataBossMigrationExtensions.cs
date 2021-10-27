@@ -3,7 +3,7 @@ using System.Linq;
 
 namespace DataBoss
 {
-    static class DataBossMigrationExtensions
+    public static class DataBossMigrationExtensions
     {
         public static IEnumerable<IDataBossMigration> Flatten(this IDataBossMigration migration) {
             yield return migration;

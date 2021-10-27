@@ -10,7 +10,7 @@ namespace DataBoss
 
 	class Program
 	{
-		internal static string ProgramName => Path.GetFileName(typeof(Program).Assembly.Location);
+		const string ProgramName = "dotnet databoss";
 
 		static int Main(string[] args) {
 			if(args.Length == 0) {

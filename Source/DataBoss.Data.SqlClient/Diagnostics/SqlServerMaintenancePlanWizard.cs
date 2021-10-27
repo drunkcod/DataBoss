@@ -1,8 +1,14 @@
+#if MSSQLCLIENT
+using DataBoss.Data.MsSql;
+using Microsoft.Data.SqlClient;
+#else
+	using System.Data.SqlClient;
+#endif
+
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
-using System.Data.SqlClient;
 using System.Linq;
 using System.Runtime.ExceptionServices;
 using DataBoss.Data;
@@ -10,31 +16,6 @@ using DataBoss.Linq;
 
 namespace DataBoss.Diagnostics
 {
-	public class SqlServerMaintenancePlan
-	{
-		public readonly string Server;
-		public readonly string Database;
-		public readonly string[] Commands;
-
-		public SqlServerMaintenancePlan(string server, string database, string[] commands)
-		{
-			this.Server = server;
-			this.Database = database;
-			this.Commands = commands;
-		}
-	}
-
-	public class SqlServerMaintenancePlanWizardErrorEventArgs : EventArgs
-	{
-		public readonly SqlConnection Connection;
-		public readonly Exception Error;
-
-		public SqlServerMaintenancePlanWizardErrorEventArgs(SqlConnection connection, Exception error) {
-			this.Connection = connection;
-			this.Error = error;
-		}
-	}
-
 	public class SqlServerMaintenancePlanWizard
 	{
 		public bool UpdateStatistics = true;
