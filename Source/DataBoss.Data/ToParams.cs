@@ -4,7 +4,6 @@ namespace DataBoss.Data
 	using System.Collections;
 	using System.Collections.Generic;
 	using System.Data;
-	using System.Data.SqlTypes;
 	using System.Linq;
 	using System.Linq.Expressions;
 	using System.Reflection;
@@ -19,9 +18,6 @@ namespace DataBoss.Data
 			typeof(decimal),
 			typeof(Guid),
 			typeof(byte[]),
-			typeof(SqlDecimal),
-			typeof(SqlMoney),
-			typeof(SqlBinary),
 		};
 
 		public static LambdaExpression CreateExtractor(ISqlDialect dialect, Type commandType, Type argType, Type parameterType)
@@ -142,19 +138,21 @@ namespace DataBoss.Data
 
 		static Expression MakeParameter(Expression value) =>
 			value.Type.IsClass 
-			? (Expression)Expression.Coalesce(
-				Expression.Convert(value, typeof(object)), 
+			? Expression.Coalesce(
+				Expression.Convert(value, typeof(object)),
 				Expression.Constant(DBNull.Value, typeof(object)))
 			: Expression.Convert(value, typeof(object));
 
-		static Expression MakeParameterFromNullable(Expression p, Expression value, Type valueTyp) =>
-			Expression.Condition(
-				Expression.Property(value, "HasValue"),
-					Expression.Convert(Expression.Property(value, "Value"), typeof(object)),
-					Expression.Block(
-						Expression.Assign(
-							Expression.MakeMemberAccess(p, typeof(IDataParameter).GetProperty(nameof(IDataParameter.DbType))), 
-								Expression.Constant(DataBossDbType.ToDbType(valueTyp))),
-						Expression.Constant(DBNull.Value, typeof(object))));
+		static Expression MakeParameterFromNullable(Expression p, Expression value, Type valueTyp) {
+			var hasValue = Expression.Convert(Expression.Property(value, "Value"), typeof(object));
+			var noValue = Expression.Block(
+				Expression.Assign(
+					Expression.Property(p, nameof(IDataParameter.DbType)),
+						Expression.Constant(DataBossDbType.ToDbType(valueTyp))),
+				Expression.Constant(DBNull.Value, typeof(object)));
+
+			return Expression.Condition(
+				Expression.Property(value, "HasValue"), hasValue, noValue);
+		}
 	}
 }

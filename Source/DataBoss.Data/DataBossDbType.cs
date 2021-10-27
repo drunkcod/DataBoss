@@ -234,6 +234,7 @@ namespace DataBoss.Data
 				case "System.Int64": return DbType.Int64;
 				case "System.Single": return DbType.Single;
 				case "System.Double": return DbType.Double;
+				case "System.Decimal": return DbType.Decimal;
 				case "System.Boolean": return DbType.Boolean;
 				case "System.DateTime": return DbType.DateTime;
 				case "System.Guid": return DbType.Guid;

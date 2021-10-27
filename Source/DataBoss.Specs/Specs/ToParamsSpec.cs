@@ -3,6 +3,7 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Data.SqlTypes;
 using System.Linq;
+using System.Reflection;
 using CheckThat;
 using DataBoss.Data;
 using DataBoss.Data.SqlServer;
@@ -12,7 +13,7 @@ namespace DataBoss
 {
 	public class ToParamsSpec
 	{
-		SqlParameter[] GetParams<T>(T args) {
+		static SqlParameter[] GetParams<T>(T args) {
 			var cmd = new SqlCommand();
 			cmd.AddParameters(args);
 			return cmd.Parameters.Cast<SqlParameter>().ToArray();
@@ -31,10 +32,9 @@ namespace DataBoss
 		[InlineData(typeof(Guid))]
 		[InlineData(typeof(DateTime))]
 		[InlineData(typeof(decimal))]
-		[InlineData(typeof(SqlMoney))]
-		[InlineData(typeof(SqlDecimal))]
 		[InlineData(typeof(byte[]))]
-		public void has_sql_type_mapping_for(Type clrType) => Check.That(() => ToParams.HasSqlTypeMapping(clrType));
+		public void has_sql_type_mapping_for(Type clrType) => 
+			Check.That(() => ToParams.HasSqlTypeMapping(clrType));
 
 		[Fact]
 		public void object_is_not_considered_complex() {
@@ -63,18 +63,26 @@ namespace DataBoss
 				xs => xs[1].Value == DBNull.Value);
 		}
 
-		[Fact]
-		public void nullable_values() => Check.With(() => 
+		[Theory]
+		[InlineData(typeof(int), SqlDbType.Int)]
+		[InlineData(typeof(decimal), SqlDbType.Decimal)]
+		[InlineData(typeof(SqlDecimal), SqlDbType.Decimal)]
+		public void nullable_values(Type type, SqlDbType sqlDbType) => 
+			GetType().GetMethod(nameof(CheckNullable), BindingFlags.Static | BindingFlags.NonPublic)
+			.MakeGenericMethod(type).Invoke(null, new object[]{ sqlDbType });
+
+
+		static void CheckNullable<T>(SqlDbType sqlDbType) where T : struct => Check.With(() =>
 			GetParams(new {
-				HasValue = new int?(1),
-				NoInt32 = new int?(),
+				HasValue = new T?(default),
+				IsNull = new T?(),
 			}))
 			.That(
 				xs => xs.Length == 2,
-				xs => xs[0].Value.Equals(1),
-				xs => xs[0].SqlDbType == SqlDbType.Int,
+				xs => xs[0].Value.Equals(default(T)),
+				xs => xs[0].SqlDbType == sqlDbType,
 				xs => xs[1].Value == DBNull.Value,
-				xs => xs[1].SqlDbType == SqlDbType.Int);
+				xs => xs[1].SqlDbType == sqlDbType);
 
 		[Fact]
 		public void RowVersion_as_SqlBinary_value() => Check
