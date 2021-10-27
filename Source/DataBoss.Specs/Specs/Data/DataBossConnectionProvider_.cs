@@ -4,7 +4,7 @@ using Xunit;
 
 namespace DataBoss.Data
 {
-	public class DataBossConnectionProvider_ : IClassFixture<TemporaryDatabaseFixture>, IDisposable
+	public sealed class DataBossConnectionProvider_ : IClassFixture<TemporaryDatabaseFixture>, IDisposable
 	{
 		readonly DataBossConnectionProvider Connections;
 

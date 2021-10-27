@@ -14,8 +14,8 @@ namespace DataBoss.Data
 
 	public static class SqlConnectionExtensions
 	{
-		public static SqlCommand CreateCommand(this SqlConnection connection, string cmdText) => 
-			new SqlCommand(cmdText, connection);
+		public static SqlCommand CreateCommand(this SqlConnection connection, string cmdText) =>  
+			new(cmdText, connection);
 
 		public static SqlCommand CreateCommand(this SqlConnection connection, string cmdText, object args) {
 			var cmd = CreateCommand(connection, cmdText);
@@ -29,10 +29,8 @@ namespace DataBoss.Data
 			return cmd;
 		}
 
-		public static DataBossScripter GetScripter(this SqlConnection _) => new DataBossScripter(MsSqlDialect.Instance);
-
 		public static void CreateTable(this SqlConnection connection, string tableName, IDataReader data) {
-			connection.ExecuteNonQuery(connection.GetScripter().ScriptTable(tableName, data));
+			connection.ExecuteNonQuery(new DataBossScripter(MsSqlDialect.Instance).ScriptTable(tableName, data));
 		}
 
 		public static object ExecuteScalar(this SqlConnection connection, string cmdText) {

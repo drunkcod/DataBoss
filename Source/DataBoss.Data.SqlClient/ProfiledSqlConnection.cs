@@ -16,6 +16,7 @@ namespace DataBoss.Data
 	using System.IO;
 	using System.Threading;
 	using System.Threading.Tasks;
+	using DataBoss.Data.Scripting;
 
 	public class ProfiledSqlConnection : DbConnection, IDataBossConnection
 	{
@@ -79,10 +80,9 @@ namespace DataBoss.Data
 		}
 
 		public void Insert(string destinationTable, IDataReader toInsert, DataBossBulkCopySettings settings) {
-			using(var rows = new ProfiledDataReader(toInsert, inner.GetScripter())) {
-				BulkCopyStarting?.Invoke(this, new ProfiledBulkCopyStartingEventArgs(destinationTable, rows));
-				inner.Insert(destinationTable, rows, settings);
-			}
+			using var rows = new ProfiledDataReader(toInsert, new DataBossScripter(MsSqlDialect.Instance));
+			BulkCopyStarting?.Invoke(this, new ProfiledBulkCopyStartingEventArgs(destinationTable, rows));
+			inner.Insert(destinationTable, rows, settings);
 		}
 
 		internal class ProfiledCommandExecutionScope
@@ -149,7 +149,7 @@ namespace DataBoss.Data
 
 	public static class ProfiledSqlConnectionExtensions
 	{
-		public static ProfiledSqlConnectionTraceWriter StartTrace(this ProfiledSqlConnection self, TextWriter target) => new ProfiledSqlConnectionTraceWriter(self, target);
+		public static ProfiledSqlConnectionTraceWriter StartTrace(this ProfiledSqlConnection self, TextWriter target) => new(self, target);
 		public static ProfiledSqlConnectionStatistics StartGatheringQueryStatistics(this ProfiledSqlConnection self) {
 			var stats = new ProfiledSqlConnectionStatistics(self) {
 				StatisticsEnabled = true

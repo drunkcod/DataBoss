@@ -4,14 +4,6 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
-   <ItemGroup>
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Data.Linq" />
-    <Reference Include="System.Xml" />
-  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DataBoss.Data.SqlClient\DataBoss.Data.SqlClient.csproj" />
     <ProjectReference Include="..\DataBoss.Data\DataBoss.Data.csproj" />

@@ -10,6 +10,7 @@ namespace DataBoss.Data
 
 	using System.Data;
 	using System.Data.Common;
+	using DataBoss.Data.Scripting;
 
 	public class ProfiledSqlCommand : DbCommand
 	{
@@ -82,7 +83,7 @@ namespace DataBoss.Data
 			return r;
 		}
 
-		public new ProfiledDataReader ExecuteReader(CommandBehavior behavior) => new ProfiledDataReader(inner.ExecuteReader(behavior), inner.Connection.GetScripter());
+		public new ProfiledDataReader ExecuteReader(CommandBehavior behavior) => new(inner.ExecuteReader(behavior), new DataBossScripter(MsSqlDialect.Instance));
 
 		protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior) {
 			var s = Connection.OnExecuting(this);

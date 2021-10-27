@@ -11,14 +11,6 @@ namespace DataBoss.Testing.SqlServer
 {
 	public class SqlServerTestDb : IDisposable
 	{
-		const string CreateInstanceQuery =
-			  "declare @sql nvarchar(max) = replace('\n"
-			+ "create database {0};\n"
-			+ "alter database {0} set recovery simple;\n"
-			+ "declare @now datetime = getutcdate();\n"
-			+ "exec {0}..sp_addextendedproperty @name=''testdb_created_at'', @value=@now;', '{0}', quotename(@db))\n"
-			+ "exec(@sql)";
-
 		static readonly ConcurrentDictionary<string, SqlServerTestDb> DatabaseInstances = new();
 
 		static string ApplicationName => typeof(SqlServerTestDb).FullName;
@@ -107,7 +99,13 @@ namespace DataBoss.Testing.SqlServer
 				var found = (int)cmd.ExecuteScalar("select case when exists(select null from sys.databases where name = @db) then 1 else 0 end");
 				if (found == 1)
 					ForceDropDatabase(config);
-				cmd.ExecuteNonQuery(CreateInstanceQuery);
+				cmd.ExecuteNonQuery(
+					  "declare @sql nvarchar(max) = replace('\n"
+					+ "create database {0};\n"
+					+ "alter database {0} set recovery simple;\n"
+					+ "declare @now datetime = getutcdate();\n"
+					+ "exec {0}..sp_addextendedproperty @name=''testdb_created_at'', @value=@now;', '{0}', quotename(@db))\n"
+					+ "exec(@sql)");
 			});
 			return new SqlServerTestDb(config);
 		}

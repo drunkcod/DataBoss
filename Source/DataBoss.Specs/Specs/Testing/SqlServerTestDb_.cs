@@ -45,16 +45,15 @@ namespace DataBoss.Testing
 			Check.That(() => CountDatabasesByName(db.Name) == 0);
 		}
 
-		int CountDatabasesByName(string name) => (int)ExecuteScalar(
-			"select count(*) from master.sys.databases where name = @name", new {
-				name
-		});
+		static int CountDatabasesByName(string name) => 
+			(int)ExecuteScalar(
+				"select count(*) from master.sys.databases where name = @name", 
+				new { name });
 
-		object ExecuteScalar<T>(string query, T args) {
-			using(var db = new SqlConnection("Server=.;Integrated Security=SSPI")) {
-				db.Open();
-				return db.ExecuteScalar(query, args);
-			}
+		static object ExecuteScalar<T>(string query, T args) {
+			using var db = new SqlConnection("Server=.;Integrated Security=SSPI");
+			db.Open();
+			return db.ExecuteScalar(query, args);
 		}
 	}
 }
