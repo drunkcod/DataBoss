@@ -104,7 +104,7 @@ namespace DataBoss.Data
 		static readonly Expression<Func<string, object, SqlParameter>> CreateSqlBinaryParameter =
 			(name, value) => new SqlParameter(name, SqlDbType.Binary) { Value = value, };
 
-		static readonly Expression<Func<string, RowVersion, SqlParameter>> CreateRowVersionParameter = 
+		static readonly Expression<Func<string, object, SqlParameter>> CreateRowVersionParameter = 
 			(name, value) => new SqlParameter(name, SqlDbType.Binary, 8) { Value = value, };
 
 		static readonly Expression<Func<string, ITableValuedParameter, SqlParameter>> CreateTableValuedParameter =

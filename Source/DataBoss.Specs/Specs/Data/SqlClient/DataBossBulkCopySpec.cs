@@ -5,18 +5,20 @@ using Xunit;
 
 namespace DataBoss.Data.SqlClient
 {
-	public class SqlServerFixture : IDisposable
+	public sealed class SqlServerFixture : IDisposable
 	{
+		readonly SqlServerTestDb testDb;
 		public SqlConnection Connection { get; private set; }
 
 		public SqlServerFixture() {
-			Connection = new SqlConnection(SqlServerTestDb.GetOrCreate(nameof(SqlServerFixture)).ConnectionString);
+			this.testDb = SqlServerTestDb.GetOrCreate(nameof(SqlServerFixture));
+			Connection = new SqlConnection(testDb.ConnectionString);
 			Connection.Open();
 		}
 
 		void IDisposable.Dispose() {
 			Connection.Dispose();
-			Connection = null;
+			testDb.Dispose();
 		}
 	}
 

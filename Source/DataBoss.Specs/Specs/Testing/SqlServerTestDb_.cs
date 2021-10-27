@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Data.SqlClient;
 using CheckThat;
 using DataBoss.Data;
@@ -7,33 +8,38 @@ using Xunit;
 
 namespace DataBoss.Testing
 {
-	public class DatabaseAutoCleanupRegistration
+	public sealed class SqlServerTestDb_ : IDisposable
 	{
-		public DatabaseAutoCleanupRegistration() =>
-			SqlServerTestDb.RegisterForAutoCleanup();
-	}
+		readonly List<IDisposable> garbage = new();
 
-	public class SqlServerTestDb_ : IClassFixture<DatabaseAutoCleanupRegistration>
-	{
+		void IDisposable.Dispose() {
+			garbage.ForEach(x => x.Dispose());
+		}
+
+		T Cleanup<T>(T item) where T : IDisposable {
+			garbage.Add(item);
+			return item;
+		}
+
 		[Fact]
 		public void creates_instance_on_first_request() {
 			var name = Guid.NewGuid().ToString();
 
 			Check.That(() => CountDatabasesByName(name) == 0);
-			SqlServerTestDb.GetOrCreate(name);
+			Cleanup(SqlServerTestDb.GetOrCreate(name));
 			Check.That(() => CountDatabasesByName(name) == 1);			
 		}
 
 		[Fact]
 		public void instance_is_created_only_once() {
 			var name = Guid.NewGuid().ToString();
-			Check.That(() => SqlServerTestDb.GetOrCreate(name) == SqlServerTestDb.GetOrCreate(name));
+			Check.That(() => Cleanup(SqlServerTestDb.GetOrCreate(name)) == Cleanup(SqlServerTestDb.GetOrCreate(name)));
 		}
 
 		[Fact]
 		public void is_deleted_when_disposed()
 		{
-			var db = SqlServerTestDb.Create();
+			var db = Cleanup(SqlServerTestDb.Create());
 			Check.That(() => CountDatabasesByName(db.Name) == 1);
 			db.Dispose();
 			Check.That(() => CountDatabasesByName(db.Name) == 0);

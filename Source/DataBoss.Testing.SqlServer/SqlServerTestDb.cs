@@ -5,6 +5,7 @@ using System.Data.SqlClient;
 using System.Linq;
 using System.Linq.Expressions;
 using DataBoss.Data;
+using DataBoss.Linq;
 
 namespace DataBoss.Testing.SqlServer
 {
@@ -35,10 +36,9 @@ namespace DataBoss.Testing.SqlServer
 			ForceDropDatabase(config);
 
 		public List<SqlServerTestDbSessionInfo> GetActiveSessions() {
-			using var db = GetServerConnection(config);
 			ClearPool(config.GetConnectionString().ToString());
-			db.Open();
-			return new(db.Query<SqlServerTestDbSessionInfo>(
+			using var c = SqlCommandExtensions.Open(GetServerConnectionString(config));
+			return c.ExecuteQuery<SqlServerTestDbSessionInfo>(
 				  "select *\n"
 				+ "from sys.dm_exec_sessions s\n"
 				+ "cross apply(\n"
@@ -46,34 +46,36 @@ namespace DataBoss.Testing.SqlServer
 				+ ") cmd\n"
 				+ "where database_id = db_id(@db)\n"
 				+ "and is_user_process = 1",
-				new { db = Name }, buffered: false));
+				new { db = Name }).ToList();
 		}
 
-		public static List<TestDbInfo> GetAllInstances(string serverConnectionString) {
-			using var db = new SqlConnection(new SqlConnectionStringBuilder(serverConnectionString) {
+		public static IEnumerable<TestDbInfo> GetAllInstances(string serverConnectionString) {
+			using var c = SqlCommandExtensions.Open(new SqlConnectionStringBuilder(serverConnectionString) {
 				Pooling = false,
 				ApplicationName = ApplicationName,
 			}.ToString());
-			db.Open();
 
-			var xs = db.Query((int database_id, string name) => (database_id, name),
-				  "select database_id, name = quotename(name)\n"
+
+			var xs = c.ExecuteQuery<(int DatabaseId, string Name)>(
+				  "select item1 = database_id, item2 = quotename(name)\n"
 				+ "from sys.databases\n"
-				+ "where name not in('master', 'tempdb', 'model', 'msdb')");
+				+ "where name not in('master', 'tempdb', 'model', 'msdb')")
+				.ToList();
 
-			var result = new List<TestDbInfo>();
-
-			if(xs.Any())
-				result.AddRange(db.Query(
-					(string db_name, DateTime created_at) => new TestDbInfo(db_name, DateTime.SpecifyKind(created_at, DateTimeKind.Utc).ToLocalTime()),
-					"select db_name, created_at = cast(value as datetime) from (\n"
+			return xs.Any()
+			? c.ExecuteQuery<TestDbInfo> (
+					"select name = db_name, createdAt = cast(value as datetime) from (\n"
 					+ string.Join("\t\tunion all\n", xs.Select(x =>
-						  $"\tselect db_name = db_name({x.database_id}), class, name, value\n"
-						+ $"\tfrom {x.name}.sys.extended_properties\n"))
+						  $"\tselect db_name = db_name({x.DatabaseId}), class, name, value\n"
+						+ $"\tfrom {x.Name}.sys.extended_properties\n"))
 					+ ") props\n"
-					+ "where class = 0 and name = 'testdb_created_at'", buffered: false));
-
-			return result;
+					+ "where class = 0 and name = 'testdb_created_at'")
+					.Select(x => new TestDbInfo(
+						x.Name, 
+						DateTime.SpecifyKind(x.CreatedAt, DateTimeKind.Utc).ToLocalTime(),
+						new SqlConnectionStringBuilder(serverConnectionString) { InitialCatalog = x.Name }.ToString()))
+					.ToList()
+			: Enumerable.Empty<TestDbInfo>();
 		}
 
 		public static SqlServerTestDb Create(TestDbConfig config = null) =>
@@ -116,15 +118,17 @@ namespace DataBoss.Testing.SqlServer
 		}
 
 		static void ForceDropDatabase(TestDbConfig config) {
-			DatabaseInstances.TryRemove(config.Name, out _);
-			using var db = new SqlConnection(config.ToString());
-			ClearPool(db.ConnectionString);
-			using var c = db.CreateCommand("select quotename(@db)", new { db = config.Name });
-			db.Open();
+			if(DatabaseInstances.TryRemove(config.Name, out var found))
+				ForceDropDatabase(found.ConnectionString);
+		}
+
+		public static void ForceDropDatabase(string connectionString) {
+			using var c = SqlCommandExtensions.Open(connectionString);
+			ClearPool(c.Connection.ConnectionString);
 			c.CommandText = string.Format(
 				  "alter database {0} set single_user with rollback immediate;\n"
 				+ "use master;\n"
-				+ "drop database {0}", c.ExecuteScalar());
+				+ "drop database {0}", c.ExecuteScalar("select quotename(@db)", new { db = c.Connection.Database }));
 			c.ExecuteNonQuery();
 		}
 
@@ -165,11 +169,14 @@ namespace DataBoss.Testing.SqlServer
 			}
 		}
 
-		static SqlConnection GetServerConnection(TestDbConfig config) {
+		static string GetServerConnectionString(TestDbConfig config) {
 			var cs = config.GetServerConnectionString();
 			cs.ApplicationName = ApplicationName;
 			cs.Pooling = false;
-			return new SqlConnection(cs.ToString());
+			return cs.ToString();
 		}
+
+		static SqlConnection GetServerConnection(TestDbConfig config) =>
+			new(GetServerConnectionString(config));
 	}
 }

@@ -11,7 +11,7 @@ namespace DataBoss.Data
 
 	public static class ToParams
 	{
-		static readonly HashSet<Type> MappedTypes = new HashSet<Type> {
+		static readonly HashSet<Type> MappedTypes = new() {
 			typeof(object),
 			typeof(string),
 			typeof(DateTime),

@@ -20,17 +20,17 @@ namespace DataBoss
 		readonly IDataBossConnection db;
 		readonly DataBossScripter scripter;
 
-		DataBoss(IDataBossConfiguration config, IDataBossLog log, SqlConnection db) {
+		DataBoss(IDataBossConfiguration config, IDataBossLog log, IDataBossConnection db) {
 			this.config = config;
 			this.log = log;
-			this.db = DbConnectionExtensions.Wrap(db);
-			this.scripter = db.GetScripter();
+			this.db = db;
+			this.scripter = new DataBossScripter(db.Dialect);
 		}
 
 		public void Dispose() => db.Dispose();
 
 		public static DataBoss Create(IDataBossConfiguration config, IDataBossLog log) =>
-			new DataBoss(config, log, new SqlConnection(config.GetConnectionString()));
+			new(config, log, DbConnectionExtensions.Wrap(new SqlConnection(config.GetConnectionString())));
 
 		[DataBossCommand("init")]
 		public int Initialize() {
@@ -85,15 +85,10 @@ namespace DataBoss
 			var qs = new SqlConnectionStringBuilder(connectionString);
 			var dbName = qs.InitialCatalog;
 			qs.Remove("Initial Catalog");
-			using(var db = new SqlConnection(qs.ConnectionString)) {
-				db.Open();
-				using(var cmd = new SqlCommand("if db_id(@db) is null select(select database_id from sys.databases where name = @db) else select db_id(@db)" ,db)) {
-					cmd.Parameters.AddWithValue("@db", dbName);
-					if(cmd.ExecuteScalar() is DBNull) {
-						cmd.CommandText = $"create database [{dbName}]";
-						cmd.ExecuteNonQuery();
-					}
-				}
+
+			using var cmd = SqlCommandExtensions.Open(qs.ConnectionString);
+			if(cmd.ExecuteScalar("if db_id(@db) is null select(select database_id from sys.databases where name = @db) else select db_id(@db)", new { db = dbName }) is DBNull) {
+				cmd.ExecuteNonQuery($"create database [{dbName}]");
 			}
 		}
 

@@ -7,9 +7,12 @@ namespace DataBoss.Data
 {
 	using System.Data.SqlClient;
 #endif
+	using System;
 
 	public static class SqlCommandExtensions
 	{
+		static internal readonly EventHandler DisposeConnection = (sender, _) => ((SqlCommand)sender).Connection.Dispose();
+
 		public static void AddParameters<T>(this SqlCommand command, T args) =>
 			MsSqlDialect.AddParameters(command, args);
 
@@ -78,6 +81,15 @@ namespace DataBoss.Data
 
 		public static int ExecuteNonQuery<T>(this SqlCommand cmd, string cmdText, T args, RetryStrategy retry) =>
 			retry.Execute(() => cmd.ExecuteNonQuery(cmdText, args));
+
+		public static SqlCommand Open(string connectionString) {
+			var cmd = new SqlCommand {
+				Connection = new SqlConnection(connectionString),
+			};
+			cmd.Disposed += DisposeConnection;
+			cmd.Connection.Open();
+			return cmd;
+		}
 
 		static SqlCommand WithQuery(this SqlCommand cmd, string cmdText, object args) {
 			cmd.CommandText = cmdText;

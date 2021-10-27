@@ -67,10 +67,10 @@ namespace DataBoss
 		[InlineData(typeof(int), SqlDbType.Int)]
 		[InlineData(typeof(decimal), SqlDbType.Decimal)]
 		[InlineData(typeof(SqlDecimal), SqlDbType.Decimal)]
+		[InlineData(typeof(RowVersion), SqlDbType.Binary)]
 		public void nullable_values(Type type, SqlDbType sqlDbType) => 
 			GetType().GetMethod(nameof(CheckNullable), BindingFlags.Static | BindingFlags.NonPublic)
 			.MakeGenericMethod(type).Invoke(null, new object[]{ sqlDbType });
-
 
 		static void CheckNullable<T>(SqlDbType sqlDbType) where T : struct => Check.With(() =>
 			GetParams(new {

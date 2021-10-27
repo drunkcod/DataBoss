@@ -17,8 +17,6 @@ namespace DataBoss.Data
 
 	public class DataBossConnectionProvider : IDisposable
 	{
-		static readonly EventHandler DisposeConnection = (sender, _) => ((SqlCommand)sender).Connection.Dispose();
-
 		readonly string connectionString;
 		readonly ConcurrentDictionary<int, SqlConnection> connections = new();
 		readonly ConcurrentDictionary<string, long> accumulatedStats = new();
@@ -69,7 +67,7 @@ namespace DataBoss.Data
 				CommandType = commandType,
 			};
 			if((options & CommandOptions.DisposeConnection) != 0)
-				cmd.Disposed += DisposeConnection;
+				cmd.Disposed += SqlCommandExtensions.DisposeConnection;
 			if((options & CommandOptions.OpenConnection) != 0)
 				cmd.Connection.Open();
 			return cmd;

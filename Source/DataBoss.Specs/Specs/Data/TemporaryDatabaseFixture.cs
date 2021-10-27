@@ -1,16 +1,20 @@
+using System;
 using System.Data.SqlClient;
 using DataBoss.Testing.SqlServer;
 
 namespace DataBoss.Data
 {
-	public class TemporaryDatabaseFixture
+	public sealed class TemporaryDatabaseFixture : IDisposable
 	{
-		public readonly string ConnectionString;
+		readonly SqlServerTestDb testDb;
+		public string ConnectionString => testDb.ConnectionString;
 
 		public TemporaryDatabaseFixture() {
-			ConnectionString = SqlServerTestDb.Create().ConnectionString;
-			SqlServerTestDb.RegisterForAutoCleanup();
+			this.testDb = SqlServerTestDb.Create();
 		}
+
+		public void Dispose() => 
+			testDb.Dispose();
 
 		public SqlConnection Open() {
 			var c = new SqlConnection(ConnectionString);
