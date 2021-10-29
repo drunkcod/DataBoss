@@ -90,8 +90,12 @@ namespace DataBoss.Linq
 		public static IReadOnlyCollection<TItem> AsReadOnly<T, TItem>(this IReadOnlyCollection<T> self, Func<T, TItem> selector) =>
 			new CollectionAdapter<T, TItem>(self, selector);
 
-		public static IReadOnlyCollection<T> ToReadOnly<T>(this ICollection<T> self) => 
-			self is IReadOnlyCollection<T> xs ? xs : new CollectionReadOnlyAdapter<T>(self);
+		public static IReadOnlyCollection<T> ToReadOnly<T>(this IEnumerable<T> self) => 
+			self switch {
+				IReadOnlyCollection<T> x => x,
+				ICollection<T> x => new CollectionReadOnlyAdapter<T>(x),
+				_ => self.ToList().AsReadOnly(),
+			};
 
 		public static IEnumerable<IReadOnlyList<T>> Batch<T>(this IEnumerable<T> items, int batchSize) =>
 			Batch(items, () => new T[batchSize]).Cast<IReadOnlyList<T>>();
@@ -127,8 +131,7 @@ namespace DataBoss.Linq
 			yield return MakeArrayGrouping(c, acc.ToArray());
 		}
 
-		static ArrayGrouping<TKey, TElement> MakeArrayGrouping<TKey, TElement>(TKey key, TElement[] items) =>
-			new ArrayGrouping<TKey, TElement>(items, key);
+		static ArrayGrouping<TKey, TElement> MakeArrayGrouping<TKey, TElement>(TKey key, TElement[] items) => new(items, key);
 
 		public static void Consume<T>(this IEnumerable<T> items) {
 			using var xs = items.GetEnumerator();

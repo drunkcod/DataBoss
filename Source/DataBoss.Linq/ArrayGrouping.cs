@@ -5,8 +5,10 @@ using System.Linq;
 
 namespace DataBoss.Linq
 {
-	class ArrayGrouping<TKey, TElement> : IGrouping<TKey, TElement>,
-		ICollection<TElement>//To enable System.Linq.Enumerable fast-paths.
+	class ArrayGrouping<TKey, TElement> : 
+		IGrouping<TKey, TElement>,
+		ICollection<TElement>, //Enables System.Linq.Enumerable fast-paths.
+		IReadOnlyCollection<TElement>
 	{
 		readonly TElement[] items;
 		readonly TKey key;
