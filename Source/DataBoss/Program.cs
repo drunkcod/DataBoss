@@ -17,18 +17,18 @@ namespace DataBoss
 				Console.WriteLine(GetUsageString());
 				return 0;
 			}
+
 			var log = new DataBossConsoleLog();
 			try {
 				var cc = DataBossConfiguration.ParseCommandConfig(args);
 
-				DataBossAction command;
-				if(!TryGetCommand(cc.Key, out command)) {
+				if (!TryGetCommand(cc.Key, out DataBossAction command)) {
 					log.Info(GetUsageString());
 					return -1;
 				}
 
-				using(var db = DataBoss.Create(cc.Value, log))
-					return command(db);
+				using var db = DataBoss.Create(cc.Value, log);
+				return command(db);
 
 			} catch(Exception e) {
 				log.Error(e);
@@ -52,15 +52,14 @@ namespace DataBoss
 			return command != null;
 		}
 
-		static string GetUsageString() {
-			return ReadResource("Usage")
-				.Replace("{{ProgramName}}", ProgramName)
-				.Replace("{{Version}}", typeof(Program).Assembly.GetName().Version.ToString());
-		}
+		static string GetUsageString() =>
+			ReadResource("Usage")
+			.Replace("{{ProgramName}}", ProgramName)
+			.Replace("{{Version}}", typeof(Program).Assembly.GetName().Version.ToString());
 
 		static string ReadResource(string path) {
-			using(var reader = new StreamReader(typeof(Program).Assembly.GetManifestResourceStream(path)))
-				return reader.ReadToEnd();
+			using var reader = new StreamReader(typeof(Program).Assembly.GetManifestResourceStream(path));
+			return reader.ReadToEnd();
 		}
 	}
 }
