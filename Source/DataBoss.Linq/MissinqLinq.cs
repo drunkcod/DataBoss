@@ -68,7 +68,7 @@ namespace DataBoss.Linq
 
 		static void ThrowInsufficientSpaceException() => new int[1].CopyTo(new int[0], 0);
 
-		static KeyValuePair<TKey, TValue> KeyValuePair<TKey, TValue>(TKey key, TValue value) => new KeyValuePair<TKey, TValue>(key, value);
+		static KeyValuePair<TKey, TValue> KeyValuePair<TKey, TValue>(TKey key, TValue value) => new(key, value);
 
 		public static IEnumerable<KeyValuePair<TKey, TAcc>> AggregateBy<T, TKey, TAcc>(this IEnumerable<T> items, Func<T, TKey> keySelector, Func<T, TAcc> getAccumulator, Func<TAcc, T, TAcc> accumulate) {
 			var r = new List<KeyValuePair<TKey, TAcc>>();
@@ -224,7 +224,7 @@ namespace DataBoss.Linq
 	
 	public partial class MissingLinq
 	{
-		public static HashSet<T> ToHashSet<T>(this IEnumerable<T> items) => new HashSet<T>(items);
+		public static HashSet<T> ToHashSet<T>(this IEnumerable<T> items) => new(items);
 	}
 }
 #endif

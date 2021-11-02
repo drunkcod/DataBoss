@@ -55,11 +55,11 @@ namespace DataBoss
 		static string GetUsageString() {
 			return ReadResource("Usage")
 				.Replace("{{ProgramName}}", ProgramName)
-				.Replace("{{Version}}", typeof(DataBoss).Assembly.GetName().Version.ToString());
+				.Replace("{{Version}}", typeof(Program).Assembly.GetName().Version.ToString());
 		}
 
 		static string ReadResource(string path) {
-			using(var reader = new StreamReader(typeof(DataBoss).Assembly.GetManifestResourceStream(path)))
+			using(var reader = new StreamReader(typeof(Program).Assembly.GetManifestResourceStream(path)))
 				return reader.ReadToEnd();
 		}
 	}

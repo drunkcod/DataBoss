@@ -20,18 +20,3 @@ NuPack DataBoss.Data.SqlClient
 NuPack DataBoss.DataPackage
 NuPack DataBoss
 NuPack DataBoss.Testing.SqlServer
-
-#CLI Packaging
-$v = (Get-ChildItem Build\DataBoss.Cli\Release\net452\DataBoss.dll | Select-Object -ExpandProperty VersionInfo).ProductVersion
-$p = "Build\Bin\DataBoss.Cli-$v"
-
-& { param($p)
-    If (Test-Path $p) { Remove-Item $p -Recurse -Force }
-} Build\Bin
-dotnet publish Source\DataBoss.Cli\DataBoss.Cli.csproj --nologo --no-build --configuration Release /p:TargetFramework=netcoreapp2.1 -o $p\netcoreapp2.1
-Copy-Item Build\DataBoss.Cli\Release\net452 -Destination $p -Recurse -Force
-$$ = @{
-    Path = $p
-    DestinationPath = "$p.zip"
-}
-Compress-Archive @$ -Force
