@@ -16,12 +16,12 @@ namespace DataBoss
 		[InlineData("select 1\\nGO\\nselect 2", 2)]
 		public void supports_GO_as_batch_separator(string input, int batchCount) {
 			input = input.Replace("\\n", "\n");
-			Check.That(() => new DataBossQueryMigration(string.Empty, () => new StringReader(input), new DataBossMigrationInfo()).GetQueryBatches().Count() == batchCount);
+			Check.That(() => new DataBossQueryMigration(string.Empty, () => new StringReader(input), new DataBossMigrationInfo(), false).GetQueryBatches().Count() == batchCount);
 		}
 
 		[Fact]
 		public void doesnt_add_extra_newlines() {
-			Check.That(() => new DataBossQueryMigration(string.Empty, () => new StringReader("select 42\nGO"), new DataBossMigrationInfo()).GetQueryBatches().Single().ToString() == "select 42");
+			Check.That(() => new DataBossQueryMigration(string.Empty, () => new StringReader("select 42\nGO"), new DataBossMigrationInfo(), false).GetQueryBatches().Single().ToString() == "select 42");
 		}
 	}
 }

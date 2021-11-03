@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace DataBoss.Migrations
 {
@@ -15,6 +16,7 @@ namespace DataBoss.Migrations
 		public string Path => throw new NotSupportedException();
 
 		public bool HasQueryBatches => false;
+		public bool IsRepeatable => migrations.All(x => x.IsRepeatable);
 
 		public IEnumerable<DataBossQueryBatch> GetQueryBatches() {
 			yield break;

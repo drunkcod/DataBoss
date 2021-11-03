@@ -8,6 +8,7 @@ namespace DataBoss
 		DataBossMigrationInfo Info { get; }
 		string Path { get; }
 		bool HasQueryBatches { get; }
+		bool IsRepeatable { get; }
 		IEnumerable<DataBossQueryBatch> GetQueryBatches(); 
 		IEnumerable<IDataBossMigration> GetSubMigrations();
 	}

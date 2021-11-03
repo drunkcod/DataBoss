@@ -3,9 +3,9 @@ using CheckThat;
 using DataBoss.Migrations;
 using Xunit;
 
-namespace DataBoss
+namespace DataBoss.Migrations
 {
-	public class DataBossMigrationPathSpec
+	public class DataBossMigrationPath_
 	{
 		[Fact]
 		public void platformizes_paths() => Check.That(

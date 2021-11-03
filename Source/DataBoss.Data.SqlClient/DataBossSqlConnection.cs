@@ -1,4 +1,4 @@
-﻿#if MSSQLCLIENT
+#if MSSQLCLIENT
 namespace DataBoss.Data.MsSql
 {
 	using Microsoft.Data.SqlClient;
@@ -31,6 +31,9 @@ namespace DataBoss.Data
 
 		public void Insert(string destinationTable, IDataReader rows, DataBossBulkCopySettings settings) =>
 			connection.Insert(destinationTable, rows, settings);
+
+		public IDbCommand CreateCommand() =>
+			new SqlCommand { Connection = connection };
 
 		public IDbCommand CreateCommand(string cmdText) =>
 			new SqlCommand(cmdText, connection);

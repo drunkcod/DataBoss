@@ -13,12 +13,6 @@ namespace DataBoss
 		static DataBossScripter NewScripter() => new DataBossScripter(MsSqlDialect.Instance);
 
 		[Fact]
-		public void can_script_select() {
-			var scripter = NewScripter();
-			Check.That(() => scripter.Select(typeof(DataBossMigrationInfo), typeof(DataBossHistory)) == "select Id, Context, Name from [dbo].[__DataBossHistory]");
-		}
-
-		[Fact]
 		public void can_script_reader_as_table() {
 			var scripter = NewScripter();
 			var data = SequenceDataReader.Create(new []{ new { Id = 1, Value = "Hello" } }, x => x.MapAll());

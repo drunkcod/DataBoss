@@ -8,43 +8,22 @@ using System.Text.RegularExpressions;
 
 namespace DataBoss.Migrations
 {
-	public class DataBossExternalCommandMigration : IDataBossMigration
-	{
-		readonly Func<TextReader> getReader;
- 
-		public DataBossExternalCommandMigration(string path, Func<TextReader> getReader, DataBossMigrationInfo info) {
-			this.Path = path;
-			this.getReader = getReader;
-			this.Info = info;
-		}
-
-		public DataBossMigrationInfo Info { get; }
-		public string Path { get;}
-
-		public bool HasQueryBatches => true;
-
-		public IEnumerable<DataBossQueryBatch> GetQueryBatches() => 
-			getReader.Select(x => DataBossQueryBatch.ExternalCommand(x, Path));
-
-		IEnumerable<IDataBossMigration> IDataBossMigration.GetSubMigrations() => 
-			Enumerable.Empty<IDataBossMigration>();
-	}
-
 	public class DataBossQueryMigration : IDataBossMigration
 	{
-		static readonly Regex BatchSeparatorEx = new Regex(@"(?:\s*go\s*$)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+		static readonly Regex BatchSeparatorEx = new(@"(?:\s*go\s*$)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
 		readonly Func<TextReader> getReader;
  
-		public DataBossQueryMigration(string path, Func<TextReader> getReader, DataBossMigrationInfo info) {
+		public DataBossQueryMigration(string path, Func<TextReader> getReader, DataBossMigrationInfo info, bool isRepeatable) {
 			this.Path = path;
 			this.getReader = getReader;
 			this.Info = info;
+			this.IsRepeatable = isRepeatable;
 		}
 
 		public DataBossMigrationInfo Info { get; }
 		public string Path { get; }
-
+		public bool IsRepeatable { get; }
 		public bool HasQueryBatches => true;
 
 		public IEnumerable<DataBossQueryBatch> GetQueryBatches() {

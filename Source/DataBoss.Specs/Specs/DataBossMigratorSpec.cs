@@ -70,7 +70,7 @@ namespace DataBoss
 		}
 
 		IDataBossMigration TextMigration(string s) {
-			return new DataBossQueryMigration(string.Empty, () => new StringReader(s), new DataBossMigrationInfo());
+			return new DataBossQueryMigration(string.Empty, () => new StringReader(s), new DataBossMigrationInfo(), false);
 		}
 	}
 }

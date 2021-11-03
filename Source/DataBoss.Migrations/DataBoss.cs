@@ -6,10 +6,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using DataBoss.Data;
-using DataBoss.Data.Scripting;
 using DataBoss.Linq;
 using DataBoss.Migrations;
-using DataBoss.Schema;
 
 namespace DataBoss
 {
@@ -18,13 +16,11 @@ namespace DataBoss
 		readonly IDataBossConfiguration config;
 		readonly IDataBossLog log;
 		readonly IDataBossConnection db;
-		readonly DataBossScripter scripter;
 
 		DataBoss(IDataBossConfiguration config, IDataBossLog log, IDataBossConnection db) {
 			this.config = config;
 			this.log = log;
 			this.db = db;
-			this.scripter = new DataBossScripter(db.Dialect);
 		}
 
 		public void Dispose() => db.Dispose();
@@ -35,13 +31,7 @@ namespace DataBoss
 		[DataBossCommand("init")]
 		public int Initialize() {
 			EnsureDataBase(config.GetConnectionString());
-			using(var cmd = db.CreateCommand(scripter.CreateMissing(typeof(DataBossHistory))))
-			{
-				Open();
-				using var r = cmd.ExecuteReader();
-				while (r.Read())
-					log.Info("{0}", r.GetValue(0));
-			}
+			Open();
 			return 0;
 		}
 
@@ -82,19 +72,77 @@ namespace DataBoss
 		}
 
 		public static void EnsureDataBase(string connectionString) {
-			var qs = new SqlConnectionStringBuilder(connectionString);
-			var dbName = qs.InitialCatalog;
-			qs.Remove("Initial Catalog");
+			var serverConnectionString = new SqlConnectionStringBuilder(connectionString);
+			var dbName = serverConnectionString.InitialCatalog;
+			serverConnectionString.InitialCatalog = string.Empty;
 
-			using var cmd = SqlCommandExtensions.Open(qs.ConnectionString);
-			if(cmd.ExecuteScalar("if db_id(@db) is null select(select database_id from sys.databases where name = @db) else select db_id(@db)", new { db = dbName }) is DBNull) {
-				cmd.ExecuteNonQuery($"create database [{dbName}]");
-			}
+			using var cmd = SqlCommandExtensions.Open(serverConnectionString);
+			var dbToCreate = cmd.ExecuteScalar("select case when db_id(@db) is null then quotename(@db) else null end", new { db = dbName });
+			if(dbToCreate is DBNull)
+				return;
+			cmd.ExecuteNonQuery($"create database {dbToCreate}");
 		}
 
 		void Open() {
-			if(db.State != ConnectionState.Open)
-				db.Open();
+			if(db.State == ConnectionState.Open)
+				return;
+			db.Open();
+			switch(GetTableVersion(db, "__DataBossHistory")) {
+				case 0:
+					CreateDataBossHistoryTable(db);
+					goto case 1;
+				case 1:
+					AddMigrationHashColumn(db);
+					goto case 2;
+				case 2: break;
+			}
+		}
+
+		static int GetTableVersion(IDataBossConnection db, string tableName) {
+			using var c = db.CreateCommand(
+				  "with table_version(table_name, version) as (\n"
+				+ "select table_name = tables.name, version = isnull((\n"
+				+ "select cast(value as int)\n"
+				+ "from sys.extended_properties p\n"
+				+ "where p.name = 'version' and p.class = 1 and tables.object_id = p.major_id\n"
+				+ "), 1)\n"
+				+ "from sys.tables\n"
+				+ ")\n"
+				+ "select isnull((\n"
+				+ "select version\n"
+				+ "from table_version\n"
+				+ "where table_name = @tableName), 0)", new { tableName });
+			return (int)c.ExecuteScalar();
+		}
+
+		static void CreateDataBossHistoryTable(IDataBossConnection db) { 
+			using var c = db.CreateCommand(
+				  "create table [dbo].[__DataBossHistory](\n"
+				+ "[Id] bigint not null,\n" 
+				+ "[Context] varchar(64) not null,\n"
+				+ "[Name] varchar(max) not null,\n"
+				+ "[StartedAt] datetime not null,\n"
+				+ "[FinishedAt] datetime,\n"
+				+ "[User] varchar(max),\n"
+				+ "constraint[PK_DataBossHistory] primary key([Id], [Context]))");
+			c.ExecuteNonQuery();
+		}
+
+		static void AddMigrationHashColumn(IDataBossConnection db) {
+			using(var c = db.CreateCommand(
+				  "alter table[dbo].[__DataBossHistory]\n"
+				+ "add [MigrationHash] binary(32)"))
+				c.ExecuteNonQuery();
+
+			using(var c = db.CreateCommand("sp_addextendedproperty", new { 
+				name = "version",
+				value = 2,
+				level0type = "Schema", level0name = "dbo",
+				level1type = "Table", level1name = "__DataBossHistory",
+			})) {
+				c.CommandType = CommandType.StoredProcedure;
+				c.ExecuteNonQuery();
+			}
 		}
 
 		IDataBossMigrationScope GetTargetScope(IDataBossConfiguration config) {
@@ -111,8 +159,10 @@ namespace DataBoss
 		}
 
 		List<IDataBossMigration> GetPendingMigrations(IDataBossConfiguration config) {
-			var applied = new HashSet<string>(GetAppliedMigrations().Select(x => x.FullId));
-			bool NotApplied(IDataBossMigration x) => !applied.Contains(x.Info.FullId);
+			var applied = GetAppliedMigrations().ToDictionary(x => x.FullId, x => x.MigrationHash);
+			bool NotApplied(IDataBossMigration x) => !(x.IsRepeatable 
+				? applied.TryGetValue(x.Info.FullId, out var hash) && new Span<byte>(hash).SequenceEqual(x.Info.MigrationHash)
+				: applied.ContainsKey(x.Info.FullId));
 
 			return config.GetTargetMigration()
 				.Flatten()
@@ -122,15 +172,8 @@ namespace DataBoss
 		}
 
 		public List<DataBossMigrationInfo> GetAppliedMigrations() {
-			using var cmd = db.CreateCommand("select object_id('__DataBossHistory', 'U')"); 
-			
-			if (cmd.ExecuteScalar() is DBNull)
-				throw new InvalidOperationException($"DataBoss has not been initialized, run: init <target>");
-			
-			cmd.CommandText = scripter.Select(typeof(DataBossMigrationInfo), typeof(DataBossHistory));
-			
-			using var reader = cmd.ExecuteReader();
-			return reader.Read<DataBossMigrationInfo>().ToList();
+			using var cmd = db.CreateCommand();
+			return cmd.ExecuteQuery<DataBossMigrationInfo>("select * from __DataBossHistory").ToList();
 		}
 	}
 }

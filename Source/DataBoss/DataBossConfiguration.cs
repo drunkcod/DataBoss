@@ -43,7 +43,8 @@ namespace DataBoss
 					Id = 0,
 					Context = x.Context,
 					Name = x.Path,
-				});
+				},
+				x.IsRepeatable);
 
 		public static DataBossConfiguration Create(SqlConnectionStringBuilder connectionString, params DataBossMigrationPath[] migrationPaths) {
 			return new DataBossConfiguration {
@@ -65,10 +66,7 @@ namespace DataBoss
 			var xml = new XmlSerializer(typeof(DataBossConfiguration));
 			var config = (DataBossConfiguration)xml.Deserialize(input);
 
-			config.Migrations = config.Migrations.ConvertAll(x => new DataBossMigrationPath {
-				Context = x.Context,
-				Path = Path.Combine(roothPath, x.GetOsPath())
-			});
+			config.Migrations = config.Migrations.ConvertAll(x => x.WithRootPath(roothPath));
 			return config;
 		}
 

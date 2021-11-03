@@ -82,6 +82,7 @@ namespace DataBoss.Data
 		public static int ExecuteNonQuery<T>(this SqlCommand cmd, string cmdText, T args, RetryStrategy retry) =>
 			retry.Execute(() => cmd.ExecuteNonQuery(cmdText, args));
 
+		public static SqlCommand Open(SqlConnectionStringBuilder connectionString) => Open(connectionString.ToString());
 		public static SqlCommand Open(string connectionString) {
 			var cmd = new SqlCommand {
 				Connection = new SqlConnection(connectionString),

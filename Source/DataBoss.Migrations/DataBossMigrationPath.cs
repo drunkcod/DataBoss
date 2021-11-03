@@ -11,6 +11,15 @@ namespace DataBoss.Migrations
 		[XmlAttribute("path")]
 		public string Path;
 
+		[XmlAttribute("repeatable")]
+		public bool IsRepeatable;
+
+		public DataBossMigrationPath WithRootPath(string rootPath) => new(){
+			Context = Context,
+			Path = IoPath.Combine(rootPath, GetOsPath()),
+			IsRepeatable = IsRepeatable,
+		};
+
 		public string GetOsPath() => IoPath.GetPathRoot(Path) + IoPath.Combine(Path.Split(new[]{'\\', '/' }, System.StringSplitOptions.RemoveEmptyEntries));
 	}
 }

@@ -1,6 +1,5 @@
 using System;
 using System.Data;
-using System.Data.SqlClient;
 using System.IO;
 using DataBoss.Data;
 using DataBoss.Linq;
@@ -27,11 +26,18 @@ namespace DataBoss.Migrations
 		public event EventHandler<ErrorEventArgs> OnError;
 
 		public void Begin(DataBossMigrationInfo info) {
-			cmd = db.CreateCommand("insert __DataBossHistory(Id, Context, Name, StartedAt, [User]) values(@id, @context, @name, getdate(), @user)", new {
+			cmd = db.CreateCommand(
+				  "update __DataBossHistory with(holdlock)\n"
+				+ "set [StartedAt] = getdate(), [FinishedAt] = null, [MigrationHash] = @hash\n"
+				+ "where Id = @id and Context = @context\n"
+				+ "if @@rowcount = 0\n"
+				+ "  insert __DataBossHistory(Id, Context, Name, StartedAt, [User], [MigrationHash])\n"
+				+ "  values(@id, @context, @name, getdate(), @user, @hash)", new {
 				id = info.Id,
-				context = info.Context ?? string.Empty,
+				context = info.Context,
 				name = info.Name,
-				user = Environment.UserName
+				user = Environment.UserName,
+				hash = info.MigrationHash,
 			});
 			cmd.Transaction = db.BeginTransaction("LikeABoss");
 			cmd.ExecuteNonQuery();
@@ -41,11 +47,11 @@ namespace DataBoss.Migrations
 			if(isFaulted)
 				return false;
 			try {
-				switch(query.BatchType) {
-					default: return false;
-					case DataBossQueryBatchType.Query: return ExecuteQuery(query);
-					case DataBossQueryBatchType.ExternalCommand: return ExecuteCommand(query);
-				}
+				return query.BatchType switch {
+					DataBossQueryBatchType.Query => ExecuteQuery(query),
+					DataBossQueryBatchType.ExternalCommand => ExecuteCommand(query),
+					_ => false,
+				};
 			} catch(Exception e) {
 				isFaulted = true;
 				OnError.Raise(this, new ErrorEventArgs(e));

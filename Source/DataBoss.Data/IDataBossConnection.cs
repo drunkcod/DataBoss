@@ -23,6 +23,8 @@ namespace DataBoss.Data
 
 		void CreateTable(string destinationTable, IDataReader data);
 		void Insert(string destinationTable, IDataReader rows, DataBossBulkCopySettings settings);
+
+		IDbCommand CreateCommand();
 		IDbCommand CreateCommand(string cmdText);
 		IDbCommand CreateCommand<T>(string cmdText, T args);
 		IDbCommand CreateCommand(string cmdText, object args);

@@ -56,6 +56,9 @@ namespace DataBoss.Data
 
 		protected override DbCommand CreateDbCommand() => new ProfiledSqlCommand(this, inner.CreateCommand());
 
+		IDbCommand IDataBossConnection.CreateCommand() =>
+			new ProfiledSqlCommand(this, inner.CreateCommand());
+
 		IDbCommand IDataBossConnection.CreateCommand(string cmdText) =>
 			new ProfiledSqlCommand(this, inner.CreateCommand(cmdText));
 
