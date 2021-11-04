@@ -147,7 +147,7 @@ namespace DataBoss.Data
 			var hasValue = Expression.Convert(Expression.Property(value, "Value"), typeof(object));
 			var noValue = Expression.Block(
 				Expression.Assign(
-					Expression.Property(p, nameof(IDataParameter.DbType)),
+					Expression.Property(p, typeof(IDataParameter), nameof(IDataParameter.DbType)),
 						Expression.Constant(DataBossDbType.ToDbType(valueTyp))),
 				Expression.Constant(DBNull.Value, typeof(object)));
 

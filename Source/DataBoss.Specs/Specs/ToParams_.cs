@@ -11,7 +11,7 @@ using Xunit;
 
 namespace DataBoss
 {
-	public class ToParamsSpec
+	public class ToParams_
 	{
 		static SqlParameter[] GetParams<T>(T args) {
 			var cmd = new SqlCommand();
@@ -98,11 +98,20 @@ namespace DataBoss
 		public void IdOf_as_int() {
 			var x = GetParams(new { Id = new IdOf<MyRow>(1) });
 			Check.That(() => x.Length == 1);
-			Check
-			.That(
+			Check.That(
 				() => x.Length == 1,
 				() => x[0].ParameterName == "@Id",
 				() => x[0].SqlDbType == SqlDbType.Int);
 		}
+
+		[Fact]
+		public void IDbCommand_nullables() {
+			var c = new SqlCommand();
+			ToParams.CompileExtractor<IDbCommand, ArgOf<int?>>(MsSqlDialect.Instance)(c, new ArgOf<int?> { Value = 1 });
+
+			Check.That(() => c.Parameters[0].DbType == DbType.Int32);
+		}
+
+		class ArgOf<T> { public T Value { get; set; } }
 	}
 }
