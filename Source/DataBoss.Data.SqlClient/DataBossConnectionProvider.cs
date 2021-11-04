@@ -15,7 +15,7 @@ namespace DataBoss.Data
 	using System.Threading;
 	using DataBoss.Linq;
 
-	public class DataBossConnectionProvider : IDisposable
+	public sealed class DataBossConnectionProvider : IDisposable
 	{
 		readonly string connectionString;
 		readonly ConcurrentDictionary<int, SqlConnection> connections = new();
@@ -40,7 +40,7 @@ namespace DataBoss.Data
 		}
 
 		public SqlConnection NewConnection() => NewConnection(connectionString);
-		public ProfiledSqlConnection NewProfiledConnection() => new ProfiledSqlConnection(NewConnection());
+		public ProfiledSqlConnection NewProfiledConnection() => new(NewConnection());
 
 		SqlConnection NewConnection(string connectionString) {
 			var db = new SqlConnection(connectionString) {

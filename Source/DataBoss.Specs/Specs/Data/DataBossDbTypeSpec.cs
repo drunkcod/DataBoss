@@ -128,11 +128,11 @@ namespace DataBoss.Data
 			}.Select(x => new object[] { x.Item1, x.Item2 });
 
 		static SqlParameter Parameter(SqlDbType dbType, bool isNullable) =>
-			new SqlParameter {
+			new() {
 				IsNullable = isNullable,
 				SqlDbType = dbType
 			};
 
-		static SqlParameter Parameter(object value) => new SqlParameter { Value = value };
+		static SqlParameter Parameter(object value) => new() { Value = value };
 	}
 }

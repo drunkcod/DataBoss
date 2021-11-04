@@ -61,8 +61,9 @@ namespace DataBoss
 			var target = path.EndsWith(".databoss") 
 			? path
 			: path + ".databoss";
-			using (var input = File.OpenRead(target))
-				return Load(Path.GetDirectoryName(Path.GetFullPath(target)), input);
+
+			using var input = File.OpenRead(target);
+			return Load(Path.GetDirectoryName(Path.GetFullPath(target)), input);
 		}
 
 		public static DataBossConfiguration Load(string roothPath, Stream input) {
@@ -71,28 +72,6 @@ namespace DataBoss
 
 			config.Migrations = config.Migrations.ConvertAll(x => x.WithRootPath(roothPath));
 			return config;
-		}
-
-		public static KeyValuePair<string, DataBossConfiguration> ParseCommandConfig(IEnumerable<string> args) => ParseCommandConfig(args, Load);
-
-		public static KeyValuePair<string, DataBossConfiguration> ParseCommandConfig(IEnumerable<string> args, Func<string, DataBossConfiguration> load) {
-			var parsedArgs = PowerArgs.Parse(args);
-			var config = GetBaseConfig(parsedArgs, load);
-			var command = parsedArgs.Commands.SingleOrDefault() ?? throw new ArgumentException("missing command and/or configuration options.");
-
-			parsedArgs.Into(config);
-
-			return new KeyValuePair<string,DataBossConfiguration>(command, config);
-		}
-
-		private static DataBossConfiguration GetBaseConfig(PowerArgs parsedArgs, Func<string, DataBossConfiguration> load) {
-			if(parsedArgs.TryGetArg("Target", out var target))
-				return load(target);
-
-			var targets = Directory.GetFiles(".", "*.databoss");
-			if(targets.Length != 1)
-				throw new ArgumentException("Can't autodetect target, use -Target <file> to specify it");
-			return load(targets[0]);
 		}
 
 		public string GetConnectionString() {

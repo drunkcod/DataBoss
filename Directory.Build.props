@@ -10,7 +10,7 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/drunkcod/DataBoss</RepositoryUrl>
     <VersionPrefix>0.0.100</VersionPrefix>
-    <VersionSuffix>rc.2</VersionSuffix>
+    <VersionSuffix>rc.3</VersionSuffix>
     <AssemblyVersion>$(VersionPrefix)</AssemblyVersion>
     <AssemblyInformationalVersion>$(VersionPrefix)</AssemblyInformationalVersion>
     <AssemblyFileVersion>2021.11.04</AssemblyFileVersion>

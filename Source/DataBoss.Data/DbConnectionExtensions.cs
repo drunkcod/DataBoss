@@ -107,7 +107,7 @@ namespace DataBoss.Data
 		public static IEnumerable<TResult> Query<T1, T2, T3, T4, T5, T6, T7, TResult>(this IDbConnection db, Func<T1, T2, T3, T4, T5, T6, T7, TResult> selector, string commandText, DataBossQueryOptions options) => new DbQuery(Wrap(db), commandText, options).Read(selector);
 
 		static DbQuery Query(IDataBossConnection db, string commandText, object args, bool buffered) =>
-			new DbQuery(db, commandText, new DataBossQueryOptions { Parameters = args, Buffered = buffered });
+			new(db, commandText, new DataBossQueryOptions { Parameters = args, Buffered = buffered });
 
 		class DbQuery
 		{

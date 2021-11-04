@@ -65,10 +65,9 @@ namespace DataBoss
 			var pending = GetPendingMigrations(config);
 			log.Info("{0} pending migrations found.", pending.Count);
 
-			using(var targetScope = GetTargetScope(config)) {
-				var migrator = new DataBossMigrator(info => targetScope);
-				return migrator.ApplyRange(pending) ? 0 : -1;
-			}
+			using var targetScope = GetTargetScope(config); 
+			var migrator = new DataBossMigrator(info => targetScope);
+			return migrator.ApplyRange(pending) ? 0 : -1;
 		}
 
 		public static void EnsureDataBase(string connectionString) {

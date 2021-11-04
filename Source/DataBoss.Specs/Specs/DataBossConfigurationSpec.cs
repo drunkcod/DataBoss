@@ -95,17 +95,16 @@ namespace DataBoss
 		[Fact]
 		public void can_specify_migrations_when_created_from_connection_string() {
 			var cs = new SqlConnectionStringBuilder("Server=TheServer;Initial Catalog=TheDatabase");
-			var migrations = new DataBossMigrationPath[0];
+			var migrations = Array.Empty<DataBossMigrationPath>();
 			Check.With(() => DataBossConfiguration.Create(cs, migrations))
 				.That(x => x.Migrations == migrations);
 		}
 
-		Stream StringStream(string data) {
-			return new MemoryStream(Encoding.UTF8.GetBytes(data));
-		}
+		static Stream StringStream(string data) =>
+			new MemoryStream(Encoding.UTF8.GetBytes(data));
 
-		KeyValuePair<string, DataBossConfiguration> ParseGivenTargetAndCommand(params string[] args) {
-			return DataBossConfiguration.ParseCommandConfig(
+		static KeyValuePair<string, DataBossConfiguration> ParseGivenTargetAndCommand(params string[] args) {
+			return global::DataBoss.Program.ParseCommandConfig(
 				args.Concat(new[] {
 					"-Target", "target",
 					"<command>"

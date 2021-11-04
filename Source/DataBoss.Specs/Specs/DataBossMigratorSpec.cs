@@ -14,7 +14,7 @@ namespace DataBoss
 		{
 			public void Dispose() { }
 
-			public readonly List<DataBossQueryBatch> ExecutedQueries = new List<DataBossQueryBatch>(); 
+			public readonly List<DataBossQueryBatch> ExecutedQueries = new(); 
 			public Func<DataBossQueryBatch, bool> OnExecute;
 
 			public event EventHandler<ErrorEventArgs> OnError;
@@ -69,8 +69,7 @@ namespace DataBoss
 				() => string.Join(" - ", scope.ExecutedQueries) == "1");
 		}
 
-		IDataBossMigration TextMigration(string s) {
-			return new DataBossQueryMigration(string.Empty, () => new StringReader(s), new DataBossMigrationInfo(), false);
-		}
+		static IDataBossMigration TextMigration(string s) =>
+			new DataBossQueryMigration(string.Empty, () => new StringReader(s), new DataBossMigrationInfo(), false);
 	}
 }

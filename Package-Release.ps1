@@ -18,5 +18,6 @@ NuPack DataBoss.Data
 NuPack DataBoss.Data.MsSql 
 NuPack DataBoss.Data.SqlClient 
 NuPack DataBoss.DataPackage
+NuPack DataBoss.Migrations
 NuPack DataBoss
 NuPack DataBoss.Testing.SqlServer

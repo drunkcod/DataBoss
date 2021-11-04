@@ -300,8 +300,8 @@ namespace DataBoss.DataPackage
 					break;
 
 				case ConstraintsBehavior.Drop:
-					foreach (var item in references)
-						item.Resource.Schema.ForeignKeys.RemoveAll(x => x.Reference.Resource == name);
+					foreach (var (resource, _) in references)
+						resource.Schema.ForeignKeys.RemoveAll(x => x.Reference.Resource == name);
 					break;
 			}
 

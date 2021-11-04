@@ -9,9 +9,9 @@ using Xunit;
 
 namespace DataBoss.Data
 {
-	public class ProfiledSqlConnectionSpec : IDisposable
+	public sealed class ProfiledSqlConnectionSpec : IDisposable
     {
-		ProfiledSqlConnection con;
+		readonly ProfiledSqlConnection con;
 
 		public ProfiledSqlConnectionSpec() { 
 			con = new ProfiledSqlConnection(new SqlConnection("Server=.;Integrated Security=SSPI"));
