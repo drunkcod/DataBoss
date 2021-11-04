@@ -163,7 +163,7 @@ namespace DataBoss.DataPackage
 
 			static CsvDataReader CreateCsvDataReader(TextReader reader, CsvDialectDescription csvDialect, TabularDataSchema schema) =>
 				new(
-					new CsvHelper.CsvReader(
+					new CsvHelper.CsvParser(
 						reader,
 						new CsvConfiguration(CultureInfo.InvariantCulture) {
 							Delimiter = csvDialect.Delimiter ?? CsvDialectDescription.DefaultDelimiter

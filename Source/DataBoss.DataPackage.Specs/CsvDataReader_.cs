@@ -17,7 +17,7 @@ namespace DataBoss.DataPackage
 		[Fact]
 		public void field_nullability_defaults_to_true() {
 			var csv = new CsvDataReader(
-				new CsvHelper.CsvReader(TextReader.Null, CultureInfo.CurrentCulture),
+				new CsvHelper.CsvParser(TextReader.Null, CultureInfo.CurrentCulture),
 				new TabularDataSchema {
 					Fields = new List<TabularDataSchemaFieldDescription> {
 						new TabularDataSchemaFieldDescription("boolean", "boolean"),
@@ -38,7 +38,7 @@ namespace DataBoss.DataPackage
 		[Fact]
 		public void required_field() {
 			var csv = new CsvDataReader(
-				new CsvHelper.CsvReader(TextReader.Null, CultureInfo.CurrentCulture),
+				new CsvHelper.CsvParser(TextReader.Null, CultureInfo.CurrentCulture),
 				new TabularDataSchema {
 					Fields = new List<TabularDataSchemaFieldDescription> {
 						new TabularDataSchemaFieldDescription(
@@ -56,7 +56,7 @@ namespace DataBoss.DataPackage
 		[Fact]
 		public void identity_column_is_required() {
 			var csv = new CsvDataReader(
-				new CsvHelper.CsvReader(TextReader.Null, CultureInfo.CurrentCulture),
+				new CsvHelper.CsvParser(TextReader.Null, CultureInfo.CurrentCulture),
 				new TabularDataSchema {
 					Fields = new List<TabularDataSchemaFieldDescription> {
 						new TabularDataSchemaFieldDescription("id", "integer"),
@@ -71,7 +71,7 @@ namespace DataBoss.DataPackage
 		[Fact]
 		public void detect_missing_required_value() {
 			var csv = new CsvDataReader(
-				new CsvHelper.CsvReader(new StringReader("1,\n,\n"), CultureInfo.CurrentCulture),
+				new CsvHelper.CsvParser(new StringReader("1,\n,\n"), CultureInfo.CurrentCulture),
 				new TabularDataSchema {
 					Fields = new List<TabularDataSchemaFieldDescription> {
 						new TabularDataSchemaFieldDescription(
@@ -87,7 +87,7 @@ namespace DataBoss.DataPackage
 		[Fact]
 		public void support_varying_decimal_separator() {
 			var csv = new CsvDataReader(
-				new CsvHelper.CsvReader(new StringReader("3·1415"), CultureInfo.CurrentCulture),
+				new CsvHelper.CsvParser(new StringReader("3·1415"), CultureInfo.CurrentCulture),
 				new TabularDataSchema {
 					Fields = new List<TabularDataSchemaFieldDescription> {
 						new TabularDataSchemaFieldDescription(

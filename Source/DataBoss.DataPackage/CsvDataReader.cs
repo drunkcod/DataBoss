@@ -37,12 +37,12 @@ namespace DataBoss.DataPackage
 
 			public CsvDataRecord Clone() => new(parent, rowNumber, new BitArray(isNull), (string[])fieldValue.Clone());
 
-			public void Fill(int rowNumber, CsvReader csv) {
+			public void Fill(int rowNumber, CsvParser csv) {
 				this.rowNumber = rowNumber;
 				if(checkedIsNull == NoData)
 					checkedIsNull = CheckedIsNullUnsafe;
 				for (var i = 0; i != FieldCount; ++i) {
-					var value = fieldValue[i] = csv.GetField(i);
+					var value = fieldValue[i] = csv[i];
 					isNull[i] = IsNull(value);
 				}
 			}
@@ -180,16 +180,16 @@ namespace DataBoss.DataPackage
 		readonly IFormatProvider[] fieldFormat;
 		readonly CsvTypeCode[] csvFieldType;
 		readonly DataReaderSchemaTable schema;
-		CsvReader csv;
+		CsvParser csv;
 		int rowNumber;
 
 		public event EventHandler Disposed;
 
 		public CsvDataReader(TextReader csv, CultureInfo cultureInfo, TabularDataSchema tabularSchema, bool hasHeaderRow = true) :
-			this(new CsvReader(csv, cultureInfo), tabularSchema, hasHeaderRow) 
+			this(new CsvParser(csv, cultureInfo), tabularSchema, hasHeaderRow) 
 		{ }
 
-		public CsvDataReader(CsvReader csv, TabularDataSchema tabularSchema, bool hasHeaderRow = true) {
+		public CsvDataReader(CsvParser csv, TabularDataSchema tabularSchema, bool hasHeaderRow = true) {
 			var fieldCount = tabularSchema.Fields.Count;
 
 			this.csv = csv;
@@ -230,7 +230,7 @@ namespace DataBoss.DataPackage
 
 			for (var i = 0; i != schema.Count; ++i) {
 				var expected = schema[i].ColumnName;
-				var actual = csv.GetField(i);
+				var actual = csv[i];
 				if (actual != expected)
 					throw new InvalidOperationException($"Header mismatch, expected '{expected}' got {actual}");
 			}

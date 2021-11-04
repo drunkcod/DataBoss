@@ -4,12 +4,13 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+using IoPath = System.IO.Path;
 
 namespace DataBoss.Migrations
 {
 	public class DataBossDirectoryMigration : IDataBossMigration
 	{
-		static readonly Regex IdNameEx = new Regex(@"(?<id>\d+)(?<name>.*?)(\.(sql|cmd))?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+		static readonly Regex IdNameEx = new(@"(?<id>\d+)(?<name>.*?)(\.(sql|cmd))?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 		static readonly int IdGroup = IdNameEx.GroupNumberFromName("id");
 		static readonly int NameGroup = IdNameEx.GroupNumberFromName("name");
 
@@ -35,46 +36,49 @@ namespace DataBoss.Migrations
 			.OrderBy(x => x.Info.Id);
 
 		IEnumerable<IDataBossMigration> GetFileMigrations() {
-			using var sha256 = SHA256.Create();
-			foreach(var item in GetMigrations(Directory.GetFiles(path, "*"), x => {
-				using var bytes = File.OpenRead(x);
-				return sha256.ComputeHash(bytes);
-			})
-			.Select(x => System.IO.Path.GetExtension(x.Key).ToLower() switch {
-				".sql" => (IDataBossMigration)new DataBossQueryMigration(x.Key, () => File.OpenText(x.Key), x.Value, IsRepeatable),
-				".cmd" => new DataBossExternalCommandMigration(x.Key, () => File.OpenText(x.Key), x.Value, IsRepeatable),
-				_ => throw new ArgumentException($"Unsupported migration {x.Key}"),
-			}))
-				yield return item;
+			SHA256 sha256 = null;
+			try {
+				foreach(var item in GetMigrations(Directory.GetFiles(path, "*"), x => {
+					using var bytes = File.OpenRead(x);
+					return (sha256 ??= SHA256.Create()).ComputeHash(bytes);
+				}))
+					yield return IoPath.GetExtension(item.Path).ToLower() switch {
+						".sql" => new DataBossQueryMigration(item.Path, () => File.OpenText(item.Path), item.Info, IsRepeatable),
+						".cmd" => new DataBossExternalCommandMigration(item.Path, () => File.OpenText(item.Path), item.Info, IsRepeatable),
+						_ => throw new ArgumentException($"Unsupported migration {item.Path}"),
+					};
+			} finally {
+				sha256?.Dispose();
+			}
 		}
 
 		IEnumerable<IDataBossMigration> GetDirectoryMigrations() => 
 			GetMigrations(Directory.GetDirectories(path))
 			.Select(x => new DataBossDirectoryMigration(
-				x.Key,
-				x.Value,
-				string.IsNullOrEmpty(childContext) ? x.Value.Id.ToString() : childContext + "." + x.Value.Id,
+				x.Path,
+				x.Info,
+				string.IsNullOrEmpty(childContext) ? x.Info.Id.ToString() : childContext + "." + x.Info.Id,
 				isRepeatable));
 
-		public IEnumerable<(string Key, DataBossMigrationInfo Value)> GetMigrations(string[] paths, Func<string, byte[]> computeHash = null) {
+		public IEnumerable<(string Path, DataBossMigrationInfo Info)> GetMigrations(string[] paths, Func<string, byte[]> computeHash = null) {
 			computeHash ??= _ => null;
-			for(var i = 0; i != paths.Length; ++i) {
-				var m = IdNameEx.Match(System.IO.Path.GetFileName(paths[i]));
-				if(m.Success) {
-					var info = GetMigrationInfo(m);
-					info.MigrationHash = computeHash(paths[i]);
-					yield return (paths[i], info);
-				}
-			}
+			return paths
+				.Select(x => (Path: x, Match: IdNameEx.Match(IoPath.GetFileName(x))))
+				.Where(x => x.Match.Success)
+				.Select(x => {
+					var info = GetMigrationInfo(x.Match);
+					info.MigrationHash = computeHash(x.Path);
+					return (x.Path, info);
+				});
 		}
 
 		public DataBossMigrationInfo GetMigrationInfo(string path) {
-			var m = IdNameEx.Match(System.IO.Path.GetFileName(path));
+			var m = IdNameEx.Match(IoPath.GetFileName(path));
 			return m.Success ? GetMigrationInfo(m) : throw new InvalidOperationException();
 		}
 
 		DataBossMigrationInfo GetMigrationInfo(Match m) =>
-			new DataBossMigrationInfo {
+			new() {
 				Id = long.Parse(m.Groups[IdGroup].Value),
 				Context = childContext,
 				Name = m.Groups[NameGroup].Value.Trim(),
