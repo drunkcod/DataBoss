@@ -75,9 +75,16 @@ namespace DataBoss.Data
 		public void command_owning_connection() {
 			var c = Connections.NewCommand(CommandOptions.DisposeConnection);
 			Check.That(() => Connections.LiveConnections == 1);
-
 			c.Dispose();
 			Check.That(() => Connections.LiveConnections == 0);
+		}
+
+		[Fact]
+		public void ExecuteReader() {
+			using(var r = Connections.ExecuteReader("select @value", new { value = 42 }))
+				;
+			Check.That(() => Connections.LiveConnections == 0);
+
 		}
 	}
 }

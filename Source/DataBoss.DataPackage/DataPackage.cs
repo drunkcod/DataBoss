@@ -22,7 +22,8 @@ using Newtonsoft.Json;
 
 namespace DataBoss.DataPackage
 {
-	public class DataPackage : IDataPackageBuilder {
+	public class DataPackage : IDataPackageBuilder 
+	{
 		readonly List<TabularDataResource> resources = new();
 
 		delegate bool TryGetResourceOutputPath(ResourcePath path, out string outputPath);
@@ -32,7 +33,8 @@ namespace DataBoss.DataPackage
 
 		public IReadOnlyList<TabularDataResource> Resources => resources.AsReadOnly();
 
-		class DataPackageResourceBuilder : IDataPackageResourceBuilder {
+		class DataPackageResourceBuilder : IDataPackageResourceBuilder
+		{
 			readonly DataPackage package;
 			readonly TabularDataResource resource;
 

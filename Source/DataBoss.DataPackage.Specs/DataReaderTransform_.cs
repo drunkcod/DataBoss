@@ -8,7 +8,7 @@ using Xunit;
 
 namespace DataBoss.DataPackage
 {
-	public class DataReaderTransformSpec
+	public class DataReaderTransform_
 	{
 		[Fact]
 		public void Transform_value_keeps_source_field_nullability() {

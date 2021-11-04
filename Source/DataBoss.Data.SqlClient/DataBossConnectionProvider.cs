@@ -115,15 +115,14 @@ namespace DataBoss.Data
 			NewCommand(commandText, args, CommandOptions.DisposeConnection | CommandOptions.OpenConnection, commandType);
 
 		public SqlDataReader ExecuteReader(string commandText, int? commandTimeout = null) => 
-			ExecuteReaderWithCleanup(NewCommand(commandText, CommandOptions.None), commandTimeout);
+			ExecuteReaderWithCleanup(NewCommand(commandText, CommandOptions.OpenConnection | CommandOptions.DisposeConnection), commandTimeout);
 
 		public SqlDataReader ExecuteReader<TArgs>(string commandText, TArgs args, int? commandTimeout = null) =>
-			ExecuteReaderWithCleanup(NewCommand(commandText, args, CommandOptions.None), commandTimeout);
+			ExecuteReaderWithCleanup(NewCommand(commandText, args, CommandOptions.OpenConnection |CommandOptions.DisposeConnection), commandTimeout);
 
 		static SqlDataReader ExecuteReaderWithCleanup(SqlCommand c, int? commandTimeout) {
 			if (commandTimeout.HasValue)
 				c.CommandTimeout = commandTimeout.Value;
-			c.Connection.Open();
 			var r = c.ExecuteReader(CommandBehavior.CloseConnection);
 			c.Connection.StateChange += new ReaderCleanup(c, r).CleanupOnClose;
 			return r;
@@ -132,7 +131,7 @@ namespace DataBoss.Data
 		class ReaderCleanup
 		{
 			SqlCommand command;
-			IDisposable reader;
+			SqlDataReader reader;
 
 			public ReaderCleanup(SqlCommand command, SqlDataReader reader) {
 				this.command = command;

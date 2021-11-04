@@ -7,7 +7,7 @@ using Xunit;
 
 namespace DataBoss.Linq
 {
-	public class MissingLinqSpec
+	public class MissingLinq_
 	{
 		[Fact]
 		public void AsReadonly_transform() => Check
@@ -57,7 +57,7 @@ namespace DataBoss.Linq
 				xs => xs.Count == 2,
 				xs => xs[0].Key == 1,
 				xs => xs[0].ElementAt(0) == items[0].id.ToString());
-			}
+		}
 
 		[Fact]
 		public void ChunkBy_grouping_is_collection() => Check

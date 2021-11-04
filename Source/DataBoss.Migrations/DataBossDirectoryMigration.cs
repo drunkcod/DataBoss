@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+using DataBoss.Linq;
 using IoPath = System.IO.Path;
 
 namespace DataBoss.Migrations
@@ -63,25 +64,22 @@ namespace DataBoss.Migrations
 		public IEnumerable<(string Path, DataBossMigrationInfo Info)> GetMigrations(string[] paths, Func<string, byte[]> computeHash = null) {
 			computeHash ??= _ => null;
 			return paths
-				.Select(x => (Path: x, Match: IdNameEx.Match(IoPath.GetFileName(x))))
+				.ConvertAll(x => (Path: x, Match: IdNameEx.Match(IoPath.GetFileName(x))))
 				.Where(x => x.Match.Success)
-				.Select(x => {
-					var info = GetMigrationInfo(x.Match);
-					info.MigrationHash = computeHash(x.Path);
-					return (x.Path, info);
-				});
+				.Select(x => (x.Path, info: GetMigrationInfo(x.Match, computeHash(x.Path))));
 		}
 
 		public DataBossMigrationInfo GetMigrationInfo(string path) {
 			var m = IdNameEx.Match(IoPath.GetFileName(path));
-			return m.Success ? GetMigrationInfo(m) : throw new InvalidOperationException();
+			return m.Success ? GetMigrationInfo(m, null) : throw new InvalidOperationException();
 		}
 
-		DataBossMigrationInfo GetMigrationInfo(Match m) =>
+		DataBossMigrationInfo GetMigrationInfo(Match m, byte[] migrationHash) =>
 			new() {
 				Id = long.Parse(m.Groups[IdGroup].Value),
 				Context = childContext,
 				Name = m.Groups[NameGroup].Value.Trim(),
+				MigrationHash  = migrationHash,
 			};
 
 		public DataBossMigrationInfo Info { get; }

@@ -4,15 +4,15 @@ using Xunit;
 
 namespace DataBoss.DataPackage
 {
-	public class CsvWriterSpec
+	public class CsvWriter_
 	{
 		[Fact]
 		public void leave_open() {
 			var ms = new MemoryStream();
 			using(var csv = new CsvWriter(new StreamWriter(ms), leaveOpen: true))
 			{ }
-			Check.That(() => ms.CanWrite);
-			
+
+			Check.That(() => ms.CanWrite);		
 		}
 
 		[Fact]
@@ -20,6 +20,7 @@ namespace DataBoss.DataPackage
 			var r = new StringWriter();
 			using (var csv = new CsvWriter(r))
 				csv.WriteField("a quote:\"");
+			
 			Check.That(() => r.ToString() == "\"a quote:\"\"\"");
 		}
 
@@ -28,6 +29,7 @@ namespace DataBoss.DataPackage
 			var r = new StringWriter();
 			using (var csv = new CsvWriter(r))
 				csv.WriteField(csv.Delimiter);
+			
 			Check.That(() => r.ToString() == $"\"{CsvWriter.DefaultDelimiter}\"");
 		}
 
@@ -36,6 +38,7 @@ namespace DataBoss.DataPackage
 			var r = new StringWriter();
 			using (var csv = new CsvWriter(r))
 				csv.WriteField("\n");
+			
 			Check.That(() => r.ToString() == $"\"\n\"");
 		}
 
@@ -46,6 +49,7 @@ namespace DataBoss.DataPackage
 				csv.WriteField("A");
 				csv.WriteField("1");
 			}
+			
 			Check.That(() => r.ToString() == $"A;1");
 		}
 
@@ -57,8 +61,8 @@ namespace DataBoss.DataPackage
 				csv.NextRecord();
 				csv.WriteField("1");
 			}
+			
 			Check.That(() => r.ToString() == $"A\r\n1");
 		}
-
 	}
 }
