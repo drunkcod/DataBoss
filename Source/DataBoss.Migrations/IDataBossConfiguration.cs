@@ -5,6 +5,6 @@ namespace DataBoss
 		string GetConnectionString();
 		IDataBossMigration GetTargetMigration();
 		string Script { get; }
-
+		string DefaultSchema { get; }
 	}
 }

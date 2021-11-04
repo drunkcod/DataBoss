@@ -96,7 +96,24 @@ namespace DataBoss
 					goto case 2;
 				case 2: break;
 			}
+
+			var userSchema = GetDefaultSchema();
+			var configSchema = config.DefaultSchema ?? "dbo";
+			if (string.Compare(GetDefaultSchema(), configSchema, ignoreCase: true) != 0)
+				throw new InvalidOperationException(
+					  $"User default schema '{userSchema}' doesn't match '{configSchema}'.\n"
+					+ $"Either update the user default schema or add 'defaultSchema=\"{userSchema}\"' to the top level db element.");
 		}
+
+		string GetDefaultSchema() {
+			using var c = db.CreateCommand(
+				  "select isnull(default_schema_name, 'dbo')\n"
+				+ "from sys.database_principals\n"
+				+ "where principal_id = database_principal_id()");
+			
+			return (string)c.ExecuteScalar();
+		}
+			
 
 		static int GetTableVersion(IDataBossConnection db, string tableName) {
 			using var c = db.CreateCommand(

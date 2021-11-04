@@ -115,42 +115,42 @@ namespace DataBoss.Data
 			NewCommand(commandText, args, CommandOptions.DisposeConnection | CommandOptions.OpenConnection, commandType);
 
 		public SqlDataReader ExecuteReader(string commandText, int? commandTimeout = null) => 
-			ExecuteReaderWithCleanup(NewCommand(commandText, CommandOptions.OpenConnection | CommandOptions.DisposeConnection), commandTimeout);
+			ExecuteReaderWithCleanup(NewCommand(commandText, CommandOptions.OpenConnection), commandTimeout);
 
 		public SqlDataReader ExecuteReader<TArgs>(string commandText, TArgs args, int? commandTimeout = null) =>
-			ExecuteReaderWithCleanup(NewCommand(commandText, args, CommandOptions.OpenConnection |CommandOptions.DisposeConnection), commandTimeout);
+			ExecuteReaderWithCleanup(NewCommand(commandText, args, CommandOptions.OpenConnection), commandTimeout);
 
 		static SqlDataReader ExecuteReaderWithCleanup(SqlCommand c, int? commandTimeout) {
 			if (commandTimeout.HasValue)
 				c.CommandTimeout = commandTimeout.Value;
-			var r = c.ExecuteReader(CommandBehavior.CloseConnection);
-			c.Connection.StateChange += new ReaderCleanup(c, r).CleanupOnClose;
-			return r;
+			var cleanup = new ReaderCleanup(c);
+			c.Connection.StateChange += cleanup.CleanupOnClose;
+			try {
+				return (cleanup.Reader = c.ExecuteReader(CommandBehavior.CloseConnection));
+			} catch {
+				c.Connection.Close();
+				throw;
+			}
 		}
 
 		class ReaderCleanup
 		{
-			SqlCommand command;
-			SqlDataReader reader;
+			public readonly SqlCommand Command;
+			public SqlDataReader Reader;
 
-			public ReaderCleanup(SqlCommand command, SqlDataReader reader) {
-				this.command = command;
-				this.reader = reader;
-			}
+			public ReaderCleanup(SqlCommand command) { this.Command = command; }
 
 			public void CleanupOnClose(object sender, StateChangeEventArgs e) {
 				var connection = (SqlConnection)sender;
 				if(e.CurrentState == ConnectionState.Closed) {
-					connection.StateChange -= CleanupOnClose;
 					Cleanup();
+					connection.Dispose();
 				}
 			}
 
 			void Cleanup() {
-				reader.Dispose();
-				command.Dispose();
-				reader = null;
-				command = null;
+				Reader?.Dispose();
+				Command.Dispose();
 			}
 		}
 

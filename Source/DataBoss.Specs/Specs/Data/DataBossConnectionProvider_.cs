@@ -82,9 +82,19 @@ namespace DataBoss.Data
 		[Fact]
 		public void ExecuteReader() {
 			using(var r = Connections.ExecuteReader("select @value", new { value = 42 }))
-				;
+			{ }
 			Check.That(() => Connections.LiveConnections == 0);
 
 		}
+
+		[Fact]
+		public void ExecuteReader_with_exception() {
+			try {
+				var r = Connections.ExecuteReader("!syntax error!", new { value = 42 });
+			} catch { }
+
+			Check.That(() => Connections.LiveConnections == 0);
+		}
+
 	}
 }

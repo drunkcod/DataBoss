@@ -27,6 +27,9 @@ namespace DataBoss
 		[XmlElement("migrations")]
 		public DataBossMigrationPath[] Migrations;
 
+		[XmlAttribute("defaultSchema")]
+		public string DefaultSchema { get; set; }
+
 		[XmlIgnore]
 		public string Script { get; set; }
 
