@@ -3,7 +3,7 @@ using Xunit;
 
 namespace DataBoss.Data
 {
-	public class DataReaderSchemaTableTests
+	public class DataReaderSchemaTable_
 	{
 		[Fact]
 		public void DataReaderSchemaTable_for_null_column_size() {

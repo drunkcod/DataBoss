@@ -4,7 +4,7 @@ using Xunit;
 
 namespace DataBoss.Data
 {
-	public class BufferedDataReaderSpec
+	public class BufferedDataReader_
 	{
 		class MyThing 
 		{ 

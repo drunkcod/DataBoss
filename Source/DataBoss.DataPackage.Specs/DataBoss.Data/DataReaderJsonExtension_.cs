@@ -4,7 +4,7 @@ using Xunit;
 
 namespace DataBoss.Data
 {
-	public class DataReaderJsonExtensionTests
+	public class DataReaderJsonExtension_
 	{
 		[Fact]
 		public void super_duper_bonkers() {

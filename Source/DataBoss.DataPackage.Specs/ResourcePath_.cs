@@ -6,7 +6,7 @@ using Xunit;
 
 namespace DataBoss.DataPackage
 {
-	public class ResourcePathSpec
+	public class ResourcePath_
 	{
 		/*
 		 * ResourcePath exists to support the Frictionless Data Package spec where a resource path property 

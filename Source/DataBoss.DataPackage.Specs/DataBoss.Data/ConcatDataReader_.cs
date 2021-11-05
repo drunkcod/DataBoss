@@ -10,7 +10,7 @@ using Xunit;
 
 namespace DataBoss.Data
 {
-	public class ConcatDataReaderTests
+	public class ConcatDataReader_
 	{
 		[Fact]
 		public void rows_are_in_reader_order() {

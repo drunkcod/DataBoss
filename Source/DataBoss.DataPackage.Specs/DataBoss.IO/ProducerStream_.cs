@@ -9,7 +9,7 @@ using Xunit;
 
 namespace DataBoss.IO
 {
-	public class ProducerStreamSpec
+	public class ProducerStream_
 	{
 		[Fact]
 		public void ignores_empty_writes() {

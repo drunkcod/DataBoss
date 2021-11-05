@@ -9,7 +9,7 @@ using Xunit;
 
 namespace DataBoss.DataPackage
 {
-	public class ItemOrArrayJsonConverterSpec
+	public class ItemOrArrayJsonConverter_
 	{
 		class WithItemOrArrayValue<T>
 		{

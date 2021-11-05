@@ -2,9 +2,9 @@ using CheckThat;
 using Newtonsoft.Json;
 using Xunit;
 
-namespace DataBoss.DataPackage.Specs.Schema
+namespace DataBoss.DataPackage.Schema
 {
-	public class TabularDataSchemaFieldDescriptionSpec
+	public class TabularDataSchemaFieldDescription_
 	{
 		[Fact]
 		public void decimalSeparator_null_is_same_as_default() {
