@@ -11,21 +11,78 @@ using Xunit;
 
 namespace DataBoss
 {
-	public class ToParams_
+	public abstract class ToParamsFixture<TCommand, TParameter> 
+		where TCommand : IDbCommand 
+		where TParameter : IDbDataParameter
 	{
-		static SqlParameter[] GetParams<T>(T args) {
-			var cmd = new SqlCommand();
-			cmd.AddParameters(args);
-			return cmd.Parameters.Cast<SqlParameter>().ToArray();
+		protected abstract TCommand NewCommand();
+		protected abstract ISqlDialect SqlDialect { get; }
+
+		protected TParameter[] GetParams<T>(T args) { 
+			var cmd = NewCommand();
+			ToParams.CompileExtractor<TCommand, T>(SqlDialect)(cmd, args);
+			return cmd.Parameters.Cast<TParameter>().ToArray();
 		}
 
 		[Fact]
-		public void complext_type() => Check
+		public void nullables() {
+			var p = GetParams(new {
+				Int32_Value = (int?)1,
+				Int32_Null = (int?)null,
+			});
+
+			Check.That(
+				() => p.Single(x => x.ParameterName == ParameterName("Int32_Value")).DbType == DbType.Int32,
+				() => p.Single(x => x.ParameterName == ParameterName("Int32_Null")).DbType == DbType.Int32);
+		}
+
+		[Fact]
+		public void null_string() => Check
+			.With(() => GetParams(new { NullString = (string)null }))
+			.That(
+				xs => xs.Length == 1,
+				xs => xs[0].Value == DBNull.Value);
+
+		[Fact]
+		public void Uri_is_treated_as_string() {
+			var uri = new Uri("http://example.com");
+			Check.With(() =>
+			GetParams(new {
+				Uri = uri,
+				NullUri = (Uri)null,
+			})).That(
+				xs => xs.Length == 2,
+				xs => xs[0].Value.Equals(uri.ToString()),
+				xs => xs[1].Value == DBNull.Value);
+		}
+
+		class MyRow { }
+
+		[Fact]
+		public void IdOf_as_int() {
+			var x = GetParams(new { Id = new IdOf<MyRow>(1) });
+			Check.That(() => x.Length == 1);
+			Check.That(
+				() => x.Length == 1,
+				() => x[0].ParameterName == ParameterName("Id"),
+				() => x[0].DbType== DbType.Int32);
+		}
+
+		[Fact]
+		public void complex_type() => Check
 			.With(() => GetParams(new { Args = new { Foo = 1, Bar = "Hello" } }))
 			.That(
 				x => x.Length == 2,
-				x => x.Any(p => p.ParameterName == "@Args_Foo"),
-				x => x.Any(p => p.ParameterName == "@Args_Bar"));
+				x => x.Any(p => p.ParameterName == ParameterName("Args_Foo")),
+				x => x.Any(p => p.ParameterName == ParameterName("Args_Bar")));
+
+		string ParameterName(string name) => $"{SqlDialect.ParameterPrefix}{name}";
+	}
+
+	public class ToParams_SqlCommand : ToParamsFixture<SqlCommand, SqlParameter>
+	{
+		protected override SqlCommand NewCommand() => new();
+		protected override ISqlDialect SqlDialect => MsSqlDialect.Instance;
 
 		[Theory]
 		[InlineData(typeof(string))]
@@ -43,36 +100,16 @@ namespace DataBoss
 				.That(x => x.Length == 1, x => x.Any(p => p.ParameterName == "@Value"));
 		}
 
-		[Fact]
-		public void null_string() => Check.With(() =>
-			GetParams(new { NullString = (string)null }))
-			.That(
-				xs => xs.Length == 1,
-				xs => xs[0].Value == DBNull.Value);
-
-		[Fact]
-		public void Uri_is_treated_as_string() {
-			var uri = new Uri("http://example.com");
-			Check.With(() =>
-			GetParams(new { 
-				Uri = uri,
-				NullUri = (Uri)null,
-			})).That(
-				xs => xs.Length == 2,
-				xs => xs[0].Value.Equals(uri.ToString()),
-				xs => xs[1].Value == DBNull.Value);
-		}
-
 		[Theory]
 		[InlineData(typeof(int), SqlDbType.Int)]
 		[InlineData(typeof(decimal), SqlDbType.Decimal)]
 		[InlineData(typeof(SqlDecimal), SqlDbType.Decimal)]
 		[InlineData(typeof(RowVersion), SqlDbType.Binary)]
 		public void nullable_values(Type type, SqlDbType sqlDbType) => 
-			GetType().GetMethod(nameof(CheckNullable), BindingFlags.Static | BindingFlags.NonPublic)
-			.MakeGenericMethod(type).Invoke(null, new object[]{ sqlDbType });
+			GetType().GetMethod(nameof(CheckNullable), BindingFlags.Instance | BindingFlags.NonPublic)
+			.MakeGenericMethod(type).Invoke(this, new object[]{ sqlDbType });
 
-		static void CheckNullable<T>(SqlDbType sqlDbType) where T : struct => Check.With(() =>
+		void CheckNullable<T>(SqlDbType sqlDbType) where T : struct => Check.With(() =>
 			GetParams(new {
 				HasValue = new T?(default),
 				IsNull = new T?(),
@@ -91,27 +128,11 @@ namespace DataBoss
 				paras => paras.Length == 1,
 				paras => paras[0].ParameterName == "@RowVersion",
 				paras => paras[0].SqlDbType == SqlDbType.Binary);
+	}
 
-		class MyRow { }
-
-		[Fact]
-		public void IdOf_as_int() {
-			var x = GetParams(new { Id = new IdOf<MyRow>(1) });
-			Check.That(() => x.Length == 1);
-			Check.That(
-				() => x.Length == 1,
-				() => x[0].ParameterName == "@Id",
-				() => x[0].SqlDbType == SqlDbType.Int);
-		}
-
-		[Fact]
-		public void IDbCommand_nullables() {
-			var c = new SqlCommand();
-			ToParams.CompileExtractor<IDbCommand, ArgOf<int?>>(MsSqlDialect.Instance)(c, new ArgOf<int?> { Value = 1 });
-
-			Check.That(() => c.Parameters[0].DbType == DbType.Int32);
-		}
-
-		class ArgOf<T> { public T Value { get; set; } }
+	public class ToParams_IDbCommand : ToParamsFixture<IDbCommand, IDbDataParameter>
+	{
+		protected override IDbCommand NewCommand() => new SqlCommand();
+		protected override ISqlDialect SqlDialect => MsSqlDialect.Instance;
 	}
 }
