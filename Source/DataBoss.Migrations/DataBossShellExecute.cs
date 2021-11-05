@@ -15,7 +15,7 @@ namespace DataBoss
 			this.OutputEncoding = outputEncoding ?? Encoding.Default;
 		}
 
-		public bool Execute(string workingDir, string command, IEnumerable<KeyValuePair<string, string>> environmentVariables) {
+		public bool Execute(string workingDir, string command, params (string Key, string Value)[] environmentVariables) {
 			var argPos = command.IndexOf(' ');
 			var args = string.Empty;
 			if(argPos != -1) {
@@ -31,8 +31,9 @@ namespace DataBoss
 				StandardOutputEncoding = OutputEncoding,
 				WorkingDirectory = workingDir,
 			};
-			foreach(var item in environmentVariables)
-				si.EnvironmentVariables.Add(item.Key, item.Value);
+
+			foreach(var (key, value) in environmentVariables)
+				si.EnvironmentVariables.Add(key, value);
 
 			var p = Process.Start(si);
 			p.EnableRaisingEvents = true;

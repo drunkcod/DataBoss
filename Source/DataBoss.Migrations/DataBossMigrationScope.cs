@@ -2,7 +2,6 @@ using System;
 using System.Data;
 using System.IO;
 using DataBoss.Data;
-using DataBoss.Linq;
 
 namespace DataBoss.Migrations
 {
@@ -68,11 +67,10 @@ namespace DataBoss.Migrations
 		}
 
 		private bool ExecuteCommand(DataBossQueryBatch command) =>
-			shellExecute.Execute(string.IsNullOrEmpty(command.Path) ? string.Empty: Path.GetDirectoryName(command.Path), command.ToString(), new [] {
-				KeyValuePair.Create("DATABOSS_CONNECTION", scopeContext.ConnectionString),
-				KeyValuePair.Create("DATABOSS_DATABASE", scopeContext.Database),
-				KeyValuePair.Create("DATABOSS_SERVER", scopeContext.Server),
-			});
+			shellExecute.Execute(string.IsNullOrEmpty(command.Path) ? string.Empty: Path.GetDirectoryName(command.Path), command.ToString(),
+				("DATABOSS_CONNECTION", scopeContext.ConnectionString),
+				("DATABOSS_DATABASE", scopeContext.Database),
+				("DATABOSS_SERVER", scopeContext.Server));
 
 		public void Done() {
 			if(cmd == null)

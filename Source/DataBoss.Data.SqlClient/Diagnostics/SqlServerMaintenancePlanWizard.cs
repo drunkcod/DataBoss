@@ -55,20 +55,20 @@ namespace DataBoss.Diagnostics
 					server.Open();
 				server.ChangeDatabase(database);
 				if(TryCreateMaintenancePlan(serverName, database, server, out var result))
-					yield return result.Key;
+					yield return result.Plan;
 				else if(OnError != null)
-					OnError(this, new SqlServerMaintenancePlanWizardErrorEventArgs(server, result.Value));
-				else ExceptionDispatchInfo.Capture(result.Value).Throw();
+					OnError(this, new SqlServerMaintenancePlanWizardErrorEventArgs(server, result.Error));
+				else ExceptionDispatchInfo.Capture(result.Error).Throw();
 			}
 		}
 
-		bool TryCreateMaintenancePlan(string serverName, string database, SqlConnection db, out KeyValuePair<SqlServerMaintenancePlan, Exception> result) {
+		bool TryCreateMaintenancePlan(string serverName, string database, SqlConnection db, out (SqlServerMaintenancePlan Plan, Exception Error) result) {
 			try {
-				result = KeyValuePair.Create(new SqlServerMaintenancePlan(serverName, database, GetMaintenanceCommands(db).ToArray()), (Exception)null);
+				result = (new SqlServerMaintenancePlan(serverName, database, GetMaintenanceCommands(db).ToArray()), (Exception)null);
 				return true;
 			}
 			catch (Exception ex) {
-				result = KeyValuePair.Create((SqlServerMaintenancePlan)null, ex);
+				result = (null, ex);
 				return false;
 			}
 		}

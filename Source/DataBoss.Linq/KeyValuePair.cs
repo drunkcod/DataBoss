@@ -1,11 +1,11 @@
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
-#if !(NETSTANDARD2_1_OR_GREATER || NETCOREAPP2_0_OR_GREATER)
 namespace DataBoss.Linq
 {
 	public static class KeyValuePair
 	{
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static KeyValuePair<TKey, TValue> Create<TKey, TValue>(TKey key, TValue value) => new KeyValuePair<TKey, TValue>(key, value);
 	}
 }
-#endif
