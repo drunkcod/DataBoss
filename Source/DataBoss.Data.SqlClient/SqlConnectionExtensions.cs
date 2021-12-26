@@ -30,7 +30,7 @@ namespace DataBoss.Data
 		}
 
 		public static void CreateTable(this SqlConnection connection, string tableName, IDataReader data) {
-			connection.ExecuteNonQuery(new DataBossScripter(MsSqlDialect.Instance).ScriptTable(tableName, data));
+			connection.ExecuteNonQuery(MsSqlDialect.Scripter.ScriptTable(tableName, data));
 		}
 
 		public static object ExecuteScalar(this SqlConnection connection, string cmdText) {

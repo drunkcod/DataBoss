@@ -2,12 +2,19 @@ using System;
 using System.Collections.Concurrent;
 using System.Linq;
 using System.Linq.Expressions;
+using DataBoss.Data.Scripting;
 
 namespace DataBoss.Data.Support
 {
 	public class SqlDialect<TDialect, TCommand> where TDialect : ISqlDialect, new()
 	{
-		public static readonly ISqlDialect Instance = new TDialect();
+		public static readonly ISqlDialect Instance;
+		public static readonly DataBossScripter Scripter;
+
+		static SqlDialect() {
+			Instance = new TDialect();
+			Scripter = new DataBossScripter(Instance);
+		}
 		protected static class Extractor<TArg>
 		{
 			public static Action<TCommand, TArg> CreateParameters =

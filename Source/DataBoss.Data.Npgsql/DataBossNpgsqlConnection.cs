@@ -29,9 +29,7 @@ namespace DataBoss.Data.Npgsql
 
 		public ConnectionState State => connection.State;
 
-		public IDbTransaction BeginTransaction(string transactionName) {
-			throw new NotImplementedException();
-		}
+		public IDbTransaction BeginTransaction(string transactionName) => throw new NotSupportedException();
 
 		public IDbCommand CreateCommand() => connection.CreateCommand();
 

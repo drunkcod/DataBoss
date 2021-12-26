@@ -82,10 +82,9 @@ namespace DataBoss.Data
 				x.MapAll();
 			});
 
-			var scripter = new DataBossScripter(MsSqlDialect.Instance);
 			using(var cmd = context.CreateCommand()) {
 				cmd.CommandText =$@"
-					{scripter.ScriptTable(TempTableName, toInsert)}
+					{MsSqlDialect.Scripter.ScriptTable(TempTableName, toInsert)}
 					create clustered index [#$_$] on {TempTableName}([{toInsert.GetName(0)}])";
 				cmd.ExecuteNonQuery();
 

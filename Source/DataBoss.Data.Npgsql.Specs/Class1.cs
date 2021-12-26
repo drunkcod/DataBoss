@@ -2,10 +2,10 @@ using CheckThat;
 using Npgsql;
 using Xunit;
 
-namespace DataBoss.Data.Npgsql.Specs
+namespace DataBoss.Data.Npgsql
 {
-    public class Class1
-    {
+    public class DataBossNpgsqlConnection_
+	{
 		[Fact]
 		public void parameter_roundtrip() {
 			using var db = new NpgsqlConnection("Host=localhost;Username=databoss;Password=databoss;Database=postgres");

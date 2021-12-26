@@ -2,7 +2,6 @@ using System.ComponentModel.DataAnnotations.Schema;
 using CheckThat;
 using DataBoss.Data;
 using DataBoss.Data.Scripting;
-using DataBoss.Migrations;
 using DataBoss.Schema;
 using Xunit;
 

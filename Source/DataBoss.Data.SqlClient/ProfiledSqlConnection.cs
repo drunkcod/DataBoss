@@ -83,7 +83,7 @@ namespace DataBoss.Data
 		}
 
 		public void Insert(string destinationTable, IDataReader toInsert, DataBossBulkCopySettings settings) {
-			using var rows = new ProfiledDataReader(toInsert, new DataBossScripter(MsSqlDialect.Instance));
+			using var rows = new ProfiledDataReader(toInsert, MsSqlDialect.Scripter);
 			BulkCopyStarting?.Invoke(this, new ProfiledBulkCopyStartingEventArgs(destinationTable, rows));
 			inner.Insert(destinationTable, rows, settings);
 		}

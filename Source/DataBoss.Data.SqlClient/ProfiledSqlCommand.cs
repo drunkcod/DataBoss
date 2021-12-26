@@ -83,7 +83,7 @@ namespace DataBoss.Data
 			return r;
 		}
 
-		public new ProfiledDataReader ExecuteReader(CommandBehavior behavior) => new(inner.ExecuteReader(behavior), new DataBossScripter(MsSqlDialect.Instance));
+		public new ProfiledDataReader ExecuteReader(CommandBehavior behavior) => new(inner.ExecuteReader(behavior), MsSqlDialect.Scripter);
 
 		protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior) {
 			var s = Connection.OnExecuting(this);
