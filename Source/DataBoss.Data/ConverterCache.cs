@@ -80,11 +80,13 @@ namespace DataBoss.Data
 
 			for (var i = 0; i != r.Length; ++i) {
 				var row = schema.Rows[i];
-				r[i] = (bool)row[allowDBNull];
+				r[i] = IfDbNull(row[allowDBNull], true);
 			}
 
 			return r;
 		}
+
+		static T IfDbNull<T>(object value, T whenNull) => value is DBNull ? whenNull : (T)value;
 
 		static void FormatField(StringBuilder sb, string columnName, Type columnType) =>
 			sb.Append(columnType).Append(" [").Append(columnName).Append(']');

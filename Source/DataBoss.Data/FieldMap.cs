@@ -28,13 +28,15 @@ namespace DataBoss.Data
 					ProviderSpecificDataType = dbReader.GetProviderSpecificFieldType(i),
 					AllowDBNull = ordinalColumn != null
 						&& allowDBNullColumn != null
-						&& (bool)schema.Rows.Cast<DataRow>().Single(x => (int)x[ordinalColumn] == i)[allowDBNullColumn]	
+						&& IfDbNull(schema.Rows.Cast<DataRow>().Single(x => (int)x[ordinalColumn] == i)[allowDBNullColumn], true)	
 				};
 				if(include(item))
 					fieldMap.Add(item.ColumnName, item.Ordinal, item.DataType, item.ProviderSpecificDataType, item.AllowDBNull);
 			}
 			return fieldMap;
 		}
+
+		static T IfDbNull<T>(object value, T whenNull) => value is DBNull ? whenNull : (T)value;
 
 		public int Count => fields.Count;
 		public int MinOrdinal => fields.Count == 0 ? -1 : fields.Min(x => x.Value.Ordinal);

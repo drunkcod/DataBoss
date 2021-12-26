@@ -129,7 +129,7 @@ namespace DataBoss.Data.Scripting
 		}
 
 		StringBuilder ScriptColumn(StringBuilder result, DataBossTableColumn column) =>
-			result.AppendFormat("[{0}] {1}", column.Name, dialect.GetTypeName(column.ColumnType));
+			result.Append(dialect.FormatName(column.Name)).Append(' ').Append(dialect.GetTypeName(column.ColumnType));
 
 		public string ScriptConstraints(Type tableType) {
 			var result = new StringBuilder();
@@ -173,10 +173,10 @@ namespace DataBoss.Data.Scripting
 			return AppendTableName(result, table).ToString();
 		}
 
-		static StringBuilder AppendTableName(StringBuilder target, DataBossTable table) {
+		StringBuilder AppendTableName(StringBuilder target, DataBossTable table) {
 			if(!string.IsNullOrEmpty(table.Schema))
-				target.AppendFormat("[{0}].", table.Schema);
-			return target.AppendFormat("[{0}]" , table.Name);
+				target.Append(dialect.FormatName(table.Schema)).Append('.');
+			return target.Append(dialect.FormatName(table.Name));
 		}
 	}
 }

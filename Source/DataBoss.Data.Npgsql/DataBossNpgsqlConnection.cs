@@ -1,17 +1,19 @@
 using System;
 using System.Data;
+using System.Linq;
 using System.Linq.Expressions;
 using DataBoss.Data.Support;
 using Npgsql;
 
 namespace DataBoss.Data.Npgsql
 {
-	public class NpsqlDialect : SqlDialect<NpsqlDialect, NpgsqlCommand>, ISqlDialect
+	public class NpgsqlDialect : SqlDialect<NpgsqlDialect, NpgsqlCommand>, ISqlDialect
 	{
 		public string ParameterPrefix => string.Empty;
-		public string GetTypeName(DataBossDbType dbType) {
-			throw new NotImplementedException();
-		}
+
+		public string FormatName(string columnName) => columnName;
+		
+		public string GetTypeName(DataBossDbType dbType) => dbType.ToString();
 
 		public bool TryCreateDialectSpecificParameter(string name, Expression readMember, out Expression? create) {
 			create = default;
@@ -25,7 +27,7 @@ namespace DataBoss.Data.Npgsql
 
 		public DataBossNpgsqlConnection(NpgsqlConnection connection) { this.connection = connection; }
 
-		public ISqlDialect Dialect => NpsqlDialect.Instance;
+		public ISqlDialect Dialect => NpgsqlDialect.Instance;
 
 		public ConnectionState State => connection.State;
 
@@ -37,24 +39,31 @@ namespace DataBoss.Data.Npgsql
 
 		public IDbCommand CreateCommand<T>(string cmdText, T args) {
 			var cmd = new NpgsqlCommand(cmdText, connection);
-			NpsqlDialect.AddParameters(cmd, args);
+			NpgsqlDialect.AddParameters(cmd, args);
 			return cmd;
 		}
 
 		public IDbCommand CreateCommand(string cmdText, object args) {
 			var cmd = new NpgsqlCommand(cmdText, connection);
-			NpsqlDialect.AddParameters(cmd, args);
+			NpgsqlDialect.AddParameters(cmd, args);
 			return cmd;
 		}
 
 		public void CreateTable(string destinationTable, IDataReader data) {
-			throw new NotImplementedException();
+			using var cmd = CreateCommand(NpgsqlDialect.Scripter.ScriptTable(destinationTable, data));
+			cmd.ExecuteNonQuery();
 		}
 
 		public void Dispose() => connection.Dispose();
 
 		public void Insert(string destinationTable, IDataReader rows, DataBossBulkCopySettings settings) {
-			throw new NotImplementedException();
+			var columns = string.Join(',', Enumerable.Range(0, rows.FieldCount).Select(x => rows.GetName(x)));
+			using var writer = connection.BeginBinaryImport($"COPY {destinationTable}({columns}) FROM STDIN(FORMAT BINARY)");
+			for(var row = new object[rows.FieldCount]; rows.Read();) {
+				rows.GetValues(row);
+				writer.WriteRow(row);
+			}
+			writer.Complete();
 		}
 
 		public void Open() => connection.Open();

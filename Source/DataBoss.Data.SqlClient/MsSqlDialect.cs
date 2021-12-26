@@ -20,6 +20,7 @@ namespace DataBoss.Data
 	{
 		public string ParameterPrefix => "@";
 
+		public string FormatName(string columnName) => $"[{columnName}]";
 		public string GetTypeName(DataBossDbType dbType) => dbType.ToString();
 
 		public bool TryCreateDialectSpecificParameter(string name, Expression readMember, out Expression create) {

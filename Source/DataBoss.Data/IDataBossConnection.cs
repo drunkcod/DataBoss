@@ -8,6 +8,7 @@ namespace DataBoss.Data
 	{
 		string ParameterPrefix { get; }
 
+		string FormatName(string columnName);
 		string GetTypeName(DataBossDbType dbType);
 		bool TryCreateDialectSpecificParameter(string name, Expression readMember, out Expression? create);
 	}
