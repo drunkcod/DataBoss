@@ -37,8 +37,7 @@ namespace DataBoss.Testing
 		}
 
 		[Fact]
-		public void is_deleted_when_disposed()
-		{
+		public void is_deleted_when_disposed() {
 			var db = Cleanup(SqlServerTestDb.Create());
 			Check.That(() => CountDatabasesByName(db.Name) == 1);
 			db.Dispose();
