@@ -228,7 +228,8 @@ namespace DataBoss.Data
 			Expression body = Expression.Constant(null, typeof(IDataBossConnection));
 			foreach(var item in new [] {
 				"DataBoss.Data.MsSql.DataBossSqlConnection, DataBoss.Data.MsSql",
-				"DataBoss.Data.DataBossSqlConnection, DataBoss.Data.SqlClient", }) {
+				"DataBoss.Data.DataBossSqlConnection, DataBoss.Data.SqlClient",
+				"DataBoss.Data.Npgsql.DataBossNpgsqlConnection, DataBoss.Data.Npgsql"}) {
 
 				var type = Type.GetType(item);
 				if(type == null)

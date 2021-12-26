@@ -13,45 +13,11 @@ namespace DataBoss.Data
 	using System.Linq.Expressions;
 	using DataBoss.Data.SqlServer;
 	using DataBoss.Linq.Expressions;
-	using System.Collections.Concurrent;
-	using System.Linq;
 	using System.Data.SqlTypes;
+	using DataBoss.Data.Support;
 
-	public class MsSqlDialect : ISqlDialect
+	public class MsSqlDialect : SqlDialect<MsSqlDialect, SqlCommand>, ISqlDialect
 	{
-		static class Extractor<TArg>
-		{
-			internal static Action<SqlCommand, TArg> CreateParameters = 
-				ToParams.CompileExtractor<SqlCommand, TArg>(Instance);
-		}
-
-		static readonly ConcurrentDictionary<Type, Action<SqlCommand, object>> Extractors = new();
-
-		public static void AddParameters(SqlCommand command, object args) {
-			if (args is null)
-				return;
-			Extractors.GetOrAdd(args.GetType(), CreateExtractor)(command, args);
-		}
-
-		static Action<SqlCommand, object> CreateExtractor(Type argsType) {
-			var arg0 = Expression.Parameter(typeof(SqlCommand));
-			var arg1 = Expression.Parameter(typeof(object));
-			var addParameters = typeof(MsSqlDialect).GetMethods()
-				.Single(x => x.Name == nameof(MsSqlDialect.AddParameters) && x.IsGenericMethodDefinition);
-			var body = Expression.Call(
-				addParameters.MakeGenericMethod(argsType),
-				arg0,
-				Expression.Convert(arg1, argsType));
-			return Expression.Lambda<Action<SqlCommand, object>>(body, arg0, arg1).Compile();
-		}
-
-		private MsSqlDialect()  { }
-
-		public static readonly MsSqlDialect Instance = new();
-		
-		public static void AddParameters<T>(SqlCommand cmd, T args) =>
-			Extractor<T>.CreateParameters(cmd, args);
-
 		public string ParameterPrefix => "@";
 
 		public string GetTypeName(DataBossDbType dbType) => dbType.ToString();

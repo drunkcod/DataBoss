@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.29102.190
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.32014.148
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss", "Source\DataBoss\DataBoss.csproj", "{C4DBFE8D-3981-4F82-9B8B-E698B8CAF39A}"
 EndProject
@@ -36,7 +36,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss.Linq.Specs", "Sour
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss.PowerArgs", "Source\DataBoss.PowerArgs\DataBoss.PowerArgs.csproj", "{0DE4EA9C-7BA4-4992-9B67-2F674CEE25BD}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataBoss.Migrations", "Source\DataBoss.Migrations\DataBoss.Migrations.csproj", "{1EBF5F49-CDEB-4251-88B2-98D59676C86C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss.Migrations", "Source\DataBoss.Migrations\DataBoss.Migrations.csproj", "{1EBF5F49-CDEB-4251-88B2-98D59676C86C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataBoss.Data.Npgsql.Specs", "Source\DataBoss.Data.Npgsql.Specs\DataBoss.Data.Npgsql.Specs.csproj", "{F8F0A4C5-7A23-490F-AD95-DFCB8EED077A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataBoss.Data.Npgsql", "Source\DataBoss.Data.Npgsql\DataBoss.Data.Npgsql.csproj", "{5070ED3D-FB23-494C-A389-94F209697483}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -96,6 +100,14 @@ Global
 		{1EBF5F49-CDEB-4251-88B2-98D59676C86C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1EBF5F49-CDEB-4251-88B2-98D59676C86C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1EBF5F49-CDEB-4251-88B2-98D59676C86C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F8F0A4C5-7A23-490F-AD95-DFCB8EED077A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F8F0A4C5-7A23-490F-AD95-DFCB8EED077A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F8F0A4C5-7A23-490F-AD95-DFCB8EED077A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F8F0A4C5-7A23-490F-AD95-DFCB8EED077A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5070ED3D-FB23-494C-A389-94F209697483}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5070ED3D-FB23-494C-A389-94F209697483}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5070ED3D-FB23-494C-A389-94F209697483}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5070ED3D-FB23-494C-A389-94F209697483}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -104,6 +116,7 @@ Global
 		{D3B9AC42-CE39-499F-BD18-9AE5E2481748} = {F8C97939-E25C-4531-8AA9-4E86C34CA8CB}
 		{13AD5FF7-C1CA-440A-88B7-A4B8AC5D9C3E} = {F8C97939-E25C-4531-8AA9-4E86C34CA8CB}
 		{5888A9F9-F039-46B9-A08A-66C66C887A18} = {F8C97939-E25C-4531-8AA9-4E86C34CA8CB}
+		{F8F0A4C5-7A23-490F-AD95-DFCB8EED077A} = {F8C97939-E25C-4531-8AA9-4E86C34CA8CB}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {5004119A-9CE1-487E-8201-5F7F75808141}

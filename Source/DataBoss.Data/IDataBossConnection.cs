@@ -9,7 +9,7 @@ namespace DataBoss.Data
 		string ParameterPrefix { get; }
 
 		string GetTypeName(DataBossDbType dbType);
-		bool TryCreateDialectSpecificParameter(string name, Expression readMember, out Expression create);
+		bool TryCreateDialectSpecificParameter(string name, Expression readMember, out Expression? create);
 	}
 
 	public interface IDataBossConnection : IDisposable
