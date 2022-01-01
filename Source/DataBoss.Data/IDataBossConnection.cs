@@ -10,7 +10,7 @@ namespace DataBoss.Data
 
 		string FormatName(string columnName);
 		string GetTypeName(DataBossDbType dbType);
-		bool TryCreateDialectSpecificParameter(string name, Expression readMember, out Expression? create);
+		bool TryCreateDialectSpecificParameter(string name, Expression readMember, out Expression create);
 	}
 
 	public interface IDataBossConnection : IDisposable

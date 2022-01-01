@@ -4,12 +4,30 @@ using Xunit;
 
 namespace DataBoss.Data.Npgsql
 {
-    public class DataBossNpgsqlConnection_ : IDisposable
+	public class NpgsqlTestDatabase : IDisposable
+	{
+		readonly NpgsqlConnection db;
+		public NpgsqlTestDatabase() {
+			db = new NpgsqlConnection("Host=localhost;Username=databoss;Password=databoss;Database=postgres");
+			db.Open();
+			db.ExecuteNonQuery("drop database if exists databoss with(force)");
+			db.ExecuteNonQuery("create database databoss");
+			db.Close();
+		}
+
+		public void Dispose() {
+			db.Open();
+			db.ExecuteNonQuery("drop database databoss with(force)");
+		}
+	}
+
+    public class DataBossNpgsqlConnection_ : IDisposable, IClassFixture<NpgsqlTestDatabase>
 	{
 		NpgsqlConnection db;
 
 		public DataBossNpgsqlConnection_() {
-			db = new NpgsqlConnection("Host=localhost;Username=databoss;Password=databoss;Database=postgres");
+			NpgsqlConnection.ClearAllPools();
+			db = new NpgsqlConnection("Host=localhost;Username=databoss;Password=databoss;Database=databoss");
 			db.Open();
 		}
 
