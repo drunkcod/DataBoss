@@ -45,17 +45,17 @@ namespace DataBoss.Data
 					name: (string)item[columns.ColumnName],
 					ordinal: (int)item[columns.ColumnOrdinal],
 					dataType: (Type)item[columns.DataType],
-					dataTypeName: DefaultIfDBNull<string>(item[columns.DataTypeName]),
-					providerSpecificDataType: DefaultIfDBNull<Type>(item[columns.ProviderSpecificDataType]),
-					allowDBNull: (bool)item[columns.AllowDBNull],
-					columnSize: DefaultIfDBNull<int?>(item[columns.ColumnSize]));
+					dataTypeName: IfDBNull(item[columns.DataTypeName], default(string)),
+					providerSpecificDataType: IfDBNull(item[columns.ProviderSpecificDataType], default(Type)),
+					allowDBNull: IfDBNull(item[columns.AllowDBNull], true),
+					columnSize: IfDBNull(item[columns.ColumnSize], default(int?)));
 			}
 			return schema;
 		}
 
-		static T DefaultIfDBNull<T>(object obj) {
+		static T IfDBNull<T>(object obj, T ifDBNull) {
 			if (obj == DBNull.Value)
-				return default;
+				return ifDBNull;
 			return (T)obj;
 		}
 

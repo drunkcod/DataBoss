@@ -1,3 +1,5 @@
+using System;
+using System.Data;
 using CheckThat;
 using Xunit;
 
@@ -15,6 +17,16 @@ namespace DataBoss.Data
 			Check.That(
 				() => schema[0].ColumnSize == sourceSchema[0].ColumnSize,
 				() => schema[0].ColumnName == sourceSchema[0].ColumnName);
+		}
+
+		[Fact]
+		public void AllowDBNull_if_source_is_DBNull() {
+			var sourceSchema = new DataReaderSchemaTable();
+			sourceSchema.Add("Column" ,0, typeof(int), false);
+			var schemaTable = sourceSchema.ToDataTable();
+			schemaTable.Rows[0]["AllowDBNull"] = DBNull.Value;
+			var schema = DataReaderExtensions.GetDataReaderSchemaTable(schemaTable);
+			Check.That(() => schema[0].AllowDBNull == true);
 		}
 
 		[Fact]
