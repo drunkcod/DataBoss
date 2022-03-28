@@ -4,6 +4,14 @@ using Xunit;
 
 namespace DataBoss.Data.Npgsql
 {
+
+	public class ToParams_NpgsqlCommand : ToParamsFixture<NpgsqlCommand, NpgsqlParameter>
+	{
+		protected override NpgsqlCommand NewCommand() => new NpgsqlCommand();
+		protected override ISqlDialect SqlDialect => NpgsqlDialect.Instance;
+
+	}
+
 	public class NpgsqlTestDatabase : IDisposable
 	{
 		readonly NpgsqlConnection db;

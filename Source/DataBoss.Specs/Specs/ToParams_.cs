@@ -29,11 +29,13 @@ namespace DataBoss
 			var p = GetParams(new {
 				Int32_Value = (int?)1,
 				Int32_Null = (int?)null,
+				String_Null = (string)null,
 			});
 
 			Check.That(
 				() => p.Single(x => x.ParameterName == ParameterName("Int32_Value")).DbType == DbType.Int32,
-				() => p.Single(x => x.ParameterName == ParameterName("Int32_Null")).DbType == DbType.Int32);
+				() => p.Single(x => x.ParameterName == ParameterName("Int32_Null")).DbType == DbType.Int32,
+				() => p.Single(x => x.ParameterName == ParameterName("String_Null")).DbType == DbType.String);
 		}
 
 		[Fact]
