@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using System.Data;
 using System.Linq;
 using System.Reflection;
@@ -412,6 +413,28 @@ namespace DataBoss.Data
 			Check
 				.With(() => ObjectReader.Read<MyRequiredValue<MyCastable>>(source).ToArray())
 				.That(x => x[0].Value.Value == 10);
+		}
+
+#pragma warning disable CS0649
+		class MyColumnNames
+		{
+			[Column("a_field")]
+			public int Field;
+
+			[Column("a_prop")]
+			public int Property { get; set; }
+		}
+#pragma warning restore CS0649
+
+		[Fact]
+		public void ColumnAttribute_name() {
+			var rows = SequenceDataReader.Items(new MyColumnNames { Field = 1, Property = 2 });
+			var read = ObjectReader.Read<MyColumnNames>(rows).ToArray();
+
+			Check.That(
+				() => read.Length== 1,
+				() => read[0].Field == 1,
+				() => read[0].Property == 2);
 		}
 	}
 

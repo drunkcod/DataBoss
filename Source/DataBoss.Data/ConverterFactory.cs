@@ -296,8 +296,8 @@ namespace DataBoss.Data
 			}
 
 			public ArraySegment<MemberAssignment> GetMembers(FieldMap map, Type targetType, HashSet<string> excludedMembers = null, bool defaultOnNull = true) {
-				var fields = targetType.GetFields().Where(x => !x.IsInitOnly).Select(x => (Item: new ItemInfo(x.Name, x.FieldType), Member: (MemberInfo)x));
-				var props = targetType.GetProperties().Where(x => x.CanWrite).Select(x => (Item: new ItemInfo(x.Name, x.PropertyType), Member: (MemberInfo)x));
+				var fields = targetType.GetFields().Where(x => !x.IsInitOnly).Select(x => (Item: new ItemInfo(GetName(x), x.FieldType), Member: (MemberInfo)x));
+				var props = targetType.GetProperties().Where(x => x.CanWrite).Select(x => (Item: new ItemInfo(GetName(x), x.PropertyType), Member: (MemberInfo)x));
 				var allMembers = fields.Concat(props);
 				var members = (excludedMembers == null ? allMembers : allMembers.Where(x => !excludedMembers.Contains(x.Item.Name))).ToArray();
 				var ordinals = new int[members.Length];
@@ -320,6 +320,11 @@ namespace DataBoss.Data
 				}
 				Array.Sort(ordinals, bindings, 0, found);
 				return new ArraySegment<MemberAssignment>(bindings, 0, found);
+			}
+
+			static string GetName(MemberInfo member) {
+				var column = member.GetCustomAttribute<System.ComponentModel.DataAnnotations.Schema.ColumnAttribute>();
+				return column?.Name ?? member.Name;
 			}
 
 			bool TryMapParameters(FieldMap map, ItemInfo[] parameters, MemberReader[] exprs) {
