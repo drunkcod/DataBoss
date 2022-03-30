@@ -275,6 +275,7 @@ namespace DataBoss.DataPackage
 				TypeCode.DateTime => DateTime.Parse(input, format),
 				TypeCode.Object when type == typeof(TimeSpan) => TimeSpan.Parse(input, format),
 				TypeCode.Object when type == typeof(byte[]) => Convert.FromBase64String(input),
+				TypeCode.Object when type == typeof(Guid) => Guid.Parse(input),
 				_ => Convert.ChangeType(input, type, format),
 			};
 
