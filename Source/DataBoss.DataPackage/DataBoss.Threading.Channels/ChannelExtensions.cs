@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 
@@ -13,9 +14,17 @@ namespace DataBoss.Threading.Channels
 					return;
 			} while (WaitToWrite(w));
 		}
+		public static void Write<T>(this ChannelWriter<T> w, T item, CancellationToken cancellationToken) {
+			do {
+				if (w.TryWrite(item))
+					return;
+			} while (WaitToWrite(w, cancellationToken));
+		}
 
 		public static bool WaitToWrite<T>(this ChannelWriter<T> w) => 
 			GetResult(w.WaitToWriteAsync());
+		public static bool WaitToWrite<T>(this ChannelWriter<T> w, CancellationToken cancellationToken) =>
+			GetResult(w.WaitToWriteAsync(cancellationToken));
 
 		public static bool WaitToRead<T>(this ChannelReader<T> r) =>
 			GetResult(r.WaitToReadAsync());

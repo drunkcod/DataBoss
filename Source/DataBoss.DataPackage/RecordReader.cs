@@ -1,4 +1,4 @@
-﻿using System.Buffers;
+using System.Buffers;
 using System.Data;
 using System.Threading;
 using System.Threading.Channels;
@@ -31,7 +31,7 @@ namespace DataBoss.DataPackage
 				rows[n] = reader.GetRecord();
 
 				if (++n == BufferRows) {
-					writer.Write((buffer, n));
+					writer.Write((buffer, n), cancellation);
 					n = 0;
 					buffer = CreateBuffer();
 					rows = buffer.Memory.Span;
