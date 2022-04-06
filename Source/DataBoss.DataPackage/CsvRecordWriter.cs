@@ -71,13 +71,18 @@ namespace DataBoss.DataPackage
 			public void NextField() => csv.NextField();
 
 			public void WriteRecord(IDataRecord r, DataRecordStringView view) {
-				for (var i = 0; i != view.FieldCount; ++i) {
-					if (r.IsDBNull(i))
-						NextField();
-					else
-						WriteField(view.GetString(r, i));
+				var i = 0;
+				try { 
+					for(; i != view.FieldCount; ++i) {
+						if (r.IsDBNull(i))
+							NextField();
+						else
+							WriteField(view.GetString(r, i));
+					}
+					NextRecord();
+				} catch(Exception ex) {
+					throw new Exception($"Failed writing {r.GetName(i)} with value {r.GetValue(i)}", ex);
 				}
-				NextRecord();
 			}
 			public void NextRecord() => csv.NextRecord();
 			public void Flush() => csv.Writer.Flush();

@@ -63,9 +63,9 @@ namespace DataBoss.Data
 				?? throw new InvalidOperationException($"Can't find public field or property '{memberName}'"));
 
 		public int Map(MemberInfo memberInfo) {
-			var m = CoerceToDbType(Expression.MakeMemberAccess(Source, memberInfo));
+			var (m, attr) = CoerceToDbType(Expression.MakeMemberAccess(Source, memberInfo), memberInfo);
 			var column = memberInfo.SingleOrDefault<ColumnAttribute>()?.Name;
-			return Map(column ?? memberInfo.Name, m.Type, DataBossDbType.From(m.Type, memberInfo), m);
+			return Map(column ?? memberInfo.Name, m.Type, DataBossDbType.From(m.Type, attr), m);
 		}
 
 		protected int Map(string name, Type type, DataBossDbType dbType, Expression selector) {
@@ -132,14 +132,42 @@ namespace DataBoss.Data
 		static Expression Coerce(DataBossDbType dbType, Expression expr) => 
 			dbType.IsRowVersion ? Expression.Convert(expr, typeof(byte[])) : expr;
 
-		protected static Expression CoerceToDbType(Expression get) =>
-			TryGetConvertible(get.Type, out var dbType) ? Expression.Convert(get, dbType) : get;
+		protected static (Expression, ICustomAttributeProvider) CoerceToDbType(Expression get, ICustomAttributeProvider attributes) { 			
+			var dbTypeAttribute = get.Type.SingleOrDefault<DbTypeAttribute>();
+			return TryGetConvertible(dbTypeAttribute, out var dbType) 
+			? (Expression.Convert(get, dbType), new CombinedAttributesProvider(dbTypeAttribute, attributes)) 
+			: (get, attributes);
+		}
 
-		static bool TryGetConvertible(Type type, out Type dbType) {
-			var found = type.SingleOrDefault<DbTypeAttribute>();
+		class CombinedAttributesProvider : ICustomAttributeProvider
+		{
+			readonly ICustomAttributeProvider first;
+			readonly ICustomAttributeProvider second;
 
-			if (found != null) {
-				dbType = found.Type;
+			public CombinedAttributesProvider(ICustomAttributeProvider first, ICustomAttributeProvider second) {
+				this.first = first;
+				this.second = second;
+			}
+
+			public object[] GetCustomAttributes(bool inherit) {
+				var xs = first.GetCustomAttributes(inherit);
+				var ys = second.GetCustomAttributes(inherit);
+				return xs is null ? ys : xs.Concat(ys.EmptyIfNull()).ToArray();
+			}
+
+			public object[] GetCustomAttributes(Type attributeType, bool inherit) {
+				var xs = first.GetCustomAttributes(attributeType, inherit);
+				var ys = second.GetCustomAttributes(attributeType, inherit);
+				return xs is null ? ys : xs.Concat(ys.EmptyIfNull()).ToArray();
+			}
+
+			public bool IsDefined(Type attributeType, bool inherit) =>
+				first.IsDefined(attributeType, inherit) || second.IsDefined(attributeType, inherit);
+		}
+
+		static bool TryGetConvertible(DbTypeAttribute dbTypeAttr, out Type dbType) {
+			if (dbTypeAttr != null) {
+				dbType = dbTypeAttr.Type;
 				return true;
 			}
 
@@ -189,8 +217,8 @@ namespace DataBoss.Data
 			Map(name, selector, new SimpleAttributeProvider(attributes));
 
 		int Map<TField>(string name, Func<T, TField> selector, ICustomAttributeProvider attributes) {
-			var get = CoerceToDbType(Expression.Invoke(Expression.Constant(selector), Source));
-			var dbType = DataBossDbType.From(get.Type, attributes);
+			var (get, attr) = CoerceToDbType(Expression.Invoke(Expression.Constant(selector), Source), attributes);
+			var dbType = DataBossDbType.From(get.Type, attr);
 			return Map(name, get.Type, dbType, get);
 		}
 

@@ -1,3 +1,4 @@
+using System;
 using System.Buffers;
 using System.Data;
 using System.Threading;
@@ -39,9 +40,8 @@ namespace DataBoss.DataPackage
 			}
 
 			if (n != 0)
-				writer.Write((buffer, n));
+				writer.Write((buffer, n), cancellation);
 		}
-
 		IMemoryOwner<IDataRecord> CreateBuffer() => MemoryPool<IDataRecord>.Shared.Rent(BufferRows);
 
 		protected override void Cleanup() =>

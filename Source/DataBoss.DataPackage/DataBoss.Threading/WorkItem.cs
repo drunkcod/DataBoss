@@ -30,7 +30,9 @@ namespace DataBoss.Threading
 				DoWork();
 				tsc.SetResult(0);
 			}
-			catch (Exception ex) {
+			catch (OperationCanceledException) {
+				tsc.SetCanceled();
+			} catch (Exception ex) {
 				tsc.SetException(new Exception("CSV writing failed.", ex));
 			}
 			finally {
