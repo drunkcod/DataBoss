@@ -38,9 +38,11 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss.PowerArgs", "Sourc
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss.Migrations", "Source\DataBoss.Migrations\DataBoss.Migrations.csproj", "{1EBF5F49-CDEB-4251-88B2-98D59676C86C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataBoss.Data.Npgsql.Specs", "Source\DataBoss.Data.Npgsql.Specs\DataBoss.Data.Npgsql.Specs.csproj", "{F8F0A4C5-7A23-490F-AD95-DFCB8EED077A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss.Data.Npgsql.Specs", "Source\DataBoss.Data.Npgsql.Specs\DataBoss.Data.Npgsql.Specs.csproj", "{F8F0A4C5-7A23-490F-AD95-DFCB8EED077A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataBoss.Data.Npgsql", "Source\DataBoss.Data.Npgsql\DataBoss.Data.Npgsql.csproj", "{5070ED3D-FB23-494C-A389-94F209697483}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss.Data.Npgsql", "Source\DataBoss.Data.Npgsql\DataBoss.Data.Npgsql.csproj", "{5070ED3D-FB23-494C-A389-94F209697483}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataBoss.Uuid", "Source\DataBoss.Uuid\DataBoss.Uuid.csproj", "{2118966A-ED9A-4EDD-AB51-53A764037628}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -108,6 +110,10 @@ Global
 		{5070ED3D-FB23-494C-A389-94F209697483}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5070ED3D-FB23-494C-A389-94F209697483}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5070ED3D-FB23-494C-A389-94F209697483}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2118966A-ED9A-4EDD-AB51-53A764037628}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2118966A-ED9A-4EDD-AB51-53A764037628}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2118966A-ED9A-4EDD-AB51-53A764037628}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2118966A-ED9A-4EDD-AB51-53A764037628}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
