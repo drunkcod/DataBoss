@@ -68,6 +68,9 @@ namespace DataBoss.DataPackage
 			return desc;
 		}
 
+		public void AddForeignKey(string field, DataPackageKeyReference reference) =>
+			(Schema.ForeignKeys ??= new()).Add(new DataPackageForeignKey(field, reference));
+
 		protected virtual void UpdateDescription(DataPackageResourceDescription description) { }
 
 		static List<T> NullIfEmpty<T>(List<T> values) => (values == null || values.Count == 0) ? null : values;
