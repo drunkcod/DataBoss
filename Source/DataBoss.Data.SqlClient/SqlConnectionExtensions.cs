@@ -10,7 +10,6 @@ namespace DataBoss.Data
 	using System;
 	using System.Collections.Generic;
 	using System.Data;
-	using DataBoss.Data.Scripting;
 
 	public static class SqlConnectionExtensions
 	{
@@ -29,9 +28,11 @@ namespace DataBoss.Data
 			return cmd;
 		}
 
-		public static void CreateTable(this SqlConnection connection, string tableName, IDataReader data) {
-			connection.ExecuteNonQuery(MsSqlDialect.Scripter.ScriptTable(tableName, data));
-		}
+		public static void CreateTable(this SqlConnection connection, string tableName, IDataReader data)  =>
+			CreateTable(connection, null, tableName, data);
+
+		public static void CreateTable(this SqlConnection connection, SqlTransaction transaction, string tableName, IDataReader data) =>
+			connection.ExecuteNonQuery(transaction, MsSqlDialect.Scripter.ScriptTable(tableName, data));
 
 		public static object ExecuteScalar(this SqlConnection connection, string cmdText) {
 			using var q = connection.CreateCommand(cmdText);
@@ -72,15 +73,27 @@ namespace DataBoss.Data
 		public static void Into<T>(this SqlConnection connection, string destinationTable, IEnumerable<T> rows) =>
 			Into(connection, destinationTable, rows, new DataBossBulkCopySettings());
 
+		public static void Into<T>(this SqlConnection connection, SqlTransaction transaction, string destinationTable, IEnumerable<T> rows) =>
+			Into(connection, transaction, destinationTable, rows, new DataBossBulkCopySettings());
+
 		public static void Into<T>(this SqlConnection connection, string destinationTable, IEnumerable<T> rows, DataBossBulkCopySettings settings) =>
 			Into(connection, destinationTable, SequenceDataReader.Create(rows, x => x.MapAll()), settings);
 
-		public static void Into(this SqlConnection connection, string destinationTable, IDataReader toInsert) =>
-			Into(connection, destinationTable, toInsert, new DataBossBulkCopySettings());
+		public static void Into<T>(this SqlConnection connection, SqlTransaction transaction, string destinationTable, IEnumerable<T> rows, DataBossBulkCopySettings settings) =>
+			Into(connection, transaction, destinationTable, SequenceDataReader.Create(rows, x => x.MapAll()), settings);
 
-		public static void Into(this SqlConnection connection, string destinationTable, IDataReader toInsert, DataBossBulkCopySettings settings) {
-			CreateTable(connection, destinationTable, toInsert);
-			Insert(connection, destinationTable, toInsert, settings);
+		public static void Into(this SqlConnection connection, string destinationTable, IDataReader toInsert) =>
+			Into(connection, null, destinationTable, toInsert, new DataBossBulkCopySettings());
+
+		public static void Into(this SqlConnection connection, SqlTransaction transaction, string destinationTable, IDataReader toInsert) =>
+			Into(connection, transaction, destinationTable, toInsert, new DataBossBulkCopySettings());
+
+		public static void Into(this SqlConnection connection, string destinationTable, IDataReader toInsert, DataBossBulkCopySettings settings) =>
+			Into(connection, null, destinationTable, toInsert, settings);
+
+		public static void Into(this SqlConnection connection, SqlTransaction transaction, string destinationTable, IDataReader toInsert, DataBossBulkCopySettings settings) {
+			CreateTable(connection, transaction, destinationTable, toInsert);
+			Insert(connection, transaction, destinationTable, toInsert, settings);
 		}
 
 		public static void Insert<T>(this SqlConnection connection, string destinationTable, IEnumerable<T> rows) =>

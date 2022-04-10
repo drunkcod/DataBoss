@@ -373,13 +373,25 @@ namespace DataBoss.DataPackage
 			return r;
 		}
 
-		public static DataReaderTransform SpecifyDateTimeKind(this DataReaderTransform self, DateTimeKind kind) {
-			for(var i = 0; i != self.FieldCount; ++i) {
-				if (self.GetFieldType(i) == typeof(DateTime))
-					self.Transform(i, (DateTime x) => DateTime.SpecifyKind(x, kind));
+		public static DataReaderTransform SpecifyDateTimeKind(this DataReaderTransform self, DateTimeKind kind) =>
+			DateTimeTransform(self, x => DateTime.SpecifyKind(x, kind));
+
+		public static DataReaderTransform LocalTimeToUtc(this DataReaderTransform self) =>
+			DateTimeTransform(self, x => x.Kind == DateTimeKind.Local ? x.ToUniversalTime() : x);
+
+		public static DataReaderTransform DateTimeTransform(this DataReaderTransform self, Func<DateTime, DateTime> transformValue) {
+			var schema = self.GetDataReaderSchemaTable();
+			Func<DateTime?, DateTime?> transfromNullable = x => x.HasValue ? transformValue(x.Value) : null;
+			for (var i = 0; i != schema.Count; ++i) {
+				if (schema[i].DataType == typeof(DateTime))
+					if(schema[i].AllowDBNull)
+						self.Transform(i, transfromNullable);
+					else
+						self.Transform(i, transformValue);
 			}
 
 			return self;
 		}
+
 	}
 }

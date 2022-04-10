@@ -59,8 +59,16 @@ namespace DataBoss.Data
 
 		[Fact]
 		public void ExecuteNonQuery_flows_local_transaction() {
-			using var t = Connection.BeginTransaction();
-			Connection.ExecuteNonQuery(t, "select 42");
+			using var tx = Connection.BeginTransaction();
+			Connection.ExecuteNonQuery(tx, "select 42");
+		}
+
+		[Fact]
+		public void into_supports_transactions() {
+			using var tx = Connection.BeginTransaction();
+			Connection.Into(tx, "#TempRows", SequenceDataReader.Items(new { Id = 1 }));
+			Connection.Into(tx, "#TempRows2", new[] { new { Id = 2 } });
+
 		}
 	}
 }
