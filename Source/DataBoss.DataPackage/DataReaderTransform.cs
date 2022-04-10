@@ -14,10 +14,12 @@ namespace DataBoss.DataPackage
 	{
 		public static class FieldInfo<T>
 		{
+			static readonly Func<T, bool> nullCheck = CreateIsNullMethod();
+
 			public static readonly Type FieldType = typeof(T).TryGetNullableTargetType(out var targetType) ? targetType : typeof(T);
-			public static readonly bool IsNullable = typeof(T).IsNullable();
+			public static readonly bool IsNullable = !typeof(T).IsValueType || typeof(T).IsNullable();
 			public static readonly int ColumnSize = DataBossDbType.From(typeof(T)).ColumnSize ?? -1;
-			public static readonly Func<T, bool> IsNull = CreateIsNullMethod();
+			public static bool IsNull(T value) => IsNullable && nullCheck(value);
 
 			static Func<T, bool> CreateIsNullMethod() {
 				var p0 = Expression.Parameter(typeof(T));
@@ -178,8 +180,8 @@ namespace DataBoss.DataPackage
 
 			public override bool AllowDBNull => true;
 			public override bool IsDBNull(DataReaderTransform record) {
-				GetCurrentValue(record);
-				return currentValueIsDbNull;
+				var current = GetCurrentValue(record);
+				return currentValueIsDbNull || FieldInfo<T>.IsNull(current);
 			}
 
 			protected override T GetRecordValue(DataReaderTransform record) {
@@ -409,9 +411,8 @@ namespace DataBoss.DataPackage
 		public static DataReaderTransform DateTimeTransform(this DataReaderTransform self, Func<DateTime, DateTime> transformValue) {
 			for (var i = 0; i != self.FieldCount; ++i)
 				if (self.GetFieldType(i) == typeof(DateTime))
-						self.Transform(i, transformValue);
+					self.Transform(i, transformValue);
 			return self;
 		}
-
 	}
 }

@@ -40,6 +40,22 @@ namespace DataBoss.DataPackage
 		}
 
 		[Fact]
+		public void nullable_with_value_transformed_to_null() {
+			var rows = SequenceDataReader.Items(
+				new ValueRow<int?> { Value = 1 },
+				new ValueRow<int?> { Value = 2 },
+				new ValueRow<int?> { Value = 3 },
+				new ValueRow<int?> { Value = null });
+
+			var xform = rows.WithTransform(x => x.Transform("Value", (int x) => x % 2 == 0 ? (int?)null : x));
+			var result = xform.Read<ValueRow<int?>>().ToList();
+			Check.That(
+				() => xform.GetDataReaderSchemaTable()[0].AllowDBNull == true,
+				() => result[0].Value == 1,
+				() => result[1].Value == null);
+		}
+
+		[Fact]
 		public void ProviderSpecificType_is_kept_for_untransformed_column()
 		{
 			var schema = new TabularDataSchema
