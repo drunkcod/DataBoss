@@ -4,7 +4,7 @@ using Xunit;
 
 namespace DataBoss.Data
 {
-	public class IdOfSpec
+	public class IdOf_
 	{
 		const int SomeValue = 12345;
 
