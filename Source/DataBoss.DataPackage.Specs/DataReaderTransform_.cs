@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using CheckThat;
 using DataBoss.Data;
+using DataBoss.Linq;
 using Xunit;
 
 namespace DataBoss.DataPackage
@@ -13,11 +14,15 @@ namespace DataBoss.DataPackage
 		[Fact]
 		public void Transform_value_keeps_source_field_nullability() {
 			var rows = SequenceDataReader.Items(
-				new { NullableField = (DateTime?)DateTime.Now },
-				new { NullableField = (DateTime?)null });
+				new ValueRow<DateTime?> { Value = DateTime.Now },
+				new ValueRow<DateTime?> { });
 
-			var xform = rows.WithTransform(x => x.Transform("NullableField", (DateTime x) => x));
-			Check.That(() => xform.GetDataReaderSchemaTable()[0].AllowDBNull == true);
+			var xform = rows.WithTransform(x => x.Transform("Value", (DateTime x) => x));
+			var result = xform.Read<ValueRow<DateTime?>>().ToList();
+			Check.That(
+				() => xform.GetDataReaderSchemaTable()[0].AllowDBNull == true,
+				() => result[0].Value.HasValue,
+				() => result[1].Value.HasValue == false);
 		}
 
 		[Fact]
@@ -233,6 +238,7 @@ namespace DataBoss.DataPackage
 		}
 
 		struct ValueRow { public int Value { get; set; } }
+		struct ValueRow<T> { public T Value { get; set; } }
 		struct ValueTextRow { public int Value { get; set; } public string Text { get; set; } };
 		struct IdValueTextRow { public int Id { get; set; } public int Value { get; set; } public string Text { get; set; } };
 	}

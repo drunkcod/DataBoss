@@ -122,9 +122,9 @@ namespace DataBoss.DataPackage
 
 			public object GetProviderSpecificValue(DataReaderTransform record) => GetValue(record);
 
-			public bool IsDBNull(DataReaderTransform record) => AllowDBNull && FieldInfo<TField>.IsNull(GetCurrentValue(record));
+			public virtual bool IsDBNull(DataReaderTransform record) => AllowDBNull && FieldInfo<TField>.IsNull(GetCurrentValue(record));
 
-			TField GetCurrentValue(DataReaderTransform record) {
+			protected TField GetCurrentValue(DataReaderTransform record) {
 				if (isDirty) {
 					currentValue = GetRecordValue(record);
 					isDirty = false;
@@ -163,6 +163,29 @@ namespace DataBoss.DataPackage
 			public override bool AllowDBNull => allowDBNull;
 
 			protected override T GetRecordValue(DataReaderTransform record) => transform(source.GetFieldValue<TField>(record));
+		}
+		
+		class NullableValueTransform<TField, T> : UserFieldAccessor<T>
+		{
+			readonly IFieldAccessor source;
+			readonly Func<TField, T> transform;
+			bool currentValueIsDbNull;
+
+			public NullableValueTransform(IFieldAccessor source, Func<TField, T> transform) {
+				this.source = source;
+				this.transform = transform;
+			}
+
+			public override bool AllowDBNull => true;
+			public override bool IsDBNull(DataReaderTransform record) {
+				GetCurrentValue(record);
+				return currentValueIsDbNull;
+			}
+
+			protected override T GetRecordValue(DataReaderTransform record) {
+				currentValueIsDbNull = source.IsDBNull(record);
+				return currentValueIsDbNull ? default : transform(source.GetFieldValue<TField>(record));
+			}
 		}
 
 		interface IRecordTransform 
@@ -261,12 +284,16 @@ namespace DataBoss.DataPackage
 			Transform(GetName(ordinal), ordinal, fields[ordinal], transform);
 
 		DataReaderTransform Transform<TField, T>(string name, int ordinal, IFieldAccessor source, Func<TField, T> transform) {
-			var allowDBNull = 
-				FieldInfo<TField>.IsNullable 
-				? FieldInfo<T>.IsNullable 
-				: FieldInfo<T>.IsNullable || source.AllowDBNull;
+			if(source.AllowDBNull && !FieldInfo<TField>.IsNullable) { 
+				fields[ordinal] = Bind(new NullableValueTransform<TField, T>(source, transform) { Name = name });
+			} else { 
+				var allowDBNull = 
+					FieldInfo<TField>.IsNullable 
+					? FieldInfo<T>.IsNullable 
+					: FieldInfo<T>.IsNullable || source.AllowDBNull;
 			
-			fields[ordinal] = Bind(new FieldTransform<TField, T>(source, transform, allowDBNull) { Name = name });
+				fields[ordinal] = Bind(new FieldTransform<TField, T>(source, transform, allowDBNull) { Name = name });
+			}
 			return this;
 		}
 
@@ -380,16 +407,9 @@ namespace DataBoss.DataPackage
 			DateTimeTransform(self, x => x.Kind == DateTimeKind.Local ? x.ToUniversalTime() : x);
 
 		public static DataReaderTransform DateTimeTransform(this DataReaderTransform self, Func<DateTime, DateTime> transformValue) {
-			var schema = self.GetDataReaderSchemaTable();
-			Func<DateTime?, DateTime?> transfromNullable = x => x.HasValue ? transformValue(x.Value) : null;
-			for (var i = 0; i != schema.Count; ++i) {
-				if (schema[i].DataType == typeof(DateTime))
-					if(schema[i].AllowDBNull)
-						self.Transform(i, transfromNullable);
-					else
+			for (var i = 0; i != self.FieldCount; ++i)
+				if (self.GetFieldType(i) == typeof(DateTime))
 						self.Transform(i, transformValue);
-			}
-
 			return self;
 		}
 
