@@ -151,7 +151,7 @@ namespace DataBoss.Data
 		public static IDbConnection WithCommandTimeout(this IDbConnection db, int commandTimeout) =>
 			new DbConnectionDecorator(db) { CommandTimeout = commandTimeout };
 
-		class DbConnectionDecorator : IDbConnection, IDataBossConnection
+		class DbConnectionDecorator  : IDbConnection, IDataBossConnection
 		{
 			readonly IDbConnection InnerConnection;
 			readonly IDataBossConnection DataBossConnection;

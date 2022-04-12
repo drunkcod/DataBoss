@@ -18,20 +18,22 @@ namespace DataBoss.Data
 	class ObjectDataRecordReader : IDataRecordReader
 	{
 		readonly IDataReader reader;
+		readonly DataReaderSchemaTable schema;
 
 		public ObjectDataRecordReader(IDataReader reader) {
 			this.reader = reader;
+			this.schema = reader.GetDataReaderSchemaTable();
 		}
 
 		public bool Read() => reader.Read();
-		public IDataRecord GetRecord() => ObjectDataRecord.GetRecord(reader);
+		public IDataRecord GetRecord() => ObjectDataRecord.ReadRecord(reader, schema);
 
 		class ObjectDataRecord : IDataRecord
 		{
 			readonly object[] values;
-			readonly int fieldCount;
+			readonly DataReaderSchemaTable schema;
 
-			public static ObjectDataRecord GetRecord(IDataReader reader) {
+			public static ObjectDataRecord ReadRecord(IDataReader reader, DataReaderSchemaTable schema) {
 				
 				var fieldCount = reader.FieldCount;
 				var fields = new object[fieldCount];
@@ -39,18 +41,18 @@ namespace DataBoss.Data
 				for (var i = 0; i != fieldCount; ++i)
 					fields[i] = reader.IsDBNull(i) ? DBNull.Value : reader.GetValue(i);
 
-				return new ObjectDataRecord(fields, fieldCount);
+				return new ObjectDataRecord(schema, fields);
 			}
 
-			ObjectDataRecord(object[] fields, int fieldCount) {
-				this.values = fields;
-				this.fieldCount = fieldCount;
+			ObjectDataRecord(DataReaderSchemaTable schema, object[] values) {
+				this.values = values;
+				this.schema = schema;
 			}
 
-			public int FieldCount => fieldCount;
+			public int FieldCount => schema.Count;
 
 			public object this[int i] => GetValue(i);
-			public object this[string name] => throw new NotSupportedException();
+			public object this[string name] => GetValue(GetOrdinal(name));
 
 			public bool IsDBNull(int i) => DBNull.Value == values[i];
 
@@ -74,7 +76,7 @@ namespace DataBoss.Data
 			public string GetString(int i) => (string)values[i];
 
 			public int GetValues(object[] values) {
-				var n = Math.Min(fieldCount, values.Length);
+				var n = Math.Min(FieldCount, values.Length);
 				for (var i = 0; i != n; ++i)
 					values[i] = GetValue(i);
 				return n;
@@ -92,21 +94,13 @@ namespace DataBoss.Data
 				throw new NotImplementedException();
 			}
 
-			public string GetDataTypeName(int i) {
-				throw new NotImplementedException();
-			}
+			public string GetDataTypeName(int i) => schema[i].DataTypeName;
 
-			public Type GetFieldType(int i) {
-				throw new NotImplementedException();
-			}
+			public Type GetFieldType(int i) => schema[i].DataType;
 
-			public string GetName(int i) {
-				throw new NotImplementedException();
-			}
+			public string GetName(int i) => schema[i].ColumnName;
 
-			public int GetOrdinal(string name) {
-				throw new NotImplementedException();
-			}
+			public int GetOrdinal(string name) => schema.GetOrdinal(name);
 		}
 	}
 }
