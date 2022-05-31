@@ -262,8 +262,7 @@ namespace DataBoss.Data
 	{
 		public static IEnumerator<T> ExecuteQuery<T>(this IDbCommand self, string query) {
 			self.CommandText = query;
-
-			return MakeEnumerator<T>(self);
+			return ExecuteQuery<T>(self);
 		}
 	
 		public static IEnumerator<T> ExecuteQuery<T>(this IDbCommand self, string query, object args) {
@@ -272,10 +271,10 @@ namespace DataBoss.Data
 			if(args != null)
 				DbConnectionExtensions.AddParameters(args.GetType(), DbConnectionExtensions.Wrap(self.Connection).Dialect)(self, args);
 
-			return MakeEnumerator<T>(self);
+			return ExecuteQuery<T>(self);
 		}
 
-		static IEnumerator<T> MakeEnumerator<T>(IDbCommand cmd) {
+		public static IEnumerator<T> ExecuteQuery<T>(this IDbCommand cmd) {
 			var reader = cmd.ExecuteReader();
 			var converter = ConverterFactory.Default.GetConverter<IDataReader, T>(reader).Compiled;
 			return new ConvertingEnumerator<IDataReader, T>(reader, converter);
