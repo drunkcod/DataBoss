@@ -328,7 +328,11 @@ namespace DataBoss.DataPackage
 			foreach (var item in resources) {
 				using var data = item.Read();
 				var desc = item.GetDescription(options.Culture);
-				desc.Dialect.Delimiter ??= DefaultDelimiter;
+				var dialect = desc.Dialect;
+				if(options.Delimiter != null)
+					dialect.Delimiter = options.Delimiter;
+				else
+					dialect.Delimiter ??= DefaultDelimiter;
 				description.Resources.Add(desc);
 
 				if (!desc.Path.TryGetOutputPath(out var partPath) || writtenPaths.Contains(partPath))
@@ -422,6 +426,7 @@ namespace DataBoss.DataPackage
 	{
 		public CultureInfo Culture = null;
 		public ResourceCompression ResourceCompression = ResourceCompression.None;
+		public string Delimiter;
 	}
 
 	public static class TabularDataResourceCsvExtensions
