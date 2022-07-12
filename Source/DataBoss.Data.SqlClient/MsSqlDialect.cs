@@ -11,6 +11,7 @@ namespace DataBoss.Data
 	using System;
 	using System.Data;
 	using System.Linq.Expressions;
+	using DataBoss.Expressions;
 	using DataBoss.Data.SqlServer;
 	using DataBoss.Linq.Expressions;
 	using System.Data.SqlTypes;
@@ -25,7 +26,7 @@ namespace DataBoss.Data
 
 		public bool TryCreateDialectSpecificParameter(string name, Expression readMember, out Expression create) {
 			if(TryGetParameterPrototype(readMember.Type, out var createProto)) {
-				create = Rebind(createProto, Expression.Constant(name), readMember);
+				create = Rebind(createProto, Expression.Constant(name), readMember.Box());
 				return true;
 			} else if(readMember.Type.TryGetNullableTargetType(out var valueType) && TryGetParameterPrototype(valueType, out createProto)) {
 				var value = Expression.Variable(readMember.Type, "value");

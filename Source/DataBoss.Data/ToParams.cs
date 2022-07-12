@@ -30,9 +30,10 @@ namespace DataBoss.Data
 			return Expression.Lambda(extractor.GetResult(), command, values);
 		}
 
-		public static Action<TCommand, TArg> CompileExtractor<TCommand, TArg>(ISqlDialect dialect) =>
-			(Action<TCommand, TArg>)CreateExtractor(dialect, typeof(TCommand), typeof(TArg), typeof(TArg))
-				.Compile();
+		public static Action<TCommand, TArg> CompileExtractor<TCommand, TArg>(ISqlDialect dialect) { 
+			var extractor = CreateExtractor(dialect, typeof(TCommand), typeof(TArg), typeof(TArg));
+			return (Action<TCommand, TArg>)extractor.Compile();
+		}
 
 		class ExtractorContext
 		{
