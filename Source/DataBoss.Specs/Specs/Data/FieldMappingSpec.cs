@@ -44,7 +44,7 @@ namespace DataBoss.Data
 			var fieldMapping = new FieldMapping<MyThing>();
 			fieldMapping.Map("Empty", MakeLambda((MyThing x) => string.Empty));
 
-			Check.That(() => fieldMapping.GetAccessorExpression().Body.ToString() == "(target[0] = Convert(String.Empty, Object))");
+			Check.That(() => fieldMapping.GetAccessorExpression().Body.ToString() == "(target[0] = String.Empty)");
 		}
 
 		[Fact]

@@ -5,6 +5,6 @@ namespace DataBoss.Expressions
 	public static class ExpressionExtensions
 	{
 		public static Expression Box(this Expression self) =>
-			self.Type == typeof(object) ? self : Expression.Convert(self, typeof(object));
+			self.Type.IsValueType ? Expression.Convert(self, typeof(object)) : self;
 	}
 }
