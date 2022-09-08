@@ -174,6 +174,7 @@ namespace DataBoss.DataPackage
 		static readonly TableSchemaType Char = new(typeof(char), "string", null, CsvTypeCode.None);
 		static readonly TableSchemaType Date = new(typeof(DateTime), "date", null, CsvTypeCode.None);
 		static readonly TableSchemaType DateTime = new(typeof(DateTime), "datetime", null, CsvTypeCode.None);
+		static readonly TableSchemaType DateTimeOffset = new(typeof(DateTimeOffset), "datetime", "any", CsvTypeCode.None);
 		static readonly TableSchemaType Uuid = new(typeof(Guid), "string", "uuid", CsvTypeCode.None);
 		static readonly TableSchemaType String = new(typeof(string), "string", null, CsvTypeCode.None);
 		static readonly TableSchemaType Time = new(typeof(TimeSpan), "time", null, CsvTypeCode.None);
@@ -202,6 +203,7 @@ namespace DataBoss.DataPackage
 				TypeCode.String => String,
 				_ => type.FullName switch {
 					"System.TimeSpan" => Time,
+					"System.DateTimeOffset" => DateTimeOffset,
 					"System.Byte[]" => Binary,
 					"System.Guid" => Uuid,
 					_ => new(type, type.SingleOrDefault<FieldAttribute>()?.SchemaType ?? throw new NotSupportedException($"Can't map {type}"), null, CsvTypeCode.None),

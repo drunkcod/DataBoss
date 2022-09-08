@@ -27,7 +27,8 @@ namespace DataBoss.Data
 			DateTime = 8,
 			Date = 9,
 			Time = 10,
-			Guid = 11,
+			DateTimeOffset = 11,
+			Guid = 12,
 
 			Char = 16,
 			VarChar = 17,
@@ -56,6 +57,7 @@ namespace DataBoss.Data
 			("datetime", 8),
 			("date", 3),
 			("time", 8),
+			("datetimeoffset", 10),
 			("uniqueidentifier", 16)
 		};
 
@@ -183,6 +185,8 @@ namespace DataBoss.Data
 				case DbType.Int64: return BossTypeTag.BigInt;
 				case DbType.Boolean: return BossTypeTag.Bit;
 				case DbType.String: return BossTypeTag.NVarChar;
+				case DbType.DateTime: return BossTypeTag.DateTime;
+				case DbType.DateTimeOffset: return BossTypeTag.DateTimeOffset;
 				case DbType.Binary: return BossTypeTag.Binary;
 				case DbType.Guid: return BossTypeTag.Guid;
 			}
@@ -215,6 +219,7 @@ namespace DataBoss.Data
 				case "System.Byte[]":
 					return new DataBossDbType(BossTypeTag.VarBinary, canBeNull, MaxLength(attributes)?.Length ?? int.MaxValue);
 				case "System.DateTime": return Create("datetime", 8, canBeNull);
+				case "System.DateTimeOffset": return Create("datetimeoffset", 10, canBeNull);
 				case "System.TimeSpan": return Create("time", 3, canBeNull);
 				case "System.Data.SqlTypes.SqlMoney": return Create("money", null, canBeNull);
 				case "DataBoss.Data.SqlServer.RowVersion": return new DataBossDbType(BossTypeTag.RowVersion, canBeNull, (int?)8);
@@ -237,6 +242,7 @@ namespace DataBoss.Data
 				case "System.Decimal": return DbType.Decimal;
 				case "System.Boolean": return DbType.Boolean;
 				case "System.DateTime": return DbType.DateTime;
+				case "System.DateTimeOffset": return DbType.DateTimeOffset;
 				case "System.Guid": return DbType.Guid;
 			}
 			return DbType.String;

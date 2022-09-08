@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
+using DataBoss.Data;
 using DataBoss.DataPackage.Types;
 
 namespace DataBoss.DataPackage
@@ -45,6 +46,8 @@ namespace DataBoss.DataPackage
 				default:
 					if (fieldType == typeof(TimeSpan))
 						return FormatTimeSpan;
+					if (fieldType == typeof(DateTimeOffset))
+						return FormatDateTimeOffset;
 					if (fieldType == typeof(byte[]))
 						return FormatBinary;
 					if (fieldType == typeof(Guid))
@@ -82,6 +85,7 @@ namespace DataBoss.DataPackage
 
 		static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatDate = StringFrom.Date;
 		static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatDateTime = StringFrom.DateTime;
+		static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatDateTimeOffset = StringFrom.DateTimeOffset;
 		static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatTimeSpan = StringFrom.TimeSpan;
 		static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatBinary = StringFrom.Binary;
 		static readonly Func<IDataRecord, int, NumberFormatInfo, string> FormatGuid = StringFrom.Guid;
@@ -105,6 +109,9 @@ namespace DataBoss.DataPackage
 					throw new InvalidOperationException("DateTimeKind.Unspecified not supported.");
 				return value.ToUniversalTime().ToString("yyyy'-'MM'-'dd'T'HH':'mm':'ssK");
 			}
+
+			public static string DateTimeOffset(IDataRecord r, int i, NumberFormatInfo _) =>
+				r.GetFieldValue<DateTimeOffset>(i).ToString(@"yyyy-MM-dd hh:mm:ss.FFFFFFF zzz");
 
 			public static string TimeSpan(IDataRecord r, int i, NumberFormatInfo _) => r.IsDBNull(i) ? null : ((TimeSpan)r.GetValue(i)).ToString("hh\\:mm\\:ss");
 

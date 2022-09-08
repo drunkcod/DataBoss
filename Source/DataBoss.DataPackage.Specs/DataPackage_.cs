@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
@@ -9,6 +10,7 @@ using DataBoss.Data;
 using DataBoss.Data.Common;
 using DataBoss.DataPackage.Schema;
 using DataBoss.DataPackage.Types;
+using DataBoss.Linq;
 using Xunit;
 
 namespace DataBoss.DataPackage
@@ -240,6 +242,30 @@ namespace DataBoss.DataPackage
 				() => today.Date != utc.Date,
 				() => r["Today"] == (object)today,
 				() => r["UtcToday"] == (object)utc);
+		}
+
+		[Fact]
+		public void DateTimeOffset_default_format() {
+			var now = DateTimeOffset.Now;
+			var dp = new DataPackage()
+				.AddResource(x => x
+					.WithName("rows")
+					.WithData(new[] {
+						new { Value = now, }
+					}))
+				.Serialize();
+			
+			var r = dp.GetResource("rows");
+			var rows = r.Read();
+			rows.Read();
+			Check.That(
+				() => r.Schema.Fields[0].Type == "datetime",
+				() => r.Schema.Fields[0].Format == "any",
+				() => rows.GetString(0) == now.ToString("yyyy-MM-dd HH:mm:ss.FFFFFFF zzz"));
+
+			rows = r.Read();
+			var v = rows.Read<MyRow<DateTimeOffset>>().ToList();
+			Check.That(() => v[0].Value == now);
 		}
 
 		[Fact]
