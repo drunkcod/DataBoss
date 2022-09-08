@@ -120,6 +120,9 @@ namespace DataBoss.DataPackage
 				if (typeof(T) == typeof(TimeSpan))
 					return (T)(object)TimeSpan.Parse(value, GetFieldFormat(i));
 
+				if (typeof(T) == typeof(DateTimeOffset))
+					return (T)(object)DateTimeOffset.Parse(value);
+
 				if (typeof(T) == typeof(Guid))
 					return (T)(object)Guid.Parse(value);
 

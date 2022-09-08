@@ -86,7 +86,7 @@ namespace DataBoss.Data
 			else if (typeof(T) == typeof(string))
 				return (T)(object)record.GetString(i);
 			else
-				return (T)record.GetValue(i);
+				return (record is DbDataReader rx) ? rx.GetFieldValue<T>(i) : (T)record.GetValue(i);
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]

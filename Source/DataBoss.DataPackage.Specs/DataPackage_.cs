@@ -261,7 +261,8 @@ namespace DataBoss.DataPackage
 			Check.That(
 				() => r.Schema.Fields[0].Type == "datetime",
 				() => r.Schema.Fields[0].Format == "any",
-				() => rows.GetString(0) == now.ToString("yyyy-MM-dd HH:mm:ss.FFFFFFF zzz"));
+				() => rows.GetString(0) == now.ToString("yyyy-MM-dd HH:mm:ss.FFFFFFF zzz"),
+				() => rows.GetFieldValue<DateTimeOffset>(0) == now);
 
 			rows = r.Read();
 			var v = rows.Read<MyRow<DateTimeOffset>>().ToList();
