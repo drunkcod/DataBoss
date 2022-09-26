@@ -111,7 +111,7 @@ namespace DataBoss.DataPackage
 			}
 
 			public static string DateTimeOffset(IDataRecord r, int i, NumberFormatInfo _) =>
-				r.GetFieldValue<DateTimeOffset>(i).ToString(@"yyyy-MM-dd hh:mm:ss.FFFFFFF zzz");
+				r.GetFieldValue<DateTimeOffset>(i).ToString(@"yyyy-MM-dd HH:mm:ss.FFFFFFF zzz");
 
 			public static string TimeSpan(IDataRecord r, int i, NumberFormatInfo _) => r.IsDBNull(i) ? null : ((TimeSpan)r.GetValue(i)).ToString("hh\\:mm\\:ss");
 
