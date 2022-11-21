@@ -5,6 +5,14 @@ evolve or refactor their database designs.
 
 It does this by keeping track of change scripts to be applied across instances.
 
+## Installation
+
+Install DataBoss as a dotnet tool.
+
+```
+dotnet tool install databoss -g
+```
+
 ## Change Log
 
 **0.0.0.7**
