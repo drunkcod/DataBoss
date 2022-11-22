@@ -25,6 +25,11 @@ namespace DataBoss.DataPackage
 			#pragma warning restore CS0649
 		}
 
+		public class StringRow {
+			public string Id;
+			public string Value;
+		}
+
 		[Fact]
 		public void getting_unknown_resource_is_an_InvalidOperation() {
 			var dp = new DataPackage();
