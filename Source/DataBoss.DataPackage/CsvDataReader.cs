@@ -15,13 +15,11 @@ namespace DataBoss.DataPackage
 	{		
 		class CsvDataRecord : IDataRecord
 		{
-			static readonly Func<int, bool> NoData = InvalidGetAttempt;
 			static bool InvalidGetAttempt(int i) => throw new InvalidOperationException("Invalid attempt to read when no data is present, call Read()");
 
 			readonly string[] fieldValue;
 			readonly BitArray isNull;
 			readonly CsvDataReader parent;
-			Func<int, bool> checkedIsNull;
 			int rowNumber;
 
 			public CsvDataRecord(CsvDataReader parent, BitArray isNull, string[] fieldValue) : this(parent, -1, isNull, fieldValue) 
@@ -32,15 +30,15 @@ namespace DataBoss.DataPackage
 				this.fieldValue = fieldValue;
 				this.parent = parent;
 				this.rowNumber = rowNumber;
-				this.checkedIsNull = rowNumber == -1 ? NoData : CheckedIsNullUnsafe;
 			}
 
+			bool IsHeader => rowNumber == -1;
+			bool CheckedIsNull(int i) => IsHeader ? InvalidGetAttempt(i) : CheckedIsNullUnsafe(i);
+				 
 			public CsvDataRecord Clone() => new(parent, rowNumber, new BitArray(isNull), (string[])fieldValue.Clone());
 
 			public void Fill(int rowNumber, CsvParser csv) {
 				this.rowNumber = rowNumber;
-				if(checkedIsNull == NoData)
-					checkedIsNull = CheckedIsNullUnsafe;
 				for (var i = 0; i != FieldCount; ++i) {
 					var value = fieldValue[i] = csv[i];
 					isNull[i] = IsNull(value);
@@ -53,7 +51,7 @@ namespace DataBoss.DataPackage
 			public int FieldCount => fieldValue.Length;
 
 			public object GetValue(int i) {
-				if (checkedIsNull(i))
+				if (CheckedIsNull(i))
 					return DBNull.Value;
 
 				try {
@@ -85,7 +83,7 @@ namespace DataBoss.DataPackage
 			public float GetFloat(int i) => GetFieldValue<float>(i);
 			public double GetDouble(int i) => GetFieldValue<double>(i);
 			public decimal GetDecimal(int i) => GetFieldValue<decimal>(i);
-			public string GetString(int i) => checkedIsNull(i) ? default : fieldValue[i];
+			public string GetString(int i) => CheckedIsNull(i) ? default : fieldValue[i];
 			public DateTime GetDateTime(int i) => (DateTime)GetValue(i);
 			public TimeSpan GetTimeSpan(int i) => GetFieldValue<TimeSpan>(i);
 
@@ -93,7 +91,7 @@ namespace DataBoss.DataPackage
 			public CsvNumber GetCsvNumber(int i) => GetFieldValue<CsvNumber>(i);
 
 			public T GetFieldValue<T>(int i) {
-				if (checkedIsNull(i))
+				if (CheckedIsNull(i))
 					return default;
 
 				var value = fieldValue[i];
