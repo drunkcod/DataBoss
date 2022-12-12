@@ -20,8 +20,8 @@ namespace DataBoss.Data.SqlServer
 			this.Rows = rows;
 		}
 
-		public static TableValuedParameter Create(string name, DataTable rows) => new TableValuedParameter(name, rows);
-		public static TableValuedParameter Create(string name, DbDataReader rows) => new TableValuedParameter(name, rows);
-		public static TableValuedParameter Create<T>(string name, IEnumerable<T> rows) => new TableValuedParameter(name, rows.ToDataReader());
+		public static TableValuedParameter Create(string name, DataTable rows) => new(name, rows);
+		public static TableValuedParameter Create(string name, DbDataReader rows) => new(name, rows);
+		public static TableValuedParameter Create<T>(string name, IEnumerable<T> rows) => new(name, rows.ToDataReader());
 	}
 }
