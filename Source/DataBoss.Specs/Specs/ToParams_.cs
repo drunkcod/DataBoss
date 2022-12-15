@@ -33,9 +33,9 @@ namespace DataBoss
 			});
 
 			Check.That(
-				() => p.Single(x => x.ParameterName == ParameterName("Int32_Value")).DbType == DbType.Int32,
-				() => p.Single(x => x.ParameterName == ParameterName("Int32_Null")).DbType == DbType.Int32,
-				() => p.Single(x => x.ParameterName == ParameterName("String_Null")).DbType == DbType.String);
+				() => p.Single(x => x.ParameterName == "Int32_Value").DbType == DbType.Int32,
+				() => p.Single(x => x.ParameterName == "Int32_Null").DbType == DbType.Int32,
+				() => p.Single(x => x.ParameterName == "String_Null").DbType == DbType.String);
 		}
 
 		[Fact]
@@ -66,7 +66,7 @@ namespace DataBoss
 			Check.That(() => x.Length == 1);
 			Check.That(
 				() => x.Length == 1,
-				() => x[0].ParameterName == ParameterName("Id"),
+				() => x[0].ParameterName == "Id",
 				() => x[0].DbType== DbType.Int32);
 		}
 
@@ -75,10 +75,9 @@ namespace DataBoss
 			.With(() => GetParams(new { Args = new { Foo = 1, Bar = "Hello" } }))
 			.That(
 				x => x.Length == 2,
-				x => x.Any(p => p.ParameterName == ParameterName("Args_Foo")),
-				x => x.Any(p => p.ParameterName == ParameterName("Args_Bar")));
+				x => x.Any(p => p.ParameterName == "Args_Foo"),
+				x => x.Any(p => p.ParameterName == "Args_Bar"));
 
-		string ParameterName(string name) => $"{SqlDialect.ParameterPrefix}{name}";
 	}
 
 	public class ToParams_SqlCommand : ToParamsFixture<SqlCommand, SqlParameter>
@@ -99,7 +98,7 @@ namespace DataBoss
 		public void object_is_not_considered_complex() {
 			var nullableInt = new int?();
 			Check.With(() => GetParams(new { Value = nullableInt.HasValue ? (object)nullableInt.Value : DBNull.Value }))
-				.That(x => x.Length == 1, x => x.Any(p => p.ParameterName == "@Value"));
+				.That(x => x.Length == 1, x => x.Any(p => p.ParameterName == "Value"));
 		}
 
 		[Theory]
@@ -128,7 +127,7 @@ namespace DataBoss
 			.With(() => GetParams(new { RowVersion = new RowVersion(new byte[8])}))
 			.That(
 				paras => paras.Length == 1,
-				paras => paras[0].ParameterName == "@RowVersion",
+				paras => paras[0].ParameterName == "RowVersion",
 				paras => paras[0].SqlDbType == SqlDbType.Binary);
 	}
 

@@ -26,7 +26,7 @@ namespace DataBoss.Data
 			var values = Expression.Parameter(parameterType);
 
 			var extractor = ExtractorContext.For(command);
-			ExtractValues(extractor, dialect, dialect.ParameterPrefix, Expression.Convert(values, argType));
+			ExtractValues(extractor, dialect, string.Empty, Expression.Convert(values, argType));
 			return Expression.Lambda(extractor.GetResult(), command, values);
 		}
 

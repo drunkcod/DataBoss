@@ -6,8 +6,6 @@ namespace DataBoss.Data
 {
 	public interface ISqlDialect
 	{
-		string ParameterPrefix { get; }
-
 		string FormatName(string columnName);
 		string GetTypeName(DataBossDbType dbType);
 		bool TryCreateDialectSpecificParameter(string name, Expression readMember, out Expression create);

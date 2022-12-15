@@ -19,8 +19,6 @@ namespace DataBoss.Data
 
 	public class MsSqlDialect : SqlDialect<MsSqlDialect, SqlCommand>, ISqlDialect
 	{
-		public string ParameterPrefix => "@";
-
 		public string FormatName(string columnName) => $"[{columnName}]";
 		public string GetTypeName(DataBossDbType dbType) => dbType.ToString();
 

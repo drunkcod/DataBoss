@@ -11,8 +11,6 @@ namespace DataBoss.Data.Npgsql
 {
 	public class NpgsqlDialect : SqlDialect<NpgsqlDialect, NpgsqlCommand>, ISqlDialect
 	{
-		public string ParameterPrefix => string.Empty;
-
 		public string FormatName(string columnName) => columnName;
 		
 		public string GetTypeName(DataBossDbType dbType) => dbType.ToString();
