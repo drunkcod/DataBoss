@@ -1,6 +1,6 @@
 using System;
 
-namespace DataBoss.Encoding
+namespace DataBoss
 {
 	public static class Varint
 	{
@@ -10,25 +10,35 @@ namespace DataBoss.Encoding
 
 		public static byte[] GetBytes(ulong ux) {
 			var tmp = new byte[MaxSize];
-			Array.Resize(ref tmp, GetBytes(ux, tmp));
+			TryGetBytes(ux, tmp, out var n);
+			Array.Resize(ref tmp, n);
 			return tmp;
 		}
 
-		public static int GetBytes(long x, Span<byte> dst) => GetBytes(ZigZag(x), dst);
+		public static bool TryGetBytes(long x, Span<byte> dst, out int bytesWritten) => 
+			TryGetBytes(ZigZag(x), dst, out bytesWritten);
 
-		public static int GetBytes(ulong ux, Span<byte> dst) {
-			var n = 0;
-			while (ux >= 0x80) {
-				dst[n++] = (byte)(ux | 0x80);
+		public static bool TryGetBytes(ulong ux, Span<byte> dst, out int bytesWritten) {
+			var c = GetByteCount(ux);
+			if (dst.Length < c) {
+				bytesWritten = 0;
+				return false;
+			}
+
+			var lastByte = c - 1;
+			for (var n = 0; n != lastByte; ++n) {
+				dst[n] = (byte)(ux | 0x80);
 				ux >>= 7;
 			}
-			dst[n] = (byte)ux;
-			return n + 1;
+			dst[lastByte] = (byte)ux;
+
+			bytesWritten = c;
+			return true;
 		}
 
-		static ulong ZigZag(long x) {
-			var ux = ((ulong)x) << 1;
-			return x < 0 ? ~ux : ux;
-		}
+		public static int GetByteCount(ulong x) => 1 + (64 - (int)ulong.LeadingZeroCount(x)) / 7;
+
+		public static ulong ZigZag(long x) => (ulong)((x >> 63) ^ (x << 1));
+		public static long UnZigZag(ulong x) => (long)(x >>> 1) ^ -(long)(x & 1);
 	}
 }

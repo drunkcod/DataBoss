@@ -177,7 +177,6 @@ namespace DataBoss.Data
 
 			public IDbTransaction BeginTransaction() => InnerConnection.BeginTransaction();
 			public IDbTransaction BeginTransaction(IsolationLevel il) => InnerConnection.BeginTransaction(il);
-			public IDbTransaction BeginTransaction(string transactionName) => DataBossConnection.BeginTransaction(transactionName);
 
 			public void ChangeDatabase(string databaseName) => InnerConnection.ChangeDatabase(databaseName);
 

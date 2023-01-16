@@ -38,7 +38,7 @@ namespace DataBoss.Migrations
 				user = Environment.UserName,
 				hash = info.MigrationHash,
 			});
-			cmd.Transaction = db.BeginTransaction("LikeABoss");
+			cmd.Transaction = db.BeginTransaction();
 			cmd.ExecuteNonQuery();
 		}
 

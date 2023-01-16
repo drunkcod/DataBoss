@@ -112,6 +112,6 @@ namespace DataBoss
 				() => missing[0] == 2);
 		}
 
-		KeyValuePair<TKey, TValue> Item<TKey, TValue>(TKey key, TValue value) => new KeyValuePair<TKey, TValue>(key, value);
+		static KeyValuePair<TKey, TValue> Item<TKey, TValue>(TKey key, TValue value) => new(key, value);
 	}
 }

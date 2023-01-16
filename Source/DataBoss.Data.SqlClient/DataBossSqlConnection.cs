@@ -23,8 +23,7 @@ namespace DataBoss.Data
 
 		public void Open() => connection.Open();
 
-		public IDbTransaction BeginTransaction(string transactionName) =>
-			connection.BeginTransaction(transactionName);
+		public IDbTransaction BeginTransaction() => connection.BeginTransaction();
 
 		public void CreateTable(string destinationTable, IDataReader data) =>
 			connection.CreateTable(destinationTable, data);

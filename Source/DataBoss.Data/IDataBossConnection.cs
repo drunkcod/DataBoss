@@ -18,8 +18,7 @@ namespace DataBoss.Data
 
 		void Open();
 
-		IDbTransaction BeginTransaction(string transactionName);
-
+		IDbTransaction BeginTransaction();
 		void CreateTable(string destinationTable, IDataReader data);
 		void Insert(string destinationTable, IDataReader rows, DataBossBulkCopySettings settings);
 

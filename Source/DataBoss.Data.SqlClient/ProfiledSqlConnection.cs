@@ -16,7 +16,6 @@ namespace DataBoss.Data
 	using System.IO;
 	using System.Threading;
 	using System.Threading.Tasks;
-	using DataBoss.Data.Scripting;
 
 	public class ProfiledSqlConnection : DbConnection, IDataBossConnection
 	{
@@ -69,7 +68,7 @@ namespace DataBoss.Data
 			new ProfiledSqlCommand(this, inner.CreateCommand(cmdText, args));
 
 		protected override DbTransaction BeginDbTransaction(IsolationLevel isolationLevel) => inner.BeginTransaction(isolationLevel);
-		public IDbTransaction BeginTransaction(string transactionName) => inner.BeginTransaction(transactionName);
+		IDbTransaction IDataBossConnection.BeginTransaction() => inner.BeginTransaction();
 		public override void Close() => inner.Close();
 		public override void ChangeDatabase(string databaseName) => inner.ChangeDatabase(databaseName);
 		public override void Open() => inner.Open();
@@ -153,11 +152,8 @@ namespace DataBoss.Data
 	public static class ProfiledSqlConnectionExtensions
 	{
 		public static ProfiledSqlConnectionTraceWriter StartTrace(this ProfiledSqlConnection self, TextWriter target) => new(self, target);
-		public static ProfiledSqlConnectionStatistics StartGatheringQueryStatistics(this ProfiledSqlConnection self) {
-			var stats = new ProfiledSqlConnectionStatistics(self) {
-				StatisticsEnabled = true
-			};
-			return stats;
-		}
+		public static ProfiledSqlConnectionStatistics StartGatheringQueryStatistics(this ProfiledSqlConnection self) => new(self) {
+			StatisticsEnabled = true
+		};
 	}
 }
