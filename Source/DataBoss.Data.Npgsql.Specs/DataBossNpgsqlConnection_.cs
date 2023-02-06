@@ -60,6 +60,23 @@ namespace DataBoss.Data.Npgsql
 
 		}
 
+		[Fact]
+		public void Query_jsonb_parameter() {
+			var input = new[] {
+				KeyValuePair.Create(1, "One"),
+				KeyValuePair.Create(2, "Two"),
+			};
+
+			Check.With(() => db.Query<KeyValuePair<int, string>>(@"
+				select (value->'Key')::int as key, value->>'Value' as value
+				from jsonb_array_elements(:input)", new { input = NpgsqlDialect.Jsonb(input) }, false).ToList())
+			.That(
+				xs => xs.Count == input.Length,
+				xs => xs[0].Key == input[0].Key,
+				xs => xs[0].Value == input[0].Value);
+		}
+
+
 		class IntoRow
 		{
 			public int @Int;

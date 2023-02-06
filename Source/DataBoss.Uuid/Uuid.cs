@@ -1,5 +1,6 @@
 using System;
 using System.Buffers.Binary;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
@@ -44,17 +45,34 @@ namespace DataBoss
 			
 			uuid[6] = (byte)((uuid[6] & 0x0f) | (version << 4));
 			uuid[8] = (byte)((uuid[8] & 0x3f) | 0x80);
-			if(BitConverter.IsLittleEndian)
-				ToUuidOrder(uuid);
-			return new Guid(uuid[..16]);
+			return Parse(uuid[..16]);
+		}
+
+		public static Guid Parse(byte[] bs) => Parse(new ReadOnlySpan<byte>(bs));
+
+		public static Guid Parse(ReadOnlySpan<byte> bs) {
+			Span<byte> r = stackalloc byte[16];
+			ref GuidPreamble g = ref MemoryMarshal.AsRef<GuidPreamble>(r);
+			r[15] = bs[15];
+			g.A = BinaryPrimitives.ReadUInt32BigEndian(bs);
+			g.B = BinaryPrimitives.ReadUInt16BigEndian(bs[4..]);
+			g.C = BinaryPrimitives.ReadUInt16BigEndian(bs[6..]);
+			r[8] = bs[8];
+			r[9] = bs[9];
+			r[10] = bs[10];
+			r[11] = bs[11];
+			r[12] = bs[12];
+			r[13] = bs[13];
+			r[14] = bs[14];
+			return new Guid(r);
 		}
 
 		[StructLayout(LayoutKind.Sequential)]
 		struct GuidPreamble 
 		{
-			public int A;
-			public short B;
-			public short C;
+			public uint A;
+			public ushort B;
+			public ushort C;
 		}
 
 		static void ToUuidOrder(Span<byte> bs) {

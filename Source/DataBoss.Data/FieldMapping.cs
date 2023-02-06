@@ -205,7 +205,7 @@ namespace DataBoss.Data
 
 		public int Map<TMember>(Expression<Func<T,TMember>> selector) {
 			if(selector.Body.NodeType != ExpressionType.MemberAccess)
-				throw new NotSupportedException();
+				throw new NotSupportedException($"Selector only mapping must be of type MemberAccess.");
 			
 			var m = (MemberExpression)selector.Body;
 			return Map(m.Member);
