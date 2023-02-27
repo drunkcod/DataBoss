@@ -1,4 +1,5 @@
 using System;
+using System.Numerics;
 
 namespace DataBoss
 {
@@ -35,9 +36,11 @@ namespace DataBoss
 			bytesWritten = c;
 			return true;
 		}
-
+#if NET70_OR_GREATER
 		public static int GetByteCount(ulong x) => 1 + (64 - (int)ulong.LeadingZeroCount(x)) / 7;
-
+#else
+		public static int GetByteCount(ulong x) => 1 + (64 - BitOperations.LeadingZeroCount(x)) / 7;
+#endif
 		public static ulong ZigZag(long x) => (ulong)((x >> 63) ^ (x << 1));
 		public static long UnZigZag(ulong x) => (long)(x >>> 1) ^ -(long)(x & 1);
 	}

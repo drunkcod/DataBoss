@@ -12,11 +12,13 @@ function NuPack {
 }
 
 dotnet msbuild ((Args DataBoss.sln /t:Restore /t:Clean /t:Build) + $BuildArgs)
+NuPack DataBoss.Uuid
 NuPack DataBoss.Linq
 NuPack DataBoss.PowerArgs
 NuPack DataBoss.Data 
 NuPack DataBoss.Data.MsSql 
 NuPack DataBoss.Data.SqlClient 
+NuPack DataBoss.Data.Npgsql
 NuPack DataBoss.DataPackage
 NuPack DataBoss.Migrations
 NuPack DataBoss

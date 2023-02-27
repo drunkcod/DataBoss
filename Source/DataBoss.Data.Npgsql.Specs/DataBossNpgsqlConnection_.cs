@@ -76,6 +76,14 @@ namespace DataBoss.Data.Npgsql
 				xs => xs[0].Value == input[0].Value);
 		}
 
+		[Fact]
+		public void Query_IEnumerableOfT_parameter() {
+			var values = new List<int> { 1, 2, 3 };
+			var r = db.Query((int value) => value, "select * from unnest(:values) as xs(value)", new { values });
+
+			Check.That(() => r.SequenceEqual(values));
+		}
+
 
 		class IntoRow
 		{
