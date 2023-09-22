@@ -152,11 +152,12 @@ namespace DataBoss.DataPackage
 			var dp = new DataPackage();
 			dp.AddResource("numbers", () => SequenceDataReader.Items(new { Value = 1.0 }));
 
-			var xs = dp.Serialize(CultureInfo.GetCultureInfo("se-SV"));
+			var culture = CultureInfo.GetCultureInfo("se-SV");
+			var xs = dp.Serialize(culture);
 			Check.That(
-				() => GetNumbersFormat(xs).NumberDecimalSeparator == ",",
+				() => GetNumbersFormat(xs).NumberDecimalSeparator == culture.NumberFormat.NumberDecimalSeparator,
 				() => GetNumbersFormat(xs.Serialize(CultureInfo.InvariantCulture)).NumberDecimalSeparator == ".",
-				() => GetNumbersFormat(xs.Serialize(null)).NumberDecimalSeparator == ",");
+				() => GetNumbersFormat(xs.Serialize(null)).NumberDecimalSeparator == TabularDataSchemaFieldDescription.DefaultDecimalChar);
 		}
 
 		[Fact]
