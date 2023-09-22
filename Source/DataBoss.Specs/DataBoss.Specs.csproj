@@ -10,6 +10,7 @@
     <None Remove="Specs\Linq\**" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Testcontainers" Version="3.5.0" />
     <ProjectReference Include="..\DataBoss.Data.SqlClient\DataBoss.Data.SqlClient.csproj" />
     <ProjectReference Include="..\DataBoss.Data\DataBoss.Data.csproj" />
     <ProjectReference Include="..\DataBoss.PowerArgs\DataBoss.PowerArgs.csproj" />

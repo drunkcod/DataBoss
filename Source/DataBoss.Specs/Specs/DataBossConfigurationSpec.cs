@@ -79,8 +79,8 @@ namespace DataBoss
 
 		[Fact]
 		public void Migrations_have_absolute_paths() {
-			var config = DataBossConfiguration.Load("X:\\Project", StringStream("<db><migrations path=\"Migrations\"/></db>"));
-			Check.That(() => config.Migrations[0].Path == "X:\\Project\\Migrations");
+			var config = DataBossConfiguration.Load(Path.Combine("X:", "Project"), StringStream("<db><migrations path=\"Migrations\"/></db>"));
+			Check.That(() => config.Migrations[0].Path == Path.Combine("X:", "Project", "Migrations"));
 		}
 
 		[Fact]

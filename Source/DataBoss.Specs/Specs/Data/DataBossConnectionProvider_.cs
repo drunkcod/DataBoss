@@ -4,11 +4,11 @@ using Xunit;
 
 namespace DataBoss.Data
 {
-	public sealed class DataBossConnectionProvider_ : IClassFixture<TemporaryDatabaseFixture>, IDisposable
+	public sealed class DataBossConnectionProvider_ : IClassFixture<SqlServerFixture>, IDisposable
 	{
 		readonly DataBossConnectionProvider Connections;
 
-		public DataBossConnectionProvider_(TemporaryDatabaseFixture db) {
+		public DataBossConnectionProvider_(SqlServerFixture db) {
 			Connections = new DataBossConnectionProvider(db.ConnectionString);
 		}
 

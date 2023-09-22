@@ -9,12 +9,12 @@ using Xunit;
 
 namespace DataBoss.Data
 {
-	public sealed class ProfiledSqlConnectionSpec : IDisposable
+	public sealed class ProfiledSqlConnectionSpec : IClassFixture<SqlServerFixture>, IDisposable
     {
 		readonly ProfiledSqlConnection con;
 
-		public ProfiledSqlConnectionSpec() { 
-			con = new ProfiledSqlConnection(new SqlConnection("Server=.;Integrated Security=SSPI"));
+		public ProfiledSqlConnectionSpec(SqlServerFixture db) { 
+			con = new ProfiledSqlConnection(new SqlConnection(db.ConnectionString));
 			con.Open();
 		}
 

@@ -19,7 +19,7 @@ namespace DataBoss.Data.Scripting
 
 			public static DataBossTable From(Type tableType) {
 				var tableAttribute = tableType.Single<TableAttribute>();
-				return new DataBossTable(tableAttribute.Name, tableAttribute.Schema, 
+				return new DataBossTable(tableAttribute.Name, tableAttribute.Schema,
 					tableType.GetFields()
 					.Select(field => new {
 						field,
@@ -49,8 +49,8 @@ namespace DataBoss.Data.Scripting
 			public int GetOrdinal(string name) => columns.FindIndex(x => x.Name == name);
 		}
 
-		public DataBossScripter(ISqlDialect dialect) { 
-			this.dialect = dialect;	
+		public DataBossScripter(ISqlDialect dialect) {
+			this.dialect = dialect;
 		}
 
 		public string CreateMissing(Type tableType) {
@@ -89,7 +89,7 @@ namespace DataBoss.Data.Scripting
 			}
 			result.Length -= 1;
 			result.Append(") ").Append(name).Append('(');
-			foreach(var item in columns)
+			foreach (var item in columns)
 				result.Append('[').Append(item.Name).Append("], ");
 			result.Length -= 2;
 			result.Append(')');
@@ -117,14 +117,14 @@ namespace DataBoss.Data.Scripting
 			result.Append("create table ");
 			AppendTableName(result, table)
 				.Append("(");
-			
+
 			var sep = "\r\n\t";
-			foreach(var item in table.Columns) {
+			foreach (var item in table.Columns) {
 				ScriptColumn(result.Append(sep), item);
 				sep = ",\r\n\t";
 			}
 
-			result.AppendLine();
+			result.Append("\r\n");
 			return result.Append(')');
 		}
 
@@ -141,18 +141,18 @@ namespace DataBoss.Data.Scripting
 			var clustered = table.Columns.Where(x => x.Any<ClusteredAttribute>())
 				.Select(x => x.Name)
 				.ToList();
-			if(clustered.Count > 0)
+			if (clustered.Count > 0)
 				AppendTableName(result.AppendFormat("create clustered index IX_{0}_{1} on ", table.Name, string.Join("_", clustered)), table)
 				.AppendFormat("({0})", string.Join(",", clustered))
-				.AppendLine();
+				.Append("\r\n");
 
 			var keys = table.Columns.Where(x => x.Any<KeyAttribute>())
 				.Select(x => x.Name)
 				.ToList();
-			if(keys.Count > 0) {
-				result.AppendFormat(result.Length == 0 ? string.Empty : Environment.NewLine);
+			if (keys.Count > 0) {
+				result.AppendFormat(result.Length == 0 ? string.Empty : "\r\n");
 				AppendTableName(result.AppendFormat("alter table "), table)
-					.AppendLine()
+					.Append("\r\n")
 					.AppendFormat("add constraint PK_{0} primary key(", table.Name)
 					.Append(string.Join(",", keys))
 					.Append(")");
@@ -174,9 +174,12 @@ namespace DataBoss.Data.Scripting
 		}
 
 		StringBuilder AppendTableName(StringBuilder target, DataBossTable table) {
-			if(!string.IsNullOrEmpty(table.Schema))
+			if (!string.IsNullOrEmpty(table.Schema))
 				target.Append(dialect.FormatName(table.Schema)).Append('.');
 			return target.Append(dialect.FormatName(table.Name));
 		}
+
+		public string Join(IEnumerable<string> lines) => string.Join("\r\n", lines);
+		public string Join(params string[] lines) => Join(lines.AsEnumerable());
 	}
 }

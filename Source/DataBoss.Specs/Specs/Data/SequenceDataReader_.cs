@@ -217,11 +217,11 @@ namespace DataBoss.Data
 		}
 	}
 
-	public class SequenceDataReader_database_integration : IClassFixture<TemporaryDatabaseFixture>
+	public class SequenceDataReader_database_integration : IClassFixture<SqlServerFixture>
 	{
-		readonly TemporaryDatabaseFixture db;
+		readonly SqlServerFixture db;
 
-		public SequenceDataReader_database_integration(TemporaryDatabaseFixture db) {
+		public SequenceDataReader_database_integration(SqlServerFixture db) {
 			this.db = db;
 		}
 

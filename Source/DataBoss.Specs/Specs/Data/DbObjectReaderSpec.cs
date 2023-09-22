@@ -7,7 +7,7 @@ using Xunit;
 namespace DataBoss.Data
 {
 	[Trait("Category", "Database")]
-	public class DbObjectReaderSpec : IDisposable
+	public class DbObjectReaderSpec : IClassFixture<SqlServerFixture>, IDisposable
 	{
 		SqlConnection Db;
 		DbObjectReader<SqlCommand, SqlDataReader> DbReader;
@@ -16,8 +16,8 @@ namespace DataBoss.Data
 		struct Row { public int Value; }
 		#pragma warning restore CS0649
 
-		public DbObjectReaderSpec() {
-			Db = new SqlConnection("Server=.;Integrated Security=SSPI");
+		public DbObjectReaderSpec(SqlServerFixture db) {
+			Db = new SqlConnection(db.ConnectionString);
 			Db.Open();
 			DbReader = SqlObjectReader.Create(Db);
 		}

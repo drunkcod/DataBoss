@@ -6,9 +6,10 @@ using Xunit;
 namespace DataBoss.Data
 {
 	[Trait("Category", "Database")]
-	public class SqlCommandEnumerableSpec : IDisposable
+	public class SqlCommandEnumerableSpec : IClassFixture<SqlServerFixture>
 	{
-		SqlConnection Db;
+		SqlServerFixture db;
+		SqlConnection Db => db.Connection;
 
 		RetryStrategy retryAlways => (n, e) => true;
 		int rowsRead;
@@ -17,13 +18,10 @@ namespace DataBoss.Data
 			return r.GetInt32(0);
 		}
 
-		public SqlCommandEnumerableSpec() {
-			Db = new SqlConnection("Server=.;Integrated Security=SSPI");
-			Db.Open();
+		public SqlCommandEnumerableSpec(SqlServerFixture db) {
+			this.db = db;
 			rowsRead = 0;
 		}
-
-		void IDisposable.Dispose() => Db.Dispose();
 
 		[Fact]
 		public void Single_raises_appropriate_exception_when_more_than_one_element() {

@@ -8,20 +8,14 @@ using Xunit;
 
 namespace DataBoss.Data
 {
-	public sealed class SqlConnectionExtensions_ : IDisposable
+	public sealed class SqlConnectionExtensions_ : IClassFixture<SqlServerFixture>
 	{
-		readonly SqlServerTestDb testDb;
-		readonly SqlConnection Connection;
+		readonly SqlServerFixture db;
 
-		public SqlConnectionExtensions_() { 
-			this.testDb = SqlServerTestDb.GetOrCreate("DataBoss");
-			Connection = new SqlConnection(testDb.ConnectionString);
-			Connection.Open();
-		}
+		SqlConnection Connection => db.Connection;
 
-		void IDisposable.Dispose() {
-			Connection.Dispose();
-			testDb.Dispose();
+		public SqlConnectionExtensions_(SqlServerFixture db) {
+			this.db = db;
 		}
 
 		#pragma warning disable CS0649

@@ -1,19 +1,24 @@
 using System.Data.SqlClient;
 using CheckThat;
+using Org.BouncyCastle.Asn1;
 using Xunit;
 
 namespace DataBoss.Data.SqlServer
 {
 	[Trait("Category", "Database")]
-	public class RowVersionSpec
+	public class RowVersionSpec : IClassFixture<SqlServerFixture>
 	{
+		readonly SqlServerFixture db;
+		public RowVersionSpec(SqlServerFixture db) {
+			this.db = db;
+		}
 		[Fact]
 		public void Info_from_SequenceDataReader() {
-			using(var db = new SqlConnection("Server=.;Integrated Security=SSPI"))
+			using(var c = new SqlConnection(db.ConnectionString))
 			{
-				db.Open();
-				db.Into("#Temp", SequenceDataReader.Items(new { Version = RowVersion.From(1L) }));
-				Check.That(() => (int)db.ExecuteScalar("select count(*) from #Temp") == 1);
+				c.Open();
+				c.Into("#Temp", SequenceDataReader.Items(new { Version = RowVersion.From(1L) }));
+				Check.That(() => (int)c.ExecuteScalar("select count(*) from #Temp") == 1);
 			}
 		}
 	}

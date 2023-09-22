@@ -10,7 +10,15 @@ namespace DataBoss.Testing.SqlServer
 		public string Username;
 		public string Password;
 		public string ApplicationName;
+		public int? Port;
 
+		public TestDbConfig WithName(string name) => new() {
+			Name = name,
+			Server = this.Server,
+			Username = this.Username,
+			Password = this.Password,
+			ApplicationName = this.ApplicationName,
+		};
 		public static TestDbConfig Finalize(TestDbConfig config)
 		{
 			if(config == null)
@@ -30,7 +38,6 @@ namespace DataBoss.Testing.SqlServer
 		public SqlConnectionStringBuilder GetConnectionString() {
 			var cs = GetServerConnectionString();
 			cs.InitialCatalog = Name ?? string.Empty;
-
 			if (ApplicationName != null)
 				cs.ApplicationName = ApplicationName;
 
@@ -42,15 +49,23 @@ namespace DataBoss.Testing.SqlServer
 
 		internal SqlConnectionStringBuilder GetServerConnectionString() {
 			var cs = new SqlConnectionStringBuilder {
-				DataSource = Server ?? ".",
+				DataSource = DataSource,
 			};
 
 			if (Username != null) {
 				cs.UserID = Username;
 				cs.Password = Password;
 			} else cs.IntegratedSecurity = true;
-
 			return cs;
+		}
+
+		string DataSource {
+			get {
+				var useDefaultPort = Port == null || Port == 1433;
+				if(string.IsNullOrEmpty(Server))
+					return useDefaultPort ? "." : $"localhost,{Port}";
+				return useDefaultPort ? Server : $"{Server},{Port}";
+			}
 		}
 	}
 }
