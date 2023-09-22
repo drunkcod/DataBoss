@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 using System.Collections.Generic;
 using CheckThat;
 using Xunit;
@@ -8,8 +9,15 @@ namespace DataBoss.Data.Dataflow
 	public class DataflowFeature
     {
 		[Fact]
-		public void faulted_generator_raises_error_on_completion() =>
-			Check.Exception<Exception>(() => Block.Generator(FailWith(new Exception()), NullSink).Completion.Wait());
+		public async Task faulted_generator_raises_error_on_completion() {
+			Exception thrown = null;
+			try {
+				await Block.Generator(FailWith(new Exception()), NullSink).Completion;
+			} catch(Exception e) {
+				thrown = e;
+			}
+			Check.That(() => thrown != null);
+		}
 
 		[Fact]
 		public void broadcast_channel() {
@@ -34,12 +42,12 @@ namespace DataBoss.Data.Dataflow
 		}
 
 		[Fact]
-		public void faulted_consumer_back_propagates_error() {
+		public async Task faulted_consumer_back_propagates_error() {
 			var problem  = new Exception();
 			var consumer = Block.Item((int _) => throw problem, 1);
 			
 			consumer.Post(1);
-			consumer.Completion.ContinueWith(_ => { }).Wait();
+			await consumer.Completion.ContinueWith(_ => { });
 			Check.That(() => consumer.Completion.IsFaulted);
 
 			var e = Check.Exception<InvalidOperationException>(() => consumer.Post(2));
@@ -47,14 +55,14 @@ namespace DataBoss.Data.Dataflow
 		}
 
 		[Fact]
-		public void faulting_while_stuck_on_post_is_propagated() {
+		public async Task faulting_while_stuck_on_post_is_propagated() {
 			var problem = new Exception();
 			var consumer = Block.Item((int _) => { }, 1);
 
 			consumer.Post(1);
 			var producer = Block.Generator(AllTheNumbers, _ => consumer);
 			consumer.Complete();
-			producer.Completion.ContinueWith(_ => { }).Wait();
+			await producer.Completion.ContinueWith(_ => { });
 
 			Check.That(() => producer.Completion.Exception.InnerException is InvalidOperationException);
 		}

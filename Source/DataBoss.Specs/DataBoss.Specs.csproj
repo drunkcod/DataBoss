@@ -10,18 +10,19 @@
     <None Remove="Specs\Linq\**" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Testcontainers" Version="3.5.0" />
     <ProjectReference Include="..\DataBoss.Data.SqlClient\DataBoss.Data.SqlClient.csproj" />
     <ProjectReference Include="..\DataBoss.Data\DataBoss.Data.csproj" />
     <ProjectReference Include="..\DataBoss.PowerArgs\DataBoss.PowerArgs.csproj" />
     <ProjectReference Include="..\DataBoss.Uuid\DataBoss.Uuid.csproj" />
     <ProjectReference Include="..\DataBoss\DataBoss.csproj" />
     <ProjectReference Include="..\DataBoss.Testing.SqlServer\DataBoss.Testing.SqlServer.csproj" />
-    <PackageReference Include="Check.That" Version="0.0.4" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.4.0" />
-    <PackageReference Include="xunit" Version="2.4.2" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.4.5">
+
+    <PackageReference Include="Testcontainers" Version="3.5.0" />
+    <PackageReference Include="Check.That" Version="0.0.5" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.7.2" />
+    <PackageReference Include="xunit" Version="2.5.1" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.1">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
