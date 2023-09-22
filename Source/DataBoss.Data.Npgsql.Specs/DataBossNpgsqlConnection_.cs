@@ -1,6 +1,8 @@
 using CheckThat;
 using Npgsql;
 using Xunit;
+using Testcontainers.PostgreSql;
+using DataBoss.Testing.SqlServer;
 
 namespace DataBoss.Data.Npgsql
 {
@@ -14,9 +16,12 @@ namespace DataBoss.Data.Npgsql
 
 	public class NpgsqlTestDatabase : IDisposable
 	{
+		readonly PostgreSqlContainer pg;
 		readonly NpgsqlConnection db;
 		public NpgsqlTestDatabase() {
-			db = new NpgsqlConnection("Host=localhost;Username=databoss;Password=databoss;Database=postgres");
+			pg = new PostgreSqlBuilder().Build();
+			pg.StartAsync().Wait();
+			db = new NpgsqlConnection(pg.GetConnectionString());
 			db.Open();
 			db.ExecuteNonQuery("drop database if exists databoss with(force)");
 			db.ExecuteNonQuery("create database databoss");
@@ -27,15 +32,17 @@ namespace DataBoss.Data.Npgsql
 			db.Open();
 			db.ExecuteNonQuery("drop database databoss with(force)");
 		}
+
+		public string ConnectionString => pg.GetConnectionString();
 	}
 
     public class DataBossNpgsqlConnection_ : IDisposable, IClassFixture<NpgsqlTestDatabase>
 	{
 		NpgsqlConnection db;
 
-		public DataBossNpgsqlConnection_() {
+		public DataBossNpgsqlConnection_(NpgsqlTestDatabase testDb) {
 			NpgsqlConnection.ClearAllPools();
-			db = new NpgsqlConnection("Host=localhost;Username=databoss;Password=databoss;Database=databoss");
+			db = new NpgsqlConnection(testDb.ConnectionString);
 			db.Open();
 		}
 
