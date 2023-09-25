@@ -16,6 +16,7 @@ namespace DataBoss.Data
 	using DataBoss.Linq.Expressions;
 	using System.Data.SqlTypes;
 	using DataBoss.Data.Support;
+	using System.Collections.Generic;
 
 	public class MsSqlDialect : SqlDialect<MsSqlDialect, SqlCommand>, ISqlDialect
 	{
@@ -42,6 +43,20 @@ namespace DataBoss.Data
 			create = null;
 			return false;
 		}
+
+		public IReadOnlyList<string> DataBossHistoryMigrations => new[] {
+				  "create table [dbo].[__DataBossHistory](\n"
+				+ "[Id] bigint not null,\n" 
+				+ "[Context] varchar(64) not null,\n"
+				+ "[Name] varchar(max) not null,\n"
+				+ "[StartedAt] datetime not null,\n"
+				+ "[FinishedAt] datetime,\n"
+				+ "[User] varchar(max),\n"
+				+ "constraint[PK_DataBossHistory] primary key([Id], [Context]))",
+
+				  "alter table[dbo].[__DataBossHistory]\n"
+				+ "add [MigrationHash] binary(32)",
+		};
 
 		static bool TryGetParameterPrototype(Type type, out LambdaExpression found) {
 			if(type == typeof(SqlDecimal))

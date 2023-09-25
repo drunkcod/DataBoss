@@ -1,4 +1,6 @@
 using System;
+using System.Data;
+using System.Data.SqlClient;
 using CheckThat;
 using Xunit;
 
@@ -20,6 +22,7 @@ namespace DataBoss
 
 			public string ConnectionString;
 			public string GetConnectionString() => ConnectionString;
+			public IDbConnection GetDbConnection() => new SqlConnection(ConnectionString);
 
 			public IDataBossMigration GetTargetMigration() {
 				throw new NotImplementedException();

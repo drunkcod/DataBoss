@@ -4,6 +4,7 @@ using System.Data;
 using System.Data.SqlClient;
 using System.IO;
 using System.Linq;
+using System.Reflection.Metadata;
 using System.Text;
 using DataBoss.Data;
 using DataBoss.Linq;
@@ -26,11 +27,12 @@ namespace DataBoss
 		public void Dispose() => db.Dispose();
 
 		public static DataBoss Create(IDataBossConfiguration config, IDataBossLog log) =>
-			new(config, log, DbConnectionExtensions.Wrap(new SqlConnection(config.GetConnectionString())));
+			new(config, log, config.GetConnection());
 
 		[DataBossCommand("init")]
 		public int Initialize() {
-			EnsureDataBase(config.GetConnectionString());
+			using var connection = config.GetConnection();
+			EnsureDataBase(connection);
 			Open();
 			return 0;
 		}
@@ -70,95 +72,24 @@ namespace DataBoss
 			return migrator.ApplyRange(pending) ? 0 : -1;
 		}
 
-		public static void EnsureDataBase(string connectionString) {
-			var serverConnectionString = new SqlConnectionStringBuilder(connectionString);
-			var dbName = serverConnectionString.InitialCatalog;
-			serverConnectionString.InitialCatalog = string.Empty;
-
-			using var cmd = SqlCommandExtensions.Open(serverConnectionString);
-			var dbToCreate = cmd.ExecuteScalar("select case when db_id(@db) is null then quotename(@db) else null end", new { db = dbName });
-			if(dbToCreate is DBNull)
-				return;
-			cmd.ExecuteNonQuery($"create database {dbToCreate}");
-		}
+		public static void EnsureDataBase(IDataBossConnection connection) =>
+			connection.EnsureDatabase();
 
 		void Open() {
 			if(db.State == ConnectionState.Open)
 				return;
 			db.Open();
-			switch(GetTableVersion(db, "__DataBossHistory")) {
-				case 0:
-					CreateDataBossHistoryTable(db);
-					goto case 1;
-				case 1:
-					AddMigrationHashColumn(db);
-					goto case 2;
-				case 2: break;
+			for(var i = db.GetTableVersion("__DataBossHistory"); i != db.Dialect.DataBossHistoryMigrations.Count;) {
+				using var c = db.CreateCommand(db.Dialect.DataBossHistoryMigrations[i]);				
+				db.SetTableVersion("__DataBossHistory", ++i);
 			}
 
-			var userSchema = GetDefaultSchema();
+			var userSchema = db.GetDefaultSchema();
 			var configSchema = config.DefaultSchema ?? "dbo";
-			if (string.Compare(GetDefaultSchema(), configSchema, ignoreCase: true) != 0)
+			if (string.Compare(db.GetDefaultSchema(), configSchema, ignoreCase: true) != 0)
 				throw new InvalidOperationException(
 					  $"User default schema '{userSchema}' doesn't match '{configSchema}'.\n"
 					+ $"Either update the user default schema or add 'defaultSchema=\"{userSchema}\"' to the top level db element.");
-		}
-
-		string GetDefaultSchema() {
-			using var c = db.CreateCommand(
-				  "select isnull(default_schema_name, 'dbo')\n"
-				+ "from sys.database_principals\n"
-				+ "where principal_id = database_principal_id()");
-			
-			return (string)c.ExecuteScalar();
-		}
-			
-
-		static int GetTableVersion(IDataBossConnection db, string tableName) {
-			using var c = db.CreateCommand(
-				  "with table_version(table_name, version) as (\n"
-				+ "select table_name = tables.name, version = isnull((\n"
-				+ "select cast(value as int)\n"
-				+ "from sys.extended_properties p\n"
-				+ "where p.name = 'version' and p.class = 1 and tables.object_id = p.major_id\n"
-				+ "), 1)\n"
-				+ "from sys.tables\n"
-				+ ")\n"
-				+ "select isnull((\n"
-				+ "select version\n"
-				+ "from table_version\n"
-				+ "where table_name = @tableName), 0)", new { tableName });
-			return (int)c.ExecuteScalar();
-		}
-
-		static void CreateDataBossHistoryTable(IDataBossConnection db) { 
-			using var c = db.CreateCommand(
-				  "create table [dbo].[__DataBossHistory](\n"
-				+ "[Id] bigint not null,\n" 
-				+ "[Context] varchar(64) not null,\n"
-				+ "[Name] varchar(max) not null,\n"
-				+ "[StartedAt] datetime not null,\n"
-				+ "[FinishedAt] datetime,\n"
-				+ "[User] varchar(max),\n"
-				+ "constraint[PK_DataBossHistory] primary key([Id], [Context]))");
-			c.ExecuteNonQuery();
-		}
-
-		static void AddMigrationHashColumn(IDataBossConnection db) {
-			using(var c = db.CreateCommand(
-				  "alter table[dbo].[__DataBossHistory]\n"
-				+ "add [MigrationHash] binary(32)"))
-				c.ExecuteNonQuery();
-
-			using(var c = db.CreateCommand("sp_addextendedproperty", new { 
-				name = "version",
-				value = 2,
-				level0type = "Schema", level0name = "dbo",
-				level1type = "Table", level1name = "__DataBossHistory",
-			})) {
-				c.CommandType = CommandType.StoredProcedure;
-				c.ExecuteNonQuery();
-			}
 		}
 
 		IDataBossMigrationScope GetTargetScope(IDataBossConfiguration config) {

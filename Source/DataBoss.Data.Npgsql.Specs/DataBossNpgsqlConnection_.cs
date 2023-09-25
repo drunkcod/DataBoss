@@ -2,37 +2,22 @@ using CheckThat;
 using Npgsql;
 using Xunit;
 using Testcontainers.PostgreSql;
-using DataBoss.Testing.SqlServer;
+using System.Data;
 
 namespace DataBoss.Data.Npgsql
 {
-
-	public class ToParams_NpgsqlCommand : ToParamsFixture<NpgsqlCommand, NpgsqlParameter>
-	{
-		protected override NpgsqlCommand NewCommand() => new NpgsqlCommand();
-		protected override ISqlDialect SqlDialect => NpgsqlDialect.Instance;
-
-	}
-
-	public class NpgsqlTestDatabase : IDisposable
+	public class NpgsqlTestDatabase
 	{
 		readonly PostgreSqlContainer pg;
-		readonly NpgsqlConnection db;
+		readonly Dictionary<string, string> config;
 		public NpgsqlTestDatabase() {
 			pg = new PostgreSqlBuilder().Build();
 			pg.StartAsync().Wait();
-			db = new NpgsqlConnection(pg.GetConnectionString());
-			db.Open();
-			db.ExecuteNonQuery("drop database if exists databoss with(force)");
-			db.ExecuteNonQuery("create database databoss");
-			db.Close();
+
+			config = pg.GetConnectionString().Split(';').Select(x => x.Split('=')).ToDictionary(x => x[0], x => x[1]);
 		}
 
-		public void Dispose() {
-			db.Open();
-			db.ExecuteNonQuery("drop database databoss with(force)");
-		}
-
+		public string this[string key] => config[key];
 		public string ConnectionString => pg.GetConnectionString();
 	}
 
@@ -98,4 +83,39 @@ namespace DataBoss.Data.Npgsql
 			public int? NullableInt;
 		}
     }
+
+	public class NpgsqlDataBoss : IClassFixture<NpgsqlTestDatabase>
+	{
+		NpgsqlTestDatabase testDb;
+
+		class DataBossTestConfig : IDataBossConfiguration
+		{
+			public string Script => throw new NotImplementedException();
+
+			public string DefaultSchema => "public";
+
+			public string ConnectionString;
+			public string GetConnectionString() => ConnectionString;
+			public IDbConnection GetDbConnection() => new NpgsqlConnection(GetConnectionString());
+
+			public IDataBossMigration GetTargetMigration() {
+				throw new NotImplementedException();
+			}
+		}
+
+		public NpgsqlDataBoss(NpgsqlTestDatabase testDb) {
+			this.testDb = testDb;
+		}
+
+		[Fact]
+		public void Initialize() {
+			Console.WriteLine(testDb.ConnectionString);
+			var dataBoss = DataBoss.Create(new DataBossTestConfig {
+				ConnectionString = testDb.ConnectionString,
+			}, new NullDataBossLog());
+
+			dataBoss.Initialize();
+		}
+
+	}
 }

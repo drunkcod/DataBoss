@@ -1,3 +1,4 @@
+using System;
 using System.Data;
 using DataBoss.Linq;
 using Npgsql;
@@ -50,5 +51,29 @@ namespace DataBoss.Data.Npgsql
 		}
 
 		public void Open() => connection.Open();
+
+		public void EnsureDatabase() {}
+
+		public int GetTableVersion(string tableName) {
+			using var c = CreateCommand(@"
+				create table if not exists __DataBossMeta(
+					tableName text unique not null,
+					version int not null);
+					
+				select version, 0 from __DataBossMeta where tableName = :tableName", new { tableName });
+			return (int)(c.ExecuteScalar() ?? 0);
+		}
+
+		public void SetTableVersion(string tableName, int version) {
+			using var c = CreateCommand(
+				"update __DataBossMeta set version = :version where tableName = :tableName returning version",
+				new { tableName, version });
+			if(c.ExecuteScalar() is DBNull) {
+				c.CommandText = "insert __DataBossMeta values(:tableName, :version)";
+				c.ExecuteNonQuery();
+			}
+		}
+
+		public string GetDefaultSchema() => "public";
 	}
 }

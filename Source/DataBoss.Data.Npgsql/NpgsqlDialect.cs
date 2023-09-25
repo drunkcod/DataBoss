@@ -2,6 +2,7 @@ using System;
 using System.Data;
 using System.Linq.Expressions;
 using System.Text.Json;
+using System.Collections.Generic;
 using DataBoss.Data.Support;
 using Npgsql;
 using NpgsqlTypes;
@@ -34,6 +35,20 @@ namespace DataBoss.Data.Npgsql
 
 			return create != null;
 		}
+
+		public IReadOnlyList<string> DataBossHistoryMigrations => new[] { 
+			@"			create table __DataBossHistory(
+				Id bigint not null,
+				Context varchar(64) not null,
+				Name text not null,
+				StartedAt timestamp with time zone not null,
+				FinishedAt timestamp with time zone not null,
+				""User"" text,
+				MigrationHash bytea,
+				constraint PK_DataBossHistory primary key (Id, Context)
+			)", 
+		};
+
 
 		private static bool IsArrayLike(Type type) => 
 			type.IsArray || type.GetInterface("System.Collections.Generic.IEnumerable`1") is not null;

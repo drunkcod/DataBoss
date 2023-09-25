@@ -204,6 +204,11 @@ namespace DataBoss.Data
 			public IDbCommand CreateCommand(string cmdText, object args) =>
 				Adorn(DataBossConnection.CreateCommand(cmdText, args));
 
+			public void EnsureDatabase() => DataBossConnection.EnsureDatabase();
+			public int GetTableVersion(string tableName) => DataBossConnection.GetTableVersion(tableName);
+			public void SetTableVersion(string tableName, int version) => DataBossConnection.SetTableVersion(tableName, version);
+			public string GetDefaultSchema() => DataBossConnection.GetDefaultSchema();
+
 			IDbCommand Adorn(IDbCommand c) {
 				if (CommandTimeout.HasValue)
 					c.CommandTimeout = CommandTimeout.Value;
@@ -253,7 +258,6 @@ namespace DataBoss.Data
 
 			WrapConnection = Expression.Lambda<Func<IDbConnection, IDataBossConnection>>(body, con)
 				.Compile();
-
 		}
 	}
 

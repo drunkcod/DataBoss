@@ -2,6 +2,7 @@ using DataBoss.Linq;
 using DataBoss.Migrations;
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.SqlClient;
 using System.IO;
 using System.Linq;
@@ -97,5 +98,7 @@ namespace DataBoss
 				cs.Password = Password;
 			}
 		}
+
+		public IDbConnection GetDbConnection() => new SqlConnection(GetConnectionString());
 	}
 }

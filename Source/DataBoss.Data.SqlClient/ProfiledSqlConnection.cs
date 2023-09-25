@@ -112,6 +112,12 @@ namespace DataBoss.Data
 			inner.CreateTable(destinationTable, data);
 
 		public static explicit operator SqlConnection(ProfiledSqlConnection self) => self.inner;
+
+		public void EnsureDatabase() => new DataBossSqlConnection(inner).EnsureDatabase();
+		public int GetTableVersion(string tableName) => new DataBossSqlConnection(inner).GetTableVersion(tableName);
+		public void SetTableVersion(string tableName, int version) => new DataBossSqlConnection(inner).SetTableVersion(tableName, version);
+
+		public string  GetDefaultSchema() => new DataBossSqlConnection(inner).GetDefaultSchema();
 	}
 
 	public class ProfiledSqlCommandExecutingEventArgs : EventArgs
