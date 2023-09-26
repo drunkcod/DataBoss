@@ -22,6 +22,10 @@ namespace DataBoss
 						return false;
 				}
 				return true;
+			} catch(Exception e) {
+				Console.WriteLine(e);
+				throw;
+			
 			} finally {
 				scope.Done();
 			}

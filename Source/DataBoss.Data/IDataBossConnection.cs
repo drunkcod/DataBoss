@@ -12,6 +12,8 @@ namespace DataBoss.Data
 		bool TryCreateDialectSpecificParameter(string name, Expression readMember, out Expression create);
 
 		IReadOnlyList<string> DataBossHistoryMigrations { get; }
+		public string BeginMigrationQuery { get; }
+		public string EndMigrationQuery { get; }
 	}
 
 	public interface IDataBossConnection : IDisposable
@@ -33,7 +35,6 @@ namespace DataBoss.Data
 		void EnsureDatabase();
 		int GetTableVersion(string tableName);
 		void SetTableVersion(string tableName, int version);
-
 		public string GetDefaultSchema();
 	}
 }

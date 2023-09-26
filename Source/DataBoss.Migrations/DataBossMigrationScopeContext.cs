@@ -13,13 +13,5 @@ namespace DataBoss.Migrations
 			this.Database = database;
 			this.Server = server;
 		}
-
-		public static DataBossMigrationScopeContext From(string connectionString) {
-			var cs = new SqlConnectionStringBuilder(connectionString);
-			return new DataBossMigrationScopeContext(
-				connectionString,
-				cs.InitialCatalog,
-				string.IsNullOrEmpty(cs.DataSource) ? "." : cs.DataSource);
-		}
 	}
 }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using DataBoss.Data;
 using DataBoss.Linq;
@@ -78,7 +79,8 @@ namespace DataBoss
 				return;
 			db.Open();
 			for(var i = db.GetTableVersion("__DataBossHistory"); i != db.Dialect.DataBossHistoryMigrations.Count;) {
-				using var c = db.CreateCommand(db.Dialect.DataBossHistoryMigrations[i]);				
+				using var c = db.CreateCommand(db.Dialect.DataBossHistoryMigrations[i]);	
+				c.ExecuteNonQuery();			
 				db.SetTableVersion("__DataBossHistory", ++i);
 			}
 
@@ -91,7 +93,7 @@ namespace DataBoss
 		}
 
 		IDataBossMigrationScope GetTargetScope(IDataBossConfiguration config) {
-			var scopeContext = DataBossMigrationScopeContext.From(config.GetConnectionString());
+			var scopeContext = new DataBossMigrationScopeContext(config.GetConnectionString(), config.Database, config.Server);
 
 			if (!string.IsNullOrEmpty(config.Script))
 				return config.Script == "con:"

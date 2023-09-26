@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>netcoreapp3.1;net6.0</TargetFrameworks>
+    <TargetFrameworks>net7.0</TargetFrameworks>
     <OutputType>exe</OutputType>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>databoss</ToolCommandName>
@@ -13,9 +13,15 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="System.Text.Json" Version="7.0.3" />
+
     <ProjectReference Include="..\DataBoss.Data.SqlClient\DataBoss.Data.SqlClient.csproj" />
+    <ProjectReference Include="..\DataBoss.Data.Npgsql\DataBoss.Data.Npgsql.csproj" />
     <ProjectReference Include="..\DataBoss.Data\DataBoss.Data.csproj" />
     <ProjectReference Include="..\DataBoss.Migrations\DataBoss.Migrations.csproj" />
     <ProjectReference Include="..\DataBoss.PowerArgs\DataBoss.PowerArgs.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="NpgSql" Version="7.0.6" />
   </ItemGroup>
 </Project>

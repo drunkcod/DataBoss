@@ -1,5 +1,6 @@
 using System;
 using System.Data;
+using System.Data.Common;
 using System.Data.SqlClient;
 using CheckThat;
 using Xunit;
@@ -27,6 +28,9 @@ namespace DataBoss
 			public IDataBossMigration GetTargetMigration() {
 				throw new NotImplementedException();
 			}
+
+			public string Database => "";
+			public string Server => "localhost";
 		}
 
 		[Fact]

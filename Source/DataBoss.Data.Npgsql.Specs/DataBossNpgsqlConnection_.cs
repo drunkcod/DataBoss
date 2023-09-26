@@ -76,12 +76,13 @@ namespace DataBoss.Data.Npgsql
 			Check.That(() => r.SequenceEqual(values));
 		}
 
-
+#pragma warning disable 0649
 		class IntoRow
 		{
 			public int @Int;
 			public int? NullableInt;
 		}
+#pragma warning restore 0649
     }
 
 	public class NpgsqlDataBoss : IClassFixture<NpgsqlTestDatabase>
@@ -90,12 +91,18 @@ namespace DataBoss.Data.Npgsql
 
 		class DataBossTestConfig : IDataBossConfiguration
 		{
+			readonly string connectionString;
+
+			public DataBossTestConfig(string connectionString) {
+				this.connectionString = connectionString;
+			}
 			public string Script => throw new NotImplementedException();
 
 			public string DefaultSchema => "public";
+			public string Database => "";
+			public string Server => "localhost";
 
-			public string ConnectionString;
-			public string GetConnectionString() => ConnectionString;
+			public string GetConnectionString() => connectionString;
 			public IDbConnection GetDbConnection() => new NpgsqlConnection(GetConnectionString());
 
 			public IDataBossMigration GetTargetMigration() {
@@ -110,9 +117,9 @@ namespace DataBoss.Data.Npgsql
 		[Fact]
 		public void Initialize() {
 			Console.WriteLine(testDb.ConnectionString);
-			var dataBoss = DataBoss.Create(new DataBossTestConfig {
-				ConnectionString = testDb.ConnectionString,
-			}, new NullDataBossLog());
+			var dataBoss = DataBoss.Create(
+				new DataBossTestConfig(testDb.ConnectionString),
+				new NullDataBossLog());
 
 			dataBoss.Initialize();
 		}

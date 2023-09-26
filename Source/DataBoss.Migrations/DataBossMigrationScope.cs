@@ -25,13 +25,7 @@ namespace DataBoss.Migrations
 		public event EventHandler<ErrorEventArgs> OnError;
 
 		public void Begin(DataBossMigrationInfo info) {
-			cmd = db.CreateCommand(
-				  "update __DataBossHistory with(holdlock)\n"
-				+ "set [StartedAt] = getdate(), [FinishedAt] = null, [MigrationHash] = @hash\n"
-				+ "where Id = @id and Context = @context\n"
-				+ "if @@rowcount = 0\n"
-				+ "  insert __DataBossHistory(Id, Context, Name, StartedAt, [User], [MigrationHash])\n"
-				+ "  values(@id, @context, @name, getdate(), @user, @hash)", new {
+			cmd = db.CreateCommand(db.Dialect.BeginMigrationQuery, new {
 				id = info.Id,
 				context = info.Context,
 				name = info.Name,
@@ -76,7 +70,7 @@ namespace DataBoss.Migrations
 			if(cmd == null)
 				return;
 			if(!isFaulted) {
-				cmd.CommandText = "update __DataBossHistory set FinishedAt = getdate() where Id = @id and Context = @Context";
+				cmd.CommandText = db.Dialect.EndMigrationQuery;
 				cmd.ExecuteNonQuery();
 				cmd.Transaction.Commit();
 			} else

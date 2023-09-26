@@ -58,6 +58,16 @@ namespace DataBoss.Data
 				+ "add [MigrationHash] binary(32)",
 		};
 
+		public string BeginMigrationQuery => 				  
+			  "update __DataBossHistory with(holdlock)\n"
+			+ "set [StartedAt] = getdate(), [FinishedAt] = null, [MigrationHash] = @hash\n"
+			+ "where Id = @id and Context = @context\n"
+			+ "if @@rowcount = 0\n"
+			+ "  insert __DataBossHistory(Id, Context, Name, StartedAt, [User], [MigrationHash])\n"
+			+ "  values(@id, @context, @name, getdate(), @user, @hash)";
+
+		public string EndMigrationQuery => "update __DataBossHistory set FinishedAt = getdate() where Id = @id and Context = @Context";
+
 		static bool TryGetParameterPrototype(Type type, out LambdaExpression found) {
 			if(type == typeof(SqlDecimal))
 				found = CreateSqlDecimalParameter;

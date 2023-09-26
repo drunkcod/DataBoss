@@ -282,5 +282,10 @@ namespace DataBoss.Data
 			var converter = ConverterFactory.Default.GetConverter<IDataReader, T>(reader).Compiled;
 			return new ConvertingEnumerator<IDataReader, T>(reader, converter);
 		}
+
+		public static int ExecuteNonQuery(this IDbCommand self, string query) {
+			self.CommandText = query;
+			return self.ExecuteNonQuery();
+		}
 	}
 }

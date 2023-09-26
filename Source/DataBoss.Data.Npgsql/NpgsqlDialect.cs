@@ -37,18 +37,25 @@ namespace DataBoss.Data.Npgsql
 		}
 
 		public IReadOnlyList<string> DataBossHistoryMigrations => new[] { 
-			@"			create table __DataBossHistory(
+			@"create table __DataBossHistory(
 				Id bigint not null,
 				Context varchar(64) not null,
 				Name text not null,
 				StartedAt timestamp with time zone not null,
-				FinishedAt timestamp with time zone not null,
+				FinishedAt timestamp with time zone,
 				""User"" text,
 				MigrationHash bytea,
 				constraint PK_DataBossHistory primary key (Id, Context)
 			)", 
 		};
 
+		public string BeginMigrationQuery =>
+			@"insert into __DataBossHistory(Id, Context, Name, StartedAt, ""User"", MigrationHash)
+			values(:id, :context, :name, now(), :user, :hash)
+			on conflict on constraint PK_DataBossHistory
+			do update set StartedAt = now(), FinishedAt = null, MigrationHash = :hash";
+
+		public string EndMigrationQuery => "update __DataBossHistory set FinishedAt = now() where Id = :id and Context = :Context";
 
 		private static bool IsArrayLike(Type type) => 
 			type.IsArray || type.GetInterface("System.Collections.Generic.IEnumerable`1") is not null;

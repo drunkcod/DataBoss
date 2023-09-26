@@ -1,5 +1,6 @@
 using System;
 using System.Data;
+using System.Security.Cryptography;
 using DataBoss.Linq;
 using Npgsql;
 
@@ -52,7 +53,16 @@ namespace DataBoss.Data.Npgsql
 
 		public void Open() => connection.Open();
 
-		public void EnsureDatabase() {}
+		public void EnsureDatabase() {
+			var cs = new NpgsqlConnectionStringBuilder(connection.ConnectionString);
+			cs.Database = string.Empty;
+			using var c = new NpgsqlConnection(cs.ToString());
+			c.Open();
+			using var cmd = c.CreateCommand("select oid from pg_database where datname = :db", new { db = connection.Database });
+			if(cmd.ExecuteScalar() is null) {
+				cmd.ExecuteNonQuery($"create database {connection.Database}");
+			}
+		}
 
 		public int GetTableVersion(string tableName) {
 			using var c = CreateCommand(@"
@@ -68,8 +78,8 @@ namespace DataBoss.Data.Npgsql
 			using var c = CreateCommand(
 				"update __DataBossMeta set version = :version where tableName = :tableName returning version",
 				new { tableName, version });
-			if(c.ExecuteScalar() is DBNull) {
-				c.CommandText = "insert __DataBossMeta values(:tableName, :version)";
+			if(c.ExecuteScalar() is null) {
+				c.CommandText = "insert into __DataBossMeta values(:tableName, :version)";
 				c.ExecuteNonQuery();
 			}
 		}

@@ -10,6 +10,8 @@ namespace DataBoss
 		IDataBossMigration GetTargetMigration();
 		string Script { get; }
 		string DefaultSchema { get; }
+		string Database { get; }
+		string Server { get; }
 	}
 
 	static class DataBossConfigurationExtensions

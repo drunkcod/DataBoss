@@ -1,23 +1,25 @@
 using DataBoss.Linq;
 using DataBoss.Migrations;
 using System;
-using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.IO;
-using System.Linq;
 using System.Xml.Serialization;
+using Npgsql;
 
 namespace DataBoss
 {
 	[XmlRoot("db")]
 	public class DataBossConfiguration : IDataBossConfiguration
 	{
+		[XmlAttribute("driver")]
+		public string Driver;
+
 		[XmlAttribute("server")]
 		public string ServerInstance;
 
 		[XmlAttribute("database")]
-		public string Database;
+		public string Database { get; set; }
 
 		[XmlAttribute("user")]
 		public string User;
@@ -36,6 +38,9 @@ namespace DataBoss
 
 		[XmlIgnore]
 		public bool UseIntegratedSecurity => string.IsNullOrEmpty(User);
+
+		[XmlIgnore]
+		public string Server => ServerInstance ?? "localhost";
 
 		public IDataBossMigration GetTargetMigration() =>
 			new DataBossCompositeMigration(Migrations.ConvertAll(MakeDirectoryMigration));
@@ -78,14 +83,21 @@ namespace DataBoss
 		public string GetConnectionString() {
 			if(string.IsNullOrEmpty(Database))
 				throw new InvalidOperationException("No database specified");
-			var cs = new SqlConnectionStringBuilder {
-				Pooling = false,
-				ApplicationName = "DataBoss",
-				DataSource = ServerInstance ?? ".",
-				InitialCatalog = Database,
-			};
-			AddCredentials(cs);
-			return cs.ToString();
+
+			if(IsMsSql) {
+				var cs = new SqlConnectionStringBuilder {
+					Pooling = false,
+					ApplicationName = "DataBoss",
+					DataSource = ServerInstance ?? ".",
+					InitialCatalog = Database,
+				};
+				AddCredentials(cs);
+				return cs.ToString();
+			}
+			if(IsPostgres) {
+				return $"Host={ServerInstance ?? "127.0.0.1"};Username={User};Password={Password};Database={Database}";
+			}
+			throw new NotSupportedException();
 		}
 
 		void AddCredentials(SqlConnectionStringBuilder cs) {
@@ -99,6 +111,12 @@ namespace DataBoss
 			}
 		}
 
-		public IDbConnection GetDbConnection() => new SqlConnection(GetConnectionString());
+		bool IsMsSql => string.IsNullOrEmpty(Driver) || Driver == "mssql";
+		bool IsPostgres => Driver == "postgres";
+
+		public IDbConnection GetDbConnection() => 
+			IsMsSql ? new SqlConnection(GetConnectionString()) : 
+			IsPostgres ? new NpgsqlConnection(GetConnectionString()) :
+			throw new NotSupportedException();
 	}
 }
