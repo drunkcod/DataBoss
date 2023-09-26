@@ -13,7 +13,11 @@ namespace DataBoss
 			var oldColor = Console.ForegroundColor;
 			Console.ForegroundColor = ConsoleColor.Red;
 			Console.Error.WriteLine(exception.Message);
-			Console.Error.WriteLine(exception.StackTrace);
+			if(Environment.GetEnvironmentVariable("DATABOSS_DEBUG") == "1") {
+				Console.ForegroundColor = ConsoleColor.DarkRed;
+				Console.Error.WriteLine(exception.Message);
+				Console.Error.WriteLine(exception.StackTrace);
+			}
 			Console.ForegroundColor = oldColor;
 		}
 	}
