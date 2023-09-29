@@ -1,6 +1,7 @@
-using System;
 using System.Data;
-using System.Security.Cryptography;
+using System.Data.Common;
+using System.Threading;
+using System.Threading.Tasks;
 using DataBoss.Linq;
 using Npgsql;
 
@@ -42,25 +43,54 @@ namespace DataBoss.Data.Npgsql
 		public void Dispose() => connection.Dispose();
 
 		public void Insert(string destinationTable, IDataReader rows, DataBossBulkCopySettings settings) {
-			var columns = string.Join(',', Collection.ArrayInit(rows.FieldCount, x => rows.GetName(x)));
-			using var writer = connection.BeginBinaryImport($"COPY {destinationTable}({columns}) FROM STDIN(FORMAT BINARY)");
-			for(var row = new object[rows.FieldCount]; rows.Read();) {
-				rows.GetValues(row);
-				writer.WriteRow(row);
+			var columns = string.Join(',', Collection.ArrayInit(rows.FieldCount, x => $"\"{rows.GetName(x)}\""));
+			var row = new object[rows.FieldCount];
+			var batchSize = settings.BatchSize ?? int.MaxValue;
+			begin: {
+				var rowCount = 0;
+				using var writer = connection.BeginBinaryImport($"COPY {destinationTable}({columns}) FROM STDIN(FORMAT BINARY)");
+				while(rows.Read()) {
+					rows.GetValues(row);
+					writer.WriteRow(row);
+					if(++rowCount == batchSize) {
+						writer.Complete();
+						goto begin;
+					}
+				}
+				writer.Complete();
 			}
-			writer.Complete();
+		}
+
+		public async Task InsertAsync(string destinationTable, DbDataReader rows, DataBossBulkCopySettings settings, CancellationToken cancellationToken = default) {
+			var columns = string.Join(',', Collection.ArrayInit(rows.FieldCount, x => $"\"{rows.GetName(x)}\""));
+			var row = new object[rows.FieldCount];
+			var batchSize = settings.BatchSize ?? int.MaxValue;
+			begin: {
+				var rowCount = 0;
+				using var writer = await connection.BeginBinaryImportAsync($"COPY {destinationTable}({columns}) FROM STDIN(FORMAT BINARY)", cancellationToken).ConfigureAwait(false);
+				while(await rows.ReadAsync()) {
+					rows.GetValues(row);
+					await writer.WriteRowAsync(cancellationToken, row).ConfigureAwait(false);
+					if(++rowCount == batchSize) {
+						await writer.CompleteAsync(cancellationToken).ConfigureAwait(false);
+						goto begin;
+					}
+				}
+				await writer.CompleteAsync(cancellationToken).ConfigureAwait(false);
+			}
 		}
 
 		public void Open() => connection.Open();
 
 		public void EnsureDatabase() {
-			var cs = new NpgsqlConnectionStringBuilder(connection.ConnectionString);
-			cs.Database = string.Empty;
+			var cs = new NpgsqlConnectionStringBuilder(connection.ConnectionString) {
+				Database = string.Empty,
+			};
 			using var c = new NpgsqlConnection(cs.ToString());
 			c.Open();
 			using var cmd = c.CreateCommand("select oid from pg_database where datname = :db", new { db = connection.Database });
 			if(cmd.ExecuteScalar() is null) {
-				cmd.ExecuteNonQuery($"create database {connection.Database}");
+				cmd.ExecuteNonQuery($"create database \"{connection.Database}\"");
 			}
 		}
 

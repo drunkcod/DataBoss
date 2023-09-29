@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Data.Common;
 using System.Linq.Expressions;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace DataBoss.Data
 {
@@ -26,6 +29,7 @@ namespace DataBoss.Data
 		IDbTransaction BeginTransaction();
 		void CreateTable(string destinationTable, IDataReader data);
 		void Insert(string destinationTable, IDataReader rows, DataBossBulkCopySettings settings);
+		Task InsertAsync(string destinationTable, DbDataReader rows, DataBossBulkCopySettings settings, CancellationToken cancellationToken = default);
 
 		IDbCommand CreateCommand();
 		IDbCommand CreateCommand(string cmdText);

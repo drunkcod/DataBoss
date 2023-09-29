@@ -87,6 +87,12 @@ namespace DataBoss.Data
 			inner.Insert(destinationTable, rows, settings);
 		}
 
+		public async Task InsertAsync(string destinationTable, DbDataReader toInsert, DataBossBulkCopySettings settings, CancellationToken cancellationToken) {
+			using var rows = new ProfiledDataReader(toInsert, MsSqlDialect.Scripter);
+			BulkCopyStarting?.Invoke(this, new ProfiledBulkCopyStartingEventArgs(destinationTable, rows));
+			await inner.InsertAsync(destinationTable, rows, settings, cancellationToken);
+		}
+
 		internal class ProfiledCommandExecutionScope
 		{
 			readonly ProfiledSqlCommand command;

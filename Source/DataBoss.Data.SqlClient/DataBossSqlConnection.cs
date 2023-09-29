@@ -11,6 +11,9 @@ namespace DataBoss.Data
 	using System;
 	using System.Security.Cryptography;
 	using System.Reflection.Emit;
+	using System.Threading.Tasks;
+	using System.Data.Common;
+	using System.Threading;
 
 	public sealed class DataBossSqlConnection : IDataBossConnection
 	{
@@ -33,6 +36,9 @@ namespace DataBoss.Data
 
 		public void Insert(string destinationTable, IDataReader rows, DataBossBulkCopySettings settings) =>
 			connection.Insert(destinationTable, rows, settings);
+
+		public Task InsertAsync(string destinationTable, DbDataReader rows, DataBossBulkCopySettings settings, CancellationToken cancellationToken = default) =>
+			new DataBossBulkCopy(connection, null, settings).InsertAsync(destinationTable, rows, cancellationToken);
 
 		public IDbCommand CreateCommand() =>
 			new SqlCommand { Connection = connection };

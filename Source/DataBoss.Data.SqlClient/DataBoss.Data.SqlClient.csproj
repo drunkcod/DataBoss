@@ -1,17 +1,13 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net472;net452</TargetFrameworks>
+    <TargetFrameworks>net6.0;netstandard2.1</TargetFrameworks>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
-  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+  <ItemGroup>
     <PackageReference Include="System.Data.SqlClient">
       <Version>4.8.5</Version>
     </PackageReference>
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Condition="'$(TargetFramework)'=='net452'" Include="System.ValueTuple" Version="4.5.0" />
   </ItemGroup>
 
   <ItemGroup>

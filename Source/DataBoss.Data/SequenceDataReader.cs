@@ -5,14 +5,14 @@ using System.Data;
 using System.Data.Common;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace DataBoss.Data
 {
 	public static class SequenceDataReader
 	{
 		public static DbDataReader Items<T>(params T[] data) => Create(data);
-
 
 		public static DbDataReader Create<T>(IEnumerable<T> data) => Create(data, x => x.MapAll());
 		public static DbDataReader Create<T>(IEnumerable<T> data, Action<FieldMapping<T>> mapFields) => Create(data?.GetEnumerator(), mapFields);
@@ -24,6 +24,16 @@ namespace DataBoss.Data
 			return new SequenceDataReader<T>(data, fieldMapping);
 		}
 
+		public static DbDataReader Create<T>(IAsyncEnumerable<T> data) => Create(data, x => x.MapAll());
+		public static DbDataReader Create<T>(IAsyncEnumerable<T> data, Action<FieldMapping<T>> mapFields) => Create(data?.GetAsyncEnumerator(), mapFields);
+
+		public static DbDataReader Create<T>(IAsyncEnumerator<T> data) => Create(data, x => x.MapAll());
+		public static DbDataReader Create<T>(IAsyncEnumerator<T> data, Action<FieldMapping<T>> mapFields) {
+			var fieldMapping = new FieldMapping<T>();
+			mapFields(fieldMapping);
+			return new AsyncSequenceDataReader<T>(data, fieldMapping);
+		}
+
 		public static DbDataReader Create<T>(IEnumerable<T> data, params string[] members) =>
 			Create(data, fields => Array.ForEach(members, x => fields.Map(x)));
 
@@ -33,7 +43,7 @@ namespace DataBoss.Data
 		public static DbDataReader ToDataReader<T>(this IEnumerable<T> data) => Create(data); 
 	}
 
-	public sealed class SequenceDataReader<T> : DbDataReader, IDataRecordReader
+	public abstract class SequenceDataReaderBase<T> : DbDataReader, IDataRecordReader
 	{
 		abstract class FieldAccessor
 		{
@@ -148,13 +158,11 @@ namespace DataBoss.Data
 			public int GetOrdinal(string name) => schema.GetOrdinal(name);
 		}
 
-		IEnumerator<T> data;
 		readonly FieldAccessor[] fields;
 		readonly DataReaderSchemaTable schema;
 		bool hasData;
 
-		internal SequenceDataReader(IEnumerator<T> data, FieldMapping<T> fields) {
-			this.data = data ?? throw new ArgumentNullException(nameof(data));
+		internal SequenceDataReaderBase(FieldMapping<T> fields) {
 			this.schema = GetSchema(fields);
 			this.fields = new FieldAccessor[fields.Count];
 			for (var i = 0; i != this.fields.Length; ++i)
@@ -185,7 +193,7 @@ namespace DataBoss.Data
 			return createAccessor(source, selector, hasValue);
 		}
 
-		static readonly MethodInfo MakeAccessorMethod = typeof(SequenceDataReader<T>)
+		static readonly MethodInfo MakeAccessorMethod = typeof(SequenceDataReaderBase<T>)
 			.GetMethod(nameof(MakeAccessorT), BindingFlags.Static | BindingFlags.NonPublic);
 
 		static FieldAccessor MakeAccessorT<TFieldType>(ParameterExpression source, Expression selector, Func<T, bool> hasValue) =>
@@ -201,17 +209,15 @@ namespace DataBoss.Data
 
 		public override int Depth => throw new NotSupportedException();
 		public override bool HasRows => throw new NotSupportedException();
-		public override bool IsClosed => data is null;
 		public override int RecordsAffected => throw new NotSupportedException();
 
-		public override bool Read() => (hasData = data.MoveNext());
+		public sealed override bool Read() => hasData = DoRead();
+		public sealed override async Task<bool> ReadAsync(CancellationToken cancellationToken) => hasData = await DoReadAsync(cancellationToken);
+
+		protected abstract bool DoRead();
+		protected abstract Task<bool> DoReadAsync(CancellationToken cancellationToken);
 
 		public override bool NextResult() => false;
-
-		public override void Close() {
-			data?.Dispose();
-			data = null;
-		}
 
 		protected override void Dispose(bool disposing) {
 			if (disposing)
@@ -249,7 +255,8 @@ namespace DataBoss.Data
 		public override DateTime GetDateTime(int i) => GetCurrentValue<DateTime>(i);
 
 		TValue GetCurrentValue<TValue>(int i) => fields[i].GetFieldValue<TValue>(Current);
-		T Current => hasData ? data.Current : NoData();
+		T Current => hasData ? GetCurrent() : NoData();
+		protected abstract T GetCurrent();
 		static T NoData() => throw new InvalidOperationException("Invalid attempt to read when no data is present, call Read()");
 
 		public override long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferOffset, int length) => this.GetArray(i, fieldOffset, buffer, bufferOffset, length);
@@ -262,4 +269,58 @@ namespace DataBoss.Data
 				yield return this;
 		}
 	}
+
+	public sealed class SequenceDataReader<T> : SequenceDataReaderBase<T>
+	{
+		IEnumerator<T> data;
+
+		internal SequenceDataReader(IEnumerator<T> data, FieldMapping<T> fields): base(fields)  {
+			this.data = data ?? throw new ArgumentNullException(nameof(data));
+		}
+
+		public override void Close() {
+			data?.Dispose();
+			data = null;
+		}
+
+		public override bool IsClosed => data is null;
+
+		protected override T GetCurrent() => data.Current;
+		protected override bool DoRead() => data.MoveNext();
+		protected override Task<bool> DoReadAsync(CancellationToken cancellationToken) => Task.FromResult(DoRead());
+	}
+
+	public sealed class AsyncSequenceDataReader<T> : SequenceDataReaderBase<T>
+	{
+		IAsyncEnumerator<T> data;
+
+		internal AsyncSequenceDataReader(IAsyncEnumerator<T> data, FieldMapping<T> fields): base(fields)  {
+			this.data = data ?? throw new ArgumentNullException(nameof(data));
+		}
+
+		public override bool IsClosed => data is null;
+
+		public override void Close() {
+			if(data != null) {
+				var x = data.DisposeAsync();
+				if(x.IsCompleted)
+					x.GetAwaiter().GetResult();
+				else x.AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
+
+			}
+			data = null;
+		}
+
+		protected override T GetCurrent() => data.Current;
+
+		protected override async Task<bool> DoReadAsync(CancellationToken cancellationToken) => await data.MoveNextAsync();
+
+		protected override bool DoRead() {
+			var x = data.MoveNextAsync();
+			return x.IsCompleted
+			? x.GetAwaiter().GetResult()
+			: x.AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
+		}
+	}
+
 }

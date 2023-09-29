@@ -12,7 +12,7 @@ namespace DataBoss.Data
 			self.Add(Utf8JsonParameter(name, NpgsqlDbType.Jsonb, value));
 
 		static NpgsqlParameter<byte[]> Utf8JsonParameter<T>(string name, NpgsqlDbType type, T value) =>
-			new NpgsqlParameter<byte[]>(name, type) {
+			new (name, type) {
 				TypedValue = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(value),
 			};
 	}

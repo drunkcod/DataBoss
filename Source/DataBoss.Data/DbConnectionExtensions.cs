@@ -7,6 +7,8 @@ namespace DataBoss.Data
 	using System.Data.Common;
 	using System.Linq;
 	using System.Linq.Expressions;
+	using System.Threading;
+	using System.Threading.Tasks;
 
 	public static class DbConnectionExtensions
 	{
@@ -83,6 +85,15 @@ namespace DataBoss.Data
 
 		public static void Insert(this IDbConnection connection, string destinationTable, IDataReader rows, DataBossBulkCopySettings settings) =>
 			Wrap(connection).Insert(destinationTable, rows, settings);
+
+		public static Task InsertAsync<T>(this IDbConnection connection, string destinationTable, IAsyncEnumerable<T> rows, CancellationToken cancellationToken = default) =>
+			InsertAsync(connection, destinationTable, rows, new DataBossBulkCopySettings(), cancellationToken);
+
+		public static Task InsertAsync<T>(this IDbConnection connection, string destinationTable, IAsyncEnumerable<T> rows, DataBossBulkCopySettings settings, CancellationToken cancellationToken = default) =>
+			InsertAsync(connection, destinationTable, SequenceDataReader.Create(rows, x => x.MapAll()), settings, cancellationToken);
+
+		public static Task InsertAsync(this IDbConnection connection, string destinationTable, DbDataReader rows, DataBossBulkCopySettings settings, CancellationToken cancellationToken = default) =>
+			Wrap(connection).InsertAsync(destinationTable, rows, settings, cancellationToken);
 
 		public static void CreateTable(this IDbConnection connection, string tableName, IDataReader data) =>
 			Wrap(connection).CreateTable(tableName, data);
@@ -191,6 +202,9 @@ namespace DataBoss.Data
 
 			public void Insert(string destinationTable, IDataReader rows, DataBossBulkCopySettings settings) =>
 				DataBossConnection.Insert(destinationTable, rows, settings.CommandTimeout.HasValue ? settings : settings.WithCommandTimeout(CommandTimeout));
+
+			public Task InsertAsync(string destinationTable, DbDataReader rows, DataBossBulkCopySettings settings, CancellationToken cancellationToken = default) =>
+				DataBossConnection.InsertAsync(destinationTable, rows, settings.CommandTimeout.HasValue ? settings : settings.WithCommandTimeout(CommandTimeout), cancellationToken);
 
 			public IDbCommand CreateCommand() =>
 				Adorn(InnerConnection.CreateCommand());
