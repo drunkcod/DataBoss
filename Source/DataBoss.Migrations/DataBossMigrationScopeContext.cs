@@ -1,5 +1,3 @@
-using System.Data.SqlClient;
-
 namespace DataBoss.Migrations
 {
 	public class DataBossMigrationScopeContext

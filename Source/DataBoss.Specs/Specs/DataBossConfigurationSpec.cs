@@ -85,7 +85,7 @@ namespace DataBoss
 
 		[Fact]
 		public void can_be_created_from_SqlConnectionStringBuilder() {
-			Check.With(() => DataBossConfiguration.Create(new SqlConnectionStringBuilder("Server=TheServer;Initial Catalog=TheDatabase")))
+			Check.With(() => Create(new SqlConnectionStringBuilder("Server=TheServer;Initial Catalog=TheDatabase")))
 				.That(
 					x => x.ServerInstance == "TheServer",
 					x => x.Database == "TheDatabase",
@@ -96,7 +96,7 @@ namespace DataBoss
 		public void can_specify_migrations_when_created_from_connection_string() {
 			var cs = new SqlConnectionStringBuilder("Server=TheServer;Initial Catalog=TheDatabase");
 			var migrations = Array.Empty<DataBossMigrationPath>();
-			Check.With(() => DataBossConfiguration.Create(cs, migrations))
+			Check.With(() => Create(cs, migrations))
 				.That(x => x.Migrations == migrations);
 		}
 
@@ -111,5 +111,14 @@ namespace DataBoss
 				}), 
 				_ => new DataBossConfiguration());
 		}
+
+		public static DataBossConfiguration Create(SqlConnectionStringBuilder connectionString, params DataBossMigrationPath[] migrationPaths) {
+			return new DataBossConfiguration {
+				Database = connectionString.InitialCatalog,
+				ServerInstance = connectionString.DataSource,
+				Migrations = migrationPaths,
+			};
+		}
+
 	}
 }

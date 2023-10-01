@@ -9,6 +9,7 @@ namespace DataBoss.Data
 	using System.Linq.Expressions;
 	using System.Threading;
 	using System.Threading.Tasks;
+	using System.Threading.Channels;
 
 	public static class DbConnectionExtensions
 	{
@@ -94,6 +95,12 @@ namespace DataBoss.Data
 
 		public static Task InsertAsync(this IDbConnection connection, string destinationTable, DbDataReader rows, DataBossBulkCopySettings settings, CancellationToken cancellationToken = default) =>
 			Wrap(connection).InsertAsync(destinationTable, rows, settings, cancellationToken);
+
+		public static Task InsertAsync<T>(this IDbConnection connection, string destinationTable, ChannelReader<T> rows, CancellationToken cancellationToken = default) =>
+			InsertAsync(connection, destinationTable, rows, new DataBossBulkCopySettings(), cancellationToken);
+
+		public static Task InsertAsync<T>(this IDbConnection connection, string destinationTable, ChannelReader<T> rows, DataBossBulkCopySettings settings, CancellationToken cancellationToken = default) =>
+			InsertAsync(connection, destinationTable, SequenceDataReader.Create(rows.ReadAllAsync(), x => x.MapAll()), settings, cancellationToken);
 
 		public static void CreateTable(this IDbConnection connection, string tableName, IDataReader data) =>
 			Wrap(connection).CreateTable(tableName, data);

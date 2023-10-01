@@ -19,7 +19,7 @@ namespace DataBoss.Data.Npgsql
 			NpgsqlDbType.Jsonb,
 			JsonSerializer.SerializeToUtf8Bytes(value));
 
-		public string FormatName(string columnName) => columnName;
+		public string FormatName(string columnName) => $"\"{columnName}\"";
 		
 		public string GetTypeName(DataBossDbType dbType) => dbType.ToString();
 

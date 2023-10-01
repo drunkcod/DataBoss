@@ -2,10 +2,9 @@ using DataBoss.Linq;
 using DataBoss.Migrations;
 using System;
 using System.Data;
-using System.Data.SqlClient;
 using System.IO;
+using System.Text;
 using System.Xml.Serialization;
-using Npgsql;
 
 namespace DataBoss
 {
@@ -55,14 +54,6 @@ namespace DataBoss
 				},
 				x.IsRepeatable);
 
-		public static DataBossConfiguration Create(SqlConnectionStringBuilder connectionString, params DataBossMigrationPath[] migrationPaths) {
-			return new DataBossConfiguration {
-				Database = connectionString.InitialCatalog,
-				ServerInstance = connectionString.DataSource,
-				Migrations = migrationPaths,
-			};
-		}
-
 		public static DataBossConfiguration Load(string path) {
 			var target = path.EndsWith(".databoss") 
 			? path
@@ -85,12 +76,10 @@ namespace DataBoss
 				throw new InvalidOperationException("No database specified");
 
 			if(IsMsSql) {
-				var cs = new SqlConnectionStringBuilder {
-					Pooling = false,
-					ApplicationName = "DataBoss",
-					DataSource = ServerInstance ?? ".",
-					InitialCatalog = Database,
-				};
+				var cs = new StringBuilder()
+					.Append("Application Name=DataBoss;Pooling=no")
+					.Append("Data Source=").Append(ServerInstance ?? ".").Append(';')
+					.Append("Database=").Append(Database).Append(';');
 				AddCredentials(cs);
 				return cs.ToString();
 			}
@@ -100,23 +89,30 @@ namespace DataBoss
 			throw new NotSupportedException();
 		}
 
-		void AddCredentials(SqlConnectionStringBuilder cs) {
+		void AddCredentials(StringBuilder cs) {
 			if(UseIntegratedSecurity)
-				cs.IntegratedSecurity = true;
+				cs.Append("Integrated Security=True;");
 			else if(string.IsNullOrEmpty(Password))
 				throw new ArgumentException("No Password given for user '" + User + "'");
-			else {
-				cs.UserID = User;
-				cs.Password = Password;
-			}
+			else cs
+				.Append("User ID=").Append(User)
+				.Append(";Password=").Append(Password).Append(';');
 		}
 
 		bool IsMsSql => string.IsNullOrEmpty(Driver) || Driver == "mssql";
 		bool IsPostgres => Driver == "postgres";
 
-		public IDbConnection GetDbConnection() => 
-			IsMsSql ? new SqlConnection(GetConnectionString()) : 
-			IsPostgres ? new NpgsqlConnection(GetConnectionString()) :
-			throw new NotSupportedException();
+		public IDbConnection GetDbConnection() {
+			var cs = GetConnectionString();
+			return IsMsSql ? NewConnection("System.Data.SqlClient, System.Data.SqlClient.SqlConnection", cs)
+			: IsPostgres ? NewConnection("Npgsql, Npgsql.NpgSqlConnection", cs)
+			: throw new NotSupportedException();
+		}
+
+		static IDbConnection NewConnection(string typename, string connectionStrinng) {
+			var t = Type.GetType(typename) ?? throw new NotSupportedException("Failed to load type " + typename);
+			var ctor = t.GetConstructor(new[]{ typeof(string) });
+			return (IDbConnection)ctor.Invoke(new[]{ connectionStrinng });
+		}
 	}
 }

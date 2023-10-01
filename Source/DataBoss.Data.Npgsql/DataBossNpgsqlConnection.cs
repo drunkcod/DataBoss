@@ -1,5 +1,6 @@
 using System.Data;
 using System.Data.Common;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using DataBoss.Linq;
@@ -43,12 +44,12 @@ namespace DataBoss.Data.Npgsql
 		public void Dispose() => connection.Dispose();
 
 		public void Insert(string destinationTable, IDataReader rows, DataBossBulkCopySettings settings) {
-			var columns = string.Join(',', Collection.ArrayInit(rows.FieldCount, x => $"\"{rows.GetName(x)}\""));
 			var row = new object[rows.FieldCount];
 			var batchSize = settings.BatchSize ?? int.MaxValue;
+			var copyFromCommand = CopyFromCommand(destinationTable, rows);
 			begin: {
 				var rowCount = 0;
-				using var writer = connection.BeginBinaryImport($"COPY {destinationTable}({columns}) FROM STDIN(FORMAT BINARY)");
+				using var writer = connection.BeginBinaryImport(copyFromCommand);
 				while(rows.Read()) {
 					rows.GetValues(row);
 					writer.WriteRow(row);
@@ -62,13 +63,13 @@ namespace DataBoss.Data.Npgsql
 		}
 
 		public async Task InsertAsync(string destinationTable, DbDataReader rows, DataBossBulkCopySettings settings, CancellationToken cancellationToken = default) {
-			var columns = string.Join(',', Collection.ArrayInit(rows.FieldCount, x => $"\"{rows.GetName(x)}\""));
 			var row = new object[rows.FieldCount];
 			var batchSize = settings.BatchSize ?? int.MaxValue;
+			var copyFromCommand = CopyFromCommand(destinationTable, rows);
 			begin: {
 				var rowCount = 0;
-				using var writer = await connection.BeginBinaryImportAsync($"COPY {destinationTable}({columns}) FROM STDIN(FORMAT BINARY)", cancellationToken).ConfigureAwait(false);
-				while(await rows.ReadAsync()) {
+				using var writer = await connection.BeginBinaryImportAsync(copyFromCommand, cancellationToken).ConfigureAwait(false);
+				while(await rows.ReadAsync().ConfigureAwait(false)) {
 					rows.GetValues(row);
 					await writer.WriteRowAsync(cancellationToken, row).ConfigureAwait(false);
 					if(++rowCount == batchSize) {
@@ -79,6 +80,12 @@ namespace DataBoss.Data.Npgsql
 				await writer.CompleteAsync(cancellationToken).ConfigureAwait(false);
 			}
 		}
+
+		static string CopyFromCommand(string destinationTable, IDataReader rows) => new StringBuilder()
+			.Append("COPY ").Append(destinationTable).Append('(')
+			.AppendJoin(',', Collection.ArrayInit(rows.FieldCount, x => $"\"{rows.GetName(x)}\""))
+			.Append(") FROM STDIN(FORMAT BINARY)")
+			.ToString();
 
 		public void Open() => connection.Open();
 
