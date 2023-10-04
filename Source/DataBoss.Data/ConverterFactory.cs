@@ -104,12 +104,7 @@ namespace DataBoss.Data
 				if (converters.TryGetConverter(rawField, to, out converter))
 					return true;
 
-				if(IsByteArray(rawField, to) 
-				|| IsEnum(rawField, to) 
-				|| IsTimeSpan(rawField, to) 
-				|| ToIsAssignableFrom(rawField, to)
-				|| FromIsCastableTo(rawField, to)
-				) {
+				if (CanConvert(rawField, to)) {
 					converter = Expression.Convert(rawField, to);
 					return true;
 				}
@@ -117,6 +112,13 @@ namespace DataBoss.Data
 				return false;
 			}
 
+			static bool CanConvert(Expression rawField, Type to) =>
+				IsByteArray(rawField, to)
+				|| IsEnum(rawField, to)
+				|| IsTimeSpan(rawField, to)
+				|| ToIsAssignableFrom(rawField, to)
+				|| FromIsCastableTo(rawField, to);
+			
 			static bool IsByteArray(Expression rawField, Type to) =>
 				rawField.Type == typeof(object) && to == typeof(byte[]);
 
@@ -149,41 +151,11 @@ namespace DataBoss.Data
 			}
 
 			public BindingResult BindItem(FieldMap map, in ItemInfo item, out MemberReader reader) {
-				if (item.Type.TryGetNullableTargetType(out var baseType)) {
-					var r = BindItem(map, new ItemInfo(item.Name, baseType), out var childReader);
-					if (r == BindingResult.Ok) {
-						
-						reader = new MemberReader(
-							childReader.Ordinal,
-							item.Name,
-							Expression.Condition(
-								childReader.IsDbNull ?? Expression.Constant(false),
-								Expression.Default(item.Type),
-								Expression.Convert(childReader.Read, item.Type)), 
-							null);
-						return BindingResult.Ok;
-					}
-					reader = default;
-					return r;
-				}
+				if (item.Type.TryGetNullableTargetType(out var baseType))
+					return BindNullable(map, item, baseType, out reader);
 
-				if (map.TryGetField(item.Name, out var field)) {
-					var o = Expression.Constant(field.Ordinal);
-					Expression convertedField;
-					var canReadAsItem =
-						TryReadFieldAs(field.FieldType, o, item.Type, out convertedField)
-						|| TryReadProviderSpecificFieldAs(item, field, o, ref convertedField);
-					if (!canReadAsItem) {
-						reader = default;
-						return BindingResult.InvalidCast;
-					}
-
-					var thisNull = field.CanBeNull
-						? new[] { (item.Name, IsNull(o)) }
-						: null;
-					reader = new MemberReader(field.Ordinal, item.Name, convertedField, thisNull);
-					return BindingResult.Ok;
-				}
+				if (map.TryGetField(item.Name, out var field))
+					return BindField(item, field, out reader);
 
 				if (map.TryGetSubMap(item.Name, out var subMap)) {
 					reader = FieldInit(subMap, item);
@@ -191,6 +163,37 @@ namespace DataBoss.Data
 				}
 				reader = default;
 				return BindingResult.NotFound;
+			}
+
+			private BindingResult BindField(ItemInfo item, FieldMapItem field, out MemberReader reader) {
+				var o = Expression.Constant(field.Ordinal);
+				var canReadAsItem =
+					TryReadFieldAs(field.FieldType, o, item.Type, out var convertedField)
+					|| TryReadProviderSpecificFieldAs(item, field, o, ref convertedField);
+
+				if (!canReadAsItem) {
+					reader = default;
+					return BindingResult.InvalidCast;
+				}
+
+				var thisNull = field.CanBeNull
+				? new[] { (item.Name, IsNull(o)) }
+				: null;
+				reader = new MemberReader(field.Ordinal, item.Name, convertedField, thisNull);
+				return BindingResult.Ok;
+			}
+
+			private BindingResult BindNullable(FieldMap map, ItemInfo item, Type baseType, out MemberReader reader) {
+				var r = BindItem(map, new ItemInfo(item.Name, baseType), out var childReader);
+				reader = r != BindingResult.Ok ? default : new MemberReader(
+					childReader.Ordinal,
+					item.Name,
+					Expression.Condition(
+						childReader.IsDbNull ?? Expression.Constant(false),
+						Expression.Default(item.Type),
+						Expression.Convert(childReader.Read, item.Type)),
+					null);
+				return r;
 			}
 
 			private bool TryReadProviderSpecificFieldAs(ItemInfo item, FieldMapItem field, ConstantExpression o, ref Expression convertedField) {

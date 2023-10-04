@@ -49,7 +49,6 @@ namespace DataBoss.Data.Npgsql
 			Check.That(
 				() => row.Int == 1,
 				() => row.NullableInt.HasValue == false);
-
 		}
 
 		[Fact]

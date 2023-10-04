@@ -1,6 +1,7 @@
 namespace DataBoss.Linq
 {
 	using System;
+	using System.Buffers;
 	using System.Collections;
 	using System.Collections.Generic;
 	using System.Linq;
@@ -101,9 +102,17 @@ namespace DataBoss.Linq
 			Batch(items, () => new T[batchSize]).Cast<IReadOnlyList<T>>();
 
 		public static IEnumerable<ArraySegment<T>> Batch<T>(this IEnumerable<T> self, Func<T[]> newBucket) {			
-			using var it = self.GetEnumerator();
-			for(var items = it.Batch(newBucket); items.MoveNext();)
-				yield return items.Current;
+			using var it = Enumerators.Batch(self.GetEnumerator(), newBucket);
+			while(it.MoveNext())
+				yield return it.Current;
+		}
+
+		public static IEnumerable<IMemoryOwner<T>> Batch<T>(this IEnumerable<T> self, MemoryPool<T> memory) => Batch(self, memory, -1);
+		
+		public static IEnumerable<IMemoryOwner<T>> Batch<T>(this IEnumerable<T> self, MemoryPool<T> memory, int minBufferSize = -1) {
+			using var it = Enumerators.Batch(self.GetEnumerator(), memory, minBufferSize);
+			while(it.MoveNext())
+				yield return it.Current;
 		}
 
 		public static IEnumerable<IGrouping<TKey, TElement>> ChunkBy<TElement, TKey>(this IEnumerable<TElement> items, Func<TElement, TKey> selector) =>
@@ -216,33 +225,3 @@ namespace DataBoss.Linq
 		}
 	}
 }
-
-#if NETSTANDARD2_0
-namespace DataBoss.Linq
-{
-	using System.Collections.Generic;
-	
-	public partial class MissingLinq
-	{
-		public static HashSet<T> ToHashSet<T>(this IEnumerable<T> items) => new(items);
-	}
-}
-#endif
-
-#if NETSTANDARD2_1_OR_GREATER
-namespace DataBoss.Linq
-{
-	using System.Buffers;
-	using System.Collections.Generic;
-
-	static public partial class MissingLinq
-	{
-		public static IEnumerable<IMemoryOwner<T>> Batch<T>(this IEnumerable<T> self, MemoryPool<T> memory) => Batch(self, memory, -1);
-		public static IEnumerable<IMemoryOwner<T>> Batch<T>(this IEnumerable<T> self, MemoryPool<T> memory, int minBufferSize = -1) {
-			using var it = self.GetEnumerator();
-			for (var items = it.Batch(memory, minBufferSize); items.MoveNext();)
-				yield return items.Current;
-		}
-	}
-}
-#endif

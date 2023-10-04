@@ -1,8 +1,10 @@
 using DataBoss.Linq;
 using DataBoss.Migrations;
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Xml.Serialization;
 
@@ -75,28 +77,42 @@ namespace DataBoss
 			if(string.IsNullOrEmpty(Database))
 				throw new InvalidOperationException("No database specified");
 
-			if(IsMsSql) {
-				var cs = new StringBuilder()
-					.Append("Application Name=DataBoss;Pooling=no")
-					.Append("Data Source=").Append(ServerInstance ?? ".").Append(';')
-					.Append("Database=").Append(Database).Append(';');
-				AddCredentials(cs);
-				return cs.ToString();
-			}
-			if(IsPostgres) {
-				return $"Host={ServerInstance ?? "127.0.0.1"};Username={User};Password={Password};Database={Database}";
-			}
+			if(IsMsSql) return AsConnectionString(AddCredentials(new[] {
+				("Application Name", "DataBoss"),
+				("Pooling", "no"),
+				("Data Source", ServerInstance ?? "."),
+				("Database", Database),
+			}));
+			if(IsPostgres) return AsConnectionString(
+				("Host", ServerInstance ?? "127.0.0.1"), 
+				("Username", User), 
+				("Password", Password), 
+				("Database", Database));
+
 			throw new NotSupportedException();
 		}
 
-		void AddCredentials(StringBuilder cs) {
+		IEnumerable<(string, string)> AddCredentials(IEnumerable<(string, string)> xs) {
 			if(UseIntegratedSecurity)
-				cs.Append("Integrated Security=True;");
+				return xs.Concat(new[] {("Integrated Security", "True") });
 			else if(string.IsNullOrEmpty(Password))
 				throw new ArgumentException("No Password given for user '" + User + "'");
-			else cs
-				.Append("User ID=").Append(User)
-				.Append(";Password=").Append(Password).Append(';');
+			else return xs.Concat(new[]{
+				("User ID", User),
+				("Password", Password)
+			});
+		}
+
+		static string AsConnectionString(params (string Key, string Value)[] xs) => AsConnectionString(xs.AsEnumerable());
+		static string AsConnectionString(IEnumerable<(string Key, string Value)> xs) {
+			using var i = xs.GetEnumerator();
+			if(!i.MoveNext())
+				return string.Empty;
+			var sb = new StringBuilder();
+			sb.Append(i.Current.Key).Append('=').Append(i.Current.Value);
+			while(i.MoveNext())	
+				sb.Append(';').Append(i.Current.Key).Append('=').Append(i.Current.Value);
+			return sb.ToString();
 		}
 
 		bool IsMsSql => string.IsNullOrEmpty(Driver) || Driver == "mssql";
@@ -104,8 +120,8 @@ namespace DataBoss
 
 		public IDbConnection GetDbConnection() {
 			var cs = GetConnectionString();
-			return IsMsSql ? NewConnection("System.Data.SqlClient, System.Data.SqlClient.SqlConnection", cs)
-			: IsPostgres ? NewConnection("Npgsql, Npgsql.NpgSqlConnection", cs)
+			return IsMsSql ? NewConnection("System.Data.SqlClient.SqlConnection, System.Data.SqlClient", cs)
+			: IsPostgres ? NewConnection("Npgsql.NpgsqlConnection, Npgsql", cs)
 			: throw new NotSupportedException();
 		}
 
