@@ -440,6 +440,15 @@ namespace DataBoss.DataPackage
 			csv.WriteRecords(writer, reader, view);
 		}
 
+		public static void WriteCsv(this TabularDataResource self, TextWriter writer, DataRecordStringViewFormatOptions options) {
+			using var reader = self.Read();
+			var desc = self.GetDescription();
+			var view = DataRecordStringView.Create(desc.Schema.Fields, reader, options, null);
+			var csv = new CsvRecordWriter(";", writer.Encoding);
+			csv.WriteHeaderRecord(writer, reader);
+			csv.WriteRecords(writer, reader, view);
+		}
+
 		public static async Task WriteCsvAsync(this TabularDataResource self, Stream output) {
 			using var reader = self.Read();
 			var desc = self.GetDescription();
