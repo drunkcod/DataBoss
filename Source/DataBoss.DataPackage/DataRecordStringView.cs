@@ -99,7 +99,7 @@ namespace DataBoss.DataPackage
 
 			public static string Float(IDataRecord r, int i, NumberFormatInfo format) => r.GetFloat(i).ToString(format);
 			public static string Double(IDataRecord r, int i, NumberFormatInfo format) => r.GetDouble(i).ToString(format);
-			public static string Decimal(IDataRecord r, int i, NumberFormatInfo format) => r.GetDouble(i).ToString(format);
+			public static string Decimal(IDataRecord r, int i, NumberFormatInfo format) => r.GetDecimal(i).ToString(format);
 			
 			public static string Date(IDataRecord r, int i, NumberFormatInfo _) => ((DataPackageDate)r.GetDateTime(i)).ToString();
 

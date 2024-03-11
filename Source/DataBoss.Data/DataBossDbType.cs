@@ -23,12 +23,13 @@ namespace DataBoss.Data
 			BigInt = 4,
 			Real = 5,
 			Float = 6,
-			Bit = 7,
-			DateTime = 8,
-			Date = 9,
-			Time = 10,
-			DateTimeOffset = 11,
-			Guid = 12,
+			Decimal = 7,
+			Bit = 8,
+			DateTime = 9,
+			Date = 10,
+			Time = 11,
+			DateTimeOffset = 12,
+			Guid = 13,
 
 			Char = 16,
 			VarChar = 17,
@@ -53,6 +54,7 @@ namespace DataBoss.Data
 			("bigint", 8),
 			("real", 4),
 			("float", 8),
+			("decimal", 10),
 			("bit", 0),
 			("datetime", 8),
 			("date", 3),
@@ -154,6 +156,7 @@ namespace DataBoss.Data
 				case BossTypeTag.BigInt: return ChangeType<long>(value).ToString();
 				case BossTypeTag.Real: return ChangeType<float>(value).ToString(CultureInfo.InvariantCulture);
 				case BossTypeTag.Float: return ChangeType<double>(value).ToString(CultureInfo.InvariantCulture);
+				case BossTypeTag.Decimal: return ChangeType<decimal>(value).ToString(CultureInfo.InvariantCulture);
 				case BossTypeTag.DateTime: return ChangeType<DateTime>(value).ToString("s");
 				case BossTypeTag.VarChar: return $"'{Escape(value.ToString())}'";
 				case BossTypeTag.NVarChar: return $"N'{Escape(value.ToString())}'";
@@ -183,6 +186,8 @@ namespace DataBoss.Data
 				case DbType.Int16: return BossTypeTag.SmallInt;
 				case DbType.Int32: return BossTypeTag.Int;
 				case DbType.Int64: return BossTypeTag.BigInt;
+				case DbType.Double: return BossTypeTag.Real;
+				case DbType.Decimal: return BossTypeTag.Decimal;
 				case DbType.Boolean: return BossTypeTag.Bit;
 				case DbType.String: return BossTypeTag.NVarChar;
 				case DbType.DateTime: return BossTypeTag.DateTime;
@@ -210,6 +215,7 @@ namespace DataBoss.Data
 				case "System.Int64": return new DataBossDbType(BossTypeTag.BigInt, canBeNull);
 				case "System.Single": return new DataBossDbType(BossTypeTag.Real, canBeNull);
 				case "System.Double": return new DataBossDbType(BossTypeTag.Float, canBeNull);
+				case "System.Decimal": return new DataBossDbType(BossTypeTag.Decimal, canBeNull);
 				case "System.Boolean": return new DataBossDbType(BossTypeTag.Bit, canBeNull);
 				case "System.Guid": return new DataBossDbType(BossTypeTag.Guid, canBeNull);
 				case "System.String":
