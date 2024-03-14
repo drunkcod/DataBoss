@@ -89,16 +89,16 @@ namespace DataBoss.Data
 			? GetBossType(knownType).TypeName
 			: CustomInfo.TypeName;
 
-		bool IsKnownType(out BossTypeTag typeTag) {
-			typeTag = (tag & BossTypeTag.TagMask);
+		readonly bool IsKnownType(out BossTypeTag typeTag) {
+			typeTag = tag & BossTypeTag.TagMask;
 			return typeTag != BossTypeTag.Custom;
 		}
 
 		(string TypeName, int? Width) CustomInfo => (ValueTuple<string, int?>)extra;
 
-		public bool IsRowVersion => (tag & BossTypeTag.TagMask) == BossTypeTag.RowVersion;
+		public readonly bool IsRowVersion => (tag & BossTypeTag.TagMask) == BossTypeTag.RowVersion;
 
-		public bool IsNullable => tag.HasFlag(BossTypeTag.IsNullable);
+		public readonly bool IsNullable => tag.HasFlag(BossTypeTag.IsNullable);
 
 		public static DataBossDbType Create(string typeName, int? columnSize, bool isNullable) {
 			var tag = TypeTagLookup(ref typeName);
@@ -237,22 +237,22 @@ namespace DataBoss.Data
 		static MaxLengthAttribute MaxLength(ICustomAttributeProvider attributes) =>
 			attributes.SingleOrDefault<MaxLengthAttribute>();
 
-		public static DbType ToDbType(Type type) {
-			switch (type.FullName) {
-				case "System.Byte": return DbType.Byte;
-				case "System.Int16": return DbType.Int16;
-				case "System.Int32": return DbType.Int32;
-				case "System.Int64": return DbType.Int64;
-				case "System.Single": return DbType.Single;
-				case "System.Double": return DbType.Double;
-				case "System.Decimal": return DbType.Decimal;
-				case "System.Boolean": return DbType.Boolean;
-				case "System.DateTime": return DbType.DateTime;
-				case "System.DateTimeOffset": return DbType.DateTimeOffset;
-				case "System.Guid": return DbType.Guid;
-			}
-			return DbType.String;
-		}
+		public static DbType ToDbType(Type type) => 
+			type.FullName switch {
+				"System.Byte" => DbType.Byte,
+				"System.Int16" => DbType.Int16,
+				"System.Int32" => DbType.Int32,
+				"System.Int64" => DbType.Int64,
+				"System.Single" => DbType.Single,
+				"System.Double" => DbType.Double,
+				"System.Decimal" => DbType.Decimal,
+				"System.Boolean" => DbType.Boolean,
+				"System.DateTime" => DbType.DateTime,
+				"System.DateTimeOffset" => DbType.DateTimeOffset,
+				"System.Guid" => DbType.Guid,
+				"System.String" => DbType.String,
+				_ => DbType.Object,
+			};
 
 		public static bool operator==(DataBossDbType a, DataBossDbType b) =>
 			a.TypeName == b.TypeName && a.IsNullable == b.IsNullable;

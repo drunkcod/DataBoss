@@ -3,6 +3,7 @@ using Npgsql;
 using Xunit;
 using Testcontainers.PostgreSql;
 using System.Data;
+using NpgsqlTypes;
 
 namespace DataBoss.Data.Npgsql
 {
@@ -21,9 +22,27 @@ namespace DataBoss.Data.Npgsql
 		public string ConnectionString => pg.GetConnectionString();
 	}
 
-    public class DataBossNpgsqlConnection_ : IDisposable, IClassFixture<NpgsqlTestDatabase>
+	public abstract class DbConnectionFixture<TConnection> where TConnection : IDbConnection {
+		protected abstract IDbConnection DbConnection { get; }
+
+		[Fact]
+		public void parameter_roundtrip() =>
+			Check.That(() => (string)DbConnection.ExecuteScalar("select @foo", new { foo = "Hello Npgsql World"}) == "Hello Npgsql World");
+
+		[Fact]
+		void nullable_parameter() => 
+			Check.That(() => DbConnection.ExecuteScalar("select @foo", new { foo = (int?)null }) == null);
+
+		[Fact]
+		void null_string() => 
+			Check.That(() => DbConnection.ExecuteScalar("select @str", new { str = (string?)null }) == null);
+	} 
+
+    public class DataBossNpgsqlConnection_ : DbConnectionFixture<NpgsqlConnection>, IDisposable, IClassFixture<NpgsqlTestDatabase>
 	{
 		NpgsqlConnection db;
+
+		protected override IDbConnection DbConnection => db;
 
 		public DataBossNpgsqlConnection_(NpgsqlTestDatabase testDb) {
 			NpgsqlConnection.ClearAllPools();
@@ -32,10 +51,6 @@ namespace DataBoss.Data.Npgsql
 		}
 
 		public void Dispose() => db.Dispose();
-
-		[Fact]
-		public void parameter_roundtrip() =>
-			Check.That(() => (string)db.ExecuteScalar("select @foo", new { foo = "Hello Npgsql World"}) == "Hello Npgsql World");
 
 		[Fact]
 		public void Into_basic_types() {
@@ -115,7 +130,7 @@ namespace DataBoss.Data.Npgsql
 
 		[Fact]
 		public void Initialize() {
-			Console.WriteLine(testDb.ConnectionString);
+			//Console.WriteLine(testDb.ConnectionString);
 			var dataBoss = DataBoss.Create(
 				new DataBossTestConfig(testDb.ConnectionString),
 				new NullDataBossLog());

@@ -6,6 +6,5 @@ namespace DataBoss.Data.Npgsql
 	{
 		protected override NpgsqlCommand NewCommand() => new();
 		protected override ISqlDialect SqlDialect => NpgsqlDialect.Instance;
-
 	}
 }

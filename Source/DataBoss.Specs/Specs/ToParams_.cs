@@ -48,6 +48,7 @@ namespace DataBoss
 		[Fact]
 		public void Uri_is_treated_as_string() {
 			var uri = new Uri("http://example.com");
+			object expectedNull = SqlDialect.EnsureDBNull ? DBNull.Value : null;
 			Check.With(() =>
 			GetParams(new {
 				Uri = uri,
@@ -55,7 +56,7 @@ namespace DataBoss
 			})).That(
 				xs => xs.Length == 2,
 				xs => xs[0].Value.Equals(uri.ToString()),
-				xs => xs[1].Value == DBNull.Value);
+				xs => xs[1].Value == expectedNull);
 		}
 
 		class MyRow { }

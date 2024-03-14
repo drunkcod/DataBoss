@@ -17,6 +17,7 @@ namespace DataBoss.Data
 	using System.Data.SqlTypes;
 	using DataBoss.Data.Support;
 	using System.Collections.Generic;
+	using System.Reflection;
 
 	public class MsSqlDialect : SqlDialect<MsSqlDialect, SqlCommand>, ISqlDialect
 	{
@@ -43,6 +44,10 @@ namespace DataBoss.Data
 			create = null;
 			return false;
 		}
+
+		public (Expression, PropertyInfo) CreateParameter(string name, Type type, DbType dbType) => (null, null);
+		public bool SupportsNullable => false;
+		public bool EnsureDBNull => true;
 
 		public IReadOnlyList<string> DataBossHistoryMigrations => new[] {
 				  "create table [dbo].[__DataBossHistory](\n"

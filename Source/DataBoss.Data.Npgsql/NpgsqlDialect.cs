@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using DataBoss.Data.Support;
 using Npgsql;
 using NpgsqlTypes;
+using System.Reflection;
 
 namespace DataBoss.Data.Npgsql
 {
@@ -36,6 +37,17 @@ namespace DataBoss.Data.Npgsql
 			return create != null;
 		}
 
+		public (Expression?, PropertyInfo) CreateParameter(string name, Type type, DbType dbType) {
+			var t = typeof(NpgsqlParameter<>).MakeGenericType(type);
+			var ctor = t.GetConstructor(new[] { typeof(string), typeof(DbType) });
+			
+			var p = Expression.New(ctor, Expression.Constant(name), Expression.Constant(dbType));
+			return (p, t.GetProperty("TypedValue"));
+		}
+
+		public bool SupportsNullable => true;
+		public bool EnsureDBNull => false;
+
 		public IReadOnlyList<string> DataBossHistoryMigrations => new[] { 
 			@"create table __DataBossHistory(
 				Id bigint not null,
@@ -56,6 +68,7 @@ namespace DataBoss.Data.Npgsql
 			do update set StartedAt = now(), FinishedAt = null, MigrationHash = :hash";
 
 		public string EndMigrationQuery => "update __DataBossHistory set FinishedAt = now() where Id = :id and Context = :Context";
+
 
 		private static bool IsArrayLike(Type type) => 
 			type.IsArray || type.GetInterface("System.Collections.Generic.IEnumerable`1") is not null;

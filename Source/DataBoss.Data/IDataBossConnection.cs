@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Linq.Expressions;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -12,11 +13,15 @@ namespace DataBoss.Data
 	{
 		string FormatName(string columnName);
 		string GetTypeName(DataBossDbType dbType);
+
 		bool TryCreateDialectSpecificParameter(string name, Expression readMember, out Expression create);
+		(Expression, PropertyInfo) CreateParameter(string name, Type type, DbType dbType);
+		bool SupportsNullable { get; }
+		bool EnsureDBNull { get; } 
 
 		IReadOnlyList<string> DataBossHistoryMigrations { get; }
-		public string BeginMigrationQuery { get; }
-		public string EndMigrationQuery { get; }
+		string BeginMigrationQuery { get; }
+		string EndMigrationQuery { get; }
 	}
 
 	public interface IDataBossConnection : IDisposable
