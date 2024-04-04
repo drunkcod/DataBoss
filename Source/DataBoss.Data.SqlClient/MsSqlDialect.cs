@@ -45,7 +45,7 @@ namespace DataBoss.Data
 			return false;
 		}
 
-		public (Expression, PropertyInfo) CreateParameter(string name, Type type, DbType dbType) => (null, null);
+		public (NewExpression, PropertyInfo) CreateParameter(string name, Type type, DbType dbType) => (null, null);
 		public bool SupportsNullable => false;
 		public bool EnsureDBNull => true;
 

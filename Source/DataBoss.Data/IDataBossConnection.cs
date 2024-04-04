@@ -15,7 +15,7 @@ namespace DataBoss.Data
 		string GetTypeName(DataBossDbType dbType);
 
 		bool TryCreateDialectSpecificParameter(string name, Expression readMember, out Expression create);
-		(Expression, PropertyInfo) CreateParameter(string name, Type type, DbType dbType);
+		(NewExpression, PropertyInfo) CreateParameter(string name, Type type, DbType dbType);
 		bool SupportsNullable { get; }
 		bool EnsureDBNull { get; } 
 

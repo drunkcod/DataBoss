@@ -25,9 +25,12 @@ namespace DataBoss.Data.Npgsql
 		public string GetTypeName(DataBossDbType dbType) => dbType.ToString();
 
 		public bool TryCreateDialectSpecificParameter(string name, Expression readMember, out Expression? create) {
-			if (readMember.Type == typeof(string))
-				create = NewNpgsqlParameter(readMember, name, DbType.String);
-			else if (IsArrayLike(readMember.Type))
+			if (readMember.Type == typeof(string)) {
+				var (ctor, prop) = CreateParameter(name, typeof(string), DbType.String);
+				create = Expression.MemberInit(
+					ctor,
+					Expression.Bind(prop, readMember));
+			} else if (IsArrayLike(readMember.Type))
 				create = NewNpgsqlParameter(readMember, name, DbType.Object);
 			else if (readMember.Type.IsGenericType && readMember.Type.GetGenericTypeDefinition() == typeof(NpgsqlCustomParameterValue<>))
 				create = Expression.Call(readMember, nameof(NpgsqlCustomParameterValue<object>.ToParameter), null, Expression.Constant(name));
@@ -37,7 +40,7 @@ namespace DataBoss.Data.Npgsql
 			return create != null;
 		}
 
-		public (Expression?, PropertyInfo) CreateParameter(string name, Type type, DbType dbType) {
+		public (NewExpression?, PropertyInfo) CreateParameter(string name, Type type, DbType dbType) {
 			var t = typeof(NpgsqlParameter<>).MakeGenericType(type);
 			var ctor = t.GetConstructor(new[] { typeof(string), typeof(DbType) });
 			

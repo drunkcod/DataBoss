@@ -39,11 +39,13 @@ namespace DataBoss
 		}
 
 		[Fact]
-		public void null_string() => Check
-			.With(() => GetParams(new { NullString = (string)null }))
+		public void null_string() {
+			var expected = SqlDialect.EnsureDBNull ? DBNull.Value : null;
+			Check.With(() => GetParams(new { NullString = (string)null }))
 			.That(
 				xs => xs.Length == 1,
-				xs => xs[0].Value == DBNull.Value);
+				xs => xs[0].Value == expected);
+		}
 
 		[Fact]
 		public void Uri_is_treated_as_string() {
