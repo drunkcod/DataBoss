@@ -13,6 +13,8 @@ namespace DataBoss
 			this.scopeFactory = scopeFactory;
 		}
 
+		public event EventHandler<Exception> OnError;
+
 		public bool Apply(IDataBossMigration migration) {
 			var scope = scopeFactory(migration.Info);
 			try {
@@ -23,6 +25,7 @@ namespace DataBoss
 				}
 				return true;
 			} catch(Exception e) {
+				OnError?.Invoke(this, e);
 				throw;
 			
 			} finally {

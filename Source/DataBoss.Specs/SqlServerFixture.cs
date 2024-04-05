@@ -20,10 +20,14 @@ namespace DataBoss
 			this.container = container;
 		}
 
+		public string Username => "sa";
+		public string Password => "Pa55w0rd!";
+		public ushort Port => GetMappedPublicPort(SqlServerContainerBuilder.DefaultPort);
+
 		public SqlConnectionStringBuilder GetConnectionString() => new () {
-			UserID = "sa",
-			Password = "Pa55w0rd!",
-			DataSource = GetDataSource(GetMappedPublicPort(SqlServerContainerBuilder.DefaultPort)),
+			UserID = Username,
+			Password = Password,
+			DataSource = GetDataSource(Port),
 		};
 
 		static string GetDataSource(int port) => port == SqlServerContainerBuilder.DefaultPort ? "." : $"localhost,{port}";
@@ -157,6 +161,7 @@ namespace DataBoss
 			}
 		}
 	}
+	
 	public sealed class SqlServerFixture : IDisposable
 	{
 		static readonly SqlServerContainer sqlContainer;
@@ -180,11 +185,10 @@ namespace DataBoss
 				if(sqlContainer.State != TestcontainersStates.Running)
 					sqlContainer.StartAsync().Wait();
 			}
-			var cs = sqlContainer.GetConnectionString();
 			Config = new TestDbConfig { 
-				Username = cs.UserID,
-				Password = cs.Password,
-				Port = sqlContainer.GetMappedPublicPort(SqlServerContainerBuilder.DefaultPort),
+				Username = sqlContainer.Username,
+				Password = sqlContainer.Password,
+				Port = sqlContainer.Port,
 			};
 			this.testDb = SqlServerTestDb.Create(Config);
 			Connection = new SqlConnection(testDb.ConnectionString);
