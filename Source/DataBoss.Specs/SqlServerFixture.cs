@@ -120,6 +120,7 @@ namespace DataBoss
 			return container.StopAsync(ct);
 		}
 	}
+
 	class SqlServerContainerBuilder
 	{
 		public const int DefaultPort = 1433;
@@ -127,7 +128,7 @@ namespace DataBoss
 		public SqlServerContainer Build() {
 			return new SqlServerContainer(new ContainerBuilder()
 				.WithImage("mcr.microsoft.com/mssql/server:2019-latest")
-				.WithPortBinding(DefaultPort)
+				.WithPortBinding(DefaultPort, assignRandomHostPort: true)
 				.WithEnvironment("ACCEPT_EULA", "Y")
 				.WithEnvironment("MSSQL_SA_PASSWORD", "Pa55w0rd!")
 				.WithWaitStrategy(
@@ -145,7 +146,6 @@ namespace DataBoss
 						Username = "sa",
 						Password = "Pa55w0rd!",
 				}.GetConnectionString().ToString();
-
 				using var c = new SqlConnection(cs);
 				try {
 					await c.OpenAsync().ConfigureAwait(false);

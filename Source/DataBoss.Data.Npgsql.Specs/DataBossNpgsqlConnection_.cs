@@ -130,7 +130,6 @@ namespace DataBoss.Data.Npgsql
 
 		[Fact]
 		public void Initialize() {
-			//Console.WriteLine(testDb.ConnectionString);
 			var dataBoss = DataBoss.Create(
 				new DataBossTestConfig(testDb.ConnectionString),
 				new NullDataBossLog());

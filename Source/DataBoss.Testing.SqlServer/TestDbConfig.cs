@@ -18,18 +18,18 @@ namespace DataBoss.Testing.SqlServer
 			Username = this.Username,
 			Password = this.Password,
 			ApplicationName = this.ApplicationName,
+			Port = this.Port,
 		};
+
 		public static TestDbConfig Finalize(TestDbConfig config)
 		{
 			if(config == null)
 				return Finalize(new TestDbConfig());
-			return new TestDbConfig {
-				Server = config.Server,
-				Name = config.Name ?? RandomName(),
-				Username = config.Username,
-				Password = config.Password,
-				ApplicationName = config.ApplicationName,
-			};
+
+			if(string.IsNullOrEmpty(config.Name))
+				return config.WithName(RandomName());
+
+			return config;
 		}
 
 		static string RandomName() =>

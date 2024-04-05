@@ -23,7 +23,6 @@ namespace DataBoss
 				}
 				return true;
 			} catch(Exception e) {
-				Console.WriteLine(e);
 				throw;
 			
 			} finally {
