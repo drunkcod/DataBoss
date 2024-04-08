@@ -25,10 +25,11 @@ namespace DataBoss
 
 			[Fact]
 			public void local_default_instance() {
-				Check.That(() =>
-					new DataBossConfiguration { 
-						Database = "MyDB", 
-					}.GetConnectionString().Contains("Data Source=."));
+				var cs = new DataBossConfiguration { 
+					Database = "MyDB", 
+				}.GetConnectionString();
+				
+				Check.That(() => cs.Contains("Data Source=."));
 			}
 		}
 

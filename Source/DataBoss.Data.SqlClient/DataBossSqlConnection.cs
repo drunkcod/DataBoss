@@ -62,9 +62,9 @@ namespace DataBoss.Data
 			var cs = new SqlConnectionStringBuilder(connection.ConnectionString);
 			var dbName = cs.InitialCatalog;
 			cs.InitialCatalog = string.Empty;
-
 			using var c = new SqlConnection(cs.ToString());
 			using var cmd = c.CreateCommand();
+			c.Open();
 			var dbToCreate = cmd.ExecuteScalar("select case when db_id(@db) is null then quotename(@db) else null end", new { db = dbName });
 			if(dbToCreate is DBNull)
 				return;
@@ -89,15 +89,29 @@ namespace DataBoss.Data
 		}
 
 		public void SetTableVersion(string tableName, int version) {
-			using(var c = CreateCommand("sp_addextendedproperty", new { 
+			var addOrUpdate = HasTableVersion(tableName) == 0 ? "sp_addextendedproperty" : "sp_updateextendedproperty";
+			using var c = CreateCommand(addOrUpdate, new {
 				name = "version",
-				value = 2,
-				level0type = "Schema", level0name = "dbo",
-				level1type = "Table", level1name = "__DataBossHistory",
-			})) {
-				c.CommandType = CommandType.StoredProcedure;
-				c.ExecuteNonQuery();
-			}
+				value = version,
+				level0type = "Schema",
+				level0name = "dbo",
+				level1type = "Table",
+				level1name = "__DataBossHistory",
+			});
+			c.CommandType = CommandType.StoredProcedure;
+			c.ExecuteNonQuery();
+		}
+
+		int HasTableVersion(string tableName) {
+			using var c = CreateCommand(
+				"select case when (\n"
+				+ "select cast(value as int)\n"
+				+ "from sys.extended_properties p\n"
+				+ "where p.name = 'version' and p.class = 1 and tables.object_id = p.major_id\n"
+				+ ") is null then 0 else 1 end\n"
+				+ "from sys.tables\n"
+				+ "where name = @tableName", new { tableName});
+			return (int)c.ExecuteScalar();
 		}
 
 		public string GetDefaultSchema() {

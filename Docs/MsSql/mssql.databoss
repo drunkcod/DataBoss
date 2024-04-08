@@ -1,0 +1,3 @@
+<db driver="mssql" user="sa" password="Pa55w0rd!" database="databoss-mssql">
+    <migrations path="./db" />
+</db>

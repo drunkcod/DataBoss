@@ -41,7 +41,23 @@ namespace DataBoss
 		public bool UseIntegratedSecurity => string.IsNullOrEmpty(User);
 
 		[XmlIgnore]
-		public string Server => ServerInstance ?? "localhost";
+		public string Server {
+			get {
+				if(string.IsNullOrEmpty(ServerInstance))
+					return IsMsSql ? "." : "localhost";
+				return IsMsSql ? ToMsSqlInstance(ServerInstance) : ServerInstance;
+			}
+		}
+
+		static string ToMsSqlInstance(string instance) {
+			var parts = instance.Split(':');
+			var host = parts[0] switch {
+				"0.0.0.0" => ".",
+				_ => parts[0],
+			};
+
+			return parts.Length == 1 ? host : $"{host},{parts[1]}";
+		}
 
 		public IDataBossMigration GetTargetMigration() =>
 			new DataBossCompositeMigration(Migrations.ConvertAll(MakeDirectoryMigration));
@@ -80,7 +96,7 @@ namespace DataBoss
 			if(IsMsSql) return AsConnectionString(AddCredentials(new[] {
 				("Application Name", "DataBoss"),
 				("Pooling", "no"),
-				("Data Source", ServerInstance ?? "."),
+				("Data Source", Server ?? "."),
 				("Database", Database),
 			}));
 			if(IsPostgres) return AsConnectionString(

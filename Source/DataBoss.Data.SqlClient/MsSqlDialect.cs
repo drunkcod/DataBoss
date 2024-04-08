@@ -74,7 +74,9 @@ namespace DataBoss.Data
 		public string EndMigrationQuery => "update __DataBossHistory set FinishedAt = getdate() where Id = @id and Context = @Context";
 
 		static bool TryGetParameterPrototype(Type type, out LambdaExpression found) {
-			if(type == typeof(SqlDecimal))
+			if(type == typeof(byte[]))
+				found = CreateBinaryParameter;
+			else if(type == typeof(SqlDecimal))
 				found = CreateSqlDecimalParameter;
 			else if (type == typeof(SqlMoney))
 				found = CreateSqlMoneyParameter;
@@ -90,6 +92,9 @@ namespace DataBoss.Data
 
 		static Expression Rebind(LambdaExpression expr, Expression arg0, Expression arg1) =>
 			NodeReplacementVisitor.ReplaceParameters(expr, arg0, arg1);
+
+		static readonly Expression<Func<string, object, SqlParameter>> CreateBinaryParameter =
+			(name, value) => new SqlParameter(name, SqlDbType.Binary) { Value = value, };
 
 		static readonly Expression<Func<string, object, SqlParameter>> CreateSqlDecimalParameter =
 			(name, value) => new SqlParameter(name, SqlDbType.Decimal) { Value = value, };

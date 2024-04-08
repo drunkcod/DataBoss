@@ -98,6 +98,16 @@ namespace DataBoss
 			Check.That(() => ToParams.HasSqlTypeMapping(clrType));
 
 		[Fact]
+		public void SqlDbType_mappings() {
+			var p = GetParams(new {
+				ByteArray =  new byte[32],
+			});
+
+			Check.That(
+				() => p.Single(x => x.ParameterName == "ByteArray").DbType == DbType.Binary);
+		}
+
+		[Fact]
 		public void object_is_not_considered_complex() {
 			var nullableInt = new int?();
 			Check.With(() => GetParams(new { Value = nullableInt.HasValue ? (object)nullableInt.Value : DBNull.Value }))
