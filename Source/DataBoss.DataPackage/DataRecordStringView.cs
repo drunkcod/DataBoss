@@ -9,6 +9,8 @@ using DataBoss.DataPackage.Types;
 
 namespace DataBoss.DataPackage
 {
+	public delegate string? StringViewFormatter(IDataRecord record, int n, NumberFormatInfo formatInfo);
+
 	static class DataPackageStringFrom
 	{
 		public static string Int16(IDataRecord r, int i, NumberFormatInfo format) => r.GetInt16(i).ToString(format);
@@ -31,7 +33,7 @@ namespace DataBoss.DataPackage
 		public static string DateTimeOffset(IDataRecord r, int i, NumberFormatInfo _) =>
 			r.GetFieldValue<DateTimeOffset>(i).ToString(@"yyyy-MM-dd HH:mm:ss.FFFFFFF zzz");
 
-		public static string TimeSpan(IDataRecord r, int i, NumberFormatInfo _) => r.IsDBNull(i) ? null : ((TimeSpan)r.GetValue(i)).ToString("hh\\:mm\\:ss");
+		public static string? TimeSpan(IDataRecord r, int i, NumberFormatInfo _) => r.IsDBNull(i) ? null : ((TimeSpan)r.GetValue(i)).ToString("hh\\:mm\\:ss");
 
 		public static string Object(IDataRecord r, int i, NumberFormatInfo format) {
 			var obj = r.GetValue(i);
@@ -39,53 +41,53 @@ namespace DataBoss.DataPackage
 		}
 
 		public static string Boolean(IDataRecord r, int i, NumberFormatInfo _) => r.GetBoolean(i).ToString();
-		public static string Binary(IDataRecord r, int i, NumberFormatInfo _) => r.IsDBNull(i) ? null : Convert.ToBase64String((byte[])r.GetValue(i));
+		public static string? Binary(IDataRecord r, int i, NumberFormatInfo _) => r.IsDBNull(i) ? null : Convert.ToBase64String((byte[])r.GetValue(i));
 		public static string String(IDataRecord r, int i, NumberFormatInfo _) => r.GetString(i);
 		public static string Guid(IDataRecord r, int i, NumberFormatInfo _) => r.GetGuid(i).ToString();
 	}
 
 	public struct DataRecordStringViewFormatOptions
 	{
-		public Func<IDataRecord, int, NumberFormatInfo, string?>? FormatString;
-		public Func<IDataRecord, int, NumberFormatInfo, string?>? FormatBoolean;
+		public StringViewFormatter? FormatString;
+		public StringViewFormatter? FormatBoolean;
 
-		public Func<IDataRecord, int, NumberFormatInfo, string?>? FormatInt16;
-		public Func<IDataRecord, int, NumberFormatInfo, string?>? FormatInt32;
-		public Func<IDataRecord, int, NumberFormatInfo, string?>? FormatInt64;
+		public StringViewFormatter? FormatInt16;
+		public StringViewFormatter? FormatInt32;
+		public StringViewFormatter? FormatInt64;
 
-		public Func<IDataRecord, int, NumberFormatInfo, string?>? FormatFloat;
-		public Func<IDataRecord, int, NumberFormatInfo, string?>? FormatDouble;
-		public Func<IDataRecord, int, NumberFormatInfo, string?>? FormatDecimal;
+		public StringViewFormatter? FormatFloat;
+		public StringViewFormatter? FormatDouble;
+		public StringViewFormatter? FormatDecimal;
 
-		public Func<IDataRecord, int, NumberFormatInfo, string?>? FormatDate;
-		public Func<IDataRecord, int, NumberFormatInfo, string?>? FormatDateTime;
-		public Func<IDataRecord, int, NumberFormatInfo, string?>? FormatDateTimeOffset;
-		public Func<IDataRecord, int, NumberFormatInfo, string?>? FormatTimeSpan;
-		public Func<IDataRecord, int, NumberFormatInfo, string?>? FormatBinary;
-		public Func<IDataRecord, int, NumberFormatInfo, string?>? FormatGuid;
-		public Func<IDataRecord, int, NumberFormatInfo, string?>? FormatObject;
+		public StringViewFormatter? FormatDate;
+		public StringViewFormatter? FormatDateTime;
+		public StringViewFormatter? FormatDateTimeOffset;
+		public StringViewFormatter? FormatTimeSpan;
+		public StringViewFormatter? FormatBinary;
+		public StringViewFormatter? FormatGuid;
+		public StringViewFormatter? FormatObject;
 	}
 
 	struct DataRecordStringViewFormat
 	{
-		public Func<IDataRecord, int, NumberFormatInfo, string?> FormatString;
-		public Func<IDataRecord, int, NumberFormatInfo, string?> FormatBoolean;
+		public StringViewFormatter FormatString;
+		public StringViewFormatter FormatBoolean;
 
-		public Func<IDataRecord, int, NumberFormatInfo, string?> FormatInt16;
-		public Func<IDataRecord, int, NumberFormatInfo, string?> FormatInt32;
-		public Func<IDataRecord, int, NumberFormatInfo, string?> FormatInt64;
+		public StringViewFormatter FormatInt16;
+		public StringViewFormatter FormatInt32;
+		public StringViewFormatter FormatInt64;
 
-		public Func<IDataRecord, int, NumberFormatInfo, string?> FormatFloat;
-		public Func<IDataRecord, int, NumberFormatInfo, string?> FormatDouble;
-		public Func<IDataRecord, int, NumberFormatInfo, string?> FormatDecimal;
+		public StringViewFormatter FormatFloat;
+		public StringViewFormatter FormatDouble;
+		public StringViewFormatter FormatDecimal;
 
-		public Func<IDataRecord, int, NumberFormatInfo, string?> FormatDate;
-		public Func<IDataRecord, int, NumberFormatInfo, string?> FormatDateTime;
-		public Func<IDataRecord, int, NumberFormatInfo, string?> FormatDateTimeOffset;
-		public Func<IDataRecord, int, NumberFormatInfo, string?> FormatTimeSpan;
-		public Func<IDataRecord, int, NumberFormatInfo, string?> FormatBinary;
-		public Func<IDataRecord, int, NumberFormatInfo, string?> FormatGuid;
-		public Func<IDataRecord, int, NumberFormatInfo, string?> FormatObject;
+		public StringViewFormatter FormatDate;
+		public StringViewFormatter FormatDateTime;
+		public StringViewFormatter FormatDateTimeOffset;
+		public StringViewFormatter FormatTimeSpan;
+		public StringViewFormatter FormatBinary;
+		public StringViewFormatter FormatGuid;
+		public StringViewFormatter FormatObject;
 	}
 
 	readonly struct DataRecordStringView
@@ -111,15 +113,15 @@ namespace DataBoss.DataPackage
 			FormatObject = DataPackageStringFrom.Object,
 		};
 
-		readonly (Func<IDataRecord, int, NumberFormatInfo, string>, NumberFormatInfo)[] formatField;
+		readonly (StringViewFormatter, NumberFormatInfo)[] formatField;
 
-		DataRecordStringView((Func<IDataRecord, int, NumberFormatInfo, string>, NumberFormatInfo)[] formatField) {
+		DataRecordStringView((StringViewFormatter, NumberFormatInfo)[] formatField) {
 			this.formatField = formatField;
 		}
 
 		public int FieldCount => formatField.Length;
 
-		public string GetString(IDataRecord r, int i) {
+		public string? GetString(IDataRecord r, int i) {
 			var (getter, format) = formatField[i];
 			return getter(r, i, format);
 		}
@@ -150,7 +152,7 @@ namespace DataBoss.DataPackage
 
 		static DataRecordStringView Create(IReadOnlyList<TabularDataSchemaFieldDescription> outputFields, IDataReader data, in DataRecordStringViewFormat format, CultureInfo? culture = null) {
 			var defaultNumberFormat = culture?.NumberFormat ?? TabularDataSchemaFieldDescription.DefaultNumberFormat;
-			var formatField = new (Func<IDataRecord, int, NumberFormatInfo, string>, NumberFormatInfo)[outputFields.Count];
+			var formatField = new (StringViewFormatter, NumberFormatInfo)[outputFields.Count];
 			for (var i = 0; i != outputFields.Count; ++i)
 				formatField[i] = (GetFormatter(outputFields[i], data.GetFieldType(i), format), GetNumberFormat(outputFields[i], defaultNumberFormat));
 
@@ -167,7 +169,7 @@ namespace DataBoss.DataPackage
 			return new NumberFormatInfo { NumberDecimalSeparator = field.DecimalChar };
 		}
 
-		public static Func<IDataRecord, int, NumberFormatInfo, string> GetFormatter(TabularDataSchemaFieldDescription field, Type fieldType, in DataRecordStringViewFormat format) {
+		public static StringViewFormatter GetFormatter(TabularDataSchemaFieldDescription field, Type fieldType, in DataRecordStringViewFormat format) {
 			switch (Type.GetTypeCode(fieldType)) {
 				default:
 					if (fieldType == typeof(TimeSpan))
