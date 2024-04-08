@@ -42,6 +42,11 @@ namespace DataBoss
 		public TestcontainersStates State => container.State;
 		public TestcontainersHealthStatus Health => container.Health;
 		public long HealthCheckFailingStreak => container.HealthCheckFailingStreak;
+
+		public DateTime CreatedTime => container.CreatedTime;
+		public DateTime StartedTime => container.StartedTime;
+		public DateTime StoppedTime => container.StoppedTime;
+
 		public event EventHandler Creating {
 			add { container.Creating += value; }
 			remove { container.Creating -= value; }

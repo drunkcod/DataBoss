@@ -9,7 +9,7 @@
 		<PackageReference Include="Check.That" Version="0.0.5" />
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 		<PackageReference Include="System.Text.Encodings.Web" Version="8.0.0" />
-		<PackageReference Include="System.Text.Json" Version="8.0.2" />
+		<PackageReference Include="System.Text.Json" Version="8.0.3" />
 		<PackageReference Include="System.Threading.Channels" Version="8.0.0" />
 
 		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.0" />
