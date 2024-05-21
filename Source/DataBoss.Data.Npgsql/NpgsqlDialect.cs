@@ -7,18 +7,23 @@ using DataBoss.Data.Support;
 using Npgsql;
 using NpgsqlTypes;
 using System.Reflection;
+using System.Text.Json.Serialization;
 
 namespace DataBoss.Data.Npgsql
 {
 	public class NpgsqlDialect : SqlDialect<NpgsqlDialect, NpgsqlCommand>, ISqlDialect
 	{
+		static JsonSerializerOptions JsonOptions = new JsonSerializerOptions {
+			DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+		};
+
 		public static NpgsqlCustomParameterValue<byte[]> Json<T>(T value) => new(
 			NpgsqlDbType.Json,
-			JsonSerializer.SerializeToUtf8Bytes(value));
+			JsonSerializer.SerializeToUtf8Bytes(value, JsonOptions));
 
 		public static NpgsqlCustomParameterValue<byte[]> Jsonb<T>(T value) => new(
 			NpgsqlDbType.Jsonb,
-			JsonSerializer.SerializeToUtf8Bytes(value));
+			JsonSerializer.SerializeToUtf8Bytes(value, JsonOptions));
 
 		public string FormatName(string columnName) => $"\"{columnName}\"";
 		

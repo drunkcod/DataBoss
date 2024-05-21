@@ -22,7 +22,7 @@
     <ProjectReference Include="..\DataBoss.PowerArgs\DataBoss.PowerArgs.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="NpgSql" Version="8.0.2" />
+    <PackageReference Include="NpgSql" Version="8.0.3" />
     <PackageReference Include="System.Data.SqlClient" Version="4.8.6" />
   </ItemGroup>
 </Project>
