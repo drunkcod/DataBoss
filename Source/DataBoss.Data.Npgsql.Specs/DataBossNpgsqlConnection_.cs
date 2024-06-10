@@ -3,7 +3,6 @@ using Npgsql;
 using Xunit;
 using Testcontainers.PostgreSql;
 using System.Data;
-using NpgsqlTypes;
 
 namespace DataBoss.Data.Npgsql
 {
@@ -30,12 +29,20 @@ namespace DataBoss.Data.Npgsql
 			Check.That(() => (string)DbConnection.ExecuteScalar("select @foo", new { foo = "Hello Npgsql World"}) == "Hello Npgsql World");
 
 		[Fact]
-		void nullable_parameter() => 
-			Check.That(() => DbConnection.ExecuteScalar("select @foo", new { foo = (int?)null }) == null);
+		public void nullable_parameter() => 
+			Check.That(() => DbConnection.ExecuteScalar("select @foo", new { foo = (int?)null }) == DBNull.Value);
 
 		[Fact]
-		void null_string() => 
-			Check.That(() => DbConnection.ExecuteScalar("select @str", new { str = (string?)null }) == null);
+		public void null_string() => 
+			Check.That(() => DbConnection.ExecuteScalar("select @str", new { str = (string?)null }) == DBNull.Value);
+
+		[Fact]
+		public void null_array() => 
+			Check.That(() => (int)DbConnection.ExecuteScalar("select case when @str is null then 1 else 0 end", new { str = (string[])null }) == 1);
+		[Fact]
+		public void null_array_like() => 
+			Check.That(() => (int)DbConnection.ExecuteScalar("select case when @str is null then 1 else 0 end", new { str = (List<int>)null }) == 1);
+
 	} 
 
     public class DataBossNpgsqlConnection_ : DbConnectionFixture<NpgsqlConnection>, IDisposable, IClassFixture<NpgsqlTestDatabase>

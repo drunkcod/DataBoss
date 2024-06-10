@@ -8,6 +8,7 @@ using Npgsql;
 using NpgsqlTypes;
 using System.Reflection;
 using System.Text.Json.Serialization;
+using System.Diagnostics.CodeAnalysis;
 
 namespace DataBoss.Data.Npgsql
 {
@@ -30,19 +31,37 @@ namespace DataBoss.Data.Npgsql
 		public string GetTypeName(DataBossDbType dbType) => dbType.ToString();
 
 		public bool TryCreateDialectSpecificParameter(string name, Expression readMember, out Expression? create) {
-			if (readMember.Type == typeof(string)) {
+			if(readMember.Type == typeof(string)) {
 				var (ctor, prop) = CreateParameter(name, typeof(string), DbType.String);
 				create = Expression.MemberInit(
 					ctor,
 					Expression.Bind(prop, readMember));
-			} else if (IsArrayLike(readMember.Type))
-				create = NewNpgsqlParameter(readMember, name, DbType.Object);
-			else if (readMember.Type.IsGenericType && readMember.Type.GetGenericTypeDefinition() == typeof(NpgsqlCustomParameterValue<>))
+			} else if(IsArrayLike(readMember.Type, out var itemType)) {
+				if(TryMapDbType(itemType, out var dbType))
+					create = NewNpgsqlParameter(readMember, name, NpgsqlDbType.Array | dbType);
+				else 
+					create = NewNpgsqlParameter(readMember, name, DbType.Object);
+			}
+			else if(readMember.Type.IsGenericType && readMember.Type.GetGenericTypeDefinition() == typeof(NpgsqlCustomParameterValue<>))
 				create = Expression.Call(readMember, nameof(NpgsqlCustomParameterValue<object>.ToParameter), null, Expression.Constant(name));
 			else
 				create = default;
 
 			return create != null;
+		}
+
+		static bool TryMapDbType(Type type, out NpgsqlDbType dbType) {
+			if(type == typeof(string)) dbType = NpgsqlDbType.Text;
+			else if(type == typeof(int)) dbType = NpgsqlDbType.Integer;
+			else if(type == typeof(long)) dbType = NpgsqlDbType.Bigint;
+			else if(type == typeof(short)) dbType = NpgsqlDbType.Smallint;
+			else if(type == typeof(double)) dbType = NpgsqlDbType.Double;
+			else if(type == typeof(float)) dbType = NpgsqlDbType.Real;
+			else if(type == typeof(byte[])) dbType = NpgsqlDbType.Bytea;
+			else if(type == typeof(Guid)) dbType = NpgsqlDbType.Uuid;
+			else dbType = default;
+
+			return dbType != default;
 		}
 
 		public (NewExpression?, PropertyInfo) CreateParameter(string name, Type type, DbType dbType) {
@@ -78,8 +97,19 @@ namespace DataBoss.Data.Npgsql
 		public string EndMigrationQuery => "update __DataBossHistory set FinishedAt = now() where Id = :id and Context = :Context";
 
 
-		private static bool IsArrayLike(Type type) => 
-			type.IsArray || type.GetInterface("System.Collections.Generic.IEnumerable`1") is not null;
+		private static bool IsArrayLike(Type type,[NotNullWhen(true)] out Type? itemType) { 
+			if(type.IsArray) {
+				itemType = type.GetElementType();
+				return true;
+			}
+			var enumerable = type.GetInterface("System.Collections.Generic.IEnumerable`1");
+			if(enumerable is not null) {
+				itemType = enumerable.GetGenericArguments()[0];
+				return true;
+			}
+			itemType = null;
+			return false;
+		}
 
 		static Expression NewNpgsqlParameter(Expression value, string name, DbType dbType) {
 			var t = typeof(NpgsqlParameter);
@@ -89,6 +119,15 @@ namespace DataBoss.Data.Npgsql
 				Expression.Bind(t.GetProperty("Value"),
 					Expression.Coalesce(Expression.Convert(value, typeof(object)), Expression.Constant(DBNull.Value))));
 		}
+
+		static Expression NewNpgsqlParameter(Expression value, string name, NpgsqlDbType dbType) {
+			var t = typeof(NpgsqlParameter<>).MakeGenericType(value.Type);
+			var ctor = t.GetConstructor(new[] { typeof(string), typeof(NpgsqlDbType) });
+			return Expression.MemberInit(
+				Expression.New(ctor, Expression.Constant(name), Expression.Constant(dbType)),
+				Expression.Bind(t.GetProperty("TypedValue"), value));
+		}
+
 	}
 
 	public readonly struct NpgsqlCustomParameterValue<T>
