@@ -3,6 +3,7 @@
     <TargetFrameworks>net6.0</TargetFrameworks>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="Specs\Linq\**" />
@@ -16,13 +17,14 @@
     <ProjectReference Include="..\DataBoss.Uuid\DataBoss.Uuid.csproj" />
     <ProjectReference Include="..\DataBoss\DataBoss.csproj" />
     <ProjectReference Include="..\DataBoss.Testing.SqlServer\DataBoss.Testing.SqlServer.csproj" />
+    <ProjectReference Include="..\DataBoss.MongoDB\DataBoss.MongoDB.csproj" />
 
-    <PackageReference Include="Testcontainers" Version="3.8.0" />
+    <PackageReference Include="Testcontainers" Version="3.9.0" />
     <PackageReference Include="Check.That" Version="0.0.5" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.0" />
-    <PackageReference Include="xunit" Version="2.8.0" />
-    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.0">
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.10.0" />
+    <PackageReference Include="xunit" Version="2.9.0" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
