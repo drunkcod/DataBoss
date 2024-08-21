@@ -7,7 +7,7 @@ namespace DataBoss.DataPackage
 	public class TabularDataSchemaFieldDescription
 	{
 		internal static readonly NumberFormatInfo DefaultNumberFormat = new() {
-			NumberDecimalSeparator = TabularDataSchemaFieldDescription.DefaultDecimalChar,
+			NumberDecimalSeparator = DefaultDecimalChar,
 		};
 
 		public const string DefaultDecimalChar = ".";
@@ -24,7 +24,7 @@ namespace DataBoss.DataPackage
 			this.Type = type;
 			this.Format = format;
 			this.Constraints = constraints;
-			this.DecimalChar = decimalChar;
+			this.DecimalChar = decimalChar ?? DefaultDecimalChar;
 		}
 		
 		[JsonProperty("name")]
@@ -34,7 +34,7 @@ namespace DataBoss.DataPackage
 		[JsonProperty("format", NullValueHandling = NullValueHandling.Ignore)]
 		public readonly string Format;
 
-		[DefaultValue(DefaultDecimalChar), JsonProperty("decimalChar", DefaultValueHandling = DefaultValueHandling.Ignore, NullValueHandling = NullValueHandling.Ignore)]
+		[DefaultValue(DefaultDecimalChar), JsonProperty("decimalChar", NullValueHandling = NullValueHandling.Ignore)]
 		public readonly string DecimalChar;
 
 		[JsonProperty("constraints", DefaultValueHandling = DefaultValueHandling.Ignore)]

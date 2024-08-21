@@ -1,7 +1,10 @@
+using System;
+using System.IO;
+using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using CheckThat;
 using MongoDB.Bson;
+
 using Xunit;
 
 namespace DataBoss.MongoDB
@@ -24,10 +27,29 @@ namespace DataBoss.MongoDB
 			Check.That(() => fromNull.HasValue == false);
 		}
 
+		[Fact]
+		public void ObjectId_ToHexString() {
+			var oid = ObjectId.GenerateNewId();
+			var ms = new MemoryStream();
+			var json = new Utf8JsonWriter(ms);
+			MongoUtil.WriteObjectId(oid, json);
+			json.Flush();
+			Check.That(() => ms.ToStringUtf8() == $"\"{oid}\"");
+		}
+
         static string ToJson<T>(T value) =>		
             JsonSerializer.Serialize(value);
 
         static ResumeTokenTimestamp FromJson(string timestamp) =>
             JsonSerializer.Deserialize<ResumeTokenTimestamp>(timestamp);
+	}
+
+	static class MemoryStreamExtensions
+	{
+		public static string ToStringUtf8(this MemoryStream ms) {
+			if(!ms.TryGetBuffer(out var bs))
+				throw new NotSupportedException("Failed to get buffer.");
+			return Encoding.UTF8.GetString(bs);
+		}
 	}
 }

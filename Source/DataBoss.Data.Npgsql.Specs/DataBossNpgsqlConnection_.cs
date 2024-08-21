@@ -3,6 +3,7 @@ using Npgsql;
 using Xunit;
 using Testcontainers.PostgreSql;
 using System.Data;
+using System.Text;
 
 namespace DataBoss.Data.Npgsql
 {
@@ -43,6 +44,17 @@ namespace DataBoss.Data.Npgsql
 		public void null_array_like() => 
 			Check.That(() => (int)DbConnection.ExecuteScalar("select case when @str is null then 1 else 0 end", new { str = (List<int>)null }) == 1);
 
+		[Fact]
+		public void ArraySegment() =>
+			Check.That(() => (int)DbConnection.ExecuteScalar("select length(@p1)", new { p1 = new ArraySegment<byte>(Encoding.UTF8.GetBytes("hello world"), 0, 5) }) == 5);
+
+		[Fact]
+		public void Span() =>
+			Check.That(() => (int)DbConnection.ExecuteScalar("select length(@p1)", new { p1 = new ArraySegment<byte>(Encoding.UTF8.GetBytes("hello world"), 0, 5) }) == 5);
+
+		[Fact]
+		public void ArraySegment_null() =>
+			Check.That(() => (int)DbConnection.ExecuteScalar("select case when @p1 is null then -1 else length(@p1) end", new { p1 = (ArraySegment<byte>?)null }) == -1);
 	} 
 
     public class DataBossNpgsqlConnection_ : DbConnectionFixture<NpgsqlConnection>, IDisposable, IClassFixture<NpgsqlTestDatabase>

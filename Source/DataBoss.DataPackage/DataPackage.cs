@@ -6,6 +6,7 @@ using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -352,7 +353,13 @@ namespace DataBoss.DataPackage
 			}
 
 			using var meta = new StreamWriter(createOutput("datapackage.json"));
-			meta.Write(JsonConvert.SerializeObject(description, Formatting.Indented));
+			meta.Write(JsonConvert.SerializeObject(description, Formatting.Indented, new JsonSerializerSettings {
+				DefaultValueHandling = options.DefaultValueHandling switch {
+					DataPackageDefaultValueHandling.Default => DefaultValueHandling.IgnoreAndPopulate,
+					DataPackageDefaultValueHandling.Explicit => DefaultValueHandling.Include,
+					_ => throw new NotSupportedException($"Invalid DefaultValueHandling value, was {options.DefaultValueHandling}.")
+				}
+			}));
 		}
 
 		public DataPackage Serialize(CultureInfo culture = null) {
@@ -427,6 +434,13 @@ namespace DataBoss.DataPackage
 		public CultureInfo Culture = null;
 		public ResourceCompression ResourceCompression = ResourceCompression.None;
 		public string Delimiter;
+		public DataPackageDefaultValueHandling DefaultValueHandling = DataPackageDefaultValueHandling.Default;
+	}
+
+	public enum DataPackageDefaultValueHandling 
+	{
+		Default = 0,
+		Explicit = 1,
 	}
 
 	public static class TabularDataResourceCsvExtensions

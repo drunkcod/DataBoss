@@ -44,6 +44,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBoss.Data.Npgsql", "Sou
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataBoss.Uuid", "Source\DataBoss.Uuid\DataBoss.Uuid.csproj", "{2118966A-ED9A-4EDD-AB51-53A764037628}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Source", "Source", "{0CEB8A00-D405-47BA-872E-AAF435F0CEE4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataBoss.MongoDB", "Source\DataBoss.MongoDB\DataBoss.MongoDB.csproj", "{1A537CBA-1631-400C-9303-9465EE70860E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -114,6 +118,10 @@ Global
 		{2118966A-ED9A-4EDD-AB51-53A764037628}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2118966A-ED9A-4EDD-AB51-53A764037628}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2118966A-ED9A-4EDD-AB51-53A764037628}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1A537CBA-1631-400C-9303-9465EE70860E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1A537CBA-1631-400C-9303-9465EE70860E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1A537CBA-1631-400C-9303-9465EE70860E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1A537CBA-1631-400C-9303-9465EE70860E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -123,6 +131,7 @@ Global
 		{13AD5FF7-C1CA-440A-88B7-A4B8AC5D9C3E} = {F8C97939-E25C-4531-8AA9-4E86C34CA8CB}
 		{5888A9F9-F039-46B9-A08A-66C66C887A18} = {F8C97939-E25C-4531-8AA9-4E86C34CA8CB}
 		{F8F0A4C5-7A23-490F-AD95-DFCB8EED077A} = {F8C97939-E25C-4531-8AA9-4E86C34CA8CB}
+		{1A537CBA-1631-400C-9303-9465EE70860E} = {0CEB8A00-D405-47BA-872E-AAF435F0CEE4}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {5004119A-9CE1-487E-8201-5F7F75808141}

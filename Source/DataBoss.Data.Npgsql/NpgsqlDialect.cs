@@ -14,7 +14,7 @@ namespace DataBoss.Data.Npgsql
 {
 	public class NpgsqlDialect : SqlDialect<NpgsqlDialect, NpgsqlCommand>, ISqlDialect
 	{
-		static JsonSerializerOptions JsonOptions = new JsonSerializerOptions {
+		static readonly JsonSerializerOptions JsonOptions = new() {
 			DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
 		};
 
