@@ -9,10 +9,10 @@
     <Description>Your data. Like a Boss.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/drunkcod/DataBoss</RepositoryUrl>
-    <VersionPrefix>0.0.109</VersionPrefix>
+    <VersionPrefix>0.0.110</VersionPrefix>
 	  <!--VersionSuffix>rc.2</VersionSuffix -->
     <AssemblyVersion>$(VersionPrefix)</AssemblyVersion>
     <AssemblyInformationalVersion>$(VersionPrefix)</AssemblyInformationalVersion>
-    <AssemblyFileVersion>2024.08.21</AssemblyFileVersion>
+    <AssemblyFileVersion>2024.08.26</AssemblyFileVersion>
   </PropertyGroup>
 </Project>

@@ -28,6 +28,14 @@ namespace DataBoss.DataPackage.Schema
 				() => desc.Constraints.Value.MaxLength == fromJson.Constraints.Value.MaxLength);
 		}
 
+		[Fact]
+		public void decimalSeparator_default_for_number() => 
+			Check.That(() => new TabularDataSchemaFieldDescription("x", "number", null, null, null).DecimalChar == TabularDataSchemaFieldDescription.DefaultDecimalChar);
+
+		[Fact]
+		public void decimalSeparator_default_for_non_number() => 
+			Check.That(() => new TabularDataSchemaFieldDescription("x", "string", null, null, null).DecimalChar == null);
+
 		public static T FromJson<T>(T value) =>
 			JsonConvert.DeserializeObject<T>(JsonConvert.SerializeObject(value));
 	}

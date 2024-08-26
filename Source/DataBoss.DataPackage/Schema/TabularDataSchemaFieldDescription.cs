@@ -4,7 +4,13 @@ using Newtonsoft.Json;
 
 namespace DataBoss.DataPackage
 {
-	public class TabularDataSchemaFieldDescription
+	[method: JsonConstructor]
+	public class TabularDataSchemaFieldDescription(
+		string name,
+		string type,
+		string format = null,
+		TabularDataSchemaFieldConstraints? constraints = null,
+		string decimalChar = null)
 	{
 		internal static readonly NumberFormatInfo DefaultNumberFormat = new() {
 			NumberDecimalSeparator = DefaultDecimalChar,
@@ -12,33 +18,18 @@ namespace DataBoss.DataPackage
 
 		public const string DefaultDecimalChar = ".";
 
-		[JsonConstructor]
-		public TabularDataSchemaFieldDescription(
-			string name, 
-			string type,
-			string format = null,
-			TabularDataSchemaFieldConstraints? constraints = null,
-			string decimalChar = null) { 
-			
-			this.Name = name;
-			this.Type = type;
-			this.Format = format;
-			this.Constraints = constraints;
-			this.DecimalChar = decimalChar ?? DefaultDecimalChar;
-		}
-		
 		[JsonProperty("name")]
-		public readonly string Name;
+		public readonly string Name = name;
 		[JsonProperty("type")]
-		public readonly string Type;
+		public readonly string Type = type;
 		[JsonProperty("format", NullValueHandling = NullValueHandling.Ignore)]
-		public readonly string Format;
+		public readonly string Format = format;
 
 		[DefaultValue(DefaultDecimalChar), JsonProperty("decimalChar", NullValueHandling = NullValueHandling.Ignore)]
-		public readonly string DecimalChar;
+		public string DecimalChar => this.IsNumber() ? decimalChar ?? DefaultDecimalChar : null;
 
 		[JsonProperty("constraints", DefaultValueHandling = DefaultValueHandling.Ignore)]
-		public readonly TabularDataSchemaFieldConstraints? Constraints;
+		public readonly TabularDataSchemaFieldConstraints? Constraints = constraints;
 	}
 
 	public static class TabularDataSchemaFieldDescriptionExtensions

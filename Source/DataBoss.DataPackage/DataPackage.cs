@@ -355,7 +355,7 @@ namespace DataBoss.DataPackage
 			using var meta = new StreamWriter(createOutput("datapackage.json"));
 			meta.Write(JsonConvert.SerializeObject(description, Formatting.Indented, new JsonSerializerSettings {
 				DefaultValueHandling = options.DefaultValueHandling switch {
-					DataPackageDefaultValueHandling.Default => DefaultValueHandling.IgnoreAndPopulate,
+					DataPackageDefaultValueHandling.Default => DefaultValueHandling.Ignore,
 					DataPackageDefaultValueHandling.Explicit => DefaultValueHandling.Include,
 					_ => throw new NotSupportedException($"Invalid DefaultValueHandling value, was {options.DefaultValueHandling}.")
 				}
