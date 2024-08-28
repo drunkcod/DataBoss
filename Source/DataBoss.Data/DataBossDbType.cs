@@ -83,7 +83,7 @@ namespace DataBoss.Data
 
 		public int? ColumnSize => tag.HasFlag(BossTypeTag.IsVariableSize)
 			? (int?)extra
-			: IsKnownType(out var knownType) ? GetBossType(knownType).Width : -1; 
+			: IsKnownType(out var knownType) ? GetBossType(knownType).Width : null; 
 
 		public string TypeName => IsKnownType(out var knownType) 
 			? GetBossType(knownType).TypeName

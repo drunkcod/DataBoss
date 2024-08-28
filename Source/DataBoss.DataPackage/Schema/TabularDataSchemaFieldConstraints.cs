@@ -13,7 +13,7 @@ namespace DataBoss.DataPackage
 		[JsonProperty("required", DefaultValueHandling = DefaultValueHandling.Ignore)]
 		public readonly bool IsRequired;
 
-		[JsonProperty("maxLength", DefaultValueHandling = DefaultValueHandling.Ignore)]
+		[JsonProperty("maxLength", DefaultValueHandling = DefaultValueHandling.Ignore, NullValueHandling = NullValueHandling.Ignore)]
 		public readonly int? MaxLength;
 
 		public override string ToString() => JsonConvert.SerializeObject(this);
