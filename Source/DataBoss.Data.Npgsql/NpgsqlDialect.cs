@@ -102,7 +102,9 @@ namespace DataBoss.Data.Npgsql
 				itemType = type.GetElementType();
 				return true;
 			}
-			var enumerable = type.GetInterface("System.Collections.Generic.IEnumerable`1");
+			var enumerable = type.GetInterface("System.Collections.Generic.IEnumerable`1") 
+				?? (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IEnumerable<>) ? type : null);
+			
 			if(enumerable is not null) {
 				itemType = enumerable.GetGenericArguments()[0];
 				return true;
