@@ -41,8 +41,13 @@ namespace DataBoss.Data.Npgsql
 					create = NewNpgsqlParameter(readMember, name, NpgsqlDbType.Array | dbType);
 				else 
 					create = NewNpgsqlParameter(readMember, name, DbType.Object);
-			}
-			else if(readMember.Type.IsGenericType && readMember.Type.GetGenericTypeDefinition() == typeof(NpgsqlCustomParameterValue<>))
+			} else if(IsEnumerable(readMember.Type, out var itemType2)) {
+				readMember = Expression.Call(typeof(System.Linq.Enumerable).GetMethod("ToArray").MakeGenericMethod(itemType2), readMember);
+				if(TryMapDbType(itemType2, out var dbType))
+					create = NewNpgsqlParameter(readMember, name, NpgsqlDbType.Array | dbType);
+				else 
+					create = NewNpgsqlParameter(readMember, name, DbType.Object);
+			} else if(readMember.Type.IsGenericType && readMember.Type.GetGenericTypeDefinition() == typeof(NpgsqlCustomParameterValue<>))
 				create = Expression.Call(readMember, nameof(NpgsqlCustomParameterValue<object>.ToParameter), null, Expression.Constant(name));
 			else
 				create = default;
@@ -102,11 +107,18 @@ namespace DataBoss.Data.Npgsql
 				itemType = type.GetElementType();
 				return true;
 			}
-			var enumerable = type.GetInterface("System.Collections.Generic.IEnumerable`1") 
-				?? (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IEnumerable<>) ? type : null);
-			
+			var enumerable = type.GetInterface("System.Collections.Generic.IEnumerable`1");
 			if(enumerable is not null) {
 				itemType = enumerable.GetGenericArguments()[0];
+				return true;
+			}
+			itemType = null;
+			return false;
+		}
+
+		private static bool IsEnumerable(Type type, [NotNullWhen(true)] out Type? itemType) {
+			if(type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IEnumerable<>)) {
+				itemType = type.GetGenericArguments()[0];
 				return true;
 			}
 			itemType = null;
