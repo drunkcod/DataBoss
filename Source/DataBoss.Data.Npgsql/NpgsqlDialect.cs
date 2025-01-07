@@ -37,22 +37,22 @@ namespace DataBoss.Data.Npgsql
 					ctor,
 					Expression.Bind(prop, readMember));
 			} else if(IsArrayLike(readMember.Type, out var itemType)) {
-				if(TryMapDbType(itemType, out var dbType))
-					create = NewNpgsqlParameter(readMember, name, NpgsqlDbType.Array | dbType);
-				else 
-					create = NewNpgsqlParameter(readMember, name, DbType.Object);
+				create = CreateArrayParameter(readMember, name, itemType);
 			} else if(IsEnumerable(readMember.Type, out var itemType2)) {
 				readMember = Expression.Call(typeof(System.Linq.Enumerable).GetMethod("ToArray").MakeGenericMethod(itemType2), readMember);
-				if(TryMapDbType(itemType2, out var dbType))
-					create = NewNpgsqlParameter(readMember, name, NpgsqlDbType.Array | dbType);
-				else 
-					create = NewNpgsqlParameter(readMember, name, DbType.Object);
+				create = CreateArrayParameter(readMember, name, itemType2);
 			} else if(readMember.Type.IsGenericType && readMember.Type.GetGenericTypeDefinition() == typeof(NpgsqlCustomParameterValue<>))
 				create = Expression.Call(readMember, nameof(NpgsqlCustomParameterValue<object>.ToParameter), null, Expression.Constant(name));
 			else
 				create = default;
 
 			return create != null;
+		}
+
+		static Expression CreateArrayParameter(Expression readMember, string name, Type itemType) {
+			if(TryMapDbType(itemType, out var dbType))
+				return NewNpgsqlParameter(readMember, name, NpgsqlDbType.Array | dbType);
+			return NewNpgsqlParameter(readMember, name, DbType.Object);
 		}
 
 		static bool TryMapDbType(Type type, out NpgsqlDbType dbType) {
