@@ -12,7 +12,7 @@ using DotNet.Testcontainers.Images;
 using Microsoft.Extensions.Logging;
 
 namespace DataBoss
-{	
+{
 	public class SqlServerContainer : IContainer
 	{
 		readonly IContainer container;
@@ -24,7 +24,7 @@ namespace DataBoss
 		public string Password => "Pa55w0rd!";
 		public ushort Port => GetMappedPublicPort(SqlServerContainerBuilder.DefaultPort);
 
-		public SqlConnectionStringBuilder GetConnectionString() => new () {
+		public SqlConnectionStringBuilder GetConnectionString() => new() {
 			UserID = Username,
 			Password = Password,
 			DataSource = GetDataSource(Port),
@@ -46,6 +46,8 @@ namespace DataBoss
 		public DateTime CreatedTime => container.CreatedTime;
 		public DateTime StartedTime => container.StartedTime;
 		public DateTime StoppedTime => container.StoppedTime;
+		public DateTime PausedTime => container.PausedTime;
+		public DateTime UnpausedTime => container.UnpausedTime;
 
 		public event EventHandler Creating {
 			add { container.Creating += value; }
@@ -75,6 +77,26 @@ namespace DataBoss
 		public event EventHandler Stopped {
 			add { container.Stopped += value; }
 			remove { container.Stopped -= value; }
+		}
+
+		public event EventHandler Pausing {
+			add { container.Pausing += value; }
+			remove { container.Pausing -= value; }
+		}
+
+		public event EventHandler Unpausing {
+			add { container.Unpausing += value; }
+			remove { container.Unpausing -= value; }
+		}
+
+		public event EventHandler Paused {
+			add { container.Paused += value; }
+			remove { container.Paused -= value; }
+		}
+
+		public event EventHandler Unpaused {
+			add { container.Unpaused += value; }
+			remove { container.Unpaused -= value; }
 		}
 
 		public Task CopyAsync(byte[] fileContent, string filePath, UnixFileModes fileMode = UnixFileModes.OtherRead | UnixFileModes.GroupRead | UnixFileModes.UserWrite | UnixFileModes.UserRead, CancellationToken ct = default) {
@@ -128,6 +150,14 @@ namespace DataBoss
 		public Task StopAsync(CancellationToken ct = default) {
 			return container.StopAsync(ct);
 		}
+
+		public Task PauseAsync(CancellationToken ct = default) {
+			return container.PauseAsync(ct);
+		}
+
+		public Task UnpauseAsync(CancellationToken ct = default) {
+			return container.UnpauseAsync(ct);
+		}
 	}
 
 	class SqlServerContainerBuilder
@@ -150,10 +180,10 @@ namespace DataBoss
 		sealed class WaitUntilSqlConnectionOk : IWaitUntil
 		{
 			public async Task<bool> UntilAsync(IContainer container) {
-				var cs = new TestDbConfig { 
-						Port = container.GetMappedPublicPort(DefaultPort),
-						Username = "sa",
-						Password = "Pa55w0rd!",
+				var cs = new TestDbConfig {
+					Port = container.GetMappedPublicPort(DefaultPort),
+					Username = "sa",
+					Password = "Pa55w0rd!",
 				}.GetConnectionString().ToString();
 				using var c = new SqlConnection(cs);
 				try {
@@ -166,7 +196,7 @@ namespace DataBoss
 			}
 		}
 	}
-	
+
 	public sealed class SqlServerFixture : IDisposable
 	{
 		static readonly SqlServerContainer sqlContainer;
@@ -186,11 +216,11 @@ namespace DataBoss
 		}
 
 		public SqlServerFixture() {
-			lock(sqlContainer) {
-				if(sqlContainer.State != TestcontainersStates.Running)
+			lock (sqlContainer) {
+				if (sqlContainer.State != TestcontainersStates.Running)
 					sqlContainer.StartAsync().Wait();
 			}
-			Config = new TestDbConfig { 
+			Config = new TestDbConfig {
 				Username = sqlContainer.Username,
 				Password = sqlContainer.Password,
 				Port = sqlContainer.Port,
