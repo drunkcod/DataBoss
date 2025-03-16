@@ -19,11 +19,11 @@ namespace DataBoss.Data
 {
 	public class ObjectReaderFixture
 	{
-		public class ValueRow<T> { public T Value; }
+		public class ValueRow<T> { public T? Value; }
 
 		public class ValueProp<T>
 		{
-			public T Value { get; set; }
+			public T? Value { get; set; }
 		}
 
 		public static KeyValuePair<string, Type> Col<T>(string name) => new KeyValuePair<string, Type>(name, typeof(T));
@@ -61,13 +61,13 @@ namespace DataBoss.Data
 
 		[Fact]
 		public void converter_fills_public_fields() {
-			var source = SequenceDataReader.Create(new[] { new DataBossMigrationInfo() }, x => { 
+			var source = SequenceDataReader.Create(new[] { new DataBossMigrationInfo() }, x => {
 				x.Map("Id");
 				x.Map("Context");
 				x.Map("Name");
 			});
 			var formatter = new ExpressionFormatter(GetType());
-			Check.That(() => formatter.Format(ObjectReader.MakeConverter<IDataReader, DataBossMigrationInfo>(source)) == 
+			Check.That(() => formatter.Format(ObjectReader.MakeConverter<IDataReader, DataBossMigrationInfo>(source)) ==
 			"x => new DataBossMigrationInfo { Id = x.GetInt64(0), Context = x.IsDBNull(1) ? default(string) : x.GetString(1), Name = x.IsDBNull(2) ? default(string) : x.GetString(2) }");
 		}
 
@@ -89,7 +89,7 @@ namespace DataBoss.Data
 			Check.With(() => ObjectReader.Read<ValueRow<T>>(source).ToArray())
 			.That(
 				rows => rows.Length == 1,
-				rows => rows[0].Value.Equals(expected.Value));
+				rows => rows[0].Value!.Equals(expected.Value));
 		}
 
 		[Fact]
@@ -132,7 +132,7 @@ namespace DataBoss.Data
 			Check.With(() => ObjectReader.Read<ValueRow<ValueRow<int>>>(source).ToArray())
 			.That(
 				rows => rows.Length == 1,
-				rows => rows[0].Value.Value == expected.Value.Value);
+				rows => rows[0].Value!.Value == expected.Value.Value);
 		}
 
 		[Fact]
@@ -142,7 +142,7 @@ namespace DataBoss.Data
 			Check.With(() => ObjectReader.Read<ValueRow<ValueRow<ValueRow<int>>>>(source).ToArray())
 			.That(
 				rows => rows.Length == 1,
-				rows => rows[0].Value.Value.Value == expected.Value.Value.Value);
+				rows => rows[0].Value!.Value!.Value == expected.Value.Value.Value);
 		}
 
 		[Fact]
@@ -158,13 +158,13 @@ namespace DataBoss.Data
 		public void null_source_becomes_default_value() {
 			var rows = ObjectReader.For(() => SequenceDataReader.Create(new[] { new StructRow<int?> { Value = null }, new StructRow<int?> { Value = 1 } }, x => x.MapAll()));
 			Check.With(() => rows.Read<StructRow<int>>().ToArray())
-				.That(xs => xs[0].Value == default(int), xs => xs[1].Value == 1);		
+				.That(xs => xs[0].Value == default(int), xs => xs[1].Value == 1);
 		}
 
-		struct StructRow<T> 
+		struct StructRow<T>
 		{
-			public StructRow(T ctorValue) {  this.Value = ctorValue; this.ReadonlyValue = ctorValue; }
-			public T Value; 
+			public StructRow(T ctorValue) { this.Value = ctorValue; this.ReadonlyValue = ctorValue; }
+			public T Value;
 			public readonly T ReadonlyValue;
 		}
 
@@ -175,7 +175,7 @@ namespace DataBoss.Data
 			Check.With(() => ObjectReader.Read<StructRow<float>>(source).ToArray())
 			.That(
 				rows => rows.Length == 1,
-				rows => rows[0].Value == expected.Value);	
+				rows => rows[0].Value == expected.Value);
 		}
 
 		[Fact]
@@ -185,12 +185,12 @@ namespace DataBoss.Data
 			Check.With(() => ObjectReader.Read<StructRow<StructRow<float>?>>(source).ToArray())
 			.That(
 				rows => rows.Length == 1,
-				rows => rows[0].Value.Value.Value == expected);
+				rows => rows[0].Value!.Value.Value == expected);
 		}
 
 		[Fact]
 		public void null_nullable_struct() {
-			var source = new SimpleDataReader(Col<float>("Value.ctorValue")) { new object[]{ null } };
+			var source = new SimpleDataReader(Col<float>("Value.ctorValue")) { new object?[] { null } };
 			source.SetNullable(0, true);
 			var r = ObjectReader.Read<StructRow<StructRow<float>?>>(source).ToArray();
 			Check.With(() => r)
@@ -199,13 +199,13 @@ namespace DataBoss.Data
 				rows => rows[0].Value.HasValue == false);
 		}
 
-		#pragma warning disable CS0649
+#pragma warning disable CS0649
 		struct WithNullable
 		{
 			public int? CanBeNull;
-			public int NotNull; 
+			public int NotNull;
 		}
-		#pragma warning restore CS0649
+#pragma warning restore CS0649
 
 		[Fact]
 		public void nullable_nullable() {
@@ -218,12 +218,12 @@ namespace DataBoss.Data
 				rows => rows[0].Value.Equals(new WithNullable { NotNull = 1 }));
 		}
 
-		#pragma warning disable CS0649
+#pragma warning disable CS0649
 		struct RowOf<T>
 		{
 			public T Item;
 		}
-		#pragma warning restore CS0649
+#pragma warning restore CS0649
 
 		[Fact]
 		public void row_with_nullable_missing_field() {
@@ -239,10 +239,10 @@ namespace DataBoss.Data
 
 		[Fact]
 		public void row_with_nullab_missing_field2() {
-			var source = new SimpleDataReader(Col<int>("Item.key"), Col<int>("Item.value")) { new object[] { null, null} };
+			var source = new SimpleDataReader(Col<int>("Item.key"), Col<int>("Item.value")) { new object[] { null, null } };
 			source.SetNullable(0, true);
 			source.SetNullable(1, true);
-			var r = ObjectReader.Read<RowOf<KeyValuePair<int,int?>?>>(source).ToArray();
+			var r = ObjectReader.Read<RowOf<KeyValuePair<int, int?>?>>(source).ToArray();
 			Check.With(() => r)
 			.That(
 				rows => rows.Length == 1,
@@ -267,7 +267,7 @@ namespace DataBoss.Data
 
 		[Fact]
 		public void ctors_can_have_complex_arguments() {
-			var expected = new MyThing<MyThing<int>> (new MyThing<int>(42));
+			var expected = new MyThing<MyThing<int>>(new MyThing<int>(42));
 			var source = new SimpleDataReader(Col<int>("value.value")) { expected.Value.Value };
 			Check.With(() => ObjectReader.Read<MyThing<MyThing<int>>>(source).ToArray())
 			.That(
@@ -282,7 +282,7 @@ namespace DataBoss.Data
 			MyThing<int> actual = null;
 			ObjectReader.Read(source, (MyThing<int> x) => actual = x);
 			Check.That(() => actual != null);
-			Check.That(() => actual.Value == expected.Value); 
+			Check.That(() => actual.Value == expected.Value);
 		}
 
 
@@ -356,13 +356,13 @@ namespace DataBoss.Data
 				.That(x => x[0].Value == 0);
 		}
 
-		#pragma warning disable CS0649
+#pragma warning disable CS0649
 		class MyRequiredValue<T>
 		{
 			[Required]
 			public T Value;
 		}
-		#pragma warning restore CS0649
+#pragma warning restore CS0649
 
 		[Fact]
 		public void ensures_required_fields_are_present() {
@@ -383,10 +383,10 @@ namespace DataBoss.Data
 		[Fact]
 		public void RowVersion_from_bytes() {
 			var source = new SimpleDataReader(Col<byte[]>("Value.value"));
-			source.Add(new byte[]{ 1, 2, 3, 4, 5, 6, 7, 8 });
+			source.Add(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 });
 			Check
 				.With(() => ObjectReader.Read<ValueRow<RowVersion>>(source).ToArray())
-				.That(x => x[0].Value == new RowVersion(new byte[]{ 1, 2, 3, 4, 5, 6, 7, 8, }));
+				.That(x => x[0].Value == new RowVersion(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, }));
 		}
 
 		class MyCastable
@@ -432,7 +432,7 @@ namespace DataBoss.Data
 			var read = ObjectReader.Read<MyColumnNames>(rows).ToArray();
 
 			Check.That(
-				() => read.Length== 1,
+				() => read.Length == 1,
 				() => read[0].Field == 1,
 				() => read[0].Property == 2);
 		}
@@ -452,7 +452,7 @@ namespace DataBoss.Data
 
 			var first = ObjectReader.Read<ValueRow<int>>(reader, leaveOpen: true).ToList();
 			reader.NextResult();
-			var second = ObjectReader.Read<ValueProp<int>>(reader, leaveOpen:true).ToList();
+			var second = ObjectReader.Read<ValueProp<int>>(reader, leaveOpen: true).ToList();
 
 			Check.That(
 				() => closed.HasBeenCalled == false,

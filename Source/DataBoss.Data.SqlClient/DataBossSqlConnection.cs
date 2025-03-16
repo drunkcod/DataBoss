@@ -3,14 +3,12 @@ namespace DataBoss.Data.MsSql
 {
 	using Microsoft.Data.SqlClient;
 #else
-namespace DataBoss.Data
+namespace DataBoss.Data.SqlClient
 {
 	using System.Data.SqlClient;
 #endif
 	using System.Data;
 	using System;
-	using System.Security.Cryptography;
-	using System.Reflection.Emit;
 	using System.Threading.Tasks;
 	using System.Data.Common;
 	using System.Threading;
@@ -66,7 +64,7 @@ namespace DataBoss.Data
 			using var cmd = c.CreateCommand();
 			c.Open();
 			var dbToCreate = cmd.ExecuteScalar("select case when db_id(@db) is null then quotename(@db) else null end", new { db = dbName });
-			if(dbToCreate is DBNull)
+			if (dbToCreate is DBNull)
 				return;
 			cmd.ExecuteNonQuery($"create database {dbToCreate}");
 		}
@@ -110,7 +108,7 @@ namespace DataBoss.Data
 				+ "where p.name = 'version' and p.class = 1 and tables.object_id = p.major_id\n"
 				+ ") is null then 0 else 1 end\n"
 				+ "from sys.tables\n"
-				+ "where name = @tableName", new { tableName});
+				+ "where name = @tableName", new { tableName });
 			return (int)c.ExecuteScalar();
 		}
 
@@ -119,7 +117,7 @@ namespace DataBoss.Data
 				  "select isnull(default_schema_name, 'dbo')\n"
 				+ "from sys.database_principals\n"
 				+ "where principal_id = database_principal_id()");
-			
+
 			return (string)c.ExecuteScalar();
 		}
 

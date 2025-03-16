@@ -1,10 +1,10 @@
 using System;
-using System.Data.SqlClient;
 using System.Linq;
+using Microsoft.Data.SqlClient;
 using CheckThat;
 using Xunit;
 
-namespace DataBoss.Data
+namespace DataBoss.Data.MsSql
 {
 	[Trait("Category", "Database")]
 	public class DbObjectReaderSpec : IClassFixture<SqlServerFixture>, IDisposable
@@ -12,9 +12,9 @@ namespace DataBoss.Data
 		SqlConnection Db;
 		DbObjectReader<SqlCommand, SqlDataReader> DbReader;
 
-		#pragma warning disable CS0649
+#pragma warning disable CS0649
 		struct Row { public int Value; }
-		#pragma warning restore CS0649
+#pragma warning restore CS0649
 
 		public DbObjectReaderSpec(SqlServerFixture db) {
 			Db = new SqlConnection(db.ConnectionString);
@@ -63,8 +63,7 @@ namespace DataBoss.Data
 		}
 
 		[Fact]
-		public void stops_retry_on_null_timeout()
-		{
+		public void stops_retry_on_null_timeout() {
 			Db.ExecuteNonQuery("select Value = 1 into #Temp");
 
 			Check.Exception<SqlException>(() => DbReader.Query(@"

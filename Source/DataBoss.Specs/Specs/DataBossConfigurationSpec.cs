@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
-using System.Data.SqlClient;
 using System.IO;
 using System.Linq;
 using System.Text;
 using CheckThat;
 using DataBoss.Migrations;
+using Microsoft.Data.SqlClient;
 using Xunit;
 
 namespace DataBoss
@@ -16,7 +16,7 @@ namespace DataBoss
 		{
 			[Fact]
 			public void integrated_security() {
-				Check.That(() => 
+				Check.That(() =>
 					new DataBossConfiguration {
 						ServerInstance = ".",
 						Database = "MyDB"
@@ -25,10 +25,10 @@ namespace DataBoss
 
 			[Fact]
 			public void local_default_instance() {
-				var cs = new DataBossConfiguration { 
-					Database = "MyDB", 
+				var cs = new DataBossConfiguration {
+					Database = "MyDB",
 				}.GetConnectionString();
-				
+
 				Check.That(() => cs.Contains("Data Source=."));
 			}
 		}
@@ -62,14 +62,14 @@ namespace DataBoss
 
 		[Fact]
 		public void uses_supplied_user_and_password_if_available() => Check
-			.With(() => new DataBossConfiguration{ Database = ".", User = "sa", Password = "pass" }.GetConnectionString())
+			.With(() => new DataBossConfiguration { Database = ".", User = "sa", Password = "pass" }.GetConnectionString())
 			.That(
 				cs => cs.Contains("User ID=sa"),
 				cs => cs.Contains("Password=pass"));
 
 		[Fact]
 		public void requires_Database_to_be_set_when_getting_connection_string() {
-			Check.Exception<InvalidOperationException>(() => 
+			Check.Exception<InvalidOperationException>(() =>
 				new DataBossConfiguration { }.GetConnectionString());
 		}
 
@@ -90,7 +90,7 @@ namespace DataBoss
 				.That(
 					x => x.ServerInstance == "TheServer",
 					x => x.Database == "TheDatabase",
-					x => x.UseIntegratedSecurity);				
+					x => x.UseIntegratedSecurity);
 		}
 
 		[Fact]
@@ -109,7 +109,7 @@ namespace DataBoss
 				args.Concat(new[] {
 					"-Target", "target",
 					"<command>"
-				}), 
+				}),
 				_ => new DataBossConfiguration());
 		}
 

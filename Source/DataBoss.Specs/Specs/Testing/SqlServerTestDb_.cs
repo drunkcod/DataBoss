@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Data.SqlClient;
 using CheckThat;
 using DataBoss.Data;
 using DataBoss.Testing.SqlServer;
+using Microsoft.Data.SqlClient;
 using Xunit;
 
 namespace DataBoss.Testing
@@ -35,7 +35,7 @@ namespace DataBoss.Testing
 
 			Check.That(() => CountDatabasesByName(name) == 0);
 			Cleanup(SqlServerTestDb.GetOrCreate(Config.WithName(name)));
-			Check.That(() => CountDatabasesByName(name) == 1);			
+			Check.That(() => CountDatabasesByName(name) == 1);
 		}
 
 		[Fact]
@@ -52,9 +52,9 @@ namespace DataBoss.Testing
 			Check.That(() => CountDatabasesByName(db.Name) == 0);
 		}
 
-		int CountDatabasesByName(string name) => 
+		int CountDatabasesByName(string name) =>
 			(int)ExecuteScalar(
-				"select count(*) from master.sys.databases where name = @name", 
+				"select count(*) from master.sys.databases where name = @name",
 				new { name });
 
 		object ExecuteScalar<T>(string query, T args) {

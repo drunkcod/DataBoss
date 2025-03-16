@@ -3,7 +3,7 @@ namespace DataBoss.Data.MsSql
 {
 	using Microsoft.Data.SqlClient;
 #else
-namespace DataBoss.Data
+namespace DataBoss.Data.SqlClient
 {
 	using System.Data.SqlClient;
 #endif
@@ -27,11 +27,11 @@ namespace DataBoss.Data
 
 		public ISqlDialect Dialect => MsSqlDialect.Instance;
 
-		public override string ConnectionString { 
-			get => inner.ConnectionString; 
-			set => inner.ConnectionString = value; 
+		public override string ConnectionString {
+			get => inner.ConnectionString;
+			set => inner.ConnectionString = value;
 		}
-	
+
 		public override string Database => inner.Database;
 		public override string DataSource => inner.DataSource;
 		public override string ServerVersion => inner.ServerVersion;
@@ -123,7 +123,7 @@ namespace DataBoss.Data
 		public int GetTableVersion(string tableName) => new DataBossSqlConnection(inner).GetTableVersion(tableName);
 		public void SetTableVersion(string tableName, int version) => new DataBossSqlConnection(inner).SetTableVersion(tableName, version);
 
-		public string  GetDefaultSchema() => new DataBossSqlConnection(inner).GetDefaultSchema();
+		public string GetDefaultSchema() => new DataBossSqlConnection(inner).GetDefaultSchema();
 	}
 
 	public class ProfiledSqlCommandExecutingEventArgs : EventArgs
@@ -150,7 +150,7 @@ namespace DataBoss.Data
 		}
 	}
 
-	public class ProfiledBulkCopyStartingEventArgs : EventArgs 
+	public class ProfiledBulkCopyStartingEventArgs : EventArgs
 	{
 		public readonly string DestinationTable;
 		public readonly ProfiledDataReader Rows;

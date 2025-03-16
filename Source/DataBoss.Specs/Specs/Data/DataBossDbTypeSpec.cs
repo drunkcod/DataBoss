@@ -4,13 +4,13 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Data;
 using System.Data.Common;
-using System.Data.SqlClient;
 using System.Data.SqlTypes;
 using System.Globalization;
 using System.Linq;
 using CheckThat;
 using DataBoss.Data.SqlServer;
 using DataBoss.Specs;
+using Microsoft.Data.SqlClient;
 using Xunit;
 
 namespace DataBoss.Data
@@ -57,13 +57,13 @@ namespace DataBoss.Data
 		public void to_db_type(Type type, string dbType, bool nullable) =>
 			Check.That(() => DataBossDbType.From(type, new StubAttributeProvider()).ToString() == DataBossDbType.Create(dbType, null, nullable).ToString());
 
-		#pragma warning disable CS0649
+#pragma warning disable CS0649
 		class MyRowType
 		{
 			[Column(TypeName = "decimal(18, 5)")]
 			public decimal Value;
 		}
-		#pragma warning restore CS0649
+#pragma warning restore CS0649
 
 		[Fact]
 		public void to_db_type_with_column_type_override() {
@@ -76,14 +76,14 @@ namespace DataBoss.Data
 			Check.That(() => DataBossDbType.From(typeof(string), new StubAttributeProvider().Add(new RequiredAttribute())) == DataBossDbType.Create("nvarchar", int.MaxValue, false));
 
 		[Fact]
-		public void MaxLengthAttribute_controls_string_column_widht()=>
+		public void MaxLengthAttribute_controls_string_column_widht() =>
 			Check.That(() => DataBossDbType.From(typeof(string), new StubAttributeProvider().Add(new MaxLengthAttribute(31))) == DataBossDbType.Create("nvarchar", 31, true));
 
 		[Theory, MemberData(nameof(DbParameterRows))]
 		public void from_DbParameter(DbParameter parameter, string expected) =>
 			Check.That(() => DataBossDbType.ToDataBossDbType(parameter).ToString() == expected);
 
-		public static IEnumerable<object[]> DbParameterRows() => 
+		public static IEnumerable<object[]> DbParameterRows() =>
 			new[] {
 				(Parameter(SqlDbType.Int, isNullable: false), "int"),
 				(Parameter(SqlDbType.Int, isNullable: true), "int"),
@@ -93,7 +93,7 @@ namespace DataBoss.Data
 				(Parameter(false), "bit"),
 				(Parameter("Hello"), "nvarchar(5)"),
 				(Parameter(new byte[]{ 1, 2, 3, 4 }), "binary(4)")
-			}.Select(x => new object[]{ x.Item1, x.Item2 });
+			}.Select(x => new object[] { x.Item1, x.Item2 });
 
 		[Theory, MemberData(nameof(FormatValueRows))]
 		public void format_value(DataBossDbType dbType, object value, string expected) =>

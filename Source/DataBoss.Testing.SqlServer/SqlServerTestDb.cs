@@ -138,8 +138,8 @@ namespace DataBoss.Testing.SqlServer
 		static Action<string> CreatePoolCleaner() {
 			var cs = Expression.Parameter(typeof(string), "connectionString");
 			var body = Array.ConvertAll(new[] {
+				"Microsoft.Data.SqlClient.SqlConnection, Microsoft.Data.SqlClient, PublicKeyToken=23ec7fc2d6eaa4a5",
 				"System.Data.SqlClient.SqlConnection, System.Data.SqlClient, PublicKeyToken=b03f5f7f11d50a3a",
-				"Microsoft.Data.SqlClient.SqlConnection, Microsoft.Data.SqlClient, PublicKeyToken=23ec7fc2d6eaa4a5"
 			}, Type.GetType).Where(x => x != null).Select(dbType => {
 				var db = Expression.Variable(dbType, "db");
 				return Expression.Block(

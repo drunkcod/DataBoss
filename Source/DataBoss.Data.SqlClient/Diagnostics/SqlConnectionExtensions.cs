@@ -1,17 +1,18 @@
 #if MSSQLCLIENT
 using DataBoss.Data.MsSql;
 using Microsoft.Data.SqlClient;
+using SqlObjectReader = DataBoss.Data.MsSql.SqlObjectReader;
 #else
-	using DataBoss.Data;
-	using System.Data.SqlClient;
+using DataBoss.Data;
+using System.Data.SqlClient;
+using SqlObjectReader = DataBoss.Data.SqlClient.SqlObjectReader;
 #endif
 
 namespace DataBoss.Diagnostics
 {
 	public static class SqlConnectionExtensions
 	{
-		public static DatabaseInfo GetDatabaseInfo(this SqlConnection connection)
-		{
+		public static DatabaseInfo GetDatabaseInfo(this SqlConnection connection) {
 			var reader = SqlObjectReader.Create(connection);
 			return reader.Single<DatabaseInfo>(@"
 				select 

@@ -10,21 +10,21 @@ namespace DataBoss.Specs
 	{
 		class SimpleDataReaderResult
 		{
-			public KeyValuePair<string, Type>[] Fields;
-			public List<object[]> Records = new List<object[]>();
+			public KeyValuePair<string, Type>[]? Fields;
+			public List<object?[]> Records = [];
 			public DataTable schema = new DataTable();
 			public int currentRecord;
 
 		}
 
-		Queue<SimpleDataReaderResult> results;
+		Queue<SimpleDataReaderResult>? results;
 		SimpleDataReaderResult current;
 		SimpleDataReaderResult addTo;
 		DataTable Schema => current.schema;
-		KeyValuePair<string, Type>[] Fields => current.Fields;
-		List<object[]> Records => current.Records;
+		KeyValuePair<string, Type>[]? Fields => current.Fields;
+		List<object?[]>? Records => current.Records;
 
-		public event EventHandler<EventArgs> Closed;
+		public event EventHandler<EventArgs>? Closed;
 
 		public SimpleDataReader(params KeyValuePair<string, Type>[] fields) {
 			this.current = this.addTo = NewResult(fields);
@@ -49,40 +49,39 @@ namespace DataBoss.Specs
 			return result;
 		}
 
-		public void Add(params object[] record) {
+		public void Add(params object?[] record) {
 
-			if(record.Length != addTo.Fields.Length)
+			if (record.Length != addTo.Fields!.Length)
 				throw new InvalidOperationException("Invalid record length");
 			addTo.Records.Add(record);
 		}
 
-		public void SetNullable(int ordinal, bool isNullable) 
-		{
+		public void SetNullable(int ordinal, bool isNullable) {
 			Schema.Rows[ordinal][DataReaderSchemaColumns.AllowDBNull.Name] = isNullable;
 		}
 
-		public int Count => Records.Count;
-		public int FieldCount => Fields.Length;
+		public int Count => Records!.Count;
+		public int FieldCount => Fields!.Length;
 
 		public bool Read() {
-			if(current.currentRecord == Records.Count)
+			if (current.currentRecord == Records!.Count)
 				return false;
 			++current.currentRecord;
 			return true;
 		}
-		public string GetName(int i) => Fields[i].Key;
-		public Type GetFieldType(int i) => Fields[i].Value;
+		public string GetName(int i) => Fields![i].Key;
+		public Type GetFieldType(int i) => Fields![i].Value;
 		public object GetValue(int i) => Records[current.currentRecord - 1][i];
 
 		public void Close() {
-			Closed?.Invoke(this, EventArgs.Empty);  
+			Closed?.Invoke(this, EventArgs.Empty);
 		}
 		public void Dispose() => Close();
 
 		public string GetDataTypeName(int i) { throw new NotImplementedException(); }
 		public int GetValues(object[] values) { throw new NotImplementedException(); }
 		public int GetOrdinal(string name) => Array.FindIndex(Fields, x => x.Key == name);
-	
+
 		public long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) { throw new NotImplementedException(); }
 		public long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) { throw new NotImplementedException(); }
 
@@ -119,6 +118,6 @@ namespace DataBoss.Specs
 		public int RecordsAffected { get { throw new NotImplementedException(); } }
 
 		IEnumerator<object[]> IEnumerable<object[]>.GetEnumerator() => Records.GetEnumerator();
-		IEnumerator IEnumerable.GetEnumerator() => ((IEnumerable) Records).GetEnumerator();
+		IEnumerator IEnumerable.GetEnumerator() => ((IEnumerable)Records).GetEnumerator();
 	}
 }

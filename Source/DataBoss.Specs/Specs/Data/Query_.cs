@@ -4,7 +4,7 @@ using CheckThat;
 using DataBoss.Linq;
 using Xunit;
 
-namespace DataBoss.Data
+namespace DataBoss.Data.MsSql
 {
 	public class Query_ : IClassFixture<SqlServerFixture>
 	{

@@ -3,7 +3,7 @@ namespace DataBoss.Data.MsSql
 {
 	using Microsoft.Data.SqlClient;
 #else
-namespace DataBoss.Data
+namespace DataBoss.Data.SqlClient
 {
 	using System.Data.SqlClient;
 #endif
@@ -24,7 +24,7 @@ namespace DataBoss.Data
 		int nextConnectionId = 0;
 		int resetAt = 0;
 		bool statisticsEnabled = false;
-		
+
 		public DataBossConnectionProvider(SqlConnectionStringBuilder connectionString) : this(connectionString.ToString()) { }
 
 		public DataBossConnectionProvider(string connectionString) {
@@ -51,7 +51,7 @@ namespace DataBoss.Data
 			db.Disposed += delegate {
 				connections.TryRemove(id, out var dead);
 				var stats = dead.RetrieveStatistics().GetEnumerator();
-				while(stats.MoveNext())
+				while (stats.MoveNext())
 					accumulatedStats.AddOrUpdate((string)stats.Key, (long)stats.Value, (_, acc) => acc + (long)stats.Value);
 			};
 			return db;
@@ -66,9 +66,9 @@ namespace DataBoss.Data
 				Connection = NewConnection(),
 				CommandType = commandType,
 			};
-			if((options & CommandOptions.DisposeConnection) != 0)
+			if ((options & CommandOptions.DisposeConnection) != 0)
 				cmd.Disposed += SqlCommandExtensions.DisposeConnection;
-			if((options & CommandOptions.OpenConnection) != 0)
+			if ((options & CommandOptions.OpenConnection) != 0)
 				cmd.Connection.Open();
 			return cmd;
 		}
@@ -114,7 +114,7 @@ namespace DataBoss.Data
 		SqlCommand NewAutoCommand<TArgs>(string commandText, TArgs args, CommandType commandType) =>
 			NewCommand(commandText, args, CommandOptions.DisposeConnection | CommandOptions.OpenConnection, commandType);
 
-		public SqlDataReader ExecuteReader(string commandText, int? commandTimeout = null) => 
+		public SqlDataReader ExecuteReader(string commandText, int? commandTimeout = null) =>
 			ExecuteReaderWithCleanup(NewCommand(commandText, CommandOptions.OpenConnection), commandTimeout);
 
 		public SqlDataReader ExecuteReader<TArgs>(string commandText, TArgs args, int? commandTimeout = null) =>
@@ -127,7 +127,8 @@ namespace DataBoss.Data
 			c.Connection.StateChange += cleanup.CleanupOnClose;
 			try {
 				return (cleanup.Reader = c.ExecuteReader(CommandBehavior.CloseConnection));
-			} catch {
+			}
+			catch {
 				c.Connection.Close();
 				throw;
 			}
@@ -142,7 +143,7 @@ namespace DataBoss.Data
 
 			public void CleanupOnClose(object sender, StateChangeEventArgs e) {
 				var connection = (SqlConnection)sender;
-				if(e.CurrentState == ConnectionState.Closed) {
+				if (e.CurrentState == ConnectionState.Closed) {
 					Cleanup();
 					connection.Dispose();
 				}
@@ -159,7 +160,7 @@ namespace DataBoss.Data
 
 		public void SetStatisticsEnabled(bool value) {
 			statisticsEnabled = value;
-			foreach(var item in connections.Values)
+			foreach (var item in connections.Values)
 				item.StatisticsEnabled = value;
 		}
 
@@ -172,9 +173,9 @@ namespace DataBoss.Data
 			var connectionStats = Array.ConvertAll(
 				connections.Values.ToArray(),
 				x => x.RetrieveStatistics());
-			foreach(var item in connectionStats) {
+			foreach (var item in connectionStats) {
 				var itemStats = item.GetEnumerator();
-				while(itemStats.MoveNext()) {
+				while (itemStats.MoveNext()) {
 					var key = (string)itemStats.Key;
 					stats.TryGetValue(key, out var found);
 					stats[key] = found + (long)itemStats.Value;
@@ -183,10 +184,10 @@ namespace DataBoss.Data
 			return new ProviderStatistics(stats);
 		}
 
-		public void ResetStatistics() { 
+		public void ResetStatistics() {
 			accumulatedStats.Clear();
 			resetAt = nextConnectionId;
-			foreach(var item in connections.Values)
+			foreach (var item in connections.Values)
 				item.ResetStatistics();
 		}
 

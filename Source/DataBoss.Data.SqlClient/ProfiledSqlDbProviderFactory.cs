@@ -3,7 +3,7 @@ namespace DataBoss.Data.MsSql
 {
 	using Microsoft.Data.SqlClient;
 #else
-namespace DataBoss.Data
+namespace DataBoss.Data.SqlClient
 {
 	using System.Data.SqlClient;
 #endif

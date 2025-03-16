@@ -1,5 +1,5 @@
-using System.Data.SqlClient;
 using CheckThat;
+using Microsoft.Data.SqlClient;
 using Xunit;
 
 namespace DataBoss.Data

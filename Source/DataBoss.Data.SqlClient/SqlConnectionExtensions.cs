@@ -3,7 +3,7 @@ namespace DataBoss.Data.MsSql
 {
 	using Microsoft.Data.SqlClient;
 #else
-namespace DataBoss.Data
+namespace DataBoss.Data.SqlClient
 {
 	using System.Data.SqlClient;
 #endif
@@ -13,7 +13,7 @@ namespace DataBoss.Data
 
 	public static class SqlConnectionExtensions
 	{
-		public static SqlCommand CreateCommand(this SqlConnection connection, string cmdText) =>  
+		public static SqlCommand CreateCommand(this SqlConnection connection, string cmdText) =>
 			new(cmdText, connection);
 
 		public static SqlCommand CreateCommand(this SqlConnection connection, string cmdText, object args) {
@@ -28,7 +28,7 @@ namespace DataBoss.Data
 			return cmd;
 		}
 
-		public static void CreateTable(this SqlConnection connection, string tableName, IDataReader data)  =>
+		public static void CreateTable(this SqlConnection connection, string tableName, IDataReader data) =>
 			CreateTable(connection, null, tableName, data);
 
 		public static void CreateTable(this SqlConnection connection, SqlTransaction transaction, string tableName, IDataReader data) =>
@@ -107,7 +107,7 @@ namespace DataBoss.Data
 
 		public static void Insert<T>(this SqlConnection connection, SqlTransaction transaction, string destinationTable, IEnumerable<T> rows, DataBossBulkCopySettings settings) =>
 			new DataBossBulkCopy(connection, transaction, settings).Insert(destinationTable, rows);
-		
+
 		public static void Insert(this SqlConnection connection, string destinationTable, IDataReader toInsert) =>
 			Insert(connection, null, destinationTable, toInsert);
 

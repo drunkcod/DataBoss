@@ -221,17 +221,20 @@ namespace DataBoss
 
 		[Obsolete]
 		public SqlServerFixture() {
+
 			lock (sqlContainer) {
 				if (sqlContainer.State != TestcontainersStates.Running)
 					sqlContainer.StartAsync().Wait();
 			}
+
+
 			Config = new TestDbConfig {
 				Username = sqlContainer.Username,
 				Password = sqlContainer.Password,
 				Port = sqlContainer.Port,
 			};
 			this.testDb = SqlServerTestDb.Create(Config);
-			Connection = new SqlConnection(testDb.ConnectionString);
+			Connection = new SqlConnection(testDb.ConnectionString + ";Encrypt=False");
 			Connection.Open();
 		}
 

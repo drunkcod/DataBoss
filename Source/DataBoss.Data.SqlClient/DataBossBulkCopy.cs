@@ -3,7 +3,7 @@ namespace DataBoss.Data.MsSql
 {
 	using Microsoft.Data.SqlClient;
 #else
-namespace DataBoss.Data
+namespace DataBoss.Data.SqlClient
 {
 	using System.Data.SqlClient;
 #endif
@@ -92,7 +92,7 @@ namespace DataBoss.Data
 			}, cancellationToken);
 		}
 
-		public void Insert<T>(string destinationTable, IEnumerable<T> rows) => 
+		public void Insert<T>(string destinationTable, IEnumerable<T> rows) =>
 			Insert(destinationTable, SequenceDataReader.Create(rows, x => x.MapAll()));
 
 		public ICollection<int> InsertAndGetIdentities<T>(string destinationTable, IEnumerable<T> rows) {
@@ -102,8 +102,8 @@ namespace DataBoss.Data
 				x.MapAll();
 			});
 
-			using(var cmd = context.CreateCommand()) {
-				cmd.CommandText =$@"
+			using (var cmd = context.CreateCommand()) {
+				cmd.CommandText = $@"
 					{MsSqlDialect.Scripter.ScriptTable(TempTableName, toInsert)}
 					create clustered index [#$_$] on {TempTableName}([{toInsert.GetName(0)}])";
 				cmd.ExecuteNonQuery();
@@ -121,7 +121,7 @@ namespace DataBoss.Data
 			
 					drop table {TempTableName}";
 				var ids = new List<int>(n);
-				var reader = ObjectReader.For(() => cmd.ExecuteReader(CommandBehavior.SingleResult | CommandBehavior.SequentialAccess)); 
+				var reader = ObjectReader.For(() => cmd.ExecuteReader(CommandBehavior.SingleResult | CommandBehavior.SequentialAccess));
 				reader.Read<IdRow<int>>(x => ids.Add(x.Id));
 				ids.Sort();
 				return ids;

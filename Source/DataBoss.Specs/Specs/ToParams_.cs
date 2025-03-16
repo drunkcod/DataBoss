@@ -86,7 +86,7 @@ namespace DataBoss
 	public class ToParams_SqlCommand : ToParamsFixture<SqlCommand, SqlParameter>
 	{
 		protected override SqlCommand NewCommand() => new();
-		protected override ISqlDialect SqlDialect => MsSqlDialect.Instance;
+		protected override ISqlDialect SqlDialect => Data.MsSql.MsSqlDialect.Instance;
 
 		[Theory]
 		[InlineData(typeof(string))]
@@ -147,6 +147,7 @@ namespace DataBoss
 	public class ToParams_IDbCommand : ToParamsFixture<IDbCommand, IDbDataParameter>
 	{
 		protected override IDbCommand NewCommand() => new SqlCommand();
-		protected override ISqlDialect SqlDialect => MsSqlDialect.Instance;
+		protected override ISqlDialect SqlDialect => Data.MsSql.MsSqlDialect.Instance;
 	}
+
 }

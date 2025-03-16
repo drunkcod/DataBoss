@@ -43,7 +43,7 @@ namespace DataBoss
 		[XmlIgnore]
 		public string Server {
 			get {
-				if(string.IsNullOrEmpty(ServerInstance))
+				if (string.IsNullOrEmpty(ServerInstance))
 					return IsMsSql ? "." : "localhost";
 				return IsMsSql ? ToMsSqlInstance(ServerInstance) : ServerInstance;
 			}
@@ -62,9 +62,9 @@ namespace DataBoss
 		public IDataBossMigration GetTargetMigration() =>
 			new DataBossCompositeMigration(Migrations.ConvertAll(MakeDirectoryMigration));
 
-		static IDataBossMigration MakeDirectoryMigration(DataBossMigrationPath x) => 
+		static IDataBossMigration MakeDirectoryMigration(DataBossMigrationPath x) =>
 			new DataBossDirectoryMigration(
-				x.Path, 
+				x.Path,
 				new DataBossMigrationInfo {
 					Id = 0,
 					Context = x.Context,
@@ -73,7 +73,7 @@ namespace DataBoss
 				x.IsRepeatable);
 
 		public static DataBossConfiguration Load(string path) {
-			var target = path.EndsWith(".databoss") 
+			var target = path.EndsWith(".databoss")
 			? path
 			: path + ".databoss";
 
@@ -90,28 +90,28 @@ namespace DataBoss
 		}
 
 		public string GetConnectionString() {
-			if(string.IsNullOrEmpty(Database))
+			if (string.IsNullOrEmpty(Database))
 				throw new InvalidOperationException("No database specified");
 
-			if(IsMsSql) return AsConnectionString(AddCredentials(new[] {
+			if (IsMsSql) return AsConnectionString(AddCredentials(new[] {
 				("Application Name", "DataBoss"),
 				("Pooling", "no"),
 				("Data Source", Server ?? "."),
 				("Database", Database),
 			}));
-			if(IsPostgres) return AsConnectionString(
-				("Host", ServerInstance ?? "127.0.0.1"), 
-				("Username", User), 
-				("Password", Password), 
+			if (IsPostgres) return AsConnectionString(
+				("Host", ServerInstance ?? "127.0.0.1"),
+				("Username", User),
+				("Password", Password),
 				("Database", Database));
 
 			throw new NotSupportedException();
 		}
 
 		IEnumerable<(string, string)> AddCredentials(IEnumerable<(string, string)> xs) {
-			if(UseIntegratedSecurity)
-				return xs.Concat(new[] {("Integrated Security", "True") });
-			else if(string.IsNullOrEmpty(Password))
+			if (UseIntegratedSecurity)
+				return xs.Concat(new[] { ("Integrated Security", "True") });
+			else if (string.IsNullOrEmpty(Password))
 				throw new ArgumentException("No Password given for user '" + User + "'");
 			else return xs.Concat(new[]{
 				("User ID", User),
@@ -122,11 +122,11 @@ namespace DataBoss
 		static string AsConnectionString(params (string Key, string Value)[] xs) => AsConnectionString(xs.AsEnumerable());
 		static string AsConnectionString(IEnumerable<(string Key, string Value)> xs) {
 			using var i = xs.GetEnumerator();
-			if(!i.MoveNext())
+			if (!i.MoveNext())
 				return string.Empty;
 			var sb = new StringBuilder();
 			sb.Append(i.Current.Key).Append('=').Append(i.Current.Value);
-			while(i.MoveNext())	
+			while (i.MoveNext())
 				sb.Append(';').Append(i.Current.Key).Append('=').Append(i.Current.Value);
 			return sb.ToString();
 		}
@@ -136,15 +136,15 @@ namespace DataBoss
 
 		public IDbConnection GetDbConnection() {
 			var cs = GetConnectionString();
-			return IsMsSql ? NewConnection("System.Data.SqlClient.SqlConnection, System.Data.SqlClient", cs)
+			return IsMsSql ? NewConnection("Microsoft.Data.SqlClient.SqlConnection, Microsoft.Data.SqlClient", cs)
 			: IsPostgres ? NewConnection("Npgsql.NpgsqlConnection, Npgsql", cs)
 			: throw new NotSupportedException();
 		}
 
 		static IDbConnection NewConnection(string typename, string connectionStrinng) {
 			var t = Type.GetType(typename) ?? throw new NotSupportedException("Failed to load type " + typename);
-			var ctor = t.GetConstructor(new[]{ typeof(string) });
-			return (IDbConnection)ctor.Invoke(new[]{ connectionStrinng });
+			var ctor = t.GetConstructor(new[] { typeof(string) });
+			return (IDbConnection)ctor.Invoke(new[] { connectionStrinng });
 		}
 	}
 }

@@ -1,6 +1,6 @@
 using System;
-using System.Data.SqlClient;
 using DataBoss.Testing.SqlServer;
+using Microsoft.Data.SqlClient;
 
 namespace DataBoss.Data
 {
@@ -13,7 +13,7 @@ namespace DataBoss.Data
 			this.testDb = SqlServerTestDb.Create();
 		}
 
-		public void Dispose() => 
+		public void Dispose() =>
 			testDb.Dispose();
 
 		public SqlConnection Open() {

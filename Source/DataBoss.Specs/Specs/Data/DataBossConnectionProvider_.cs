@@ -2,7 +2,7 @@ using System;
 using CheckThat;
 using Xunit;
 
-namespace DataBoss.Data
+namespace DataBoss.Data.MsSql
 {
 	public sealed class DataBossConnectionProvider_ : IClassFixture<SqlServerFixture>, IDisposable
 	{
@@ -16,9 +16,9 @@ namespace DataBoss.Data
 
 		[Fact]
 		public void keeps_live_count() {
-			using(var db = Connections.NewConnection())
+			using (var db = Connections.NewConnection())
 				Check.That(() => Connections.LiveConnections == 1);
-			
+
 			Check.That(() => Connections.LiveConnections == 0, () => Connections.ConnectionsCreated == 1);
 		}
 
@@ -27,7 +27,7 @@ namespace DataBoss.Data
 			Connections.SetStatisticsEnabled(true);
 			using var db = Connections.NewConnection(); db.Open();
 			db.ExecuteScalar("select 42");
-			
+
 			Check.With(() => Connections.RetrieveStatistics())
 				.That(stats => stats["SelectCount"] == 1);
 		}
@@ -35,15 +35,15 @@ namespace DataBoss.Data
 		[Fact]
 		public void keeps_stats_for_disposed_connections() {
 			Connections.SetStatisticsEnabled(true);
-			using(var db = Connections.NewConnection()) {
+			using (var db = Connections.NewConnection()) {
 				db.Open();
 				db.ExecuteScalar("select 1");
 			}
-			using(var db = Connections.NewConnection()) {
+			using (var db = Connections.NewConnection()) {
 				db.Open();
 				db.ExecuteScalar("select 2");
 			}
-			
+
 			Check.With(() => Connections.RetrieveStatistics())
 				.That(stats => stats.SelectCount == 2);
 		}
@@ -54,7 +54,7 @@ namespace DataBoss.Data
 			using var db = Connections.NewConnection(); db.Open();
 			db.ExecuteScalar("select 3");
 			Connections.ResetStatistics();
-			
+
 			Check.With(() => Connections.RetrieveStatistics())
 				.That(stats => stats["SelectCount"] == 0);
 		}
@@ -65,9 +65,9 @@ namespace DataBoss.Data
 			var db = Connections.NewConnection();
 			db.Disposed += (_, __) => disposed = true;
 			Connections.Cleanup();
-			
+
 			Check.That(
-				() => disposed, 
+				() => disposed,
 				() => Connections.LiveConnections == 0);
 		}
 
@@ -81,8 +81,7 @@ namespace DataBoss.Data
 
 		[Fact]
 		public void ExecuteReader() {
-			using(var r = Connections.ExecuteReader("select @value", new { value = 42 }))
-			{ }
+			using (var r = Connections.ExecuteReader("select @value", new { value = 42 })) { }
 			Check.That(() => Connections.LiveConnections == 0);
 
 		}
@@ -91,7 +90,8 @@ namespace DataBoss.Data
 		public void ExecuteReader_with_exception() {
 			try {
 				var r = Connections.ExecuteReader("!syntax error!", new { value = 42 });
-			} catch { }
+			}
+			catch { }
 
 			Check.That(() => Connections.LiveConnections == 0);
 		}

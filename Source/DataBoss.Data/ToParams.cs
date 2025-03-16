@@ -21,8 +21,7 @@ namespace DataBoss.Data
 			typeof(byte[]),
 		};
 
-		public static LambdaExpression CreateExtractor(ISqlDialect dialect, Type commandType, Type argType, Type parameterType)
-		{
+		public static LambdaExpression CreateExtractor(ISqlDialect dialect, Type commandType, Type argType, Type parameterType) {
 			var command = Expression.Parameter(commandType, "command");
 			var value = Expression.Parameter(parameterType, "value");
 
@@ -31,7 +30,7 @@ namespace DataBoss.Data
 			return Expression.Lambda(typeof(Action<,>).MakeGenericType(commandType, parameterType), extractor.GetResult(), command, value);
 		}
 
-		public static Action<TCommand, TArg> CompileExtractor<TCommand, TArg>(ISqlDialect dialect) { 
+		public static Action<TCommand, TArg> CompileExtractor<TCommand, TArg>(ISqlDialect dialect) {
 			var extractor = CreateExtractor(dialect, typeof(TCommand), typeof(TArg), typeof(TArg));
 			//ExpressionDebug.WriteExpr(extractor, Console.Out);
 			return (Action<TCommand, TArg>)extractor.Compile();
@@ -70,9 +69,9 @@ namespace DataBoss.Data
 				return new ExtractorContext(dialect, target, createParameter, getParameters, addParameter);
 			}
 
-			public (ParameterExpression, PropertyInfo) CreateParameter(string name, Type type, DbType dbType, List<Expression> block) { 
+			public (ParameterExpression, PropertyInfo) CreateParameter(string name, Type type, DbType dbType, List<Expression> block) {
 				var (createP, pValue) = dialect.CreateParameter(name, type, dbType);
-				if(createP is not null) {
+				if (createP is not null) {
 					var tP = Expression.Variable(createP.Type, name);
 					block.Add(Expression.Assign(tP, createP));
 					return (tP, pValue);
@@ -94,8 +93,8 @@ namespace DataBoss.Data
 				var (p, value) = CreateParameter(name, type, dbType, block);
 				var ps = new List<ParameterExpression> { p };
 
-				if(dialect.EnsureDBNull) {
-					initP =	initP.Type.IsClass 
+				if (dialect.EnsureDBNull) {
+					initP = initP.Type.IsClass
 					? Expression.Coalesce(
 						Expression.Convert(initP, typeof(object)),
 						Expression.Constant(DBNull.Value, typeof(object)))
@@ -119,11 +118,11 @@ namespace DataBoss.Data
 				.Where(x => x.CanRead)
 				.Concat<MemberInfo>(input.Type.GetFields());
 
-			foreach (var value in inputValues)  {
+			foreach (var value in inputValues) {
 				var name = prefix + value.Name;
 				var readMember = Expression.MakeMemberAccess(input, value);
 
-				if(dialect.TryCreateDialectSpecificParameter(name, readMember, out var dialectParameter)) {
+				if (dialect.TryCreateDialectSpecificParameter(name, readMember, out var dialectParameter)) {
 					extractor.AddParameter(dialectParameter);
 					continue;
 				}
@@ -139,25 +138,26 @@ namespace DataBoss.Data
 				else if (readMember.Type == typeof(Uri)) {
 					initP = AsString(readMember);
 					pType = rawType = typeof(string);
-				} else if (TryGetDbType(readMember, out var readAsDbType)) {
+				}
+				else if (TryGetDbType(readMember, out var readAsDbType)) {
 					initP = readAsDbType;
 					rawType = readAsDbType.Type;
 				}
-				
-				if(initP != null)
+
+				if (initP != null)
 					extractor.AddParameter(name, initP, pType, DataBossDbType.ToDbType(rawType));
 				else ExtractValues(extractor, dialect, name + "_", readMember);
 			}
 
 			Expression MakeParameterFromNullable(Expression value, Type rawType, out Type pType) {
-				if(dialect.SupportsNullable) {
+				if (dialect.SupportsNullable) {
 					pType = value.Type;
 					return value;
 				}
 
 				var hasValue = Expression.Convert(Expression.Property(value, "Value"), typeof(object));
 				var noValue = Expression.Constant(DBNull.Value, typeof(object));
-				var c =  Expression.Condition(Expression.Property(value, "HasValue"), hasValue, noValue);
+				var c = Expression.Condition(Expression.Property(value, "HasValue"), hasValue, noValue);
 				pType = rawType;
 				return c;
 			}
@@ -171,7 +171,7 @@ namespace DataBoss.Data
 
 		static bool TryGetDbType(Expression readMember, out Expression readAsDbType) {
 			var dbType = readMember.Type.SingleOrDefault<DbTypeAttribute>();
-			if(dbType != null) {
+			if (dbType != null) {
 				readAsDbType = Expression.Convert(readMember, dbType.Type);
 				return true;
 			}

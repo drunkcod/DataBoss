@@ -3,7 +3,7 @@ namespace DataBoss.Data.MsSql
 {
 	using Microsoft.Data.SqlClient;
 #else
-namespace DataBoss.Data
+namespace DataBoss.Data.SqlClient
 {
 	using System.Data.SqlClient;
 #endif
@@ -20,7 +20,7 @@ namespace DataBoss.Data
 		readonly ProfiledSqlConnection connection;
 		readonly TextWriter trace;
 
-		internal  ProfiledSqlConnectionTraceWriter(ProfiledSqlConnection connection, TextWriter trace) {
+		internal ProfiledSqlConnectionTraceWriter(ProfiledSqlConnection connection, TextWriter trace) {
 			this.trace = trace;
 			this.connection = connection;
 			connection.CommandExecuted += OnCommandExecuted;
@@ -38,7 +38,7 @@ namespace DataBoss.Data
 		void OnCommandExecuted(object _, ProfiledSqlCommandExecutedEventArgs e) {
 			var p = new StringBuilder();
 			var pSep = ",\r\n\t";
-			foreach(SqlParameter item in e.Command.Parameters) {
+			foreach (SqlParameter item in e.Command.Parameters) {
 				var dbType = DataBossDbType.ToDataBossDbType(item);
 				p.AppendFormat("{0} {1} = {2}{3}", item.ParameterName, dbType, dbType.FormatValue(item.Value), pSep);
 			}

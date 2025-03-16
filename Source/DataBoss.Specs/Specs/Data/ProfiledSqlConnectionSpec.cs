@@ -1,19 +1,19 @@
 using System;
-using System.Data.SqlClient;
 using System.Linq;
 using CheckThat;
 using CheckThat.Helpers;
 using DataBoss.Data.Common;
 using DataBoss.Linq;
 using Xunit;
+using Microsoft.Data.SqlClient;
 
-namespace DataBoss.Data
+namespace DataBoss.Data.MsSql
 {
 	public sealed class ProfiledSqlConnectionSpec : IClassFixture<SqlServerFixture>, IDisposable
-    {
+	{
 		readonly ProfiledSqlConnection con;
 
-		public ProfiledSqlConnectionSpec(SqlServerFixture db) { 
+		public ProfiledSqlConnectionSpec(SqlServerFixture db) {
 			con = new ProfiledSqlConnection(new SqlConnection(db.ConnectionString));
 			con.Open();
 		}
@@ -27,12 +27,12 @@ namespace DataBoss.Data
 
 			var expectedCommand = "select 42";
 			Check.That(() => (int)con.ExecuteScalar(expectedCommand) == 42);
-			commandExecuting.Check((_, e) => e.Command.CommandText == expectedCommand);;
+			commandExecuting.Check((_, e) => e.Command.CommandText == expectedCommand); ;
 		}
 
 		[Fact]
 		public void listens_to_ExecuteNonQuery() {
-			var commandExecuting = new EventSpy<ProfiledSqlCommandExecutingEventArgs>(				);
+			var commandExecuting = new EventSpy<ProfiledSqlCommandExecutingEventArgs>();
 			con.CommandExecuting += commandExecuting;
 
 			var expectedCommand = "select Id = 2 into #Foo union all select 3";
@@ -56,15 +56,14 @@ namespace DataBoss.Data
 		[Fact]
 		public void counts_rows_read() {
 			var readerClosed = new EventSpy<ProfiledDataReaderClosedEventArgs>();
-			var commandExecuted = new EventSpy<ProfiledSqlCommandExecutedEventArgs>((_, e) => 
-			{
+			var commandExecuted = new EventSpy<ProfiledSqlCommandExecutedEventArgs>((_, e) => {
 				e.DataReader.Closed += readerClosed;
 			});
 			con.CommandExecuted += commandExecuted;
 
 			var q = con.CreateCommand("select Id = 2 union all select 3 union all select 1");
 			var r = ObjectReader.For(() => q.ExecuteReader());
-				r.Read<IdRow<int>>().ToList();
+			r.Read<IdRow<int>>().ToList();
 			readerClosed.Check((_, e) => e.RowCount == 3);
 			commandExecuted.Check((_, e) => e.RowCount == 0);
 		}

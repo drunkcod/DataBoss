@@ -3,7 +3,7 @@ namespace DataBoss.Data.MsSql
 {
 	using Microsoft.Data.SqlClient;
 #else
-namespace DataBoss.Data
+namespace DataBoss.Data.SqlClient
 {
 	using System.Data.SqlClient;
 #endif
@@ -15,7 +15,7 @@ namespace DataBoss.Data
 		public static SqlObjectReader Create(SqlConnection connection) => new SqlObjectReader(connection.CreateCommand);
 
 		public SqlObjectReader(Func<SqlCommand> newCommand) : base(newCommand) { }
-		
+
 		public override void AddParameters<T>(SqlCommand cmd, T args) => cmd.AddParameters(args);
 	}
 }

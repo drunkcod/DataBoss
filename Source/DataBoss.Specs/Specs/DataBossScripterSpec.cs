@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using CheckThat;
 using DataBoss.Data;
+using DataBoss.Data.MsSql;
 using DataBoss.Data.Scripting;
 using DataBoss.Schema;
 using Xunit;
@@ -14,7 +15,7 @@ namespace DataBoss
 		[Fact]
 		public void can_script_reader_as_table() {
 			var scripter = NewScripter();
-			var data = SequenceDataReader.Create(new []{ new { Id = 1, Value = "Hello" } }, x => x.MapAll());
+			var data = SequenceDataReader.Create(new[] { new { Id = 1, Value = "Hello" } }, x => x.MapAll());
 			Check.That(() => scripter.ScriptTable("#Hello", data) == scripter.Join(
 				"create table [#Hello](",
 				"	[Id] int not null,",
@@ -59,7 +60,7 @@ namespace DataBoss
 
 		public class DataBossScripterTypeToTableSpec
 		{
-			#pragma warning disable CS0649
+#pragma warning disable CS0649
 			[Table("MyTable")]
 			class HavingOrderedAndNotColumns
 			{

@@ -50,7 +50,7 @@ namespace DataBoss.Testing.SqlServer
 			var cs = new SqlConnectionStringBuilder {
 				DataSource = DataSource,
 			};
-
+			cs.Encrypt = false;
 			if (Username != null) {
 				cs.UserID = Username;
 				cs.Password = Password;
