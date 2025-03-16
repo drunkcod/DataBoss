@@ -1,24 +1,24 @@
 using System;
 using System.Data;
-using System.Data.SqlClient;
 using System.Data.SqlTypes;
 using System.Linq;
 using System.Reflection;
 using CheckThat;
 using DataBoss.Data;
 using DataBoss.Data.SqlServer;
+using Microsoft.Data.SqlClient;
 using Xunit;
 
 namespace DataBoss
 {
-	public abstract class ToParamsFixture<TCommand, TParameter> 
-		where TCommand : IDbCommand 
+	public abstract class ToParamsFixture<TCommand, TParameter>
+		where TCommand : IDbCommand
 		where TParameter : IDbDataParameter
 	{
 		protected abstract TCommand NewCommand();
 		protected abstract ISqlDialect SqlDialect { get; }
 
-		protected TParameter[] GetParams<T>(T args) { 
+		protected TParameter[] GetParams<T>(T args) {
 			var cmd = NewCommand();
 			ToParams.CompileExtractor<TCommand, T>(SqlDialect)(cmd, args);
 			return cmd.Parameters.Cast<TParameter>().ToArray();
@@ -70,7 +70,7 @@ namespace DataBoss
 			Check.That(
 				() => x.Length == 1,
 				() => x[0].ParameterName == "Id",
-				() => x[0].DbType== DbType.Int32);
+				() => x[0].DbType == DbType.Int32);
 		}
 
 		[Fact]
@@ -94,13 +94,13 @@ namespace DataBoss
 		[InlineData(typeof(DateTime))]
 		[InlineData(typeof(decimal))]
 		[InlineData(typeof(byte[]))]
-		public void has_sql_type_mapping_for(Type clrType) => 
+		public void has_sql_type_mapping_for(Type clrType) =>
 			Check.That(() => ToParams.HasSqlTypeMapping(clrType));
 
 		[Fact]
 		public void SqlDbType_mappings() {
 			var p = GetParams(new {
-				ByteArray =  new byte[32],
+				ByteArray = new byte[32],
 			});
 
 			Check.That(
@@ -119,9 +119,9 @@ namespace DataBoss
 		[InlineData(typeof(decimal), SqlDbType.Decimal)]
 		[InlineData(typeof(SqlDecimal), SqlDbType.Decimal)]
 		[InlineData(typeof(RowVersion), SqlDbType.Binary)]
-		public void nullable_values(Type type, SqlDbType sqlDbType) => 
+		public void nullable_values(Type type, SqlDbType sqlDbType) =>
 			GetType().GetMethod(nameof(CheckNullable), BindingFlags.Instance | BindingFlags.NonPublic)
-			.MakeGenericMethod(type).Invoke(this, new object[]{ sqlDbType });
+			.MakeGenericMethod(type).Invoke(this, new object[] { sqlDbType });
 
 		void CheckNullable<T>(SqlDbType sqlDbType) where T : struct => Check.With(() =>
 			GetParams(new {
@@ -137,7 +137,7 @@ namespace DataBoss
 
 		[Fact]
 		public void RowVersion_as_SqlBinary_value() => Check
-			.With(() => GetParams(new { RowVersion = new RowVersion(new byte[8])}))
+			.With(() => GetParams(new { RowVersion = new RowVersion(new byte[8]) }))
 			.That(
 				paras => paras.Length == 1,
 				paras => paras[0].ParameterName == "RowVersion",
