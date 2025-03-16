@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Data.SqlClient;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,6 +8,7 @@ using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Configurations;
 using DotNet.Testcontainers.Containers;
 using DotNet.Testcontainers.Images;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 
 namespace DataBoss
@@ -179,6 +179,7 @@ namespace DataBoss
 
 		sealed class WaitUntilSqlConnectionOk : IWaitUntil
 		{
+			[Obsolete]
 			public async Task<bool> UntilAsync(IContainer container) {
 				var cs = new TestDbConfig {
 					Port = container.GetMappedPublicPort(DefaultPort),
@@ -201,10 +202,13 @@ namespace DataBoss
 	{
 		static readonly SqlServerContainer sqlContainer;
 		readonly SqlServerTestDb testDb;
+
+		[Obsolete]
 		public SqlConnection Connection { get; private set; }
 		public string ConnectionString => testDb.ConnectionString;
 		public readonly TestDbConfig Config;
 
+		[Obsolete]
 		public SqlConnection Open() {
 			var c = new SqlConnection(ConnectionString);
 			c.Open();
@@ -215,6 +219,7 @@ namespace DataBoss
 			sqlContainer = new SqlServerContainerBuilder().Build();
 		}
 
+		[Obsolete]
 		public SqlServerFixture() {
 			lock (sqlContainer) {
 				if (sqlContainer.State != TestcontainersStates.Running)

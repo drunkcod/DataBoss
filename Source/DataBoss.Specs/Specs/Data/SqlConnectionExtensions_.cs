@@ -1,12 +1,10 @@
-using System;
-using System.Data.SqlClient;
 using System.Linq;
 using CheckThat;
 using DataBoss.Diagnostics;
-using DataBoss.Testing.SqlServer;
+using Microsoft.Data.SqlClient;
 using Xunit;
 
-namespace DataBoss.Data
+namespace DataBoss.Data.MsSql
 {
 	public sealed class SqlConnectionExtensions_ : IClassFixture<SqlServerFixture>
 	{
@@ -18,20 +16,20 @@ namespace DataBoss.Data
 			this.db = db;
 		}
 
-		#pragma warning disable CS0649
+#pragma warning disable CS0649
 		class MyStuffRow
 		{
 			public int Id;
 			public string Value;
 		}
-		#pragma warning restore CS0649
+#pragma warning restore CS0649
 
 		[Fact]
-		public void insert_and_retreive_ids_is_zippable() { 
+		public void insert_and_retreive_ids_is_zippable() {
 			var destinationTableName = "#MyStuff";
 			Connection.ExecuteNonQuery($"create table {destinationTableName}(Id int identity, Value varchar(max) not null,)");
 
-			var newItems = new[]{ 
+			var newItems = new[]{
 				new { Value = "First" },
 				new { Value = "Second" },
 				new { Value = "Third" },

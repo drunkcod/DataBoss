@@ -1,9 +1,9 @@
 using System;
-using System.Data.SqlClient;
 using CheckThat;
+using Microsoft.Data.SqlClient;
 using Xunit;
 
-namespace DataBoss.Data
+namespace DataBoss.Data.MsSql
 {
 	[Trait("Category", "Database")]
 	public class SqlCommandEnumerableSpec : IClassFixture<SqlServerFixture>
@@ -68,6 +68,6 @@ namespace DataBoss.Data
 		}
 
 		DbCommandEnumerable<SqlCommand, SqlDataReader, int> IntRows(string query) =>
-			new DbCommandEnumerable<SqlCommand, SqlDataReader, int>(() => Db.CreateCommand(query), x => x.ExecuteReader(), (r,_) => ReadInt0, null);
+			new(() => Db.CreateCommand(query), x => x.ExecuteReader(), (r, _) => ReadInt0, null);
 	}
 }

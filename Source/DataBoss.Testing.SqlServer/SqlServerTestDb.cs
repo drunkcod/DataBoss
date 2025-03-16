@@ -1,11 +1,12 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Data.SqlClient;
 using System.Linq;
 using System.Linq.Expressions;
+using Microsoft.Data.SqlClient;
 using DataBoss.Data;
 using DataBoss.Linq;
+using DataBoss.Data.MsSql;
 
 namespace DataBoss.Testing.SqlServer
 {
@@ -55,7 +56,7 @@ namespace DataBoss.Testing.SqlServer
 				.ToList();
 
 			return xs.Any()
-			? c.ExecuteQuery<TestDbInfo> (
+			? c.ExecuteQuery<TestDbInfo>(
 					"select name = db_name, createdAt = cast(value as datetime) from (\n"
 					+ string.Join("\t\tunion all\n", xs.Select(x =>
 						  $"\tselect db_name = db_name({x.DatabaseId}), class, name, value\n"
@@ -63,7 +64,7 @@ namespace DataBoss.Testing.SqlServer
 					+ ") props\n"
 					+ "where class = 0 and name = 'testdb_created_at'")
 					.Select(x => new TestDbInfo(
-						x.Name, 
+						x.Name,
 						DateTime.SpecifyKind(x.CreatedAt, DateTimeKind.Utc).ToLocalTime(),
 						new SqlConnectionStringBuilder(serverConnectionString) { InitialCatalog = x.Name }.ToString()))
 					.ToList()
@@ -77,7 +78,7 @@ namespace DataBoss.Testing.SqlServer
 			GetOrCreate(new TestDbConfig { Name = name });
 
 		public static SqlServerTestDb GetOrCreate(TestDbConfig config) {
-			if(config?.Name == null)
+			if (config?.Name == null)
 				throw new ArgumentNullException("config.Name");
 			return GetTemporaryInstance(config);
 		}
@@ -85,8 +86,8 @@ namespace DataBoss.Testing.SqlServer
 		static SqlServerTestDb GetTemporaryInstance(TestDbConfig config) {
 			config = TestDbConfig.Finalize(config);
 			return DatabaseInstances.GetOrAdd(config.Name, delegate {
-				lock(DatabaseInstances) {
-					if(DatabaseInstances.TryGetValue(config.Name, out var found))
+				lock (DatabaseInstances) {
+					if (DatabaseInstances.TryGetValue(config.Name, out var found))
 						return found;
 					return CreateCleanInstance(config);
 				}
@@ -111,12 +112,12 @@ namespace DataBoss.Testing.SqlServer
 		}
 
 		public static void DeleteInstances() {
-			foreach(var item in DatabaseInstances.Values.ToArray()) 
+			foreach (var item in DatabaseInstances.Values.ToArray())
 				item.Dispose();
 		}
 
 		static void ForceDropDatabase(TestDbConfig config) {
-			if(DatabaseInstances.TryRemove(config.Name, out var found))
+			if (DatabaseInstances.TryRemove(config.Name, out var found))
 				ForceDropDatabase(found.ConnectionString);
 		}
 
@@ -155,13 +156,14 @@ namespace DataBoss.Testing.SqlServer
 			AppDomain.CurrentDomain.DomainUnload += delegate { DeleteInstances(); };
 
 		static void ExecuteServerCommands(TestDbConfig config, Action<SqlCommand> execute) {
-			var cmd = new SqlCommand { 
+			var cmd = new SqlCommand {
 				Connection = GetServerConnection(config),
 			};
 			try {
 				cmd.Connection.Open();
 				execute(cmd);
-			} finally {
+			}
+			finally {
 				cmd.Connection.Dispose();
 				cmd.Dispose();
 			}
