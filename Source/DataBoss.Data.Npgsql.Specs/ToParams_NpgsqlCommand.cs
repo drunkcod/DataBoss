@@ -1,7 +1,6 @@
 using Npgsql;
 using Xunit;
 using CheckThat;
-using MongoDB.Bson;
 
 namespace DataBoss.Data.Npgsql
 {
@@ -12,9 +11,9 @@ namespace DataBoss.Data.Npgsql
 
 		[Fact]
 		public void enumerable_as_array() => Check
-			.With(() => GetParams(new { xs = new[]{ 1, 2, 3 }.Select(x => x).AsEnumerable() } ))
+			.With(() => GetParams(new { xs = new[] { 1, 2, 3 }.Select(x => x).AsEnumerable() }))
 			.That(
 				paras => (paras[0].NpgsqlDbType & NpgsqlTypes.NpgsqlDbType.Array) == NpgsqlTypes.NpgsqlDbType.Array,
-				paras => paras[0].Value.GetType() == typeof(int[]));
+				paras => paras[0].Value!.GetType() == typeof(int[]));
 	}
 }

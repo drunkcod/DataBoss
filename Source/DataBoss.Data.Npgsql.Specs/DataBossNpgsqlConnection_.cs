@@ -22,27 +22,28 @@ namespace DataBoss.Data.Npgsql
 		public string ConnectionString => pg.GetConnectionString();
 	}
 
-	public abstract class DbConnectionFixture<TConnection> where TConnection : IDbConnection {
+	public abstract class DbConnectionFixture<TConnection> where TConnection : IDbConnection
+	{
 		protected abstract IDbConnection DbConnection { get; }
 
 		[Fact]
 		public void parameter_roundtrip() =>
-			Check.That(() => (string)DbConnection.ExecuteScalar("select @foo", new { foo = "Hello Npgsql World"}) == "Hello Npgsql World");
+			Check.That(() => (string)DbConnection.ExecuteScalar("select @foo", new { foo = "Hello Npgsql World" }) == "Hello Npgsql World");
 
 		[Fact]
-		public void nullable_parameter() => 
+		public void nullable_parameter() =>
 			Check.That(() => DbConnection.ExecuteScalar("select @foo", new { foo = (int?)null }) == DBNull.Value);
 
 		[Fact]
-		public void null_string() => 
+		public void null_string() =>
 			Check.That(() => DbConnection.ExecuteScalar("select @str", new { str = (string?)null }) == DBNull.Value);
 
 		[Fact]
-		public void null_array() => 
-			Check.That(() => (int)DbConnection.ExecuteScalar("select case when @str is null then 1 else 0 end", new { str = (string[])null }) == 1);
+		public void null_array() =>
+			Check.That(() => (int)DbConnection.ExecuteScalar("select case when @str is null then 1 else 0 end", new { str = (string[]?)null }) == 1);
 		[Fact]
-		public void null_array_like() => 
-			Check.That(() => (int)DbConnection.ExecuteScalar("select case when @str is null then 1 else 0 end", new { str = (List<int>)null }) == 1);
+		public void null_array_like() =>
+			Check.That(() => (int)DbConnection.ExecuteScalar("select case when @str is null then 1 else 0 end", new { str = (List<int>?)null }) == 1);
 
 		[Fact]
 		public void ArraySegment() =>
@@ -55,9 +56,9 @@ namespace DataBoss.Data.Npgsql
 		[Fact]
 		public void ArraySegment_null() =>
 			Check.That(() => (int)DbConnection.ExecuteScalar("select case when @p1 is null then -1 else length(@p1) end", new { p1 = (ArraySegment<byte>?)null }) == -1);
-	} 
+	}
 
-    public class DataBossNpgsqlConnection_ : DbConnectionFixture<NpgsqlConnection>, IDisposable, IClassFixture<NpgsqlTestDatabase>
+	public class DataBossNpgsqlConnection_ : DbConnectionFixture<NpgsqlConnection>, IDisposable, IClassFixture<NpgsqlTestDatabase>
 	{
 		NpgsqlConnection db;
 
@@ -116,7 +117,7 @@ namespace DataBoss.Data.Npgsql
 			public int? NullableInt;
 		}
 #pragma warning restore 0649
-    }
+	}
 
 	public class NpgsqlDataBoss : IClassFixture<NpgsqlTestDatabase>
 	{

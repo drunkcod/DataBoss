@@ -29,7 +29,7 @@ namespace DataBoss
 			var p = GetParams(new {
 				Int32_Value = (int?)1,
 				Int32_Null = (int?)null,
-				String_Null = (string)null,
+				String_Null = (string?)null,
 			});
 
 			Check.That(
@@ -41,7 +41,7 @@ namespace DataBoss
 		[Fact]
 		public void null_string() {
 			var expected = SqlDialect.EnsureDBNull ? DBNull.Value : null;
-			Check.With(() => GetParams(new { NullString = (string)null }))
+			Check.With(() => GetParams(new { NullString = (string?)null }))
 			.That(
 				xs => xs.Length == 1,
 				xs => xs[0].Value == expected);
@@ -54,7 +54,7 @@ namespace DataBoss
 			Check.With(() =>
 			GetParams(new {
 				Uri = uri,
-				NullUri = (Uri)null,
+				NullUri = (Uri?)null,
 			})).That(
 				xs => xs.Length == 2,
 				xs => xs[0].Value.Equals(uri.ToString()),
