@@ -1,12 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net8.0;net6.0;netstandard2.1</TargetFrameworks>
+    <TargetFrameworks>net8.0;netstandard2.1</TargetFrameworks>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0" />
-    <PackageReference Include="System.Threading.Channels" Version="9.0.0" />
+    <PackageReference Include="System.Threading.Channels" Version="9.0.3" />
     <PackageReference Condition="'$(TargetFramework)'=='net452'" Include="System.ValueTuple" Version="4.5.0" />
   </ItemGroup>
 

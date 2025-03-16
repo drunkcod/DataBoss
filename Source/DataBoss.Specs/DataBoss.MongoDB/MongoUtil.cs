@@ -11,14 +11,14 @@ namespace DataBoss.MongoDB
 {
 	public class MongoDBUtil
 	{
-        [Fact]
-        public void ResumeTokenTimestamp_json() =>
-            Check.That(
-                () => ToJson(new ResumeTokenTimestamp(1, 2)) == "{\"t\":1,\"i\":2}",
-                () => new ResumeTokenTimestamp(2, 0) == FromJson(ToJson(new ResumeTokenTimestamp(2, 0))));
+		[Fact]
+		public void ResumeTokenTimestamp_json() =>
+			Check.That(
+				() => ToJson(new ResumeTokenTimestamp(1, 2)) == "{\"t\":1,\"i\":2}",
+				() => new ResumeTokenTimestamp(2, 0) == FromJson(ToJson(new ResumeTokenTimestamp(2, 0))));
 
 		[Fact]
-		public void ResumeTokenToken_json() => 
+		public void ResumeTokenToken_json() =>
 			Check.That(() => ToJson(new ResumeTokenToken("data")) == "{\"_data\":\"data\"}");
 
 		[Fact]
@@ -37,17 +37,17 @@ namespace DataBoss.MongoDB
 			Check.That(() => ms.ToStringUtf8() == $"\"{oid}\"");
 		}
 
-        static string ToJson<T>(T value) =>		
-            JsonSerializer.Serialize(value);
+		static string ToJson<T>(T value) =>
+			JsonSerializer.Serialize(value);
 
-        static ResumeTokenTimestamp FromJson(string timestamp) =>
-            JsonSerializer.Deserialize<ResumeTokenTimestamp>(timestamp);
+		static ResumeTokenTimestamp FromJson(string timestamp) =>
+			JsonSerializer.Deserialize<ResumeTokenTimestamp>(timestamp);
 	}
 
 	static class MemoryStreamExtensions
 	{
 		public static string ToStringUtf8(this MemoryStream ms) {
-			if(!ms.TryGetBuffer(out var bs))
+			if (!ms.TryGetBuffer(out var bs))
 				throw new NotSupportedException("Failed to get buffer.");
 			return Encoding.UTF8.GetString(bs);
 		}
