@@ -23,7 +23,7 @@ namespace DataBoss.MongoDB
 
 		[Fact]
 		public void ResumeTokenTimestamp_from_null_BsonTimeStamp() {
-			ResumeTokenTimestamp? fromNull = (BsonTimestamp)null;
+			ResumeTokenTimestamp? fromNull = (BsonTimestamp?)null;
 			Check.That(() => fromNull.HasValue == false);
 		}
 

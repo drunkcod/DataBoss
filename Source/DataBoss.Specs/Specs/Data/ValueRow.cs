@@ -2,6 +2,6 @@
 {
 	class ValueRow<T>
 	{
-		public T Value;
+		public T? Value;
 	}
 }

@@ -14,19 +14,20 @@ namespace DataBoss
 		{
 			public void Dispose() { }
 
-			public readonly List<DataBossQueryBatch> ExecutedQueries = new(); 
-			public Func<DataBossQueryBatch, bool> OnExecute;
+			public readonly List<DataBossQueryBatch> ExecutedQueries = new();
+			public Func<DataBossQueryBatch, bool>? OnExecute;
 
-			public event EventHandler<ErrorEventArgs> OnError;
+			public event EventHandler<ErrorEventArgs>? OnError;
 
-			public void Begin(DataBossMigrationInfo info) {}
+			public void Begin(DataBossMigrationInfo info) { }
 
 			public bool Execute(DataBossQueryBatch query) {
 				var result = true;
-				if(OnExecute != null) {
+				if (OnExecute != null) {
 					try {
 						result = OnExecute(query);
-					} catch(Exception e) {
+					}
+					catch (Exception e) {
 						result = false;
 						OnError?.Invoke(this, new ErrorEventArgs(e));
 					}

@@ -20,7 +20,7 @@ namespace DataBoss.Data.MsSql
 		class MyStuffRow
 		{
 			public int Id;
-			public string Value;
+			public string? Value;
 		}
 #pragma warning restore CS0649
 

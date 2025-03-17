@@ -18,10 +18,10 @@ namespace DataBoss
 		{
 			public string Script => throw new NotImplementedException();
 
-			public string DefaultSchema { get; set; }
+			public string? DefaultSchema { get; set; }
 
-			public string ConnectionString;
-			public string GetConnectionString() => ConnectionString;
+			public string? ConnectionString;
+			public string GetConnectionString() => ConnectionString ?? throw new InvalidOperationException();
 			public IDbConnection GetDbConnection() => new SqlConnection(ConnectionString);
 
 			public IDataBossMigration GetTargetMigration() {

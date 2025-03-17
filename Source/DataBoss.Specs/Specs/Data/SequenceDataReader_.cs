@@ -229,7 +229,7 @@ namespace DataBoss.Data
 			using var c = new SqlConnection(db.ConnectionString);
 			c.Open();
 			c.Into("#Stuff", SequenceDataReader.Items(row));
-			Check.That(() => c.Query<ValueRow<byte[]>>("select * from #Stuff").Single().Value.SequenceEqual(row.Value));
+			Check.That(() => c.Query<ValueRow<byte[]>>("select * from #Stuff").Single().Value!.SequenceEqual(row.Value));
 		}
 	}
 }

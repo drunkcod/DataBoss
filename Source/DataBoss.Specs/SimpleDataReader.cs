@@ -110,7 +110,7 @@ namespace DataBoss.Specs
 		public DataTable GetSchemaTable() => Schema;
 
 		public bool NextResult() {
-			if ((results?.Count ?? 0) == 0)
+			if (results is null || results.Count == 0)
 				return false;
 			current = results.Dequeue();
 			return true;

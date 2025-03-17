@@ -67,7 +67,7 @@ namespace DataBoss.Data
 
 		[Fact]
 		public void to_db_type_with_column_type_override() {
-			var column = typeof(MyRowType).GetField(nameof(MyRowType.Value));
+			var column = typeof(MyRowType).GetField(nameof(MyRowType.Value)) ?? throw new Exception("Impossible");
 			Check.That(() => DataBossDbType.From(column.FieldType, column) == DataBossDbType.Create("decimal(18, 5)", null, false));
 		}
 
