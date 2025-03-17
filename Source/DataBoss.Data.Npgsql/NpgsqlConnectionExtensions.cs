@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 
 namespace DataBoss.Data.Npgsql
 {
-	public static class NpgsqlConnectionExtensions 
+	public static class NpgsqlConnectionExtensions
 	{
 		public static Task<int> ExecuteNonQueryAsync(this NpgsqlConnection connection, string sql) {
 			using var c = new NpgsqlCommand(sql, connection);
@@ -16,12 +16,12 @@ namespace DataBoss.Data.Npgsql
 			return c.ExecuteNonQueryAsync();
 		}
 
-		public static Task<object> ExecuteScalarAsync(this NpgsqlConnection connection, string sql) {
+		public static Task<object?> ExecuteScalarAsync(this NpgsqlConnection connection, string sql) {
 			using var c = new NpgsqlCommand(sql, connection);
 			return c.ExecuteScalarAsync();
 		}
 
-		public static Task<object> ExecuteScalarAsync<T>(this NpgsqlConnection connection, string sql, T args) {
+		public static Task<object?> ExecuteScalarAsync<T>(this NpgsqlConnection connection, string sql, T args) {
 			using var c = new NpgsqlCommand(sql, connection);
 			NpgsqlDialect.AddParameters(c, args);
 			return c.ExecuteScalarAsync();
