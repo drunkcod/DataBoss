@@ -12,14 +12,14 @@ namespace DataBoss
 	{
 		public class PowerArgsIntoSpec
 		{
-			#pragma warning disable 0649
+#pragma warning disable 0649
 			class MySimpleArgs
 			{
 				public int Int;
 				public bool Bool;
 				public float Float;
 			}
-			#pragma warning restore 0649
+#pragma warning restore 0649
 
 			[Fact]
 			public void reports_Parse_errors() {
@@ -29,7 +29,7 @@ namespace DataBoss
 				Check.That(() => e.Errors.Count == 2);
 			}
 
-			public class MyArg<T> { public T Value; }
+			public class MyArg<T> { public T? Value; }
 
 			[Fact]
 			public void DateTime_parsing() => Check.That(
@@ -65,13 +65,12 @@ namespace DataBoss
 		public void uses_key_value_pairs() {
 			var args = PowerArgs.Parse("-Foo", "Bar");
 			Check.That(
-				() => args.Count == 1, 
+				() => args.Count == 1,
 				() => args["Foo"] == "Bar");
 		}
 
 		[Fact]
-		public void merges_comma_separated_values_to_one()
-		{
+		public void merges_comma_separated_values_to_one() {
 			var args = PowerArgs.Parse(
 				"-A", "A,", "B",
 				"-B", "A", ",B",
@@ -79,7 +78,7 @@ namespace DataBoss
 				"-D", "A,", "B,", "C"
 			);
 			Check.That(
-				() => args.Count == 4, 
+				() => args.Count == 4,
 				() => args["A"] == "A,B",
 				() => args["B"] == "A,B",
 				() => args["C"] == "A,B",
@@ -95,14 +94,13 @@ namespace DataBoss
 		public void captures_non_options() {
 			Check.With(() => PowerArgs.Parse("Hello", "World"))
 			.That(
-				args => args.Commands.Count == 2, 
+				args => args.Commands.Count == 2,
 				args => args.Commands[0] == "Hello",
 				args => args.Commands[1] == "World");
 		}
 
 		[Fact]
-		public void captures_numbers_as_options()
-		{
+		public void captures_numbers_as_options() {
 			Check.With(() => PowerArgs.Parse("-Foo", "Bar", "1", "-1"))
 			.That(
 				args => args.Commands.Count == 2,
@@ -116,14 +114,14 @@ namespace DataBoss
 			var args = PowerArgs.Parse("-Foo", "Bar");
 			string value;
 			Check.That(
-				() => args.TryGetArg("Foo", out value), 
+				() => args.TryGetArg("Foo", out value),
 				() => !args.TryGetArg("Bar", out value));
 		}
 
 		class MyArgs
 		{
-			public string MyField;
-			public string MyProp { get; set; }
+			public string? MyField;
+			public string? MyProp { get; set; }
 		}
 
 		[Fact]
@@ -141,38 +139,38 @@ namespace DataBoss
 			Check.That(() => PowerArgs.Parse("-MyProp", "NewValue").Into(new MyArgs { MyProp = "Prop", MyField = "Field" }).MyProp == "NewValue");
 		}
 
-		#pragma warning disable CS0649
+#pragma warning disable CS0649
 		class MyArgsWithDefaults
 		{
 			[DefaultValue("42")]
-			public string TheAnswer;
+			public string? TheAnswer;
 		}
-		#pragma warning restore CS0649
+#pragma warning restore CS0649
 
 		[Fact]
 		public void uses_defaults_if_not_specified() {
 			Check.That(() => PowerArgs.Parse().Into<MyArgsWithDefaults>().TheAnswer == "42");
 		}
 
-		#pragma warning disable CS0649
+#pragma warning disable CS0649
 		class MyArgsWithNonStrings
 		{
-			public IEnumerable<float> NonStringable; 
-			public List<int> MyList;
+			public IEnumerable<float>? NonStringable;
+			public List<int>? MyList;
 			public int MyInt;
 			public DateTime MyDateTime;
 			public DateTime? MaybeDateTime;
 		}
-		#pragma warning restore CS0649
+#pragma warning restore CS0649
 
 		[Fact]
 		public void ignores_non_stringable_members() => Check.That(
 				() => PowerArgs.Parse("-NonStringable", "42").Into<MyArgsWithNonStrings>().MyList == null);
 
 		[Fact]
-		public void fills_list_like_with_members() => 
+		public void fills_list_like_with_members() =>
 			Check.That(
-				() => PowerArgs.Parse("-MyList", "1,2,3").Into<MyArgsWithNonStrings>().MyList.SequenceEqual(new [] { 1, 2, 3 }));
+				() => PowerArgs.Parse("-MyList", "1,2,3").Into<MyArgsWithNonStrings>().MyList!.SequenceEqual(new[] { 1, 2, 3 }));
 
 		[Fact]
 		public void parses_nullables() {
@@ -180,15 +178,15 @@ namespace DataBoss
 				() => PowerArgs.Parse("-MaybeDateTime", "2016-02-29").Into<MyArgsWithNonStrings>().MaybeDateTime == new DateTime(2016, 02, 29));
 		}
 
-		#pragma warning disable CS0649
+#pragma warning disable CS0649
 		class RequiredPropAndField
 		{
 			[Required]
-			public string ImportantField;
+			public string? ImportantField;
 			[Required]
-			public string ImportantProp { get; set; }
+			public string? ImportantProp { get; set; }
 		}
-		#pragma warning restore CS0649
+#pragma warning restore CS0649
 
 		[Fact]
 		public void can_check_for_required_fields() {
@@ -196,12 +194,12 @@ namespace DataBoss
 			Check.That(() => e.Errors.Count == 2);
 		}
 
-		#pragma warning disable CS0649
+#pragma warning disable CS0649
 		class MyArgsWithFlags
 		{
 			public bool MyFlag;
 		}
-		#pragma warning restore CS0649
+#pragma warning restore CS0649
 
 		[Fact]
 		public void flags() {
@@ -223,7 +221,7 @@ namespace DataBoss
 			Something
 		}
 
-		#pragma warning disable CS0649
+#pragma warning disable CS0649
 		class MyArgsWithEnum
 		{
 			public MyEnum A;
@@ -232,7 +230,7 @@ namespace DataBoss
 			public MyEnum C;
 			public MyEnum FromInt;
 		}
-		#pragma warning restore CS0649
+#pragma warning restore CS0649
 
 		[Fact]
 		public void enums() => Check
@@ -253,7 +251,7 @@ namespace DataBoss
 				() => args.Any(x => x.Name == nameof(RequiredPropAndField.ImportantProp)));
 		}
 
-		#pragma warning disable CS0649
+#pragma warning disable CS0649
 		class MyOrderedArgs
 		{
 			[PowerArg(Order = 3)]
@@ -265,7 +263,7 @@ namespace DataBoss
 
 			public int NotOrdered;
 		}
-		#pragma warning restore CS0649
+#pragma warning restore CS0649
 
 		[Fact]
 		public void describe_obeys_order() {

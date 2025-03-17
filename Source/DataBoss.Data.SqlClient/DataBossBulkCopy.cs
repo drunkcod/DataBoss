@@ -13,7 +13,6 @@ namespace DataBoss.Data.SqlClient
 	using System.Data;
 	using System.Linq;
 	using DataBoss.Data.Common;
-	using DataBoss.Data.Scripting;
 	using System.Data.Common;
 	using System.Threading.Tasks;
 	using System.Threading;

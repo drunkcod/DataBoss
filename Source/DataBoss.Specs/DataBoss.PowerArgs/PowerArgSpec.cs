@@ -8,21 +8,21 @@ namespace DataBoss
 {
 	public class PowerArgSpec
 	{
-		#pragma warning disable CS0649
+#pragma warning disable CS0649
 		class MyArgs
 		{
 			[Required]
-			public string Required;
+			public string? Required;
 
 			public int Optional;
 
 			[Required, PowerArg(Hint = "foo goes here")]
-			public string Foo;
+			public string? Foo;
 
 			[Required, RegularExpression("xml|json")]
-			public string Format;
+			public string? Format;
 		}
-		#pragma warning restore CS0649
+#pragma warning restore CS0649
 
 		[Fact]
 		public void is_required_if_has_RequiredAttribue() => Check
@@ -42,13 +42,13 @@ namespace DataBoss
 		public void formatting(Type argType, string member, string expected) =>
 			Check.That(() => new PowerArg(argType.GetMember(member)[0]).ToString() == expected);
 
-		#pragma warning disable CS0649
+#pragma warning disable CS0649
 		class DescribedArg
 		{
 			[Description("This is THE arg")]
 			public int TheArg;
 		}
-		#pragma warning restore CS0649
+#pragma warning restore CS0649
 
 		[Fact]
 		public void description() => Check
