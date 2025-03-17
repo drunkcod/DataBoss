@@ -1,57 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Threading;
-using System.Threading.Channels;
-using System.Threading.Tasks;
 using MongoDB.Bson;
 using MongoDB.Bson.IO;
-using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 
 using ChangeStreamBsonDocument = MongoDB.Driver.ChangeStreamDocument<MongoDB.Bson.BsonDocument>;
 
 namespace DataBoss.MongoDB;
-
-public readonly record struct ResumeTokenToken([property: JsonPropertyName("_data")] string? Data)
-{ }
-
-public struct ResumeToken
-{
-	[JsonPropertyName("startAtOperationTime")]
-	public ResumeTokenTimestamp? StartAtOperationTime { get; set; }
-	[JsonPropertyName("startAfter")]
-	public ResumeTokenToken? StartAfter { get; set; }
-
-	public ChangeStreamOptions ToChangeStreamOptions() {
-		var x = new ChangeStreamOptions();
-		if (StartAtOperationTime.HasValue)
-			x.StartAtOperationTime = StartAtOperationTime.Value;
-		if (StartAfter.HasValue)
-			x.StartAfter = new BsonDocument { { "_data", StartAfter.Value.Data } };
-		return x;
-	}
-
-	public static ResumeToken From(ChangeStreamOptions options) =>
-		new() {
-			StartAtOperationTime = options.StartAtOperationTime,
-			StartAfter = options.StartAfter is null ? null : new ResumeTokenToken(options.StartAfter.GetElement("_data").Value.AsString),
-		};
-}
-
-public readonly record struct ResumeTokenTimestamp(
-	[property: JsonPropertyName("t")] int Timestamp,
-	[property: JsonPropertyName("i")] int Increment)
-{
-	public static implicit operator BsonTimestamp(ResumeTokenTimestamp self) => new(self.Timestamp, self.Increment);
-	public static implicit operator ResumeTokenTimestamp?(BsonTimestamp other) => other is null ? null : new(other.Timestamp, other.Increment);
-}
 
 public static class MongoUtil
 {
@@ -190,83 +149,3 @@ public static class MongoUtil
 		return (n, rows.Select(x => (x.Key, x.Value)).ToArray(), resumeToken);
 	}
 }
-
-public static class ChannelExtensions
-{
-	class SelectChannelReader<T, TOut> : ChannelReader<TOut>
-	{
-		readonly ChannelReader<T> inner;
-		readonly Func<T, TOut> selector;
-
-		public SelectChannelReader(ChannelReader<T> inner, Func<T, TOut> selector) {
-			this.inner = inner;
-			this.selector = selector;
-		}
-
-		public override bool TryRead([MaybeNullWhen(false)] out TOut item) {
-			if (inner.TryRead(out var found)) {
-				item = selector(found);
-				return true;
-			}
-			item = default;
-			return false;
-		}
-
-		public override ValueTask<bool> WaitToReadAsync(CancellationToken cancellationToken = default) => inner.WaitToReadAsync(cancellationToken);
-	}
-
-	public static ChannelReader<TOut> Select<T, TOut>(this ChannelReader<T> reader, Func<T, TOut> transform) => new SelectChannelReader<T, TOut>(reader, transform);
-}
-
-public static class IAsyncCursorExtensions
-{
-	interface IRawBsonDocuemtDeserializer<T>
-	{
-		T Deserialize(RawBsonDocument document);
-	}
-
-	class RawBsonDocumentNopDeserializer : IRawBsonDocuemtDeserializer<RawBsonDocument>
-	{
-		private RawBsonDocumentNopDeserializer() { }
-		public RawBsonDocument Deserialize(RawBsonDocument document) => document;
-		public static readonly RawBsonDocumentNopDeserializer Instance = new();
-	}
-
-	class RawBsonDocumentSerializer<T> : IRawBsonDocuemtDeserializer<T>
-	{
-		readonly IBsonSerializer<T> bson = BsonSerializer.LookupSerializer<T>();
-		public bool AllowDuplicateElementNames { get; set; }
-		public T Deserialize(RawBsonDocument document) {
-			using var stream = new BsonBinaryReader(new ByteBufferStream(document.Slice));
-			var ctx = BsonDeserializationContext.CreateRoot(stream, x => {
-				x.AllowDuplicateElementNames = AllowDuplicateElementNames;
-			});
-
-			return bson.Deserialize(ctx);
-		}
-	}
-
-	public static async Task<int> WriteTo<T>(this IAsyncCursor<RawBsonDocument> xs, ChannelWriter<T> writer, CancellationToken cancellationToken = default) {
-		try {
-			var bson = GetDeserializer<T>();
-			var n = 0;
-			for (; await xs.MoveNextAsync(cancellationToken); ++n)
-				foreach (var item in xs.Current) {
-					var x = bson.Deserialize(item);
-					while (!writer.TryWrite(x))
-						if (!await writer.WaitToWriteAsync(cancellationToken))
-							return n;
-				}
-			return n;
-		}
-		finally {
-			xs.Dispose();
-		}
-	}
-
-	static IRawBsonDocuemtDeserializer<T> GetDeserializer<T>() =>
-		typeof(T) == typeof(RawBsonDocument)
-		? (IRawBsonDocuemtDeserializer<T>)(object)RawBsonDocumentNopDeserializer.Instance
-		: new RawBsonDocumentSerializer<T>();
-}
-
