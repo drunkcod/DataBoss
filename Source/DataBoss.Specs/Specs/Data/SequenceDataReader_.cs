@@ -190,18 +190,14 @@ namespace DataBoss.Data
 
 		static TestableEnumerator<T> Wrap<T>(IEnumerator<T> inner) => new TestableEnumerator<T>(inner);
 
-		class TestableEnumerator<T> : IEnumerator<T>
+		class TestableEnumerator<T>(IEnumerator<T> enumerator) : IEnumerator<T>
 		{
-			public readonly IEnumerator<T> Enumerator;
-
-			public TestableEnumerator(IEnumerator<T> enumerator) {
-				this.Enumerator = enumerator;
-			}
+			public readonly IEnumerator<T> Enumerator = enumerator;
 
 			public T Current => Enumerator.Current;
-			object IEnumerator.Current => Enumerator.Current;
+			object? IEnumerator.Current => Enumerator.Current;
 
-			public Action Disposed;
+			public Action? Disposed;
 
 			public void Dispose() {
 				Enumerator.Dispose();
