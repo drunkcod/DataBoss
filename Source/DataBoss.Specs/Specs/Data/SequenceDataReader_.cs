@@ -7,6 +7,7 @@ using System.Text;
 using CheckThat;
 using CheckThat.Helpers;
 using DataBoss.Linq;
+using Microsoft.Data.SqlClient;
 using Xunit;
 
 namespace DataBoss.Data
@@ -54,13 +55,13 @@ namespace DataBoss.Data
 		}
 
 		[Theory]
-		[InlineData("TheField" ,true)
-		,InlineData("TheProp", true)
-		,InlineData("GetHashCode", false)]
+		[InlineData("TheField", true)
+		, InlineData("TheProp", true)
+		, InlineData("GetHashCode", false)]
 		public void map_by_member(string memberName, bool canMap) {
 			var member = typeof(DataThingy).GetMember(memberName).Single();
 			var fields = new FieldMapping<DataThingy>();
-			if(canMap) 
+			if (canMap)
 				Check.That(() => fields.Map(member) == 0);
 			else Check.Exception<ArgumentException>(() => fields.Map(member));
 		}
@@ -118,16 +119,16 @@ namespace DataBoss.Data
 
 		[Fact]
 		public void roundtrip_nullable_field() {
-			var items = new[] { new ValueRow<int?> { Value = 42 } };	
-	
+			var items = new[] { new ValueRow<int?> { Value = 42 } };
+
 			Check.With(() => ObjectReader.For(Rows(items)).Read<ValueRow<int?>>().ToList())
 				.That(rows => rows[0].Value == items[0].Value);
 		}
 
 		[Fact]
 		public void roundtrip_nullable_field_null() {
-			var items = new[] { new ValueRow<float?> { Value = null } };	
-	
+			var items = new[] { new ValueRow<float?> { Value = null } };
+
 			Check.With(() => ObjectReader.For(Rows(items)).Read<ValueRow<float?>>().ToList())
 				.That(rows => rows[0].Value == null);
 		}
@@ -157,7 +158,7 @@ namespace DataBoss.Data
 		public void byte_array_GetBytes() {
 			var bytes = new byte[] { 1, 2, 3, 4 };
 			var row = SequenceDataReader.Items(new { Bytes = bytes });
-			
+
 			var byte1 = new byte[256];
 			var allBytes = new byte[256];
 			var shortBuffer = new byte[2];
@@ -189,7 +190,7 @@ namespace DataBoss.Data
 
 		static TestableEnumerator<T> Wrap<T>(IEnumerator<T> inner) => new TestableEnumerator<T>(inner);
 
-		class TestableEnumerator<T> : IEnumerator<T> 
+		class TestableEnumerator<T> : IEnumerator<T>
 		{
 			public readonly IEnumerator<T> Enumerator;
 
@@ -229,7 +230,8 @@ namespace DataBoss.Data
 		public void byte_array_roundtrip() {
 			var row = new ValueRow<byte[]> { Value = Encoding.UTF8.GetBytes("hello world.") };
 
-			using var c = db.Open();
+			using var c = new SqlConnection(db.ConnectionString);
+			c.Open();
 			c.Into("#Stuff", SequenceDataReader.Items(row));
 			Check.That(() => c.Query<ValueRow<byte[]>>("select * from #Stuff").Single().Value.SequenceEqual(row.Value));
 		}

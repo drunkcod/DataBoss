@@ -206,13 +206,6 @@ namespace DataBoss
 		public string ConnectionString => testDb.ConnectionString;
 		public readonly TestDbConfig Config;
 
-		[Obsolete]
-		public SqlConnection Open() {
-			var c = new SqlConnection(ConnectionString);
-			c.Open();
-			return c;
-		}
-
 		static SqlServerFixture() {
 			sqlContainer = new SqlServerContainerBuilder().Build();
 		}
