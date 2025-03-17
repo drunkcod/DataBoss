@@ -12,9 +12,8 @@ namespace DataBoss.Specs
 		{
 			public KeyValuePair<string, Type>[]? Fields;
 			public List<object?[]> Records = [];
-			public DataTable schema = new DataTable();
+			public DataTable schema = new();
 			public int currentRecord;
-
 		}
 
 		Queue<SimpleDataReaderResult>? results;
@@ -22,7 +21,7 @@ namespace DataBoss.Specs
 		SimpleDataReaderResult addTo;
 		DataTable Schema => current.schema;
 		KeyValuePair<string, Type>[]? Fields => current.Fields;
-		List<object?[]>? Records => current.Records;
+		List<object?[]> Records => current.Records;
 
 		public event EventHandler<EventArgs>? Closed;
 
@@ -71,7 +70,12 @@ namespace DataBoss.Specs
 		}
 		public string GetName(int i) => Fields![i].Key;
 		public Type GetFieldType(int i) => Fields![i].Value;
-		public object GetValue(int i) => Records[current.currentRecord - 1][i];
+		public object GetValue(int i) => GetvalueRaw(i) ?? DBNull.Value;
+
+		object? GetvalueRaw(int i) {
+			var r = Records[current.currentRecord - 1] ?? throw new InvalidOperationException("Missing record");
+			return r[i];
+		}
 
 		public void Close() {
 			Closed?.Invoke(this, EventArgs.Empty);
@@ -98,7 +102,7 @@ namespace DataBoss.Specs
 		public decimal GetDecimal(int i) => (decimal)GetValue(i);
 		public DateTime GetDateTime(int i) => (DateTime)GetValue(i);
 		public IDataReader GetData(int i) => (IDataReader)GetValue(i);
-		public bool IsDBNull(int i) => GetValue(i) == null;
+		public bool IsDBNull(int i) => GetvalueRaw(i) == null;
 
 		object IDataRecord.this[int i] => Records[i];
 		object IDataRecord.this[string name] => GetValue(GetOrdinal(name));

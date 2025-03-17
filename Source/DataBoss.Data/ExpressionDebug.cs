@@ -1,4 +1,4 @@
-namespace DataBoss.Data
+namespace DataBoss.Data.Debug
 {
 	using System;
 	using System.Data;
@@ -7,7 +7,7 @@ namespace DataBoss.Data
 	using System.Linq.Expressions;
 	using DataBoss.Linq;
 
-	static class ExpressionDebug
+	public static class ExpressionDebug
 	{
 		public static void WriteExpr(LambdaExpression fn, TextWriter writer) {
 			int n = 0;
@@ -16,10 +16,8 @@ namespace DataBoss.Data
 			WriteExpr(fn.Body, writer, "");
 		}
 
-		static void WriteExpr(Expression expr, TextWriter writer, string indent) {
-//			writer.WriteLine();
-//			writer.WriteLine($"{indent}[{expr.NodeType}]");
-			switch(expr.NodeType) {
+		public static void WriteExpr(Expression expr, TextWriter writer, string indent) {
+			switch (expr.NodeType) {
 				case ExpressionType.Assign:
 					var assign = (BinaryExpression)expr;
 					var left = new StringWriter();
@@ -32,7 +30,7 @@ namespace DataBoss.Data
 					var block = (BlockExpression)expr;
 					writer.WriteLine($"{{");
 					var nextIndent = indent + "..";
-					foreach(var item in block.Expressions) {
+					foreach (var item in block.Expressions) {
 						writer.Write(nextIndent);
 						WriteExpr(item, writer, nextIndent);
 						writer.WriteLine();
@@ -43,9 +41,11 @@ namespace DataBoss.Data
 					var call = (MethodCallExpression)expr;
 					var target = new StringWriter();
 					var args = new StringWriter();
-					WriteExpr(call.Object, target, indent);
+					if (call.Object is not null)
+						WriteExpr(call.Object, target, indent);
+					else target.Write(call.Method.DeclaringType.Name);
 					var sep = string.Empty;
-					foreach(var p in call.Arguments) {
+					foreach (var p in call.Arguments) {
 						args.Write(sep);
 						WriteExpr(p, args, indent);
 						sep = ", ";
@@ -58,14 +58,21 @@ namespace DataBoss.Data
 				case ExpressionType.Conditional:
 					WriteExpr((ConditionalExpression)expr, writer, indent);
 					break;
-				case ExpressionType.Constant: 
+				case ExpressionType.Constant:
 					var cons = (ConstantExpression)expr;
 					writer.Write(FormatValue(cons.Value));
 					break;
-				case ExpressionType.Convert: 
+				case ExpressionType.Convert:
 					WriteConvert((UnaryExpression)expr, writer, indent);
 					break;
-				case ExpressionType.Parameter: 
+				case ExpressionType.Lambda:
+					var lambda = (LambdaExpression)expr;
+					WriteExpr(lambda.Body, writer, indent);
+					break;
+				case ExpressionType.Invoke:
+					WriteInvocation((InvocationExpression)expr, writer, indent);
+					break;
+				case ExpressionType.Parameter:
 					var parameter = (ParameterExpression)expr;
 					writer.Write($"{parameter.Name}");
 					break;
@@ -107,18 +114,19 @@ namespace DataBoss.Data
 		}
 
 		static void WriteExpr(ConditionalExpression expr, TextWriter writer, string indent) {
-			if(expr.Type != typeof(void)) {
+			if (expr.Type != typeof(void)) {
 				WriteExpr(expr.Test, writer, indent);
 				writer.Write(" ? ");
 				WriteExpr(expr.IfTrue, writer, indent);
 				writer.Write(" : ");
 				WriteExpr(expr.IfFalse, writer, indent);
-			} else {
+			}
+			else {
 				var test = new StringWriter();
 				WriteExpr(expr.Test, test, indent);
 				writer.WriteLine($"{indent}if({test}) {{");
 				WriteExpr(expr.IfTrue, writer, indent + "  ");
-				if(expr.IfFalse.NodeType != ExpressionType.Default) {
+				if (expr.IfFalse.NodeType != ExpressionType.Default) {
 					writer.WriteLine("} else {");
 					WriteExpr(expr.IfFalse, writer, indent + "  ");
 				}
@@ -135,7 +143,7 @@ namespace DataBoss.Data
 		static void WriteNew(NewExpression expr, TextWriter writer, string indent) {
 			writer.Write($"new {FormatType(expr.Type)}(");
 			var sep = string.Empty;
-			foreach(var p in expr.Arguments) {
+			foreach (var p in expr.Arguments) {
 				writer.Write(sep);
 				WriteExpr(p, writer, indent);
 				sep = ", ";
@@ -147,14 +155,14 @@ namespace DataBoss.Data
 			WriteNew(expr.NewExpression, writer, indent);
 			writer.Write(" {");
 			var nextIndent = indent + "  ";
-			foreach(var item in expr.Bindings) {
+			foreach (var item in expr.Bindings) {
 				writer.WriteLine();
 				writer.Write($"{nextIndent}{item.Member.Name} = ");
-				switch(item.BindingType) {
+				switch (item.BindingType) {
 					default:
 						writer.Write($"{item.BindingType}");
 						break;
-					
+
 					case MemberBindingType.Assignment:
 						var a = (MemberAssignment)item;
 						WriteExpr(a.Expression, writer, nextIndent);
@@ -165,13 +173,26 @@ namespace DataBoss.Data
 			writer.Write($"{indent}}}");
 		}
 
+		static void WriteInvocation(InvocationExpression expr, TextWriter writer, string indent) {
+			var args = new StringWriter();
+			var sep = string.Empty;
+			foreach (var p in expr.Arguments) {
+				args.Write(sep);
+				WriteExpr(p, args, indent);
+				sep = ", ";
+			}
+
+			WriteExpr(expr.Expression, writer, indent);
+			writer.Write(args);
+		}
+
 		static string FormatType(Type type) {
-			if(type.IsGenericType) {
+			if (type.IsGenericType) {
 				var args = type.GetGenericArguments();
 				var t = new StringWriter();
 				t.Write('<');
 				var sep = "";
-				foreach(var item in args) {
+				foreach (var item in args) {
 					t.Write(sep);
 					t.Write(FormatType(item));
 					sep = ", ";
@@ -187,10 +208,10 @@ namespace DataBoss.Data
 		}
 
 		static string FormatValue(object value) {
-			if(value is null)
+			if (value is null)
 				return "null";
 			var t = value.GetType();
-			if(t.IsEnum)
+			if (t.IsEnum)
 				return $"{t.Name}.{value}";
 			return t.FullName switch {
 				"System.String" => $"\"{value}\"",

@@ -1,9 +1,16 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.IO;
+using System.Linq;
+using System.Linq.Expressions;
+using System.Text;
 using CheckThat;
+using DataBoss.Data.Debug;
 using DataBoss.Specs;
+using MongoDB.Bson;
 using Xunit;
+using ZstdSharp.Unsafe;
 
 namespace DataBoss.Data
 {
@@ -12,7 +19,7 @@ namespace DataBoss.Data
 		[Fact]
 		public void reuse_converter_for_matching_field_map() {
 			var factory = new ConverterFactory(new ConverterCollection());
-			var reader0 = SequenceDataReader.Create(new[]{ new { key = 0, value = "0"}}, x => x.MapAll());
+			var reader0 = SequenceDataReader.Create(new[] { new { key = 0, value = "0" } }, x => x.MapAll());
 			var reader1 = SequenceDataReader.Create(new[] { 1 }, x => {
 				x.Map("key", item => item);
 				x.Map("value", item => item.ToString());
@@ -28,15 +35,16 @@ namespace DataBoss.Data
 			reader.Read();
 			Check.With(() => factory.Compile(reader, (int key) => new KeyValuePair<int, string>(key, key.ToString())))
 				.That(
-					converter => converter(reader).Key == reader.GetInt32(0), 
+					converter => converter(reader).Key == reader.GetInt32(0),
 					converter => converter(reader).Value == reader.GetInt32(0).ToString());
 		}
 
 		[Fact]
 		public void throw_on_unexpected_null() {
-			var factory = new ConverterFactory(new ConverterCollection());
-			var reader = new SimpleDataReader(new KeyValuePair<string, Type>("value", typeof(int)));
-			reader.Add(new[]{ (object)null });
+			var factory = new ConverterFactory([]);
+			var reader = new SimpleDataReader(new KeyValuePair<string, Type>("value", typeof(int))) {
+				new[] { (object?)null }
+			};
 			reader.SetNullable(0, true);
 
 			reader.Read();
@@ -47,16 +55,17 @@ namespace DataBoss.Data
 
 		[Fact]
 		public void no_throw_on_expected_null() {
-			var factory = new ConverterFactory(new ConverterCollection());
+			var factory = new ConverterFactory([]);
 			var reader = new SimpleDataReader(
 				new KeyValuePair<string, Type>("id", typeof(int)),
-				new KeyValuePair<string, Type>("value", typeof(string)));
-			reader.Add(new[] { (object)null, (object)null });
+				new KeyValuePair<string, Type>("value", typeof(string))) {
+				([(object?)null, (object?)null])
+			};
 			reader.SetNullable(0, true);
 			reader.SetNullable(1, true);
 
 			reader.Read();
-			var converter = factory.Compile(reader, (int? id, string value) => Tuple.Create(id, value));
+			var converter = factory.Compile(reader, (int? id, string? value) => Tuple.Create(id, value));
 			Check.With(() => converter(reader)).That(
 				x => x.Item1 == null,
 				x => x.Item2 == null);
