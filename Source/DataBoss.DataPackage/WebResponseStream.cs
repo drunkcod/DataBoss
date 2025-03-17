@@ -9,7 +9,9 @@ namespace DataBoss.DataPackage
 		readonly Stream stream;
 
 		public static WebResponseStream Get(string url) {
+#pragma warning disable SYSLIB0014 // Type or member is obsolete
 			var http = WebRequest.Create(url);
+#pragma warning restore SYSLIB0014 // Type or member is obsolete
 			http.Method = "GET";
 			return new WebResponseStream(http.GetResponse());
 		}
