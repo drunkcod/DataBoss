@@ -52,28 +52,28 @@ namespace DataBoss.Data
 
 	public readonly struct MemberReader
 	{
+		readonly Expression isDbNull;
+
 		public MemberReader(int ordinal, string name, Expression reader, IReadOnlyCollection<(string Name, Expression IsDbNull)> isDbNull) {
-			this.Ordinal = ordinal;
-			this.Name = name;
-			this.Read = reader;
 			if (isDbNull != null && isDbNull.Any(x => x.IsDbNull == null))
 				throw new InvalidOperationException("Null nullability check.");
+
+			this.Ordinal = ordinal;
+			this.Name = name;
+			this.ReadRaw = reader;
 			this.NullableFields = isDbNull;
+			this.isDbNull = (NullableFields == null || NullableFields.Count == 0) ? null : Util.AnyOf(NullableFields.Select(x => x.IsDbNull));
 		}
 
 		public readonly int Ordinal;
 		public readonly string Name;
-		public readonly Expression Read;
+		public readonly Expression ReadRaw;
 		public Expression IsDbNull {
-			get {
-				if (NullableFields == null || NullableFields.Count == 0)
-					return null;
-				return Util.AnyOf(NullableFields.Select(x => x.IsDbNull));
-			}
+			get { return isDbNull; }
 		}
 
-		public Expression ReadOrDefault =>
-			IsDbNull == null ? Read : Expression.Condition(IsDbNull, Expression.Default(Read.Type), Read);
+		public Expression Read =>
+			IsDbNull is null ? ReadRaw : Expression.Condition(IsDbNull, Expression.Default(ReadRaw.Type), ReadRaw);
 
 
 		public readonly IReadOnlyCollection<(string Name, Expression IsDbNull)> NullableFields;
@@ -264,7 +264,7 @@ namespace DataBoss.Data
 				Expression.Condition(
 					childReader.IsDbNull ?? Expression.Constant(false),
 					Expression.Default(item.Type),
-					Expression.Convert(childReader.Read, item.Type)),
+					Expression.Convert(childReader.ReadRaw, item.Type)),
 				null);
 			return r;
 		}
@@ -329,16 +329,14 @@ namespace DataBoss.Data
 				var pn = new MemberReader[p.Length];
 				if (TryMapParameters(map, p, pn)) {
 					var nullability = pn
-						.Where(x => x.Read.Type.IsValueType && x.IsDbNull != null)
+						.Where(x => x.ReadRaw.Type.IsValueType && x.IsDbNull != null)
 						.Select(x => (x.Name, x.IsDbNull))
 						.ToArray();
 
 					return new MemberReader(
 						map.MinOrdinal,
 						itemName,
-						makeExpr(ctor, Array.ConvertAll(pn, x => x.IsDbNull == null
-							? x.Read
-							: Expression.Condition(x.IsDbNull, Expression.Default(x.Read.Type), x.Read))),
+						makeExpr(ctor, Array.ConvertAll(pn, x => x.Read)),
 						nullability);
 				}
 			}
@@ -389,7 +387,7 @@ namespace DataBoss.Data
 
 					case BindingResult.Ok:
 						ordinals[found] = reader.Ordinal;
-						bindings[found] = Expression.Bind(x.Member, defaultOnNull ? reader.ReadOrDefault : reader.Read);
+						bindings[found] = Expression.Bind(x.Member, defaultOnNull ? reader.Read : reader.ReadRaw);
 						++found;
 						break;
 				}
@@ -419,18 +417,18 @@ namespace DataBoss.Data
 	{
 		static Expression GuardedRead(in MemberReader reader) {
 			if (reader.IsDbNull == null)
-				return reader.Read;
-			return GuardedExpression(reader.Read, reader.IsDbNull, reader.NullableFields);
+				return reader.ReadRaw;
+			return GuardedExpression(reader.ReadRaw, reader.IsDbNull, reader.NullableFields);
 		}
 
 		static Expression GuardedInvoke(Expression body, MemberReader[] args) {
-			var isNull = Util.AnyOf(args.Where(x => x.Read.Type.IsPrimitive).Select(x => x.IsDbNull));
-			body = Expression.Invoke(body, Array.ConvertAll(args, x => x.ReadOrDefault));
+			var isNull = Util.AnyOf(args.Where(x => x.ReadRaw.Type.IsPrimitive).Select(x => x.IsDbNull));
+			body = Expression.Invoke(body, Array.ConvertAll(args, x => x.Read));
 			if (isNull == null)
 				return body;
 
 			return GuardedExpression(body, isNull, args
-				.Where(x => x.Read.Type.IsPrimitive && x.IsDbNull != null)
+				.Where(x => x.ReadRaw.Type.IsPrimitive && x.IsDbNull != null)
 				.Select(x => (x.Name, x.IsDbNull)));
 		}
 
@@ -444,7 +442,7 @@ namespace DataBoss.Data
 
 			var @throw = Expression.Throw(
 				Expression.New(
-					typeof(DataRowNullCastException).GetConstructor(new[] { typeof(string[]) }),
+					typeof(DataRowNullCastException).GetConstructor([typeof(string[])]),
 					nullFields),
 				expr.Type);
 
