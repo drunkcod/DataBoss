@@ -235,7 +235,7 @@ public static class IAsyncCursorExtensions
 	class RawBsonDocumentSerializer<T> : IRawBsonDocuemtDeserializer<T>
 	{
 		readonly IBsonSerializer<T> bson = BsonSerializer.LookupSerializer<T>();
-		public bool AllowDuplicateElementNames;
+		public bool AllowDuplicateElementNames { get; set; }
 		public T Deserialize(RawBsonDocument document) {
 			using var stream = new BsonBinaryReader(new ByteBufferStream(document.Slice));
 			var ctx = BsonDeserializationContext.CreateRoot(stream, x => {
