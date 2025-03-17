@@ -14,7 +14,7 @@ namespace DataBoss.DataPackage
 	{
 		interface IResourcePathState : IEnumerable<string>
 		{
-			int Count { get;  }
+			int Count { get; }
 
 			void Add(string path, out IResourcePathState next);
 		}
@@ -31,7 +31,7 @@ namespace DataBoss.DataPackage
 			public IEnumerator<string> GetEnumerator() =>
 				Enumerable.Empty<string>().GetEnumerator();
 
-			IEnumerator IEnumerable.GetEnumerator() => 
+			IEnumerator IEnumerable.GetEnumerator() =>
 				GetEnumerator();
 
 			public static readonly EmptyPath Instance = new();
@@ -49,7 +49,7 @@ namespace DataBoss.DataPackage
 			public int Count => 1;
 
 			public void Add(string path, out IResourcePathState next) =>
-				next = new MultiPath(ImmutableList<string>.Empty.AddRange(new [] { Path, path }));
+				next = new MultiPath(ImmutableList<string>.Empty.AddRange(new[] { Path, path }));
 
 			public override string ToString() => Path;
 			public override int GetHashCode() => Path.GetHashCode();
@@ -109,11 +109,11 @@ namespace DataBoss.DataPackage
 		public override string ToString() =>
 			CurrentState.ToString();
 
-		public override int GetHashCode() => 
+		public override int GetHashCode() =>
 			CurrentState.GetHashCode();
 
 		public bool Equals(ResourcePath other) =>
-			ReferenceEquals(this, other) || other.SequenceEqual(this);
+			ReferenceEquals(this.state, other.state) || other.SequenceEqual(this);
 
 		public void Add(string item) =>
 			CurrentState.Add(item, out state);
