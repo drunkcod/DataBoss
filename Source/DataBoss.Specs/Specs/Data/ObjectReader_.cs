@@ -5,6 +5,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 using System.Data;
 using System.Linq;
 using System.Reflection;
+using System.Reflection.Metadata;
 using System.Text;
 using CheckThat;
 using CheckThat.Formatting;
@@ -78,9 +79,10 @@ namespace DataBoss.Data
 		[InlineData(typeof(short), short.MaxValue)]
 		[InlineData(typeof(byte), byte.MaxValue)]
 		public void supports_field_of_type(Type type, object value) {
-			var check = (Action<object>)Delegate.CreateDelegate(typeof(Action<object>), GetType().GetMethod(nameof(CheckTSupport), BindingFlags.Static | BindingFlags.NonPublic).MakeGenericMethod(type));
-			check(value);
+			checkSupportFn.MakeGenericMethod(type).Invoke(null, [value]);
 		}
+
+		static MethodInfo checkSupportFn = typeof(ObjectReader_).GetMethod(nameof(CheckTSupport), BindingFlags.Static | BindingFlags.NonPublic) ?? throw new ArgumentException("Missing method");
 
 		static void CheckTSupport<T>(object value) {
 			var source = new SimpleDataReader(Col<T>("Value"));

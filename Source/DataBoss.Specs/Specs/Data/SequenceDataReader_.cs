@@ -17,7 +17,7 @@ namespace DataBoss.Data
 		class DataThingy
 		{
 			public int TheField;
-			public string TheProp { get; set; }
+			public string? TheProp { get; set; }
 		}
 
 		[Fact]
@@ -114,7 +114,7 @@ namespace DataBoss.Data
 
 			[Fact]
 			public void cant_create_reader_from_null_sequence() =>
-				Check.Exception<ArgumentNullException>(() => SequenceDataReader.Create((IEnumerable<ValueRow<int>>)null, x => x.MapAll()));
+				Check.Exception<ArgumentNullException>(() => SequenceDataReader.Create((IEnumerable<ValueRow<int>>?)null, x => x.MapAll()));
 		}
 
 		[Fact]
@@ -146,7 +146,7 @@ namespace DataBoss.Data
 
 		[Fact]
 		public void string_null_is_db_null() {
-			var rows = SequenceDataReader.Items(new { NullString = (string)null });
+			var rows = SequenceDataReader.Items(new { NullString = (string?)null });
 			rows.Read();
 
 			Check.That(

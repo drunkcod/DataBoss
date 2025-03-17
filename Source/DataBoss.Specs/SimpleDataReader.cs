@@ -20,7 +20,7 @@ namespace DataBoss.Specs
 		SimpleDataReaderResult current;
 		SimpleDataReaderResult addTo;
 		DataTable Schema => current.schema;
-		KeyValuePair<string, Type>[]? Fields => current.Fields;
+		KeyValuePair<string, Type>[] Fields => current.Fields ?? throw new InvalidOperationException("Missing Fields.");
 		List<object?[]> Records => current.Records;
 
 		public event EventHandler<EventArgs>? Closed;
@@ -86,8 +86,8 @@ namespace DataBoss.Specs
 		public int GetValues(object[] values) { throw new NotImplementedException(); }
 		public int GetOrdinal(string name) => Array.FindIndex(Fields, x => x.Key == name);
 
-		public long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferoffset, int length) { throw new NotImplementedException(); }
-		public long GetChars(int i, long fieldoffset, char[] buffer, int bufferoffset, int length) { throw new NotImplementedException(); }
+		public long GetBytes(int i, long fieldOffset, byte[]? buffer, int bufferoffset, int length) { throw new NotImplementedException(); }
+		public long GetChars(int i, long fieldoffset, char[]? buffer, int bufferoffset, int length) { throw new NotImplementedException(); }
 
 		public bool GetBoolean(int i) => (bool)GetValue(i);
 		public byte GetByte(int i) => (byte)GetValue(i);

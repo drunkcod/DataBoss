@@ -73,14 +73,14 @@ namespace DataBoss.Data
 				() => fieldMapping.GetSelector(str).Type == typeof(string));
 		}
 
-		#pragma warning disable CS0649
+#pragma warning disable CS0649
 		class MyThingWithStaticMember
 		{
-			public string TheAnswer;
-			public static string TheQuestion;
+			public string? TheAnswer;
+			public static string? TheQuestion;
 			public static float YourBoat => 42;
 		}
-		#pragma warning restore CS0649
+#pragma warning restore CS0649
 
 		[Fact]
 		public static void MapAll_ignores_static_fields() {

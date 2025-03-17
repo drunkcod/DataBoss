@@ -50,14 +50,14 @@ namespace DataBoss
 		[Fact]
 		public void Uri_is_treated_as_string() {
 			var uri = new Uri("http://example.com");
-			object expectedNull = SqlDialect.EnsureDBNull ? DBNull.Value : null;
+			object? expectedNull = SqlDialect.EnsureDBNull ? DBNull.Value : null;
 			Check.With(() =>
 			GetParams(new {
 				Uri = uri,
 				NullUri = (Uri?)null,
 			})).That(
 				xs => xs.Length == 2,
-				xs => xs[0].Value.Equals(uri.ToString()),
+				xs => xs[0].Value!.Equals(uri.ToString()),
 				xs => xs[1].Value == expectedNull);
 		}
 
@@ -119,9 +119,9 @@ namespace DataBoss
 		[InlineData(typeof(decimal), SqlDbType.Decimal)]
 		[InlineData(typeof(SqlDecimal), SqlDbType.Decimal)]
 		[InlineData(typeof(RowVersion), SqlDbType.Binary)]
-		public void nullable_values(Type type, SqlDbType sqlDbType) =>
-			GetType().GetMethod(nameof(CheckNullable), BindingFlags.Instance | BindingFlags.NonPublic)
-			.MakeGenericMethod(type).Invoke(this, new object[] { sqlDbType });
+		public void nullable_values(Type type, SqlDbType sqlDbType) => checkNullableFn.MakeGenericMethod(type).Invoke(this, [sqlDbType]);
+
+		readonly MethodInfo checkNullableFn = typeof(ToParams_SqlCommand).GetMethod(nameof(CheckNullable), BindingFlags.Instance | BindingFlags.NonPublic) ?? throw new ArgumentException("Missing method");
 
 		void CheckNullable<T>(SqlDbType sqlDbType) where T : struct => Check.With(() =>
 			GetParams(new {
