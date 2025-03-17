@@ -203,8 +203,6 @@ namespace DataBoss
 		static readonly SqlServerContainer sqlContainer;
 		readonly SqlServerTestDb testDb;
 
-		[Obsolete]
-		public SqlConnection Connection { get; private set; }
 		public string ConnectionString => testDb.ConnectionString;
 		public readonly TestDbConfig Config;
 
@@ -234,15 +232,10 @@ namespace DataBoss
 				Port = sqlContainer.Port,
 			};
 			this.testDb = SqlServerTestDb.Create(Config);
-			Connection = new SqlConnection(testDb.ConnectionString + ";Encrypt=False");
-			Connection.Open();
 		}
 
 		void IDisposable.Dispose() {
-			Connection.Dispose();
 			testDb.Dispose();
 		}
 	}
-
-
 }

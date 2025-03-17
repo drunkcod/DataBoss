@@ -9,7 +9,6 @@ namespace DataBoss.Data.MsSql
 	public class SqlCommandEnumerableSpec : IClassFixture<SqlServerFixture>
 	{
 		SqlServerFixture db;
-		SqlConnection Db => db.Connection;
 
 		RetryStrategy retryAlways => (n, e) => true;
 		int rowsRead;
@@ -67,7 +66,10 @@ namespace DataBoss.Data.MsSql
 			Check.That(() => rowsRead <= 2);
 		}
 
-		DbCommandEnumerable<SqlCommand, SqlDataReader, int> IntRows(string query) =>
-			new(() => Db.CreateCommand(query), x => x.ExecuteReader(), (r, _) => ReadInt0, null);
+		DbCommandEnumerable<SqlCommand, SqlDataReader, int> IntRows(string query) {
+			var c = new SqlConnection(db.ConnectionString);
+			c.Open();
+			return new(() => c.CreateCommand(query), x => x.ExecuteReader(), (r, _) => ReadInt0, null);
+		}
 	}
 }

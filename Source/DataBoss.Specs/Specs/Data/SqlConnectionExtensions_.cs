@@ -6,14 +6,14 @@ using Xunit;
 
 namespace DataBoss.Data.MsSql
 {
-	public sealed class SqlConnectionExtensions_ : IClassFixture<SqlServerFixture>
+	public sealed class SqlConnectionExtensions_(SqlServerFixture db) : IClassFixture<SqlServerFixture>
 	{
-		readonly SqlServerFixture db;
+		readonly SqlServerFixture db = db;
 
-		SqlConnection Connection => db.Connection;
-
-		public SqlConnectionExtensions_(SqlServerFixture db) {
-			this.db = db;
+		SqlConnection GetConnection() {
+			var c = new SqlConnection(db.ConnectionString);
+			c.Open();
+			return c;
 		}
 
 #pragma warning disable CS0649
@@ -26,16 +26,17 @@ namespace DataBoss.Data.MsSql
 
 		[Fact]
 		public void insert_and_retreive_ids_is_zippable() {
+			using var c = GetConnection();
 			var destinationTableName = "#MyStuff";
-			Connection.ExecuteNonQuery($"create table {destinationTableName}(Id int identity, Value varchar(max) not null,)");
+			c.ExecuteNonQuery($"create table {destinationTableName}(Id int identity, Value varchar(max) not null,)");
 
 			var newItems = new[]{
 				new { Value = "First" },
 				new { Value = "Second" },
 				new { Value = "Third" },
 			};
-			var newIds = Connection.InsertAndGetIdentities(destinationTableName, newItems);
-			var myStuff = SqlObjectReader.Create(Connection).Read<MyStuffRow>($"select * from {destinationTableName}");
+			var newIds = c.InsertAndGetIdentities(destinationTableName, newItems);
+			var myStuff = SqlObjectReader.Create(c).Read<MyStuffRow>($"select * from {destinationTableName}");
 
 			Check.With(() => newIds.Zip(myStuff, (x, item) => new { SequenceId = x, item.Id, item.Value }).ToList())
 				.That(
@@ -45,22 +46,28 @@ namespace DataBoss.Data.MsSql
 		}
 
 		[Fact]
-		public void db_info() => Check
-			.With(() => Connection.GetDatabaseInfo())
-			.That(db => db.DatabaseName == (string)Connection.ExecuteScalar("select db_name()"));
+		public void db_info() {
+			using var c = GetConnection();
+			Check
+				.With(() => c.GetDatabaseInfo())
+				.That(db => db.DatabaseName == (string)c.ExecuteScalar("select db_name()"));
+		}
 
 		[Fact]
 		public void ExecuteNonQuery_flows_local_transaction() {
-			using var tx = Connection.BeginTransaction();
-			Connection.ExecuteNonQuery(tx, "select 42");
+			using var c = GetConnection();
+
+			using var tx = c.BeginTransaction();
+			c.ExecuteNonQuery(tx, "select 42");
 		}
 
 		[Fact]
 		public void into_supports_transactions() {
-			using var tx = Connection.BeginTransaction();
-			Connection.Into(tx, "#TempRows", SequenceDataReader.Items(new { Id = 1 }));
-			Connection.Into(tx, "#TempRows2", new[] { new { Id = 2 } });
+			using var c = GetConnection();
 
+			using var tx = c.BeginTransaction();
+			c.Into(tx, "#TempRows", SequenceDataReader.Items(new { Id = 1 }));
+			c.Into(tx, "#TempRows2", new[] { new { Id = 2 } });
 		}
 	}
 }
