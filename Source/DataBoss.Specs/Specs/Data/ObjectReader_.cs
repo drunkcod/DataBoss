@@ -209,7 +209,7 @@ namespace DataBoss.Data
 
 		[Fact]
 		public void nullable_nullable() {
-			var source = new SimpleDataReader(Col<int>("Value.CanBeNull"), Col<int>("Value.NotNull")) { new object[] { null, 1 } };
+			var source = new SimpleDataReader(Col<int>("Value.CanBeNull"), Col<int>("Value.NotNull")) { new object?[] { null, 1 } };
 			source.SetNullable(0, true);
 			var r = ObjectReader.Read<StructRow<WithNullable?>>(source).ToArray();
 			Check.With(() => r)
@@ -227,7 +227,7 @@ namespace DataBoss.Data
 
 		[Fact]
 		public void row_with_nullable_missing_field() {
-			var source = new SimpleDataReader(Col<int>("Item.ctorValue")) { new object[] { null } };
+			var source = new SimpleDataReader(Col<int>("Item.ctorValue")) { new object?[] { null } };
 			source.SetNullable(0, true);
 			var r = ObjectReader.Read<RowOf<StructRow<int>?>>(source).ToArray();
 			Check.With(() => r)
@@ -239,7 +239,7 @@ namespace DataBoss.Data
 
 		[Fact]
 		public void row_with_nullab_missing_field2() {
-			var source = new SimpleDataReader(Col<int>("Item.key"), Col<int>("Item.value")) { new object[] { null, null } };
+			var source = new SimpleDataReader(Col<int>("Item.key"), Col<int>("Item.value")) { new object?[] { null, null } };
 			source.SetNullable(0, true);
 			source.SetNullable(1, true);
 			var r = ObjectReader.Read<RowOf<KeyValuePair<int, int?>?>>(source).ToArray();
@@ -279,10 +279,11 @@ namespace DataBoss.Data
 		public void Action_support() {
 			var expected = new MyThing<int>(42);
 			var source = new SimpleDataReader(Col<int>("value")) { expected.Value };
-			MyThing<int> actual = null;
+			MyThing<int>? actual = null;
 			ObjectReader.Read(source, (MyThing<int> x) => actual = x);
-			Check.That(() => actual != null);
-			Check.That(() => actual.Value == expected.Value);
+			Check.That(
+				() => actual != null,
+				() => actual!.Value == expected.Value);
 		}
 
 
@@ -360,7 +361,7 @@ namespace DataBoss.Data
 		class MyRequiredValue<T>
 		{
 			[Required]
-			public T Value;
+			public T? Value;
 		}
 #pragma warning restore CS0649
 
@@ -403,7 +404,7 @@ namespace DataBoss.Data
 			source.Add(10);
 			Check
 				.With(() => ObjectReader.Read<MyRequiredValue<MyCastable>>(source).ToArray())
-				.That(x => x[0].Value.Value == 10);
+				.That(x => x[0].Value!.Value == 10);
 		}
 
 		[Fact]
@@ -412,7 +413,7 @@ namespace DataBoss.Data
 			source.Add(10L);
 			Check
 				.With(() => ObjectReader.Read<MyRequiredValue<MyCastable>>(source).ToArray())
-				.That(x => x[0].Value.Value == 10);
+				.That(x => x[0].Value!.Value == 10);
 		}
 
 #pragma warning disable CS0649
