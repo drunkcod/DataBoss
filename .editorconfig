@@ -6,3 +6,6 @@ indent_size = 4
 
 dotnet_sort_system_directives_first = true
 csharp_new_line_before_open_brace = types
+
+# CS0618: Type or member is obsolete
+dotnet_diagnostic.CS0618.severity = none

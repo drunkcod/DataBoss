@@ -1,25 +1,49 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using CheckThat;
 using Xunit;
 
 namespace DataBoss
 {
+
 	public class SetDifferenceSpec
 	{
+		static async IAsyncEnumerable<T> AsAsync<T>(IEnumerable<T> xs) {
+			foreach (var item in xs) {
+				await Task.Yield();
+				yield return item;
+			}
+		}
+
 		[Fact]
 		public void find_missing_elements() {
 			var missing = new List<int>();
-			var differences = new SetDifference<int,int> { 
+			var differences = new SetDifference<int, int> {
 				OnMissing = missing.Add,
 			};
-			var a = new [] { 1, 2, 3};
-			var b = new [] { 2, 3, 4};
+			var a = new[] { 1, 2, 3 };
+			var b = new[] { 2, 3, 4 };
 
 			differences.Symmetric(a, id => id, b, id => id);
 			Check.That(
-				() => missing.Count == 1, 
+				() => missing.Count == 1,
+				() => missing[0] == a.Except(b).Single());
+		}
+
+		[Fact]
+		public async Task find_missing_elements_async() {
+			var missing = new List<int>();
+			var differences = new SetDifference<int, int> {
+				OnMissing = missing.Add,
+			};
+			var a = new[] { 1, 2, 3 };
+			var b = new[] { 2, 3, 4 };
+
+			await differences.SymmetricAsync(AsAsync(a), id => id, AsAsync(b), id => id);
+			Check.That(
+				() => missing.Count == 1,
 				() => missing[0] == a.Except(b).Single());
 		}
 
@@ -27,12 +51,27 @@ namespace DataBoss
 		public void find_extra_elements() {
 			var extra = new List<int>();
 			var differenes = new SetDifference<int, int> {
-				OnExtra= extra.Add,
+				OnExtra = extra.Add,
 			};
 			var a = new[] { 1, 3, 4 };
 			var b = new[] { 2, 3, 4 };
 
 			differenes.Symmetric(a, id => id, b, id => id);
+			Check.That(
+				() => extra.Count == 1,
+				() => extra[0] == b.Except(a).Single());
+		}
+
+		[Fact]
+		public async Task find_extra_elements_async() {
+			var extra = new List<int>();
+			var differenes = new SetDifference<int, int> {
+				OnExtra = extra.Add,
+			};
+			var a = new[] { 1, 3, 4 };
+			var b = new[] { 2, 3, 4 };
+
+			await differenes.SymmetricAsync(AsAsync(a), id => id, AsAsync(b), id => id);
 			Check.That(
 				() => extra.Count == 1,
 				() => extra[0] == b.Except(a).Single());
@@ -60,7 +99,7 @@ namespace DataBoss
 			var differences = new SetDifference<int, int> {
 				OnMissing = missing.Add,
 			};
-			var a = new[] { 1, 2, 3, 4};
+			var a = new[] { 1, 2, 3, 4 };
 			var b = new[] { 1, 2, };
 
 			differences.Symmetric(a, id => id, b, id => id);
@@ -72,7 +111,7 @@ namespace DataBoss
 
 		[Fact]
 		public void sequence_key_types() {
-			var knownIds = new [] { 1, 3 };
+			var knownIds = new[] { 1, 3 };
 			var items = new[] { Item(1, "A"), Item(2, "B"), Item(3, "C") };
 
 			var missing = new List<KeyValuePair<int, string>>();

@@ -10,6 +10,7 @@ using DotNet.Testcontainers.Containers;
 using DotNet.Testcontainers.Images;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
+using Xunit.Sdk;
 
 namespace DataBoss
 {
@@ -200,24 +201,24 @@ namespace DataBoss
 
 	public sealed class SqlServerFixture : IDisposable
 	{
-		static readonly SqlServerContainer sqlContainer;
+		static readonly Mutex mtx = new(false);
+		static SqlServerContainer? sqlContainer;
+		static Task? containerStartup;
 		readonly SqlServerTestDb testDb;
 
 		public string ConnectionString => testDb.ConnectionString;
 		public readonly TestDbConfig Config;
 
-		static SqlServerFixture() {
-			sqlContainer = new SqlServerContainerBuilder().Build();
-		}
-
-		[Obsolete]
 		public SqlServerFixture() {
-
-			lock (sqlContainer) {
-				if (sqlContainer.State != TestcontainersStates.Running)
-					sqlContainer.StartAsync().Wait();
+			if (containerStartup is null) {
+				mtx.WaitOne();
+				if (containerStartup is null) {
+					sqlContainer = new SqlServerContainerBuilder().Build();
+					containerStartup = sqlContainer.StartAsync();
+				}
+				mtx.ReleaseMutex();
 			}
-
+			containerStartup.Wait();
 
 			Config = new TestDbConfig {
 				Username = sqlContainer.Username,

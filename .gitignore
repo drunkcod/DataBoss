@@ -1,5 +1,6 @@
 Artifacts/
 Build/
+TestResults/
 packages/
 .vs/
 *.swp
