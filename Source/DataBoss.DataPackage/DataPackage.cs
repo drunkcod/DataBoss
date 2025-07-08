@@ -308,6 +308,32 @@ namespace DataBoss.DataPackage
 			return this;
 		}
 
+
+		public ValueTask<IDataPackageResourceBuilder> AddResourceAsync(string name, Func<IDataReader> getData) {
+			lock (resources)
+				return ValueTask.FromResult(AddResource(name, getData));
+		}
+
+		public ValueTask<IDataPackageResourceBuilder> AddResourceAsync(CsvResourceOptions item) {
+			lock (resources)
+				return ValueTask.FromResult(AddResource(item));
+		}
+
+		public ValueTask<IDataPackageResourceBuilder> AddResourceAsync(CsvResourceOptions item, Func<IDataReader> getData) {
+			lock (resources)
+				return ValueTask.FromResult(AddResource(item, getData));
+		}
+
+		public ValueTask<IDataPackageBuilder> AddResourceAsync(Action<CsvResourceBuilder> setupResource) {
+			lock (resources)
+				return ValueTask.FromResult(AddResource(setupResource));
+		}
+
+		public ValueTask<IDataPackageBuilder> AddResourceAsync(TabularDataResource item) {
+			lock (resources)
+				return ValueTask.FromResult(AddResource(item));
+		}
+
 		DataPackage IDataPackageBuilder.Done() => this;
 
 		public void UpdateResource(string name, Func<TabularDataResource, TabularDataResource> doUpdate) {
