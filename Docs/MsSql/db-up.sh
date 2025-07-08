@@ -1,1 +1,1 @@
-dotnet ./../../Build/DataBoss/Debug/net7.0/DataBoss.dll -ServerInstance $(docker port databoss_mssql 1433/tcp) $1
+dotnet ./../../Build/DataBoss/Debug/net8.0/DataBoss.dll -ServerInstance $(docker port databoss_mssql 1433/tcp) $1

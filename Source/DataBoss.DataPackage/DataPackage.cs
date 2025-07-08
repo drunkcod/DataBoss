@@ -23,7 +23,7 @@ using Newtonsoft.Json;
 
 namespace DataBoss.DataPackage
 {
-	public class DataPackage : IDataPackageBuilder 
+	public class DataPackage : IDataPackageBuilder
 	{
 		readonly List<TabularDataResource> resources = new();
 
@@ -98,10 +98,12 @@ namespace DataBoss.DataPackage
 					source.CopyTo(bytes);
 					var buff = bytes.TryGetBuffer(out var ok) ? ok : new ArraySegment<byte>(bytes.ToArray());
 					return LoadZip(() => new MemoryStream(buff.Array, buff.Offset, buff.Count, writable: false));
-				} finally {
+				}
+				finally {
 					source.Dispose();
 				}
-			} else {
+			}
+			else {
 				var description = LoadPackageDescription(WebResponseStream.Get(url));
 				return AddCsvSources(new DataPackage(), WebResponseStream.Get, description.Resources);
 			}
@@ -113,7 +115,7 @@ namespace DataBoss.DataPackage
 		}
 
 		static DataPackage AddCsvSources(DataPackage r, Func<string, Stream> openRead, IEnumerable<DataPackageResourceDescription> items) {
-			foreach(var item in items) {
+			foreach (var item in items) {
 				var source = new CsvDataSource(item, openRead);
 				var resource = TabularDataResource.From(item, source.CreateCsvDataReader);
 				resource.ResourcePath = source.ResourcePath;
@@ -183,7 +185,63 @@ namespace DataBoss.DataPackage
 			return Load(zip.OpenEntry);
 		}
 
-		class ZipResource 
+		public static async Task<TabularDataResource> WriteResourceAsync(string name, Func<IDataReader> getData, Func<string, FileMode, Stream> fs, DataPackageSaveOptions options) {
+			var item = new CsvResourceOptions {
+				Name = name,
+				Path = Path.ChangeExtension(name, "csv")
+			};
+			var r = TabularDataResource.From(
+				new DataPackageResourceDescription {
+					Format = "csv",
+					Name = item.Name,
+					Path = item.Path,
+					Schema = new TabularDataSchema {
+						PrimaryKey = [],
+						ForeignKeys = [],
+					},
+					Dialect = new CsvDialectDescription {
+						HasHeaderRow = item.HasHeaderRow,
+					}
+				}, getData);
+
+			using var data = r.Read();
+			var desc = r.GetDescription(options.Culture);
+			var dialect = desc.Dialect;
+			if (options.Delimiter != null)
+				dialect.Delimiter = options.Delimiter;
+			else
+				dialect.Delimiter ??= DefaultDelimiter;
+			//description.Resources.Add(desc);
+
+			if (!desc.Path.TryGetOutputPath(out var partPath))
+				throw new Exception("failed to get path");
+
+			var (outputPath, output) = options.ResourceCompression.OpenWrite(partPath, (path) => fs(path, FileMode.Create));
+			try {
+				var view = DataRecordStringView.Create(desc.Schema.Fields, data, options.Culture);
+				await WriteRecordsAsync(output, desc.Dialect, data, view);
+			}
+			catch (Exception ex) {
+				throw new Exception($"Failed writing {item.Name}.", ex);
+			}
+			finally {
+				output.Dispose();
+			}
+
+			CsvDataReader getCsv() {
+				var (path, compression) = ResourceCompression.Match(outputPath, (path) => fs(path, FileMode.Open));
+				return new(
+				new CsvHelper.CsvParser(
+					new StreamReader(compression.OpenRead(outputPath, (path) => fs(path, FileMode.Open))),
+					new CsvConfiguration(CultureInfo.InvariantCulture) {
+						Delimiter = dialect.Delimiter ?? CsvDialectDescription.DefaultDelimiter
+					}),
+				desc.Schema);
+			}
+			return new CsvDataResource(desc, getCsv);
+		}
+
+		class ZipResource
 		{
 			readonly Func<Stream> openZip;
 
@@ -330,7 +388,7 @@ namespace DataBoss.DataPackage
 				using var data = item.Read();
 				var desc = item.GetDescription(options.Culture);
 				var dialect = desc.Dialect;
-				if(options.Delimiter != null)
+				if (options.Delimiter != null)
 					dialect.Delimiter = options.Delimiter;
 				else
 					dialect.Delimiter ??= DefaultDelimiter;
@@ -344,9 +402,11 @@ namespace DataBoss.DataPackage
 				try {
 					var view = DataRecordStringView.Create(desc.Schema.Fields, data, options.Culture);
 					await WriteRecordsAsync(output, desc.Dialect, data, view);
-				} catch (Exception ex) {
+				}
+				catch (Exception ex) {
 					throw new Exception($"Failed writing {item.Name}.", ex);
-				} finally {
+				}
+				finally {
 					writtenPaths.Add(outputPath);
 					output.Dispose();
 				}
@@ -395,12 +455,12 @@ namespace DataBoss.DataPackage
 			var writerTask = csv.WriteChunksAsync(records, chunks, view);
 
 			writerTask.ContinueWith(x => {
-				if (x.IsFaulted) 
+				if (x.IsFaulted)
 					cancellation.Cancel();
 			}, TaskContinuationOptions.ExecuteSynchronously);
 
 			return Task.WhenAll(
-				readerTask, 
+				readerTask,
 				writerTask,
 				CopyChunks(chunks.Reader, output, bom));
 		}
@@ -419,7 +479,7 @@ namespace DataBoss.DataPackage
 
 		static bool TryReadBom(Stream stream, byte[] bom) {
 			var fragmentBom = new byte[bom.Length];
-			for (var read = 0;  read != fragmentBom.Length;) {
+			for (var read = 0; read != fragmentBom.Length;) {
 				var n = stream.Read(fragmentBom, read, fragmentBom.Length - read);
 				if (n == 0)
 					return false;
@@ -437,7 +497,7 @@ namespace DataBoss.DataPackage
 		public DataPackageDefaultValueHandling DefaultValueHandling = DataPackageDefaultValueHandling.Default;
 	}
 
-	public enum DataPackageDefaultValueHandling 
+	public enum DataPackageDefaultValueHandling
 	{
 		Default = 0,
 		Explicit = 1,
@@ -491,7 +551,7 @@ namespace DataBoss.DataPackage
 
 			await Task.WhenAll(
 				readerTask,
-				writerTask, 
+				writerTask,
 				writerTask.ContinueWith(x => {
 					if (x.IsFaulted)
 						cancellation.Cancel();

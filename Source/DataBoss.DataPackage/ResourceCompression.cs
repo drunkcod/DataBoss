@@ -29,11 +29,11 @@ namespace DataBoss.DataPackage
 				string ext,
 				Func<Stream, CompressionMode, Stream> wrapOpen,
 				Func<Stream, CompressionLevel, Stream> wrapWrite) {
-					this.ResourceCompressionLevel = resourceCompression;
-					this.ExtensionSuffix = ext;
-					this.wrapOpen = wrapOpen;
-					this.wrapWrite = wrapWrite;
-				}
+				this.ResourceCompressionLevel = resourceCompression;
+				this.ExtensionSuffix = ext;
+				this.wrapOpen = wrapOpen;
+				this.wrapWrite = wrapWrite;
+			}
 
 			public override ResourceCompression WithCompressionLevel(CompressionLevel compressionLevel) =>
 				new StreamDecoroatorResourceCompression(compressionLevel, ExtensionSuffix, wrapOpen, wrapWrite);
@@ -88,7 +88,7 @@ namespace DataBoss.DataPackage
 			}
 
 			protected override bool TryMatch(string path, Func<string, Stream> open, out string resourcePath) {
-				if(Path.GetExtension(path) != ".zip") {
+				if (Path.GetExtension(path) != ".zip") {
 					resourcePath = null;
 					return false;
 				}
@@ -114,14 +114,14 @@ namespace DataBoss.DataPackage
 				return zip;
 			}
 
-			public override ResourceCompression WithCompressionLevel(CompressionLevel compressionLevel) => 
+			public override ResourceCompression WithCompressionLevel(CompressionLevel compressionLevel) =>
 				new ZipResourceCompression(compressionLevel);
 		}
 
 		public static readonly ResourceCompression None = new NoResourceCompression();
 
 		public static ResourceCompression GZip = new StreamDecoroatorResourceCompression(
-			CompressionLevel.Optimal, ".gz", 
+			CompressionLevel.Optimal, ".gz",
 			(x, mode) => new GZipStream(x, mode),
 			(x, level) => new GZipStream(x, level));
 
@@ -148,12 +148,13 @@ namespace DataBoss.DataPackage
 					BindCtor<Func<Stream, CompressionLevel, Stream>>(found));
 			return (
 				delegate { throw new NotSupportedException(errorMessage); },
-				delegate { throw new NotSupportedException(errorMessage); });
+				delegate { throw new NotSupportedException(errorMessage); }
+			);
 		}
 
 		static TDelegate BindCtor<TDelegate>(Type type) where TDelegate : Delegate =>
 			(TDelegate)MakeCtor(type, typeof(TDelegate)).Compile();
-	
+
 		static LambdaExpression MakeCtor(Type type, Type delegateType) {
 			var args = Array.ConvertAll(
 				delegateType.GetMethod("Invoke")?.GetParameters() ?? throw new InvalidOperationException("Invoke not found, non delegate type passed?."),
@@ -175,7 +176,7 @@ namespace DataBoss.DataPackage
 		protected virtual bool TryMatch(string path, Func<string, Stream> open, out string resourcePath) {
 			resourcePath = null;
 			return false;
-		} 
+		}
 
 		public abstract (string Path, Stream Stream) OpenWrite(string path, Func<string, Stream> createDestination);
 		public abstract Stream OpenRead(string path, Func<string, Stream> open);

@@ -25,7 +25,7 @@ namespace DataBoss.DataPackage
 		public readonly string Format;
 
 		protected TabularDataResource(DataPackageResourceDescription description, Func<IDataReader> getData, string format) {
-			if(!Regex.IsMatch(description.Name, @"^[a-z0-9-._]+$"))
+			if (!Regex.IsMatch(description.Name, @"^[a-z0-9-._]+$"))
 				throw new NotSupportedException($"name MUST consist only of lowercase alphanumeric characters plus '.', '-' and '_' was '{description.Name}'");
 			this.description = description;
 			this.getData = getData;
@@ -47,7 +47,7 @@ namespace DataBoss.DataPackage
 				Format = Format,
 				Path = ResourcePath,
 				Schema = new TabularDataSchema {
-					Fields = new List<TabularDataSchemaFieldDescription>(Schema.Fields),
+					Fields = [.. Schema.Fields],
 					PrimaryKey = NullIfEmpty(Schema.PrimaryKey),
 					ForeignKeys = NullIfEmpty(Schema.ForeignKeys),
 				},
@@ -79,7 +79,7 @@ namespace DataBoss.DataPackage
 
 		public IDataReader Read() {
 			var reader = getData();
-			if(Schema.Fields == null)
+			if (Schema.Fields == null)
 				Schema.Fields = GetFieldInfo(reader);
 			return reader;
 		}
@@ -96,7 +96,7 @@ namespace DataBoss.DataPackage
 		public TabularDataResource Where(Func<IDataRecord, bool> predicate) =>
 			Rebind(Name, Schema.Clone(), () => getData().Where(predicate));
 
-		public TabularDataResource Transform(Action<DataReaderTransform> defineTransform) => 
+		public TabularDataResource Transform(Action<DataReaderTransform> defineTransform) =>
 			Rebind(Name, SchemaWithSameKeys(), () => {
 				var data = new DataReaderTransform(getData());
 				defineTransform(data);
@@ -127,11 +127,11 @@ namespace DataBoss.DataPackage
 			var schema = reader
 				.GetDataReaderSchemaTable()
 				.ToDictionary(x => x.Ordinal, x => x);
-			
+
 			for (var i = 0; i != reader.FieldCount; ++i) {
 				TabularDataSchemaFieldConstraints? constraints = null;
 				if (schema.TryGetValue(i, out var found)) {
-					if(!found.AllowDBNull)
+					if (!found.AllowDBNull)
 						constraints = new TabularDataSchemaFieldConstraints(true, constraints?.MaxLength);
 					if ((found.DataType == typeof(string) || found.DataType == typeof(char)) && found.ColumnSize != int.MaxValue)
 						constraints = new TabularDataSchemaFieldConstraints(constraints?.IsRequired ?? false, found.ColumnSize);
@@ -162,7 +162,7 @@ namespace DataBoss.DataPackage
 			_ => throw new InvalidOperationException($"{CsvTypeCode} not mapped to a Type."),
 		};
 
-		TableSchemaType(Type type, string typeName, string format, CsvTypeCode csvTypeCode) { 
+		TableSchemaType(Type type, string typeName, string format, CsvTypeCode csvTypeCode) {
 			this.Type = type;
 			this.TableTypeName = typeName;
 			this.Format = format;
@@ -188,7 +188,7 @@ namespace DataBoss.DataPackage
 		static readonly TableSchemaType Int32 = new(typeof(int), "integer", null, CsvTypeCode.CsvInteger);
 		static readonly TableSchemaType Int64 = new(typeof(long), "integer", null, CsvTypeCode.CsvInteger);
 
-		public static TableSchemaType From(Type type)=>
+		public static TableSchemaType From(Type type) =>
 			Type.GetTypeCode(type) switch {
 				TypeCode.Boolean => Boolean,
 				TypeCode.DateTime => DateTime,

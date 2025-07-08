@@ -93,12 +93,13 @@ namespace DataBoss
 			if (string.IsNullOrEmpty(Database))
 				throw new InvalidOperationException("No database specified");
 
-			if (IsMsSql) return AsConnectionString(AddCredentials(new[] {
+			if (IsMsSql) return AsConnectionString(AddCredentials([
 				("Application Name", "DataBoss"),
 				("Pooling", "no"),
+				("Encrypt", "no"),
 				("Data Source", Server ?? "."),
 				("Database", Database),
-			}));
+			]));
 			if (IsPostgres) return AsConnectionString(
 				("Host", ServerInstance ?? "127.0.0.1"),
 				("Username", User),
@@ -143,8 +144,8 @@ namespace DataBoss
 
 		static IDbConnection NewConnection(string typename, string connectionStrinng) {
 			var t = Type.GetType(typename) ?? throw new NotSupportedException("Failed to load type " + typename);
-			var ctor = t.GetConstructor(new[] { typeof(string) });
-			return (IDbConnection)ctor.Invoke(new[] { connectionStrinng });
+			var ctor = t.GetConstructor([typeof(string)]);
+			return (IDbConnection)ctor.Invoke([connectionStrinng]);
 		}
 	}
 }
