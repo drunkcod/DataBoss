@@ -47,11 +47,8 @@ namespace DataBoss.Data.Npgsql
 
 		public void Insert(string destinationTable, IDataReader rows, DataBossBulkCopySettings settings) {
 			var row = new object[rows.FieldCount];
-			var dataType = new NpgsqlDbType?[rows.FieldCount];
-			for (var i = 0; i != rows.FieldCount; ++i)
-				dataType[i] = rows.GetDataTypeName(i) == "jsonb" ? NpgsqlDbType.Jsonb : null;
 			var batchSize = settings.BatchSize ?? int.MaxValue;
-			var copyFromCommand = CopyFromCommand(destinationTable, rows);
+			var (copyFromCommand, columnType) = CopyFromCommand(destinationTable, rows);
 		begin:
 			{
 				var rowCount = 0;
@@ -59,13 +56,9 @@ namespace DataBoss.Data.Npgsql
 				while (rows.Read()) {
 					rows.GetValues(row);
 					writer.StartRow();
-					for (var i = 0; i != row.Length; ++i) {
-						var dt = dataType[i];
-						var v = row[i];
-						if (dt.HasValue)
-							writer.Write(v, dt.Value);
-						else writer.Write(v);
-					}
+					for (var i = 0; i != row.Length; ++i)
+						writer.Write(row[i], columnType[i]);
+
 					if (++rowCount == batchSize) {
 						writer.Complete();
 						goto begin;
@@ -77,11 +70,8 @@ namespace DataBoss.Data.Npgsql
 
 		public async Task InsertAsync(string destinationTable, DbDataReader rows, DataBossBulkCopySettings settings, CancellationToken cancellationToken = default) {
 			var row = new object[rows.FieldCount];
-			var dataType = new NpgsqlDbType?[rows.FieldCount];
-			for (var i = 0; i != rows.FieldCount; ++i)
-				dataType[i] = rows.GetDataTypeName(i) == "jsonb" ? NpgsqlDbType.Jsonb : null;
 			var batchSize = settings.BatchSize ?? int.MaxValue;
-			var copyFromCommand = CopyFromCommand(destinationTable, rows);
+			var (copyFromCommand, columnType) = CopyFromCommand(destinationTable, rows);
 		begin:
 			{
 				var rowCount = 0;
@@ -90,9 +80,7 @@ namespace DataBoss.Data.Npgsql
 					rows.GetValues(row);
 					await writer.StartRowAsync(cancellationToken).ConfigureAwait(false);
 					for (var i = 0; i != row.Length; ++i) {
-						var dt = dataType[i];
-						var v = row[i];
-						await (dt.HasValue ? writer.WriteAsync(v, dt.Value, cancellationToken) : writer.WriteAsync(cancellationToken)).ConfigureAwait(false);
+						await writer.WriteAsync(row[i], columnType[i], cancellationToken).ConfigureAwait(false);
 					}
 					if (++rowCount == batchSize) {
 						await writer.CompleteAsync(cancellationToken).ConfigureAwait(false);
@@ -103,11 +91,15 @@ namespace DataBoss.Data.Npgsql
 			}
 		}
 
-		static string CopyFromCommand(string destinationTable, IDataReader rows) => new StringBuilder()
-			.Append("COPY ").Append(destinationTable).Append('(')
-			.AppendJoin(',', Collection.ArrayInit(rows.FieldCount, x => $"\"{rows.GetName(x)}\""))
-			.Append(") FROM STDIN(FORMAT BINARY)")
-			.ToString();
+		(string, NpgsqlDbType[]) CopyFromCommand(string destinationTable, IDataReader rows) {
+			var columns = string.Join(',', Collection.ArrayInit(rows.FieldCount, x => $"\"{rows.GetName(x)}\""));
+			using var c = new NpgsqlCommand($"select {columns} from {destinationTable} limit 0", connection);
+			using var r = c.ExecuteReader(CommandBehavior.SchemaOnly);
+			var schema = r.GetSchemaTable() ?? throw new ArgumentException("Failed to get SchemaTable");
+			var providerType = schema.Columns.IndexOf("ProviderType");
+			var columnTypes = Collection.ArrayInit(schema.Rows.Count, (x) => (NpgsqlDbType)schema.Rows[x][providerType]);
+			return ($"COPY {destinationTable}({columns}) FROM STDIN(FORMAT BINARY)", columnTypes);
+		}
 
 		public void Open() => connection.Open();
 
