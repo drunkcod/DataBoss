@@ -1,3 +1,4 @@
+using System;
 using System.Data;
 using System.Data.Common;
 using System.Text;
@@ -5,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using DataBoss.Linq;
 using Npgsql;
+using NpgsqlTypes;
 
 namespace DataBoss.Data.Npgsql
 {
@@ -45,15 +47,26 @@ namespace DataBoss.Data.Npgsql
 
 		public void Insert(string destinationTable, IDataReader rows, DataBossBulkCopySettings settings) {
 			var row = new object[rows.FieldCount];
+			var dataType = new NpgsqlDbType?[rows.FieldCount];
+			for (var i = 0; i != rows.FieldCount; ++i)
+				dataType[i] = rows.GetDataTypeName(i) == "jsonb" ? NpgsqlDbType.Jsonb : null;
 			var batchSize = settings.BatchSize ?? int.MaxValue;
 			var copyFromCommand = CopyFromCommand(destinationTable, rows);
-			begin: {
+		begin:
+			{
 				var rowCount = 0;
 				using var writer = connection.BeginBinaryImport(copyFromCommand);
-				while(rows.Read()) {
+				while (rows.Read()) {
 					rows.GetValues(row);
-					writer.WriteRow(row);
-					if(++rowCount == batchSize) {
+					writer.StartRow();
+					for (var i = 0; i != row.Length; ++i) {
+						var dt = dataType[i];
+						var v = row[i];
+						if (dt.HasValue)
+							writer.Write(v, dt.Value);
+						else writer.Write(v);
+					}
+					if (++rowCount == batchSize) {
 						writer.Complete();
 						goto begin;
 					}
@@ -64,15 +77,24 @@ namespace DataBoss.Data.Npgsql
 
 		public async Task InsertAsync(string destinationTable, DbDataReader rows, DataBossBulkCopySettings settings, CancellationToken cancellationToken = default) {
 			var row = new object[rows.FieldCount];
+			var dataType = new NpgsqlDbType?[rows.FieldCount];
+			for (var i = 0; i != rows.FieldCount; ++i)
+				dataType[i] = rows.GetDataTypeName(i) == "jsonb" ? NpgsqlDbType.Jsonb : null;
 			var batchSize = settings.BatchSize ?? int.MaxValue;
 			var copyFromCommand = CopyFromCommand(destinationTable, rows);
-			begin: {
+		begin:
+			{
 				var rowCount = 0;
 				using var writer = await connection.BeginBinaryImportAsync(copyFromCommand, cancellationToken).ConfigureAwait(false);
-				while(await rows.ReadAsync().ConfigureAwait(false)) {
+				while (await rows.ReadAsync(cancellationToken).ConfigureAwait(false)) {
 					rows.GetValues(row);
-					await writer.WriteRowAsync(cancellationToken, row).ConfigureAwait(false);
-					if(++rowCount == batchSize) {
+					await writer.StartRowAsync(cancellationToken).ConfigureAwait(false);
+					for (var i = 0; i != row.Length; ++i) {
+						var dt = dataType[i];
+						var v = row[i];
+						await (dt.HasValue ? writer.WriteAsync(v, dt.Value, cancellationToken) : writer.WriteAsync(cancellationToken)).ConfigureAwait(false);
+					}
+					if (++rowCount == batchSize) {
 						await writer.CompleteAsync(cancellationToken).ConfigureAwait(false);
 						goto begin;
 					}
@@ -96,7 +118,7 @@ namespace DataBoss.Data.Npgsql
 			using var c = new NpgsqlConnection(cs.ToString());
 			c.Open();
 			using var cmd = c.CreateCommand("select oid from pg_database where datname = :db", new { db = connection.Database });
-			if(cmd.ExecuteScalar() is null) {
+			if (cmd.ExecuteScalar() is null) {
 				cmd.ExecuteNonQuery($"create database \"{connection.Database}\"");
 			}
 		}
@@ -115,7 +137,7 @@ namespace DataBoss.Data.Npgsql
 			using var c = CreateCommand(
 				"update __DataBossMeta set version = :version where tableName = :tableName returning version",
 				new { tableName, version });
-			if(c.ExecuteScalar() is null) {
+			if (c.ExecuteScalar() is null) {
 				c.CommandText = "insert into __DataBossMeta values(:tableName, :version)";
 				c.ExecuteNonQuery();
 			}

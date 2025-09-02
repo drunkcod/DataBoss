@@ -159,6 +159,14 @@ namespace DataBoss
 		public Task UnpauseAsync(CancellationToken ct = default) {
 			return container.UnpauseAsync(ct);
 		}
+
+		public ushort GetMappedPublicPort() {
+			return container.GetMappedPublicPort();
+		}
+
+		public IReadOnlyDictionary<ushort, ushort> GetMappedPublicPorts() {
+			return container.GetMappedPublicPorts();
+		}
 	}
 
 	class SqlServerContainerBuilder

@@ -4,6 +4,7 @@ using Xunit;
 using Testcontainers.PostgreSql;
 using System.Data;
 using System.Text;
+using DataBoss.Testing.SqlServer;
 
 namespace DataBoss.Data.Npgsql
 {
@@ -60,14 +61,19 @@ namespace DataBoss.Data.Npgsql
 
 	public class DataBossNpgsqlConnection_ : DbConnectionFixture<NpgsqlConnection>, IDisposable, IClassFixture<NpgsqlTestDatabase>
 	{
+		Func<NpgsqlConnection> open;
 		NpgsqlConnection db;
 
 		protected override IDbConnection DbConnection => db;
 
 		public DataBossNpgsqlConnection_(NpgsqlTestDatabase testDb) {
 			NpgsqlConnection.ClearAllPools();
-			db = new NpgsqlConnection(testDb.ConnectionString);
-			db.Open();
+			this.open = () => {
+				var db = new NpgsqlConnection(testDb.ConnectionString);
+				db.Open();
+				return db;
+			};
+			this.db = this.open();
 		}
 
 		public void Dispose() => db.Dispose();
@@ -102,6 +108,30 @@ namespace DataBoss.Data.Npgsql
 				xs => xs[0].Value == input[0].Value);
 		}
 
+		[Fact]
+		public void Insert_jsonb_column() {
+			db.ExecuteNonQuery("drop table if exists test_jsonb_insert");
+			db.ExecuteNonQuery("create table test_jsonb_insert(value jsonb)");
+
+			db.ExecuteNonQuery("insert into test_jsonb_insert values('\"hello\"')");
+
+			using var source = this.open();
+			using var rows = source.CreateCommand("select * from test_jsonb_insert").ExecuteReader();
+			db.Insert("test_jsonb_insert", rows, new DataBossBulkCopySettings { });
+		}
+
+		[Fact]
+		public async Task Insert_jsonb_column_async() {
+			db.ExecuteNonQuery("drop table if exists test_jsonb_insert");
+			db.ExecuteNonQuery("create table test_jsonb_insert(value jsonb)");
+
+			db.ExecuteNonQuery("insert into test_jsonb_insert values('\"hello\"')");
+
+			using var source = this.open();
+			var cmd = new NpgsqlCommand("select * from test_jsonb_insert", source);
+			using var rows = cmd.ExecuteReader();
+			await db.InsertAsync("test_jsonb_insert", rows, new DataBossBulkCopySettings { });
+		}
 		[Fact]
 		public void Query_IEnumerableOfT_parameter() {
 			var values = new List<int> { 1, 2, 3 };
