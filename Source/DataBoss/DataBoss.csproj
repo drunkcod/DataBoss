@@ -13,7 +13,7 @@
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="System.Text.Json" Version="9.0.8" />
+    <PackageReference Include="System.Text.Json" Version="9.0.10" />
 
     <ProjectReference Include="..\DataBoss.Data.MsSql\DataBoss.Data.MsSql.csproj" />
     <ProjectReference Include="..\DataBoss.Data.Npgsql\DataBoss.Data.Npgsql.csproj" />
@@ -22,7 +22,7 @@
     <ProjectReference Include="..\DataBoss.PowerArgs\DataBoss.PowerArgs.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="NpgSql" Version="9.0.3" />
-    <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.1" />
+    <PackageReference Include="NpgSql" Version="9.0.4" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.2" />
   </ItemGroup>
 </Project>

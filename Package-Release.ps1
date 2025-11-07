@@ -23,3 +23,4 @@ NuPack DataBoss.DataPackage
 NuPack DataBoss.Migrations
 NuPack DataBoss
 NuPack DataBoss.Testing.SqlServer
+NuPack DataBoss.MongoDB
