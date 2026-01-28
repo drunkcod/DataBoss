@@ -101,19 +101,19 @@ namespace DataBoss
 		}
 
 		public Task CopyAsync(byte[] fileContent, string filePath, UnixFileModes fileMode = UnixFileModes.OtherRead | UnixFileModes.GroupRead | UnixFileModes.UserWrite | UnixFileModes.UserRead, CancellationToken ct = default) {
-			return container.CopyAsync(fileContent, filePath, fileMode, ct);
+			return container.CopyAsync(fileContent, filePath, fileMode: fileMode, ct: ct);
 		}
 
 		public Task CopyAsync(string source, string target, UnixFileModes fileMode = UnixFileModes.OtherRead | UnixFileModes.GroupRead | UnixFileModes.UserWrite | UnixFileModes.UserRead, CancellationToken ct = default) {
-			return container.CopyAsync(source, target, fileMode, ct);
+			return container.CopyAsync(source, target, fileMode: fileMode, ct: ct);
 		}
 
 		public Task CopyAsync(DirectoryInfo source, string target, UnixFileModes fileMode = UnixFileModes.OtherRead | UnixFileModes.GroupRead | UnixFileModes.UserWrite | UnixFileModes.UserRead, CancellationToken ct = default) {
-			return container.CopyAsync(source, target, fileMode, ct);
+			return container.CopyAsync(source, target, fileMode: fileMode, ct: ct);
 		}
 
 		public Task CopyAsync(FileInfo source, string target, UnixFileModes fileMode = UnixFileModes.OtherRead | UnixFileModes.GroupRead | UnixFileModes.UserWrite | UnixFileModes.UserRead, CancellationToken ct = default) {
-			return container.CopyAsync(source, target, fileMode, ct);
+			return container.CopyAsync(source, target, fileMode: fileMode, ct: ct);
 		}
 
 		public ValueTask DisposeAsync() {
@@ -166,6 +166,22 @@ namespace DataBoss
 
 		public IReadOnlyDictionary<ushort, ushort> GetMappedPublicPorts() {
 			return container.GetMappedPublicPorts();
+		}
+
+		public Task CopyAsync(byte[] fileContent, string filePath, uint uid = 0, uint gid = 0, UnixFileModes fileMode = UnixFileModes.OtherRead | UnixFileModes.GroupRead | UnixFileModes.UserWrite | UnixFileModes.UserRead, CancellationToken ct = default) {
+			return container.CopyAsync(fileContent, filePath, uid, gid, fileMode, ct);
+		}
+
+		public Task CopyAsync(string source, string target, uint uid = 0, uint gid = 0, UnixFileModes fileMode = UnixFileModes.OtherRead | UnixFileModes.GroupRead | UnixFileModes.UserWrite | UnixFileModes.UserRead, CancellationToken ct = default) {
+			return container.CopyAsync(source, target, uid, gid, fileMode, ct);
+		}
+
+		public Task CopyAsync(DirectoryInfo source, string target, uint uid = 0, uint gid = 0, UnixFileModes fileMode = UnixFileModes.OtherRead | UnixFileModes.GroupRead | UnixFileModes.UserWrite | UnixFileModes.UserRead, CancellationToken ct = default) {
+			return container.CopyAsync(source, target, uid, gid, fileMode, ct);
+		}
+
+		public Task CopyAsync(FileInfo source, string target, uint uid = 0, uint gid = 0, UnixFileModes fileMode = UnixFileModes.OtherRead | UnixFileModes.GroupRead | UnixFileModes.UserWrite | UnixFileModes.UserRead, CancellationToken ct = default) {
+			return container.CopyAsync(source, target, uid, gid, fileMode, ct);
 		}
 	}
 
