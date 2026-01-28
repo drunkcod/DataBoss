@@ -7,15 +7,19 @@ namespace DataBoss.DataPackage.Types
 	[TypeMapping(TypeName = "date")]
 	public struct DataPackageDate
 	{
-		public readonly DateTime Value;
+		public readonly DateOnly Value;
 
 		DataPackageDate(DateTime value) {
-			this.Value = value.Date;
+			this.Value = DateOnly.FromDateTime(value.Date);
+		}
+		DataPackageDate(DateOnly value) {
+			this.Value = value;
 		}
 
 		public override int GetHashCode() => Value.GetHashCode();
 		public override string ToString() => Value.ToString("yyyy-MM-dd");
-		public static explicit operator DateTime(DataPackageDate self) => self.Value;
-		public static explicit operator DataPackageDate(DateTime source) => new DataPackageDate(source);
+		public static explicit operator DateTime(DataPackageDate self) => self.Value.ToDateTime(TimeOnly.MinValue);
+		public static explicit operator DataPackageDate(DateOnly source) => new(source);
+		public static explicit operator DataPackageDate(DateTime source) => new(source);
 	}
 }

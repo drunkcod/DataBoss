@@ -15,6 +15,7 @@ namespace DataBoss.Data
 		static readonly HashSet<Type> MappedTypes = new() {
 			typeof(object),
 			typeof(string),
+			typeof(DateOnly),
 			typeof(DateTime),
 			typeof(decimal),
 			typeof(Guid),

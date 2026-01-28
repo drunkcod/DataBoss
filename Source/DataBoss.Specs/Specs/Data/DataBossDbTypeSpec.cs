@@ -34,6 +34,8 @@ namespace DataBoss.Data
 		[Theory]
 		[InlineData(typeof(DateTime?), "datetime", true)]
 		[InlineData(typeof(DateTime), "datetime", false)]
+		[InlineData(typeof(DateOnly?), "date", true)]
+		[InlineData(typeof(DateOnly), "date", false)]
 		[InlineData(typeof(byte?), "tinyint", true)]
 		[InlineData(typeof(byte), "tinyint", false)]
 		[InlineData(typeof(short?), "smallint", true)]

@@ -92,6 +92,7 @@ namespace DataBoss
 		[InlineData(typeof(string))]
 		[InlineData(typeof(Guid))]
 		[InlineData(typeof(DateTime))]
+		[InlineData(typeof(DateOnly))]
 		[InlineData(typeof(decimal))]
 		[InlineData(typeof(byte[]))]
 		public void has_sql_type_mapping_for(Type clrType) =>

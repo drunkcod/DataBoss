@@ -1,5 +1,4 @@
 using System;
-using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
@@ -19,13 +18,14 @@ namespace DataBoss.DataPackage
 	{
 		struct IdValueRow
 		{
-			#pragma warning disable CS0649//never assigned.
+#pragma warning disable CS0649//never assigned.
 			public int Id;
 			public string Value;
-			#pragma warning restore CS0649
+#pragma warning restore CS0649
 		}
 
-		public class StringRow {
+		public class StringRow
+		{
 			public string Id;
 			public string Value;
 		}
@@ -73,7 +73,7 @@ namespace DataBoss.DataPackage
 				Path = "parts/1.csv"
 			});
 
-			var r = dp.Serialize();;
+			var r = dp.Serialize(); ;
 
 			Check.That(
 				() => r.GetResource("also-1").Read<IdValueRow>().SequenceEqual(r.GetResource("1").Read<IdValueRow>()));
@@ -86,7 +86,7 @@ namespace DataBoss.DataPackage
 				Name = "1",
 				Path = "parts/1.csv",
 			}, () => SequenceDataReader.Items(new { Id = 1, Value = "One" }));
-			
+
 			dp.AddResource(new CsvResourceOptions {
 				Name = "2",
 				Path = "parts/2.csv",
@@ -144,7 +144,7 @@ namespace DataBoss.DataPackage
 		public void WithPrimaryKey_array_version() {
 			var dp = new DataPackage()
 				.AddResource("my-resource", () => SequenceDataReader.Items(new { Id = 1, Value = "One" }))
-				.WithPrimaryKey(new[]{ "Id", "Value" });
+				.WithPrimaryKey(new[] { "Id", "Value" });
 		}
 
 		[Fact]
@@ -161,11 +161,11 @@ namespace DataBoss.DataPackage
 		}
 
 		[Fact]
-		public void datetime_types() { 
+		public void datetime_types() {
 			var dp = new DataPackage()
 				.AddResource(x => x
 					.WithName("dates-and-time")
-					.WithData(new [] {
+					.WithData(new[] {
 						new {
 							datetime = DateTime.Now,
 							date = (DataPackageDate)DateTime.Now,
@@ -187,7 +187,7 @@ namespace DataBoss.DataPackage
 		public void datetime_roundtrip() {
 			var timestamp = DateTime.Now;
 			//clamp to seconds precision
-			timestamp = new DateTime(timestamp.Year, timestamp.Month, timestamp.Day, timestamp.Hour, timestamp.Minute, timestamp.Second, timestamp.Kind );
+			timestamp = new DateTime(timestamp.Year, timestamp.Month, timestamp.Day, timestamp.Hour, timestamp.Minute, timestamp.Second, timestamp.Kind);
 			var dp = new DataPackage()
 				.AddResource(x => x
 					.WithName("dates-and-time")
@@ -203,7 +203,7 @@ namespace DataBoss.DataPackage
 			var r = dp.GetResource("dates-and-time").Read<DateTimeFormatRow>().Single();
 			Check.That(
 				() => r.datetime == timestamp,
-				() => r.date == timestamp.Date,
+				() => r.date == DateOnly.FromDateTime(timestamp),
 				() => (DateTime)r.dpDate == timestamp.Date);
 		}
 
@@ -213,7 +213,7 @@ namespace DataBoss.DataPackage
 			var dp = new DataPackage()
 				.AddResource(x => x
 					.WithName("times")
-					.WithData(new [] {
+					.WithData(new[] {
 						new { time = t.TimeOfDay,
 					}, }))
 				.Serialize();
@@ -229,8 +229,8 @@ namespace DataBoss.DataPackage
 
 		[Fact]
 		public void date_roundtrippy() {
-			var today = DateTime.Today;
-			var utc = today.ToUniversalTime().Date;
+			var today = DateOnly.FromDateTime(DateTime.Today);
+			var utc = DateOnly.FromDateTime(DateTime.Today.ToUniversalTime());
 
 			var dp = new DataPackage()
 				.AddResource("dates-are-dates", () => SequenceDataReader.Items(
@@ -245,7 +245,7 @@ namespace DataBoss.DataPackage
 			var r = dp.Resources[0].Read();
 			r.Read();
 			Check.That(
-				() => today.Date != utc.Date,
+				() => today != utc,
 				() => r["Today"] == (object)today,
 				() => r["UtcToday"] == (object)utc);
 		}
@@ -260,7 +260,7 @@ namespace DataBoss.DataPackage
 						new { Value = now, }
 					}))
 				.Serialize();
-			
+
 			var r = dp.GetResource("rows");
 			var rows = r.Read();
 			rows.Read();
@@ -322,7 +322,7 @@ namespace DataBoss.DataPackage
 			var dp = new DataPackage()
 				.AddResource(x => x
 					.WithName("uuids")
-					.WithData(new [] { new { Value = value } }))
+					.WithData(new[] { new { Value = value } }))
 				.Serialize();
 
 			var r = dp.Resources.Single();
@@ -337,14 +337,14 @@ namespace DataBoss.DataPackage
 
 		class MyRow<T>
 		{
-			#pragma warning disable CS0649//never assigned.
+#pragma warning disable CS0649//never assigned.
 			public T Value;
-			#pragma warning restore CS0649
+#pragma warning restore CS0649
 		}
 
 		[Fact]
 		public void ReadT_can_be_enumerated_multiple_times() {
-			var dp = new DataPackage();			
+			var dp = new DataPackage();
 			dp.AddResource(x => x.WithName("data").WithData(new[] { new { Value = 1 } }));
 
 			var rows = dp.GetResource("data").Read<MyRow<int>>();
@@ -483,12 +483,12 @@ namespace DataBoss.DataPackage
 
 		class DateTimeFormatRow
 		{
-			#pragma warning disable CS0649//never assigned.
+#pragma warning disable CS0649//never assigned.
 			public DateTime datetime;
-			public DateTime date;
+			public DateOnly date;
 			public DataPackageDate dpDate;
 			public TimeSpan time;
-			#pragma warning restore CS0649
+#pragma warning restore CS0649
 		}
 
 		static NumberFormatInfo GetNumbersFormat(DataPackage data) => data.GetResource("numbers").Schema.Fields.Single().GetNumberFormat();

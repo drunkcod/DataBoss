@@ -19,12 +19,12 @@ namespace DataBoss.DataPackage
 			var csv = new CsvDataReader(
 				new CsvHelper.CsvParser(TextReader.Null, CultureInfo.CurrentCulture),
 				new TabularDataSchema {
-					Fields = new List<TabularDataSchemaFieldDescription> {
+					Fields = [
 						new TabularDataSchemaFieldDescription("boolean", "boolean"),
 						new TabularDataSchemaFieldDescription("datetime", "datetime"),
 						new TabularDataSchemaFieldDescription("integer", "integer"),
 						new TabularDataSchemaFieldDescription("number", "number"),
-					}
+					]
 				}, hasHeaderRow: false);
 
 			var schema = ObjectReader.For(csv.GetSchemaTable().CreateDataReader).Read<DataReaderSchemaRow>().ToList();
@@ -40,12 +40,12 @@ namespace DataBoss.DataPackage
 			var csv = new CsvDataReader(
 				new CsvHelper.CsvParser(TextReader.Null, CultureInfo.CurrentCulture),
 				new TabularDataSchema {
-					Fields = new List<TabularDataSchemaFieldDescription> {
+					Fields = [
 						new TabularDataSchemaFieldDescription(
-							"integer", 
-							"integer", 
+							"integer",
+							"integer",
 							constraints: new TabularDataSchemaFieldConstraints(required: true)),
-					}
+					]
 				}, hasHeaderRow: false);
 
 			var schema = ObjectReader.For(csv.GetSchemaTable().CreateDataReader).Read<DataReaderSchemaRow>().ToList();
@@ -58,10 +58,10 @@ namespace DataBoss.DataPackage
 			var csv = new CsvDataReader(
 				new CsvHelper.CsvParser(TextReader.Null, CultureInfo.CurrentCulture),
 				new TabularDataSchema {
-					Fields = new List<TabularDataSchemaFieldDescription> {
+					Fields = [
 						new TabularDataSchemaFieldDescription("id", "integer"),
-					}, 
-					PrimaryKey = new List<string>{ "id" },
+					],
+					PrimaryKey = new List<string> { "id" },
 				}, hasHeaderRow: false);
 
 			var schema = ObjectReader.For(csv.GetSchemaTable().CreateDataReader).Read<DataReaderSchemaRow>().ToList();
@@ -73,12 +73,12 @@ namespace DataBoss.DataPackage
 			var csv = new CsvDataReader(
 				new CsvHelper.CsvParser(new StringReader("1,\n,\n"), CultureInfo.CurrentCulture),
 				new TabularDataSchema {
-					Fields = new List<TabularDataSchemaFieldDescription> {
+					Fields = [
 						new TabularDataSchemaFieldDescription(
 							"Id",
 							"integer",
 							constraints: new TabularDataSchemaFieldConstraints(required: true)),
-					}
+					]
 				}, hasHeaderRow: false);
 
 			Check.Exception<InvalidOperationException>(() => ObjectReader.Read<IdRow<int>>(csv).ToList());
@@ -89,16 +89,16 @@ namespace DataBoss.DataPackage
 			var csv = new CsvDataReader(
 				new CsvHelper.CsvParser(new StringReader("3·1415"), CultureInfo.CurrentCulture),
 				new TabularDataSchema {
-					Fields = new List<TabularDataSchemaFieldDescription> {
+					Fields = [
 						new TabularDataSchemaFieldDescription(
 							"value",
 							"number",
 							decimalChar: "·"//interpunct, no-one uses that.
 						),
-					}
+					]
 				}, hasHeaderRow: false);
 
-			Check.With(() => ObjectReader.Read<ValueRow<double>>(csv).ToList()).That(				
+			Check.With(() => ObjectReader.Read<ValueRow<double>>(csv).ToList()).That(
 				xs => xs.Count == 1,
 				xs => xs[0].Value == 3.1415);
 		}
@@ -108,7 +108,7 @@ namespace DataBoss.DataPackage
 			var dp = new DataPackage()
 				.AddResource(x => x
 					.WithName("numbers")
-					.WithData(new[] { new { Value = 1 } }))
+					.WithData([new { Value = 1 }]))
 				.Serialize();
 
 			var r = dp.GetResource("numbers").Read();

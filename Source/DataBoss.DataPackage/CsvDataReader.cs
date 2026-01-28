@@ -12,7 +12,7 @@ using DataBoss.Data;
 namespace DataBoss.DataPackage
 {
 	public class CsvDataReader : DbDataReader, IDataRecordReader
-	{		
+	{
 		class CsvDataRecord : IDataRecord
 		{
 			static bool InvalidGetAttempt(int i) => throw new InvalidOperationException("Invalid attempt to read when no data is present, call Read()");
@@ -22,9 +22,8 @@ namespace DataBoss.DataPackage
 			readonly CsvDataReader parent;
 			int rowNumber;
 
-			public CsvDataRecord(CsvDataReader parent, BitArray isNull, string[] fieldValue) : this(parent, -1, isNull, fieldValue) 
-			{ }
-			
+			public CsvDataRecord(CsvDataReader parent, BitArray isNull, string[] fieldValue) : this(parent, -1, isNull, fieldValue) { }
+
 			CsvDataRecord(CsvDataReader parent, int rowNumber, BitArray isNull, string[] fieldValue) {
 				this.isNull = isNull;
 				this.fieldValue = fieldValue;
@@ -34,7 +33,7 @@ namespace DataBoss.DataPackage
 
 			bool IsHeader => rowNumber == -1;
 			bool CheckedIsNull(int i) => IsHeader ? InvalidGetAttempt(i) : CheckedIsNullUnsafe(i);
-				 
+
 			public CsvDataRecord Clone() => new(parent, rowNumber, new BitArray(isNull), (string[])fieldValue.Clone());
 
 			public void Fill(int rowNumber, CsvParser csv) {
@@ -55,8 +54,9 @@ namespace DataBoss.DataPackage
 					return DBNull.Value;
 
 				try {
-					return ChangeType(fieldValue[i], GetFieldType(i),  GetFieldFormat(i));
-				} catch (FormatException ex) {
+					return ChangeType(fieldValue[i], GetFieldType(i), GetFieldFormat(i));
+				}
+				catch (FormatException ex) {
 					var given = isNull[i] ? "null" : $"'{fieldValue[i]}'";
 					throw new InvalidOperationException($"Failed to parse {GetName(i)} of type {GetFieldType(i)} given {given} on line {rowNumber}", ex);
 				}
@@ -68,7 +68,7 @@ namespace DataBoss.DataPackage
 				return parent.IsNullable(i) || UnexpectedNull(i);
 			}
 
-			bool UnexpectedNull(int i) => 
+			bool UnexpectedNull(int i) =>
 				throw new InvalidOperationException($"Unexpected null value for {GetName(i)} on line {rowNumber}.");
 
 			public bool IsDBNull(int i) => isNull[i];
@@ -187,8 +187,7 @@ namespace DataBoss.DataPackage
 		public event EventHandler Disposed;
 
 		public CsvDataReader(TextReader csv, CultureInfo cultureInfo, TabularDataSchema tabularSchema, bool hasHeaderRow = true) :
-			this(new CsvParser(csv, cultureInfo), tabularSchema, hasHeaderRow) 
-		{ }
+			this(new CsvParser(csv, cultureInfo), tabularSchema, hasHeaderRow) { }
 
 		public CsvDataReader(CsvParser csv, TabularDataSchema tabularSchema, bool hasHeaderRow = true) {
 			var fieldCount = tabularSchema.Fields.Count;
@@ -212,21 +211,21 @@ namespace DataBoss.DataPackage
 				var (tableType, dbType) = fieldTypeConverter.ToDbType(field);
 				csvFieldType[i] = tableType.CsvTypeCode;
 				schema.Add(
-					field.Name, 
-					i, 
-					tableType.Type, 
-					dbType.IsNullable, 
-					field.Constraints?.MaxLength ?? dbType.ColumnSize, 
+					field.Name,
+					i,
+					tableType.Type,
+					dbType.IsNullable,
+					field.Constraints?.MaxLength ?? dbType.ColumnSize,
 					dbType.TypeName,
 					tableType.CsvType);
-				
+
 				if (field.IsNumber())
 					fieldFormat[i] = field.GetNumberFormat();
 			}
 		}
 
 		void ValidateHeaderRow() {
-			if(!ReadRow())
+			if (!ReadRow())
 				throw new InvalidOperationException("Missing header row.");
 
 			for (var i = 0; i != schema.Count; ++i) {
@@ -254,7 +253,7 @@ namespace DataBoss.DataPackage
 		public override bool HasRows => throw new NotSupportedException();
 
 		public override DataTable GetSchemaTable() => schema.ToDataTable();
-		
+
 		public override bool Read() => FillOnRead(ReadRow());
 		public override async Task<bool> ReadAsync(CancellationToken cancellationToken) => FillOnRead(await ReadRowAsync());
 
@@ -277,7 +276,10 @@ namespace DataBoss.DataPackage
 				TypeCode.Object when type == typeof(TimeSpan) => TimeSpan.Parse(input, format),
 				TypeCode.Object when type == typeof(byte[]) => Convert.FromBase64String(input),
 				TypeCode.Object when type == typeof(Guid) => Guid.Parse(input),
-				_ => Convert.ChangeType(input, type, format),
+				_ => type.FullName switch {
+					"System.DateOnly" => DateOnly.Parse(input, format),
+					_ => Convert.ChangeType(input, type, format),
+				}
 			};
 
 		public override Type GetFieldType(int i) => schema[i].DataType;
@@ -295,7 +297,7 @@ namespace DataBoss.DataPackage
 		}
 
 		protected override void Dispose(bool disposing) {
-			if(!disposing)
+			if (!disposing)
 				return;
 
 			csv?.Dispose();
@@ -334,7 +336,7 @@ namespace DataBoss.DataPackage
 
 		public override int GetValues(object[] values) {
 			var n = Math.Min(FieldCount, values.Length);
-			for(var i = 0; i != n; ++i)
+			for (var i = 0; i != n; ++i)
 				values[i] = GetValue(i);
 			return n;
 		}

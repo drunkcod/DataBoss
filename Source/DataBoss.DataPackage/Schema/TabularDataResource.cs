@@ -172,7 +172,7 @@ namespace DataBoss.DataPackage
 		static readonly TableSchemaType Boolean = new(typeof(bool), "boolean", null, CsvTypeCode.None);
 		static readonly TableSchemaType Binary = new(typeof(byte[]), "string", "binary", CsvTypeCode.None);
 		static readonly TableSchemaType Char = new(typeof(char), "string", null, CsvTypeCode.None);
-		static readonly TableSchemaType Date = new(typeof(DateTime), "date", null, CsvTypeCode.None);
+		static readonly TableSchemaType Date = new(typeof(DateOnly), "date", null, CsvTypeCode.None);
 		static readonly TableSchemaType DateTime = new(typeof(DateTime), "datetime", null, CsvTypeCode.None);
 		static readonly TableSchemaType DateTimeOffset = new(typeof(DateTimeOffset), "datetime", "any", CsvTypeCode.None);
 		static readonly TableSchemaType Uuid = new(typeof(Guid), "string", "uuid", CsvTypeCode.None);
@@ -203,6 +203,7 @@ namespace DataBoss.DataPackage
 				TypeCode.String => String,
 				_ => type.FullName switch {
 					"System.TimeSpan" => Time,
+					"System.DateOnly" => Date,
 					"System.DateTimeOffset" => DateTimeOffset,
 					"System.Byte[]" => Binary,
 					"System.Guid" => Uuid,

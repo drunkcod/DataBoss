@@ -38,15 +38,15 @@ namespace DataBoss.Data
 			Binary = 20,
 			VarBinary = 21,
 			RowVersion = 22,
-			
+
 			TagMask = 31,
 
 			IsVariableSize = Char,
 			IsNullable = 1 << 7,
 		}
 
-		static readonly (string TypeName, byte Width)[] FixedTypes = new(string, byte)[]
-		{
+		static readonly (string TypeName, byte Width)[] FixedTypes =
+		[
 			(null, 0),
 			("tinyint", 1),
 			("smallint", 2),
@@ -61,9 +61,9 @@ namespace DataBoss.Data
 			("time", 8),
 			("datetimeoffset", 10),
 			("uniqueidentifier", 16)
-		};
+		];
 
-		static readonly (string TypeName, byte Width)[] VariableSizeTypes = new(string, byte)[] {
+		static readonly (string TypeName, byte Width)[] VariableSizeTypes = [
 			("char", 0),
 			("varchar", 0),
 			("nchar", 0),
@@ -72,7 +72,7 @@ namespace DataBoss.Data
 			("varbinary", 0),
 			//rowversion
 			("binary", 0),
-		};
+		];
 
 		(string TypeName, byte Width) GetBossType(BossTypeTag tag) => tag.HasFlag(BossTypeTag.IsVariableSize)
 			? VariableSizeTypes[(byte)(tag & BossTypeTag.TagMask) - (byte)BossTypeTag.Char]
@@ -83,9 +83,9 @@ namespace DataBoss.Data
 
 		public int? ColumnSize => tag.HasFlag(BossTypeTag.IsVariableSize)
 			? (int?)extra
-			: IsKnownType(out var knownType) ? GetBossType(knownType).Width : null; 
+			: IsKnownType(out var knownType) ? GetBossType(knownType).Width : null;
 
-		public string TypeName => IsKnownType(out var knownType) 
+		public string TypeName => IsKnownType(out var knownType)
 			? GetBossType(knownType).TypeName
 			: CustomInfo.TypeName;
 
@@ -102,7 +102,7 @@ namespace DataBoss.Data
 
 		public static DataBossDbType Create(string typeName, int? columnSize, bool isNullable) {
 			var tag = TypeTagLookup(ref typeName);
-			if(tag == BossTypeTag.Custom)
+			if (tag == BossTypeTag.Custom)
 				return new DataBossDbType(tag, isNullable, (typeName, columnSize));
 			return new DataBossDbType(tag, isNullable, columnSize);
 		}
@@ -110,9 +110,9 @@ namespace DataBoss.Data
 		static BossTypeTag TypeTagLookup(ref string typeName) {
 			var nameToFind = typeName;
 			var n = Array.FindIndex(FixedTypes, x => x.TypeName == nameToFind);
-			if(n == -1) { 
+			if (n == -1) {
 				n = Array.FindIndex(VariableSizeTypes, x => x.TypeName == nameToFind);
-				if(n != -1)
+				if (n != -1)
 					n += (int)BossTypeTag.IsVariableSize;
 			}
 			if (n == -1)
@@ -121,8 +121,7 @@ namespace DataBoss.Data
 			return (BossTypeTag)n;
 		}
 
-		DataBossDbType(BossTypeTag tag, bool isNullable) : this(tag, isNullable, null)
-		{ }
+		DataBossDbType(BossTypeTag tag, bool isNullable) : this(tag, isNullable, null) { }
 
 		DataBossDbType(BossTypeTag tag, bool isNullable, object extra) {
 			this.tag = tag | (isNullable ? BossTypeTag.IsNullable : 0);
@@ -140,7 +139,7 @@ namespace DataBoss.Data
 			return MapType(type, attributes, canBeNull);
 		}
 
-		public static DataBossDbType ToDataBossDbType(IDbDataParameter parameter) { 
+		public static DataBossDbType ToDataBossDbType(IDbDataParameter parameter) {
 			var t = MapType(parameter.DbType);
 			return t.HasFlag(BossTypeTag.IsVariableSize)
 			? new DataBossDbType(t, true, parameter.Size)
@@ -148,7 +147,7 @@ namespace DataBoss.Data
 		}
 
 		public string FormatValue(object value) {
-			switch(tag & BossTypeTag.TagMask) { 
+			switch (tag & BossTypeTag.TagMask) {
 				default: throw new NotSupportedException($"Can't format {value} of type {value.GetType()} as {ToString()}");
 				case BossTypeTag.TinyInt: return ChangeType<byte>(value).ToString();
 				case BossTypeTag.SmallInt: return ChangeType<short>(value).ToString();
@@ -166,10 +165,10 @@ namespace DataBoss.Data
 				case BossTypeTag.Binary:
 				case BossTypeTag.VarBinary:
 					var bytes = value as IEnumerable<byte>;
-					if(bytes == null)
+					if (bytes == null)
 						goto default;
 					var r = new StringBuilder("0x");
-					foreach(var b in bytes)
+					foreach (var b in bytes)
 						r.AppendFormat("{0:x2}", b);
 					return r.ToString();
 			}
@@ -180,7 +179,7 @@ namespace DataBoss.Data
 		static T ChangeType<T>(object value) => (T)Convert.ChangeType(value, typeof(T));
 
 		static BossTypeTag MapType(DbType dbType) {
-			switch(dbType) {
+			switch (dbType) {
 				default: throw new NotSupportedException($"No mapping for {dbType}.");
 				case DbType.Byte: return BossTypeTag.TinyInt;
 				case DbType.Int16: return BossTypeTag.SmallInt;
@@ -204,7 +203,7 @@ namespace DataBoss.Data
 				return Create(column.TypeName, null, canBeNull);
 
 			var typeMapping = type.SingleOrDefault<TypeMappingAttribute>();
-			if(typeMapping != null && !string.IsNullOrEmpty(typeMapping.TypeName))
+			if (typeMapping != null && !string.IsNullOrEmpty(typeMapping.TypeName))
 				return Create(typeMapping.TypeName, null, canBeNull);
 
 			switch (type.FullName) {
@@ -219,11 +218,12 @@ namespace DataBoss.Data
 				case "System.Boolean": return new DataBossDbType(BossTypeTag.Bit, canBeNull);
 				case "System.Guid": return new DataBossDbType(BossTypeTag.Guid, canBeNull);
 				case "System.String":
-					return new DataBossDbType(attributes.Any<AnsiStringAttribute>() ? BossTypeTag.VarChar: BossTypeTag.NVarChar, canBeNull, MaxLength(attributes)?.Length ?? int.MaxValue);
+					return new DataBossDbType(attributes.Any<AnsiStringAttribute>() ? BossTypeTag.VarChar : BossTypeTag.NVarChar, canBeNull, MaxLength(attributes)?.Length ?? int.MaxValue);
 				case "System.Char":
 					return new DataBossDbType(attributes.Any<AnsiStringAttribute>() ? BossTypeTag.Char : BossTypeTag.NChar, canBeNull, 1);
 				case "System.Byte[]":
 					return new DataBossDbType(BossTypeTag.VarBinary, canBeNull, MaxLength(attributes)?.Length ?? int.MaxValue);
+				case "System.DateOnly": return Create("date", 3, canBeNull);
 				case "System.DateTime": return Create("datetime", 8, canBeNull);
 				case "System.DateTimeOffset": return Create("datetimeoffset", 10, canBeNull);
 				case "System.TimeSpan": return Create("time", 3, canBeNull);
@@ -237,7 +237,7 @@ namespace DataBoss.Data
 		static MaxLengthAttribute MaxLength(ICustomAttributeProvider attributes) =>
 			attributes.SingleOrDefault<MaxLengthAttribute>();
 
-		public static DbType ToDbType(Type type) => 
+		public static DbType ToDbType(Type type) =>
 			type.FullName switch {
 				"System.Byte" => DbType.Byte,
 				"System.Int16" => DbType.Int16,
@@ -247,6 +247,7 @@ namespace DataBoss.Data
 				"System.Double" => DbType.Double,
 				"System.Decimal" => DbType.Decimal,
 				"System.Boolean" => DbType.Boolean,
+				"System.DateOnly" => DbType.Date,
 				"System.DateTime" => DbType.DateTime,
 				"System.DateTimeOffset" => DbType.DateTimeOffset,
 				"System.Guid" => DbType.Guid,
@@ -254,10 +255,10 @@ namespace DataBoss.Data
 				_ => DbType.Object,
 			};
 
-		public static bool operator==(DataBossDbType a, DataBossDbType b) =>
+		public static bool operator ==(DataBossDbType a, DataBossDbType b) =>
 			a.TypeName == b.TypeName && a.IsNullable == b.IsNullable;
 
-		public static bool operator!=(DataBossDbType a, DataBossDbType b) => !(a == b);
+		public static bool operator !=(DataBossDbType a, DataBossDbType b) => !(a == b);
 
 		public override string ToString() => FormatType() + (IsNullable ? string.Empty : " not null");
 
