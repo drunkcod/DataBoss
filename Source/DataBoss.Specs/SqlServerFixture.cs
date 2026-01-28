@@ -183,6 +183,14 @@ namespace DataBoss
 		public Task CopyAsync(FileInfo source, string target, uint uid = 0, uint gid = 0, UnixFileModes fileMode = UnixFileModes.OtherRead | UnixFileModes.GroupRead | UnixFileModes.UserWrite | UnixFileModes.UserRead, CancellationToken ct = default) {
 			return container.CopyAsync(source, target, uid, gid, fileMode, ct);
 		}
+
+		public string GetConnectionString(ConnectionMode connectionMode = ConnectionMode.Host) {
+			return container.GetConnectionString(connectionMode);
+		}
+
+		public string GetConnectionString(string name, ConnectionMode connectionMode = ConnectionMode.Host) {
+			return container.GetConnectionString(name, connectionMode);
+		}
 	}
 
 	class SqlServerContainerBuilder

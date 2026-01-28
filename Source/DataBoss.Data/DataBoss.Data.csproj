@@ -6,7 +6,7 @@
 
   <ItemGroup>
     <PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0" />
-    <PackageReference Include="System.Threading.Channels" Version="9.0.10" />
+    <PackageReference Include="System.Threading.Channels" Version="10.0.2" />
   </ItemGroup>
 
   <ItemGroup>
