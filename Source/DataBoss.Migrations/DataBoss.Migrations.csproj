@@ -1,11 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net9.0;net8.0</TargetFrameworks>
+    <TargetFrameworks>net10.0;net9.0;net8.0</TargetFrameworks>
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="System.Memory" Version="4.6.3" />
     <ProjectReference Include="..\DataBoss.Data\DataBoss.Data.csproj" />
     <ProjectReference Include="..\DataBoss.Linq\DataBoss.Linq.csproj" />
   </ItemGroup>
