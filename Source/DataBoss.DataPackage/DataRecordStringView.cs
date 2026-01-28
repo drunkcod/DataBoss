@@ -20,8 +20,8 @@ namespace DataBoss.DataPackage
 		public static string Float(IDataRecord r, int i, NumberFormatInfo format) => r.GetFloat(i).ToString(format);
 		public static string Double(IDataRecord r, int i, NumberFormatInfo format) => r.GetDouble(i).ToString(format);
 		public static string Decimal(IDataRecord r, int i, NumberFormatInfo format) => r.GetDecimal(i).ToString(format);
-		
-		public static string Date(IDataRecord r, int i, NumberFormatInfo _) => ((DataPackageDate)r.GetDateTime(i)).ToString();
+
+		public static string Date(IDataRecord r, int i, NumberFormatInfo _) => ((DateOnly)r.GetValue(i)).ToString("yyyy-MM-dd");
 
 		public static string DateTime(IDataRecord r, int i, NumberFormatInfo _) {
 			var value = r.GetDateTime(i);
@@ -127,7 +127,7 @@ namespace DataBoss.DataPackage
 		}
 
 		public static DataRecordStringView Create(IReadOnlyList<TabularDataSchemaFieldDescription> outputFields, IDataReader data, CultureInfo? culture = null) => Create(outputFields, data, DefaultFormat, culture);
-		public static DataRecordStringView Create(IReadOnlyList<TabularDataSchemaFieldDescription> outputFields, IDataReader data, in DataRecordStringViewFormatOptions options, CultureInfo? culture = null) => 
+		public static DataRecordStringView Create(IReadOnlyList<TabularDataSchemaFieldDescription> outputFields, IDataReader data, in DataRecordStringViewFormatOptions options, CultureInfo? culture = null) =>
 			Create(outputFields, data, new DataRecordStringViewFormat {
 				FormatString = options.FormatString ?? DefaultFormat.FormatString,
 				FormatBoolean = options.FormatBoolean ?? DefaultFormat.FormatBoolean,
@@ -174,6 +174,8 @@ namespace DataBoss.DataPackage
 				default:
 					if (fieldType == typeof(TimeSpan))
 						return format.FormatTimeSpan;
+					if (fieldType == typeof(DateOnly))
+						return format.FormatDate;
 					if (fieldType == typeof(DateTimeOffset))
 						return format.FormatDateTimeOffset;
 					if (fieldType == typeof(byte[]))
@@ -182,10 +184,7 @@ namespace DataBoss.DataPackage
 						return format.FormatGuid;
 					return format.FormatObject;
 
-				case TypeCode.DateTime:
-					if (field.Type == "date")
-						return format.FormatDate;
-					return format.FormatDateTime;
+				case TypeCode.DateTime: return format.FormatDateTime;
 
 				case TypeCode.String: return format.FormatString;
 				case TypeCode.Boolean: return format.FormatBoolean;

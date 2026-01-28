@@ -6,19 +6,20 @@ namespace DataBoss.DataPackage
 {
 	public sealed class CsvWriter : IDisposable
 	{
-		enum WriterState : byte {
+		enum WriterState : byte
+		{
 			BeginRecord = 0,
 			InRecord = 1
 		}
 
-		static readonly char[] QuotableChars = new[] { '"', '\n', };
+		static readonly char[] QuotableChars = ['"', '\n',];
 
 		public const string DefaultDelimiter = ";";
 		const string RecordDelimiter = "\r\n";
 
 		WriterState state;
 		readonly bool leaveOpen;
-		
+
 		public readonly string Delimiter;
 
 		public TextWriter Writer { get; }
@@ -34,14 +35,14 @@ namespace DataBoss.DataPackage
 
 			if (ShouldQuote(value)) {
 				Writer.Write('"');
-				for(var i = 0; i != value.Length; ++i) {
+				for (var i = 0; i != value.Length; ++i) {
 					var c = value[i];
 					Writer.Write(c);
-					if(c == '"')
+					if (c == '"')
 						Writer.Write('"');
 				}
 				Writer.Write('"');
-			} 
+			}
 			else
 				Writer.Write(value);
 		}
@@ -54,9 +55,9 @@ namespace DataBoss.DataPackage
 		}
 
 		bool ShouldQuote(string value) =>
-			value.IndexOfAny(QuotableChars) != -1 
+			value.IndexOfAny(QuotableChars) != -1
 			|| value.Contains(Delimiter);
-		
+
 		public void NextRecord() {
 			Writer.Write(RecordDelimiter);
 			state = WriterState.BeginRecord;
@@ -64,9 +65,9 @@ namespace DataBoss.DataPackage
 
 		public void Flush() => Writer.Flush();
 
-		public void Dispose() { 
+		public void Dispose() {
 			Flush();
-			if(!leaveOpen)
+			if (!leaveOpen)
 				Writer.Close();
 		}
 	}

@@ -228,6 +228,25 @@ namespace DataBoss.DataPackage
 		}
 
 		[Fact]
+		public void date() {
+			var t = DateOnly.FromDateTime(DateTime.Now);
+			var dp = new DataPackage()
+				.AddResource(x => x
+					.WithName("dates")
+					.WithData(new[] {
+						new { date = t,
+					}, }))
+				.Serialize();
+
+			var rows = dp.GetResource("dates").Read<DateTimeFormatRow>().Single();
+			var reader = dp.GetResource("dates").Read();
+			reader.Read();
+			Check.That(
+				() => reader.GetValue(0) == (object)rows.date,
+				() => reader.GetString(0) == t.ToString("yyyy-MM-dd"));
+		}
+
+		[Fact]
 		public void date_roundtrippy() {
 			var today = DateOnly.FromDateTime(DateTime.Today);
 			var utc = DateOnly.FromDateTime(DateTime.Today.ToUniversalTime());
