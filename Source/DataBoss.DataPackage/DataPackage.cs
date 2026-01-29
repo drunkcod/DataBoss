@@ -218,7 +218,7 @@ namespace DataBoss.DataPackage
 
 			var (outputPath, output) = options.ResourceCompression.OpenWrite(partPath, (path) => fs(path, FileMode.Create));
 			try {
-				var view = DataRecordStringView.Create(desc.Schema.Fields, data, options.Culture);
+				var view = DataReaderStringView.Create(desc.Schema.Fields, data, options.Culture);
 				await WriteRecordsAsync(output, desc.Dialect, data, view);
 			}
 			catch (Exception ex) {
@@ -426,7 +426,7 @@ namespace DataBoss.DataPackage
 				var (outputPath, output) = options.ResourceCompression.OpenWrite(partPath, createOutput);
 				desc.Path = outputPath;
 				try {
-					var view = DataRecordStringView.Create(desc.Schema.Fields, data, options.Culture);
+					var view = DataReaderStringView.Create(desc.Schema.Fields, data, options.Culture);
 					await WriteRecordsAsync(output, desc.Dialect, data, view);
 				}
 				catch (Exception ex) {
@@ -460,7 +460,7 @@ namespace DataBoss.DataPackage
 			return Load(store.OpenRead);
 		}
 
-		static Task WriteRecordsAsync(Stream output, CsvDialectDescription csvDialect, IDataReader data, DataRecordStringView view) {
+		static Task WriteRecordsAsync(Stream output, CsvDialectDescription csvDialect, IDataReader data, DataReaderStringView view) {
 			var encoding = Encoding.UTF8;
 			var bom = encoding.GetPreamble();
 			var csv = new CsvRecordWriter(csvDialect.Delimiter, encoding);
@@ -534,25 +534,25 @@ namespace DataBoss.DataPackage
 		public static void WriteCsv(this TabularDataResource self, TextWriter writer) {
 			using var reader = self.Read();
 			var desc = self.GetDescription();
-			var view = DataRecordStringView.Create(desc.Schema.Fields, reader, null);
+			var view = DataReaderStringView.Create(desc.Schema.Fields, reader, null);
 			var csv = new CsvRecordWriter(";", writer.Encoding);
 			csv.WriteHeaderRecord(writer, reader);
-			csv.WriteRecords(writer, reader, view);
+			csv.WriteRecords(writer, view);
 		}
 
 		public static void WriteCsv(this TabularDataResource self, TextWriter writer, DataRecordStringViewFormatOptions options) {
 			using var reader = self.Read();
 			var desc = self.GetDescription();
-			var view = DataRecordStringView.Create(desc.Schema.Fields, reader, options, null);
+			var view = DataReaderStringView.Create(desc.Schema.Fields, reader, options, null);
 			var csv = new CsvRecordWriter(";", writer.Encoding);
 			csv.WriteHeaderRecord(writer, reader);
-			csv.WriteRecords(writer, reader, view);
+			csv.WriteRecords(writer, view);
 		}
 
 		public static async Task WriteCsvAsync(this TabularDataResource self, Stream output) {
 			using var reader = self.Read();
 			var desc = self.GetDescription();
-			var view = DataRecordStringView.Create(desc.Schema.Fields, reader, null);
+			var view = DataReaderStringView.Create(desc.Schema.Fields, reader, null);
 
 			var csvDialect = new CsvDialectDescription { Delimiter = ";" };
 

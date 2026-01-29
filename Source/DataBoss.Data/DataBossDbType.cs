@@ -12,7 +12,7 @@ using DataBoss.Linq;
 
 namespace DataBoss.Data
 {
-	public struct DataBossDbType
+	public readonly struct DataBossDbType
 	{
 		enum BossTypeTag : byte
 		{

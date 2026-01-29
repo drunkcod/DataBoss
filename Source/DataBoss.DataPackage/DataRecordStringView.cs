@@ -1,15 +1,20 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using DataBoss.Data;
-using DataBoss.DataPackage.Types;
-
 #nullable enable
 
 namespace DataBoss.DataPackage
 {
 	public delegate string? StringViewFormatter(IDataRecord record, int n, NumberFormatInfo formatInfo);
+
+	public interface IRecordSource
+	{
+		IDataRecord Current { get; }
+		bool Next();
+	}
 
 	static class DataPackageStringFrom
 	{
@@ -88,9 +93,63 @@ namespace DataBoss.DataPackage
 		public StringViewFormatter FormatBinary;
 		public StringViewFormatter FormatGuid;
 		public StringViewFormatter FormatObject;
+
+		public readonly StringViewFormatter GetFormatter(Type fieldType) {
+			switch (Type.GetTypeCode(fieldType)) {
+				default:
+					if (fieldType == typeof(TimeSpan))
+						return FormatTimeSpan;
+					if (fieldType == typeof(DateOnly))
+						return FormatDate;
+					if (fieldType == typeof(DateTimeOffset))
+						return FormatDateTimeOffset;
+					if (fieldType == typeof(byte[]))
+						return FormatBinary;
+					if (fieldType == typeof(Guid))
+						return FormatGuid;
+					return FormatObject;
+
+				case TypeCode.DateTime: return FormatDateTime;
+
+				case TypeCode.String: return FormatString;
+				case TypeCode.Boolean: return FormatBoolean;
+
+				case TypeCode.Int16: return FormatInt16;
+				case TypeCode.Int32: return FormatInt32;
+				case TypeCode.Int64: return FormatInt64;
+
+				case TypeCode.Single: return FormatFloat;
+				case TypeCode.Double: return FormatDouble;
+				case TypeCode.Decimal: return FormatDecimal;
+			}
+		}
 	}
 
-	readonly struct DataRecordStringView
+
+	class DataReaderRecordSource : IRecordSource
+	{
+		readonly IDataReader reader;
+
+		public DataReaderRecordSource(IDataReader reader) {
+			this.reader = reader;
+		}
+		public IDataRecord Current => reader;
+		public bool Next() => reader.Read();
+	}
+
+	class EnumeratorRecordSource : IRecordSource
+	{
+		readonly IEnumerator<IDataRecord> it;
+		public EnumeratorRecordSource(IEnumerator<IDataRecord> it) {
+			this.it = it;
+		}
+
+		public IDataRecord Current => it.Current;
+		public bool Next() => it.MoveNext();
+
+	}
+
+	readonly struct DataReaderStringView
 	{
 		static readonly DataRecordStringViewFormat DefaultFormat = new() {
 			FormatString = DataPackageStringFrom.String,
@@ -114,20 +173,34 @@ namespace DataBoss.DataPackage
 		};
 
 		readonly (StringViewFormatter, NumberFormatInfo)[] formatField;
+		readonly IRecordSource source;
 
-		DataRecordStringView((StringViewFormatter, NumberFormatInfo)[] formatField) {
-			this.formatField = formatField;
+		DataReaderStringView(IDataReader reader, (StringViewFormatter, NumberFormatInfo)[] formatField) :
+		this(new DataReaderRecordSource(reader), formatField) {
 		}
+
+		DataReaderStringView(IRecordSource source, (StringViewFormatter, NumberFormatInfo)[] formatField) {
+			this.formatField = formatField;
+			this.source = source;
+		}
+
+		//public DataReaderStringView Rebind(IDataReader reader) => new(reader, formatField);
+		public DataReaderStringView Rebind(IRecordSource source) => new(source, formatField);
 
 		public int FieldCount => formatField.Length;
 
-		public string? GetString(IDataRecord r, int i) {
+		public readonly bool Read() => source.Next();
+		public readonly string GetName(int i) => source.Current.GetName(i);
+		public readonly object GetValue(int i) => source.Current.GetValue(i);
+		public readonly bool IsDBNull(int i) => source.Current.IsDBNull(i);
+
+		public readonly string? GetString(int i) {
 			var (getter, format) = formatField[i];
-			return getter(r, i, format);
+			return getter(source.Current, i, format);
 		}
 
-		public static DataRecordStringView Create(IReadOnlyList<TabularDataSchemaFieldDescription> outputFields, IDataReader data, CultureInfo? culture = null) => Create(outputFields, data, DefaultFormat, culture);
-		public static DataRecordStringView Create(IReadOnlyList<TabularDataSchemaFieldDescription> outputFields, IDataReader data, in DataRecordStringViewFormatOptions options, CultureInfo? culture = null) =>
+		public static DataReaderStringView Create(IReadOnlyList<TabularDataSchemaFieldDescription> outputFields, IDataReader data, CultureInfo? culture = null) => Create(outputFields, data, DefaultFormat, culture);
+		public static DataReaderStringView Create(IReadOnlyList<TabularDataSchemaFieldDescription> outputFields, IDataReader data, in DataRecordStringViewFormatOptions options, CultureInfo? culture = null) =>
 			Create(outputFields, data, new DataRecordStringViewFormat {
 				FormatString = options.FormatString ?? DefaultFormat.FormatString,
 				FormatBoolean = options.FormatBoolean ?? DefaultFormat.FormatBoolean,
@@ -150,13 +223,13 @@ namespace DataBoss.DataPackage
 				FormatObject = options.FormatObject ?? DefaultFormat.FormatObject,
 			}, culture);
 
-		static DataRecordStringView Create(IReadOnlyList<TabularDataSchemaFieldDescription> outputFields, IDataReader data, in DataRecordStringViewFormat format, CultureInfo? culture = null) {
+		static DataReaderStringView Create(IReadOnlyList<TabularDataSchemaFieldDescription> outputFields, IDataReader data, in DataRecordStringViewFormat format, CultureInfo? culture = null) {
 			var defaultNumberFormat = culture?.NumberFormat ?? TabularDataSchemaFieldDescription.DefaultNumberFormat;
 			var formatField = new (StringViewFormatter, NumberFormatInfo)[outputFields.Count];
 			for (var i = 0; i != outputFields.Count; ++i)
-				formatField[i] = (GetFormatter(outputFields[i], data.GetFieldType(i), format), GetNumberFormat(outputFields[i], defaultNumberFormat));
+				formatField[i] = (format.GetFormatter(data.GetFieldType(i)), GetNumberFormat(outputFields[i], defaultNumberFormat));
 
-			return new DataRecordStringView(formatField);
+			return new DataReaderStringView(data, formatField);
 		}
 
 		static NumberFormatInfo GetNumberFormat(TabularDataSchemaFieldDescription field, NumberFormatInfo defaultFormat) {
@@ -167,36 +240,6 @@ namespace DataBoss.DataPackage
 				return defaultFormat;
 
 			return new NumberFormatInfo { NumberDecimalSeparator = field.DecimalChar };
-		}
-
-		public static StringViewFormatter GetFormatter(TabularDataSchemaFieldDescription field, Type fieldType, in DataRecordStringViewFormat format) {
-			switch (Type.GetTypeCode(fieldType)) {
-				default:
-					if (fieldType == typeof(TimeSpan))
-						return format.FormatTimeSpan;
-					if (fieldType == typeof(DateOnly))
-						return format.FormatDate;
-					if (fieldType == typeof(DateTimeOffset))
-						return format.FormatDateTimeOffset;
-					if (fieldType == typeof(byte[]))
-						return format.FormatBinary;
-					if (fieldType == typeof(Guid))
-						return format.FormatGuid;
-					return format.FormatObject;
-
-				case TypeCode.DateTime: return format.FormatDateTime;
-
-				case TypeCode.String: return format.FormatString;
-				case TypeCode.Boolean: return format.FormatBoolean;
-
-				case TypeCode.Int16: return format.FormatInt16;
-				case TypeCode.Int32: return format.FormatInt32;
-				case TypeCode.Int64: return format.FormatInt64;
-
-				case TypeCode.Single: return format.FormatFloat;
-				case TypeCode.Double: return format.FormatDouble;
-				case TypeCode.Decimal: return format.FormatDecimal;
-			}
 		}
 	}
 }

@@ -1,6 +1,5 @@
 using System;
 using System.Buffers;
-using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Linq;
@@ -35,7 +34,7 @@ namespace DataBoss.DataPackage
 
 		TextWriter NewTextWriter(Stream stream) =>
 			new StreamWriter(stream, Encoding, DataPackage.StreamBufferSize, leaveOpen: true);
-		
+
 		public void WriteHeaderRecord(TextWriter writer, IDataRecord data) {
 			using var csv = NewFragmentWriter(writer);
 			for (var i = 0; i != data.FieldCount; ++i)
@@ -44,13 +43,13 @@ namespace DataBoss.DataPackage
 			csv.Flush();
 		}
 
-		public void WriteRecords(TextWriter writer, IDataReader reader, DataRecordStringView view) {
+		public void WriteRecords(TextWriter writer, in DataReaderStringView view) {
 			using var csv = NewFragmentWriter(writer);
-			while (reader.Read())
-				csv.WriteRecord(reader, view);
+			while (view.Read())
+				csv.WriteRecord(view);
 		}
 
-		public Task WriteChunksAsync(ChannelReader<(IMemoryOwner<IDataRecord>, int)> records, ChannelWriter<Stream> chunks, DataRecordStringView view) {
+		public Task WriteChunksAsync(ChannelReader<(IMemoryOwner<IDataRecord>, int)> records, ChannelWriter<Stream> chunks, DataReaderStringView view) {
 			var writer = new ChunkWriter(records, chunks, this) {
 				ReaderStringView = view,
 			};
@@ -70,18 +69,19 @@ namespace DataBoss.DataPackage
 			public void WriteField(string value) => csv.WriteField(value);
 			public void NextField() => csv.NextField();
 
-			public void WriteRecord(IDataRecord r, DataRecordStringView view) {
+			public void WriteRecord(in DataReaderStringView view) {
 				var i = 0;
-				try { 
-					for(; i != view.FieldCount; ++i) {
-						if (r.IsDBNull(i))
+				try {
+					for (; i != view.FieldCount; ++i) {
+						if (view.IsDBNull(i))
 							NextField();
 						else
-							WriteField(view.GetString(r, i));
+							WriteField(view.GetString(i));
 					}
 					NextRecord();
-				} catch(Exception ex) {
-					throw new Exception($"Failed writing {r.GetName(i)} with value {r.GetValue(i)}", ex);
+				}
+				catch (Exception ex) {
+					throw new Exception($"Failed writing {view.GetName(i)} with value {view.GetValue(i)}", ex);
 				}
 			}
 			public void NextRecord() => csv.NextRecord();
@@ -101,7 +101,7 @@ namespace DataBoss.DataPackage
 				this.csv = csv;
 			}
 
-			public DataRecordStringView ReaderStringView;
+			public DataReaderStringView ReaderStringView;
 			public int MaxWorkers = 1;
 
 			protected override void DoWork() {
@@ -113,8 +113,14 @@ namespace DataBoss.DataPackage
 						.ForAll(WriteRecords);
 			}
 
+			class ItemSource : IRecordSource
+			{
+				public IDataRecord Current { get; set; }
+
+				public bool Next() => false;
+			}
+
 			void WriteAllRecords() {
-				//records.ForEach(WriteRecords);
 				using var ps = new ProducerStream();
 				chunks.Write(ps.OpenConsumer());
 
@@ -122,9 +128,14 @@ namespace DataBoss.DataPackage
 				do {
 					while (records.TryRead(out var item))
 						try {
-							foreach (var r in item.Rows.Memory.Slice(0, item.Count).Span)
-								result.WriteRecord(r, ReaderStringView);
-						} finally {
+							var source = new ItemSource();
+							var view = ReaderStringView.Rebind(source);
+							foreach (var r in item.Rows.Memory[..item.Count].Span) {
+								source.Current = r;
+								result.WriteRecord(view);
+							}
+						}
+						finally {
 							item.Rows.Dispose();
 						}
 				} while (records.WaitToRead());
@@ -132,20 +143,25 @@ namespace DataBoss.DataPackage
 
 			void WriteRecords((IMemoryOwner<IDataRecord> Items, int Count) item) {
 				try {
-					var rows = item.Items.Memory.Slice(0, item.Count).Span;
+					var rows = item.Items.Memory[..item.Count].Span;
 					if (rows.Length == 0)
 						return;
 
 					var chunk = new MemoryStream(chunkCapacity);
-					using (var fragment = csv.NewFragmentWriter(chunk))
-						foreach (var r in rows)
-							fragment.WriteRecord(r, ReaderStringView);
+					var source = new ItemSource();
+					var view = ReaderStringView.Rebind(source);
 
+					using (var fragment = csv.NewFragmentWriter(chunk))
+						foreach (var r in rows) {
+							source.Current = r;
+							fragment.WriteRecord(view);
+						}
 					if (chunk.Position != 0) {
 						chunkCapacity = Math.Max(chunkCapacity, chunk.Capacity);
 						WriteChunk(chunk);
 					}
-				} finally {
+				}
+				finally {
 					item.Items.Dispose();
 				}
 			}
