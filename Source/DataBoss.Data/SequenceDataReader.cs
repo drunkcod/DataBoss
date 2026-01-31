@@ -1,10 +1,12 @@
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -14,20 +16,20 @@ namespace DataBoss.Data
 	{
 		public static DbDataReader Items<T>(params T[] data) => Create(data);
 
-		public static DbDataReader Create<T>(IEnumerable<T> data) => Create(data, x => x.MapAll());
+		public static DbDataReader Create<T>(IEnumerable<T> data) => SequenceDataReaderBase<T>.CreateDefault(data);
 		public static DbDataReader Create<T>(IEnumerable<T> data, Action<FieldMapping<T>> mapFields) => Create(data?.GetEnumerator(), mapFields);
 
-		public static DbDataReader Create<T>(IEnumerator<T> data) => Create(data, x => x.MapAll());
+		public static DbDataReader Create<T>(IEnumerator<T> data) => SequenceDataReaderBase<T>.CreateDefault(data);
 		public static DbDataReader Create<T>(IEnumerator<T> data, Action<FieldMapping<T>> mapFields) {
 			var fieldMapping = new FieldMapping<T>();
 			mapFields(fieldMapping);
 			return new SequenceDataReader<T>(data, fieldMapping);
 		}
 
-		public static DbDataReader Create<T>(IAsyncEnumerable<T> data) => Create(data, x => x.MapAll());
+		public static DbDataReader Create<T>(IAsyncEnumerable<T> data) => SequenceDataReaderBase<T>.CreateDefault(data);
 		public static DbDataReader Create<T>(IAsyncEnumerable<T> data, Action<FieldMapping<T>> mapFields) => Create(data?.GetAsyncEnumerator(), mapFields);
 
-		public static DbDataReader Create<T>(IAsyncEnumerator<T> data) => Create(data, x => x.MapAll());
+		public static DbDataReader Create<T>(IAsyncEnumerator<T> data) => SequenceDataReaderBase<T>.CreateDefault(data);
 		public static DbDataReader Create<T>(IAsyncEnumerator<T> data, Action<FieldMapping<T>> mapFields) {
 			var fieldMapping = new FieldMapping<T>();
 			mapFields(fieldMapping);
@@ -43,79 +45,87 @@ namespace DataBoss.Data
 		public static DbDataReader ToDataReader<T>(this IEnumerable<T> data) => Create(data);
 	}
 
+	abstract class FieldAccessor<T>
+	{
+		public abstract bool IsDBNull(T item);
+		public abstract object GetValue(T item);
+		public abstract TValue GetFieldValue<TValue>(T item);
+
+		public static FieldAccessor<T> Create<TField>(Func<T, TField> get) => new ValueAccessor<T, TField>(get);
+		public static FieldAccessor<T> Create<TField>(Func<T, TField> get, Func<T, bool> hasValue) =>
+			hasValue == null ? Create(get) : new NullableAccessor<T, TField>(get, hasValue);
+	}
+
+	abstract class FieldAccessor<T, TField>(Func<T, TField> get) : FieldAccessor<T>
+	{
+		readonly Func<T, TField> get = get;
+
+		public override TValue GetFieldValue<TValue>(T item) {
+			if (typeof(TValue) == typeof(TField)) {
+				var value = get(item);
+				return Unsafe.As<TField, TValue>(ref value);
+			}
+			if (typeof(TValue) == typeof(object))
+				return (TValue)(object)get(item);
+			throw new InvalidCastException($"Unable to cast object of type '{typeof(TField)}' to {typeof(TValue)}.");
+		}
+
+		protected TField GetFieldValue(T item) => get(item);
+	}
+
+	sealed class ValueAccessor<T, TField>(Func<T, TField> get) : FieldAccessor<T, TField>(get)
+	{
+		public override object GetValue(T item) => GetFieldValue(item);
+		public override bool IsDBNull(T item) => false;
+	}
+
+	sealed class NullableAccessor<T, TField>(Func<T, TField> get, Func<T, bool> hasValue) : FieldAccessor<T, TField>(get)
+	{
+		readonly Func<T, bool> hasValue = hasValue ?? throw new ArgumentNullException(nameof(hasValue));
+
+		public override object GetValue(T item) => IsDBNull(item) ? DBNull.Value : GetFieldValue(item);
+		public override bool IsDBNull(T item) => !hasValue(item);
+	}
+
+	sealed class StringAccessor<T>(Func<T, string> get) : FieldAccessor<T, string>(get)
+	{
+		public override object GetValue(T item) => (object)GetFieldValue(item) ?? DBNull.Value;
+		public override bool IsDBNull(T item) => GetFieldValue(item) == null;
+	}
+
 	public abstract class SequenceDataReaderBase<T> : DbDataReader, IDataRecordReader
 	{
-		abstract class FieldAccessor
+		internal readonly struct FieldConfiguration(DataReaderSchemaTable schema, FieldAccessor<T>[] fields)
 		{
-			public abstract bool IsDBNull(T item);
-			public abstract object GetValue(T item);
-			public abstract TValue GetFieldValue<TValue>(T item);
+			public readonly DataReaderSchemaTable Schema = schema;
+			public readonly FieldAccessor<T>[] Fields = fields;
 
-			public static FieldAccessor Create<TField>(Func<T, TField> get) => new ValueAccessor<TField>(get);
-			public static FieldAccessor Create<TField>(Func<T, TField> get, Func<T, bool> hasValue) =>
-				hasValue == null ? Create(get) : new NullableAccessor<TField>(get, hasValue);
-		}
-
-		abstract class FieldAccessor<TField> : FieldAccessor
-		{
-			readonly Func<T, TField> get;
-
-			public FieldAccessor(Func<T, TField> get) {
-				this.get = get;
+			public static readonly FieldConfiguration Default = CreateDefault();
+			static FieldConfiguration CreateDefault() {
+				var fields = new FieldMapping<T>();
+				fields.MapAll();
+				return new FieldConfiguration(GetSchema(fields), MakeAccessors(fields));
 			}
-
-			public override TValue GetFieldValue<TValue>(T item) {
-				if (typeof(TValue) == typeof(TField) || typeof(TValue) == typeof(object))
-					return (TValue)(object)get(item);
-				ThrowInvalidCastException<TField, TValue>();
-				return default;
-			}
-
-			protected TField GetFieldValue(T item) => get(item);
 		}
 
-		sealed class ValueAccessor<TField> : FieldAccessor<TField>
-		{
-			public ValueAccessor(Func<T, TField> get) : base(get) { }
+		static readonly ConcurrentDictionary<Type, Func<ParameterExpression, Expression, Func<T, bool>, FieldAccessor<T>>> AccessorFactories = new();
 
-			public override object GetValue(T item) => GetFieldValue(item);
-			public override bool IsDBNull(T item) => false;
+		public static DbDataReader CreateDefault(IEnumerable<T> data) {
+
+			return new SequenceDataReader<T>(data?.GetEnumerator(), FieldConfiguration.Default);
 		}
 
-		sealed class NullableAccessor<TField> : FieldAccessor<TField>
+		public static DbDataReader CreateDefault(IEnumerator<T> data) => new SequenceDataReader<T>(data, FieldConfiguration.Default);
+
+		public static DbDataReader CreateDefault(IAsyncEnumerable<T> data) => CreateDefault(data?.GetAsyncEnumerator());
+
+		public static DbDataReader CreateDefault(IAsyncEnumerator<T> data) => new AsyncSequenceDataReader<T>(data, FieldConfiguration.Default);
+
+		class DataRecord(DataReaderSchemaTable schema, FieldAccessor<T>[] fields, T item) : IDataRecord2
 		{
-			readonly Func<T, bool> hasValue;
-
-			public NullableAccessor(Func<T, TField> get, Func<T, bool> hasValue) : base(get) {
-				this.hasValue = hasValue ?? throw new ArgumentNullException(nameof(hasValue));
-			}
-
-			public override object GetValue(T item) => IsDBNull(item) ? DBNull.Value : GetFieldValue(item);
-			public override bool IsDBNull(T item) => !hasValue(item);
-		}
-
-		sealed class StringAccessor : FieldAccessor<string>
-		{
-			public StringAccessor(Func<T, string> get) : base(get) { }
-
-			public override object GetValue(T item) => (object)GetFieldValue(item) ?? DBNull.Value;
-			public override bool IsDBNull(T item) => GetFieldValue(item) == null;
-		}
-
-		static void ThrowInvalidCastException<TField, TValue>() =>
-			throw new InvalidCastException($"Unable to cast object of type '{typeof(TField)}' to {typeof(TValue)}.");
-
-		class DataRecord : IDataRecord2
-		{
-			readonly DataReaderSchemaTable schema;
-			readonly FieldAccessor[] fields;
-			readonly T item;
-
-			public DataRecord(DataReaderSchemaTable schema, FieldAccessor[] fields, T item) {
-				this.schema = schema;
-				this.fields = fields;
-				this.item = item;
-			}
+			readonly DataReaderSchemaTable schema = schema;
+			readonly FieldAccessor<T>[] fields = fields;
+			readonly T item = item;
 
 			void IDisposable.Dispose() { }
 
@@ -137,7 +147,7 @@ namespace DataBoss.Data
 			public Guid GetGuid(int i) => GetAccessor(i).GetFieldValue<Guid>(item);
 			public string GetString(int i) => GetAccessor(i).GetFieldValue<string>(item);
 
-			FieldAccessor GetAccessor(int i) => fields[i];
+			FieldAccessor<T> GetAccessor(int i) => fields[i];
 
 			public int GetValues(object[] values) {
 				var n = Math.Min(FieldCount, values.Length);
@@ -160,15 +170,22 @@ namespace DataBoss.Data
 			public int GetOrdinal(string name) => schema.GetOrdinal(name);
 		}
 
-		readonly FieldAccessor[] fields;
+		readonly FieldAccessor<T>[] fields;
 		readonly DataReaderSchemaTable schema;
 		bool hasData;
 
-		internal SequenceDataReaderBase(FieldMapping<T> fields) {
-			this.schema = GetSchema(fields);
-			this.fields = new FieldAccessor[fields.Count];
-			for (var i = 0; i != this.fields.Length; ++i)
-				this.fields[i] = MakeAccessor(fields.Source, fields[i]);
+		internal SequenceDataReaderBase(FieldMapping<T> fields) : this(GetSchema(fields), MakeAccessors(fields)) { }
+
+		internal SequenceDataReaderBase(DataReaderSchemaTable schema, FieldAccessor<T>[] fields) {
+			this.schema = schema;
+			this.fields = fields;
+		}
+
+		static FieldAccessor<T>[] MakeAccessors(FieldMapping<T> fields) {
+			var accessors = new FieldAccessor<T>[fields.Count];
+			for (var i = 0; i != accessors.Length; ++i)
+				accessors[i] = MakeAccessor(fields.Source, fields[i]);
+			return accessors;
 		}
 
 		static DataReaderSchemaTable GetSchema(FieldMapping<T> mapping) {
@@ -186,20 +203,23 @@ namespace DataBoss.Data
 			return schema;
 		}
 
-		static FieldAccessor MakeAccessor(ParameterExpression source, in FieldMappingItem field) {
+		static FieldAccessor<T> MakeAccessor(ParameterExpression source, in FieldMappingItem field) {
 			if (field.FieldType == typeof(string))
-				return new StringAccessor(CompileSelector<string>(source, field.GetValue));
+				return new StringAccessor<T>(CompileSelector<string>(source, field.GetValue));
 			var (hasValue, selector) = field.HasValue == null ? (null, field.Selector) : (CompileSelector<bool>(source, field.HasValue), field.GetValue);
-			var createAccessor = Lambdas.CreateDelegate<Func<ParameterExpression, Expression, Func<T, bool>, FieldAccessor>>(
-				MakeAccessorMethod.MakeGenericMethod(selector.Type));
+
+			var createAccessor = AccessorFactories.GetOrAdd(selector.Type, type =>
+				Lambdas.CreateDelegate<Func<ParameterExpression, Expression, Func<T, bool>, FieldAccessor<T>>>(
+					MakeAccessorMethod.MakeGenericMethod(type)));
+
 			return createAccessor(source, selector, hasValue);
 		}
 
 		static readonly MethodInfo MakeAccessorMethod = typeof(SequenceDataReaderBase<T>)
 			.GetMethod(nameof(MakeAccessorT), BindingFlags.Static | BindingFlags.NonPublic);
 
-		static FieldAccessor MakeAccessorT<TFieldType>(ParameterExpression source, Expression selector, Func<T, bool> hasValue) =>
-			FieldAccessor.Create(CompileSelector<TFieldType>(source, selector), hasValue);
+		static FieldAccessor<T> MakeAccessorT<TFieldType>(ParameterExpression source, Expression selector, Func<T, bool> hasValue) =>
+			FieldAccessor<T>.Create(CompileSelector<TFieldType>(source, selector), hasValue);
 
 		static Func<T, TResult> CompileSelector<TResult>(ParameterExpression source, Expression selector) =>
 			Expression.Lambda<Func<T, TResult>>(selector, source).Compile();
@@ -280,6 +300,11 @@ namespace DataBoss.Data
 			this.data = data ?? throw new ArgumentNullException(nameof(data));
 		}
 
+		internal SequenceDataReader(IEnumerator<T> data, FieldConfiguration config) : this(data, config.Schema, config.Fields) { }
+		internal SequenceDataReader(IEnumerator<T> data, DataReaderSchemaTable schema, FieldAccessor<T>[] fields) : base(schema, fields) {
+			this.data = data ?? throw new ArgumentNullException(nameof(data));
+		}
+
 		public override void Close() {
 			data?.Dispose();
 			data = null;
@@ -297,6 +322,11 @@ namespace DataBoss.Data
 		IAsyncEnumerator<T> data;
 
 		internal AsyncSequenceDataReader(IAsyncEnumerator<T> data, FieldMapping<T> fields) : base(fields) {
+			this.data = data ?? throw new ArgumentNullException(nameof(data));
+		}
+
+		internal AsyncSequenceDataReader(IAsyncEnumerator<T> data, FieldConfiguration config) : this(data, config.Schema, config.Fields) { }
+		internal AsyncSequenceDataReader(IAsyncEnumerator<T> data, DataReaderSchemaTable schema, FieldAccessor<T>[] fields) : base(schema, fields) {
 			this.data = data ?? throw new ArgumentNullException(nameof(data));
 		}
 
@@ -324,5 +354,4 @@ namespace DataBoss.Data
 			: x.AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
 		}
 	}
-
 }

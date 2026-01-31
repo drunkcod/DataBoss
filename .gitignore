@@ -1,6 +1,7 @@
 Artifacts/
 Build/
 TestResults/
+BenchmarkDotNet.Artifacts/
 packages/
 .vs/
 *.swp
