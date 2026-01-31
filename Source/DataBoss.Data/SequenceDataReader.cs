@@ -40,7 +40,7 @@ namespace DataBoss.Data
 		public static DbDataReader Create<T>(IEnumerable<T> data, params MemberInfo[] members) =>
 			Create(data, fields => Array.ForEach(members, x => fields.Map(x)));
 
-		public static DbDataReader ToDataReader<T>(this IEnumerable<T> data) => Create(data); 
+		public static DbDataReader ToDataReader<T>(this IEnumerable<T> data) => Create(data);
 	}
 
 	public abstract class SequenceDataReaderBase<T> : DbDataReader, IDataRecordReader
@@ -102,10 +102,10 @@ namespace DataBoss.Data
 			public override bool IsDBNull(T item) => GetFieldValue(item) == null;
 		}
 
-		static void ThrowInvalidCastException<TField, TValue>() => 
+		static void ThrowInvalidCastException<TField, TValue>() =>
 			throw new InvalidCastException($"Unable to cast object of type '{typeof(TField)}' to {typeof(TValue)}.");
 
-		class DataRecord : IDataRecord
+		class DataRecord : IDataRecord2
 		{
 			readonly DataReaderSchemaTable schema;
 			readonly FieldAccessor[] fields;
@@ -116,6 +116,8 @@ namespace DataBoss.Data
 				this.fields = fields;
 				this.item = item;
 			}
+
+			void IDisposable.Dispose() { }
 
 			public int FieldCount => fields.Length;
 
@@ -262,7 +264,7 @@ namespace DataBoss.Data
 		public override long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferOffset, int length) => this.GetArray(i, fieldOffset, buffer, bufferOffset, length);
 		public override long GetChars(int i, long fieldOffset, char[] buffer, int bufferOffset, int length) => this.GetArray(i, fieldOffset, buffer, bufferOffset, length);
 
-		public IDataRecord GetRecord() => new DataRecord(schema, fields, Current);
+		public IDataRecord2 GetRecord() => new DataRecord(schema, fields, Current);
 
 		public override IEnumerator GetEnumerator() {
 			while (Read())
@@ -274,7 +276,7 @@ namespace DataBoss.Data
 	{
 		IEnumerator<T> data;
 
-		internal SequenceDataReader(IEnumerator<T> data, FieldMapping<T> fields): base(fields)  {
+		internal SequenceDataReader(IEnumerator<T> data, FieldMapping<T> fields) : base(fields) {
 			this.data = data ?? throw new ArgumentNullException(nameof(data));
 		}
 
@@ -294,16 +296,16 @@ namespace DataBoss.Data
 	{
 		IAsyncEnumerator<T> data;
 
-		internal AsyncSequenceDataReader(IAsyncEnumerator<T> data, FieldMapping<T> fields): base(fields)  {
+		internal AsyncSequenceDataReader(IAsyncEnumerator<T> data, FieldMapping<T> fields) : base(fields) {
 			this.data = data ?? throw new ArgumentNullException(nameof(data));
 		}
 
 		public override bool IsClosed => data is null;
 
 		public override void Close() {
-			if(data != null) {
+			if (data != null) {
 				var x = data.DisposeAsync();
-				if(x.IsCompleted)
+				if (x.IsCompleted)
 					x.GetAwaiter().GetResult();
 				else x.AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
 

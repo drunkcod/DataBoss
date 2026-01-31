@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+<meta charset='utf-8' />
+<title>DataBoss.Benchmarks.RecordReaderBenchmark-20260130-233132</title>
+
+<style type="text/css">
+	table { border-collapse: collapse; display: block; width: 100%; overflow: auto; }
+	td, th { padding: 6px 13px; border: 1px solid #ddd; text-align: right; }
+	tr { background-color: #fff; border-top: 1px solid #ccc; }
+	tr:nth-child(even) { background: #f8f8f8; }
+</style>
+</head>
+<body>
+<pre><code>
+BenchmarkDotNet v0.15.8, macOS Tahoe 26.2 (25C56) [Darwin 25.2.0]
+Apple M2 Pro, 1 CPU, 12 logical and 12 physical cores
+.NET SDK 10.0.100
+  [Host]     : .NET 10.0.0 (10.0.0, 10.0.25.52411), Arm64 RyuJIT armv8.0-a
+  DefaultJob : .NET 10.0.0 (10.0.0, 10.0.25.52411), Arm64 RyuJIT armv8.0-a
+</code></pre>
+<pre><code></code></pre>
+
+<table>
+<thead><tr><th>Method                    </th><th>Mean</th><th>Error</th><th>StdDev</th><th>Ratio</th><th>Gen0</th><th>Gen1</th><th>Allocated</th><th>Alloc Ratio</th>
+</tr>
+</thead><tbody><tr><td>ObjectDataRecordReader_Benchmark</td><td>1,423.9 &mu;s</td><td>3.92 &mu;s</td><td>3.06 &mu;s</td><td>1.00</td><td>613.2813</td><td>5.8594</td><td>4.9 MB</td><td>1.00</td>
+</tr><tr><td>TupleRecordReader_Benchmark</td><td>569.5 &mu;s</td><td>8.95 &mu;s</td><td>7.94 &mu;s</td><td>0.40</td><td>218.7500</td><td>-</td><td>1.78 MB</td><td>0.36</td>
+</tr></tbody></table>
+</body>
+</html>

@@ -467,7 +467,7 @@ namespace DataBoss.DataPackage
 			if (csvDialect.HasHeaderRow)
 				csv.WriteHeaderRecord(output, data);
 
-			var records = Channel.CreateBounded<(IMemoryOwner<IDataRecord>, int)>(new BoundedChannelOptions(16) {
+			var records = Channel.CreateBounded<(IMemoryOwner<IDataRecord2>, int)>(new BoundedChannelOptions(16) {
 				SingleWriter = true,
 			});
 
@@ -562,7 +562,7 @@ namespace DataBoss.DataPackage
 			if (csvDialect.HasHeaderRow)
 				csv.WriteHeaderRecord(output, reader);
 
-			var records = Channel.CreateBounded<(IMemoryOwner<IDataRecord>, int)>(new BoundedChannelOptions(16) {
+			var records = Channel.CreateBounded<(IMemoryOwner<IDataRecord2>, int)>(new BoundedChannelOptions(16) {
 				SingleWriter = true,
 			});
 

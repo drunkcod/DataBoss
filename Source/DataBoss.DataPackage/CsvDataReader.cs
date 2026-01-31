@@ -13,7 +13,7 @@ namespace DataBoss.DataPackage
 {
 	public class CsvDataReader : DbDataReader, IDataRecordReader
 	{
-		class CsvDataRecord : IDataRecord
+		class CsvDataRecord : IDataRecord2
 		{
 			static bool InvalidGetAttempt(int i) => throw new InvalidOperationException("Invalid attempt to read when no data is present, call Read()");
 
@@ -30,6 +30,8 @@ namespace DataBoss.DataPackage
 				this.parent = parent;
 				this.rowNumber = rowNumber;
 			}
+
+			void IDisposable.Dispose() { }
 
 			bool IsHeader => rowNumber == -1;
 			bool CheckedIsNull(int i) => IsHeader ? InvalidGetAttempt(i) : CheckedIsNullUnsafe(i);
@@ -344,7 +346,7 @@ namespace DataBoss.DataPackage
 		public override long GetBytes(int i, long fieldOffset, byte[] buffer, int bufferOffset, int length) => this.GetArray(i, fieldOffset, buffer, bufferOffset, length);
 		public override long GetChars(int i, long fieldOffset, char[] buffer, int bufferOffset, int length) => this.GetArray(i, fieldOffset, buffer, bufferOffset, length);
 
-		public IDataRecord GetRecord() => current.Clone();
+		public IDataRecord2 GetRecord() => current.Clone();
 
 		public override IEnumerator GetEnumerator() => new DataReaderEnumerator(this);
 	}

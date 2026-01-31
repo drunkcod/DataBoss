@@ -7,10 +7,10 @@ using System.Reflection;
 
 namespace DataBoss.Data
 {
-	public class DbDataReaderAdapter : DbDataReader
+	public class DbDataReaderAdapter(IDataReader inner) : DbDataReader
 	{
-		readonly IDataReader inner;
-		readonly IFieldValueReader fieldValueReader;
+		readonly IDataReader inner = inner;
+		readonly IFieldValueReader fieldValueReader = FieldValueReader.For(inner);
 
 		interface IFieldValueReader
 		{
@@ -39,7 +39,7 @@ namespace DataBoss.Data
 				SetTargetDelegate(ref getProviderSpecificValues, nameof(GetProviderSpecificValues), () => typeof(IDataRecord).GetMethod(nameof(IDataRecord.GetValues)));
 			}
 
-			public FieldValueReader(TReader reader) { 
+			public FieldValueReader(TReader reader) {
 				this.instance = reader;
 			}
 
@@ -67,9 +67,9 @@ namespace DataBoss.Data
 
 			public static IFieldValueReader For(IDataReader reader) {
 				var readerType = reader.GetType();
-				if(readerType.GetMethod(nameof(GetFieldValue)) != null)
+				if (readerType.GetMethod(nameof(GetFieldValue)) != null)
 					return (IFieldValueReader)Activator.CreateInstance(
-						typeof(FieldValueReader<>).MakeGenericType(readerType), 
+						typeof(FieldValueReader<>).MakeGenericType(readerType),
 						reader);
 				return new FieldValueReader(reader);
 			}
@@ -81,11 +81,6 @@ namespace DataBoss.Data
 				return Expression.Lambda<Func<TReader, int, T>>(Expression.Call(x, getT, ordinal), x, ordinal)
 					.Compile();
 			}
-		}
-
-		public DbDataReaderAdapter(IDataReader inner) { 
-			this.inner = inner;
-			this.fieldValueReader = FieldValueReader.For(inner);
 		}
 
 		public override object this[int ordinal] => inner[ordinal];

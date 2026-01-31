@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using DataBoss.Data;
 #nullable enable
@@ -9,12 +8,6 @@ using DataBoss.Data;
 namespace DataBoss.DataPackage
 {
 	public delegate string? StringViewFormatter(IDataRecord record, int n, NumberFormatInfo formatInfo);
-
-	public interface IRecordSource
-	{
-		IDataRecord Current { get; }
-		bool Next();
-	}
 
 	static class DataPackageStringFrom
 	{
@@ -40,7 +33,7 @@ namespace DataBoss.DataPackage
 
 		public static string? TimeSpan(IDataRecord r, int i, NumberFormatInfo _) => r.IsDBNull(i) ? null : ((TimeSpan)r.GetValue(i)).ToString("hh\\:mm\\:ss");
 
-		public static string Object(IDataRecord r, int i, NumberFormatInfo format) {
+		public static string? Object(IDataRecord r, int i, NumberFormatInfo format) {
 			var obj = r.GetValue(i);
 			return obj is IFormattable x ? x.ToString(null, format) : obj?.ToString();
 		}
@@ -125,31 +118,16 @@ namespace DataBoss.DataPackage
 		}
 	}
 
-
-	class DataReaderRecordSource : IRecordSource
+	public interface IStringRecord
 	{
-		readonly IDataReader reader;
-
-		public DataReaderRecordSource(IDataReader reader) {
-			this.reader = reader;
-		}
-		public IDataRecord Current => reader;
-		public bool Next() => reader.Read();
+		int FieldCount { get; }
+		bool IsDBNull(int i);
+		string? GetString(int i);
+		string GetName(int i);
+		object GetValue(int i);
 	}
 
-	class EnumeratorRecordSource : IRecordSource
-	{
-		readonly IEnumerator<IDataRecord> it;
-		public EnumeratorRecordSource(IEnumerator<IDataRecord> it) {
-			this.it = it;
-		}
-
-		public IDataRecord Current => it.Current;
-		public bool Next() => it.MoveNext();
-
-	}
-
-	readonly struct DataReaderStringView
+	readonly struct DataReaderStringView : IStringRecord
 	{
 		static readonly DataRecordStringViewFormat DefaultFormat = new() {
 			FormatString = DataPackageStringFrom.String,
@@ -173,30 +151,25 @@ namespace DataBoss.DataPackage
 		};
 
 		readonly (StringViewFormatter, NumberFormatInfo)[] formatField;
-		readonly IRecordSource source;
+		readonly IDataReader source;
 
-		DataReaderStringView(IDataReader reader, (StringViewFormatter, NumberFormatInfo)[] formatField) :
-		this(new DataReaderRecordSource(reader), formatField) {
-		}
-
-		DataReaderStringView(IRecordSource source, (StringViewFormatter, NumberFormatInfo)[] formatField) {
+		DataReaderStringView(IDataReader source, (StringViewFormatter, NumberFormatInfo)[] formatField) {
 			this.formatField = formatField;
 			this.source = source;
 		}
 
-		//public DataReaderStringView Rebind(IDataReader reader) => new(reader, formatField);
-		public DataReaderStringView Rebind(IRecordSource source) => new(source, formatField);
+		public RecordStringViewFormat Format() => new(formatField);
 
 		public int FieldCount => formatField.Length;
 
-		public readonly bool Read() => source.Next();
-		public readonly string GetName(int i) => source.Current.GetName(i);
-		public readonly object GetValue(int i) => source.Current.GetValue(i);
-		public readonly bool IsDBNull(int i) => source.Current.IsDBNull(i);
+		public readonly bool Read() => source.Read();
+		public readonly string GetName(int i) => source.GetName(i);
+		public readonly object GetValue(int i) => source.GetValue(i);
+		public readonly bool IsDBNull(int i) => source.IsDBNull(i);
 
 		public readonly string? GetString(int i) {
 			var (getter, format) = formatField[i];
-			return getter(source.Current, i, format);
+			return getter(source, i, format);
 		}
 
 		public static DataReaderStringView Create(IReadOnlyList<TabularDataSchemaFieldDescription> outputFields, IDataReader data, CultureInfo? culture = null) => Create(outputFields, data, DefaultFormat, culture);
@@ -241,5 +214,32 @@ namespace DataBoss.DataPackage
 
 			return new NumberFormatInfo { NumberDecimalSeparator = field.DecimalChar };
 		}
+	}
+
+	struct RecordStringViewFormat((StringViewFormatter, NumberFormatInfo)[] formatField)
+	{
+		readonly (StringViewFormatter, NumberFormatInfo)[] formatField = formatField;
+		public IDataRecord? Current;
+
+		public readonly RecordStringView NewItemView() => new(formatField);
+
+
+	}
+
+	struct RecordStringView((StringViewFormatter, NumberFormatInfo)[] formatField) : IStringRecord
+	{
+		readonly (StringViewFormatter, NumberFormatInfo)[] formatField = formatField;
+		public IDataRecord? Current;
+
+		public readonly int FieldCount => Current!.FieldCount;
+		public readonly string GetName(int i) => Current!.GetName(i);
+		public readonly object GetValue(int i) => Current!.GetValue(i);
+		public readonly bool IsDBNull(int i) => Current!.IsDBNull(i);
+
+		public readonly string? GetString(int i) {
+			var (getter, format) = formatField[i];
+			return getter(Current!, i, format);
+		}
+
 	}
 }

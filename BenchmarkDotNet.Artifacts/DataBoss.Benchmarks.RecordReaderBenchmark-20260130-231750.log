@@ -1,0 +1,300 @@
+// Validating benchmarks:
+// ***** BenchmarkRunner: Start   *****
+// ***** Found 2 benchmark(s) in total *****
+// ***** Building 1 exe(s) in Parallel: Start   *****
+// start dotnet  restore --nodeReuse:false /p:UseSharedCompilation=false /p:Deterministic=true /p:Optimize=true /p:ArtifactsPath="/Users/drunkcod/Home/DataBoss/Build/DataBoss.Benchmarks/Release/net10.0/DataBoss.Benchmarks-DefaultJob-1/" /p:OutDir="/Users/drunkcod/Home/DataBoss/Build/DataBoss.Benchmarks/Release/net10.0/DataBoss.Benchmarks-DefaultJob-1/bin/Release/net10.0/" /p:OutputPath="/Users/drunkcod/Home/DataBoss/Build/DataBoss.Benchmarks/Release/net10.0/DataBoss.Benchmarks-DefaultJob-1/bin/Release/net10.0/" /p:PublishDir="/Users/drunkcod/Home/DataBoss/Build/DataBoss.Benchmarks/Release/net10.0/DataBoss.Benchmarks-DefaultJob-1/publish/" in /Users/drunkcod/Home/DataBoss/Build/DataBoss.Benchmarks/Release/net10.0/DataBoss.Benchmarks-DefaultJob-1
+// command took 0.86 sec and exited with 0
+// start dotnet  build -c Release --no-restore --nodeReuse:false /p:UseSharedCompilation=false /p:Deterministic=true /p:Optimize=true /p:ArtifactsPath="/Users/drunkcod/Home/DataBoss/Build/DataBoss.Benchmarks/Release/net10.0/DataBoss.Benchmarks-DefaultJob-1/" /p:OutDir="/Users/drunkcod/Home/DataBoss/Build/DataBoss.Benchmarks/Release/net10.0/DataBoss.Benchmarks-DefaultJob-1/bin/Release/net10.0/" /p:OutputPath="/Users/drunkcod/Home/DataBoss/Build/DataBoss.Benchmarks/Release/net10.0/DataBoss.Benchmarks-DefaultJob-1/bin/Release/net10.0/" /p:PublishDir="/Users/drunkcod/Home/DataBoss/Build/DataBoss.Benchmarks/Release/net10.0/DataBoss.Benchmarks-DefaultJob-1/publish/" --output "/Users/drunkcod/Home/DataBoss/Build/DataBoss.Benchmarks/Release/net10.0/DataBoss.Benchmarks-DefaultJob-1/bin/Release/net10.0/" in /Users/drunkcod/Home/DataBoss/Build/DataBoss.Benchmarks/Release/net10.0/DataBoss.Benchmarks-DefaultJob-1
+// command took 6.04 sec and exited with 0
+// ***** Done, took 00:00:07 (7.02 sec)   *****
+// Found 2 benchmarks:
+//   RecordReaderBenchmark.ObjectDataRecordReader_Benchmark: DefaultJob
+//   RecordReaderBenchmark.TupleRecordReader_Benchmark: DefaultJob
+
+// **************************
+// Benchmark: RecordReaderBenchmark.ObjectDataRecordReader_Benchmark: DefaultJob
+// *** Execute ***
+// Launch: 1 / 1
+// Execute: dotnet DataBoss.Benchmarks-DefaultJob-1.dll --anonymousPipes 116 117 --benchmarkName DataBoss.Benchmarks.RecordReaderBenchmark.ObjectDataRecordReader_Benchmark --job Default --benchmarkId 0 in /Users/drunkcod/Home/DataBoss/Build/DataBoss.Benchmarks/Release/net10.0/DataBoss.Benchmarks-DefaultJob-1/bin/Release/net10.0
+// Failed to set up high priority (Permission denied). In order to run benchmarks with high priority, make sure you have the right permissions.
+// BeforeAnythingElse
+
+// Benchmark Process Environment Information:
+// BenchmarkDotNet v0.15.8
+// Runtime=.NET 10.0.0 (10.0.0, 10.0.25.52411), Arm64 RyuJIT armv8.0-a
+// GC=Concurrent Workstation
+// HardwareIntrinsics=ArmBase+AdvSimd,AES,CRC32,DP,RDM,SHA1,SHA256 VectorSize=128
+// Job: DefaultJob
+
+OverheadJitting  1: 1 op, 87292.00 ns, 87.2920 us/op
+WorkloadJitting  1: 1 op, 27283667.00 ns, 27.2837 ms/op
+
+OverheadJitting  2: 16 op, 139000.00 ns, 8.6875 us/op
+WorkloadJitting  2: 16 op, 106658792.00 ns, 6.6662 ms/op
+
+WorkloadPilot    1: 16 op, 132716167.00 ns, 8.2948 ms/op
+WorkloadPilot    2: 32 op, 245598375.00 ns, 7.6749 ms/op
+WorkloadPilot    3: 64 op, 415328625.00 ns, 6.4895 ms/op
+WorkloadPilot    4: 128 op, 260323708.00 ns, 2.0338 ms/op
+WorkloadPilot    5: 256 op, 374089834.00 ns, 1.4613 ms/op
+WorkloadPilot    6: 512 op, 729546834.00 ns, 1.4249 ms/op
+
+OverheadWarmup   1: 512 op, 3042.00 ns, 5.9414 ns/op
+OverheadWarmup   2: 512 op, 1584.00 ns, 3.0938 ns/op
+OverheadWarmup   3: 512 op, 1584.00 ns, 3.0938 ns/op
+OverheadWarmup   4: 512 op, 1750.00 ns, 3.4180 ns/op
+OverheadWarmup   5: 512 op, 1625.00 ns, 3.1738 ns/op
+OverheadWarmup   6: 512 op, 1625.00 ns, 3.1738 ns/op
+
+OverheadActual   1: 512 op, 1750.00 ns, 3.4180 ns/op
+OverheadActual   2: 512 op, 1542.00 ns, 3.0117 ns/op
+OverheadActual   3: 512 op, 1541.00 ns, 3.0098 ns/op
+OverheadActual   4: 512 op, 1666.00 ns, 3.2539 ns/op
+OverheadActual   5: 512 op, 1541.00 ns, 3.0098 ns/op
+OverheadActual   6: 512 op, 1542.00 ns, 3.0117 ns/op
+OverheadActual   7: 512 op, 1625.00 ns, 3.1738 ns/op
+OverheadActual   8: 512 op, 1583.00 ns, 3.0918 ns/op
+OverheadActual   9: 512 op, 1542.00 ns, 3.0117 ns/op
+OverheadActual  10: 512 op, 1500.00 ns, 2.9297 ns/op
+OverheadActual  11: 512 op, 1584.00 ns, 3.0938 ns/op
+OverheadActual  12: 512 op, 1583.00 ns, 3.0918 ns/op
+OverheadActual  13: 512 op, 1625.00 ns, 3.1738 ns/op
+OverheadActual  14: 512 op, 1583.00 ns, 3.0918 ns/op
+OverheadActual  15: 512 op, 1542.00 ns, 3.0117 ns/op
+
+WorkloadWarmup   1: 512 op, 732334417.00 ns, 1.4303 ms/op
+WorkloadWarmup   2: 512 op, 731431334.00 ns, 1.4286 ms/op
+WorkloadWarmup   3: 512 op, 736917666.00 ns, 1.4393 ms/op
+WorkloadWarmup   4: 512 op, 735561500.00 ns, 1.4366 ms/op
+WorkloadWarmup   5: 512 op, 736168667.00 ns, 1.4378 ms/op
+WorkloadWarmup   6: 512 op, 734362084.00 ns, 1.4343 ms/op
+
+// BeforeActualRun
+WorkloadActual   1: 512 op, 875478000.00 ns, 1.7099 ms/op
+WorkloadActual   2: 512 op, 730581584.00 ns, 1.4269 ms/op
+WorkloadActual   3: 512 op, 731003833.00 ns, 1.4277 ms/op
+WorkloadActual   4: 512 op, 729283125.00 ns, 1.4244 ms/op
+WorkloadActual   5: 512 op, 729881666.00 ns, 1.4256 ms/op
+WorkloadActual   6: 512 op, 729969500.00 ns, 1.4257 ms/op
+WorkloadActual   7: 512 op, 731392875.00 ns, 1.4285 ms/op
+WorkloadActual   8: 512 op, 739954417.00 ns, 1.4452 ms/op
+WorkloadActual   9: 512 op, 730721083.00 ns, 1.4272 ms/op
+WorkloadActual  10: 512 op, 731566458.00 ns, 1.4288 ms/op
+WorkloadActual  11: 512 op, 727366125.00 ns, 1.4206 ms/op
+WorkloadActual  12: 512 op, 741293500.00 ns, 1.4478 ms/op
+WorkloadActual  13: 512 op, 728409416.00 ns, 1.4227 ms/op
+WorkloadActual  14: 512 op, 730599792.00 ns, 1.4270 ms/op
+WorkloadActual  15: 512 op, 728958791.00 ns, 1.4237 ms/op
+
+// AfterActualRun
+WorkloadResult   1: 512 op, 730580001.00 ns, 1.4269 ms/op
+WorkloadResult   2: 512 op, 731002250.00 ns, 1.4277 ms/op
+WorkloadResult   3: 512 op, 729281542.00 ns, 1.4244 ms/op
+WorkloadResult   4: 512 op, 729880083.00 ns, 1.4255 ms/op
+WorkloadResult   5: 512 op, 729967917.00 ns, 1.4257 ms/op
+WorkloadResult   6: 512 op, 731391292.00 ns, 1.4285 ms/op
+WorkloadResult   7: 512 op, 730719500.00 ns, 1.4272 ms/op
+WorkloadResult   8: 512 op, 731564875.00 ns, 1.4288 ms/op
+WorkloadResult   9: 512 op, 727364542.00 ns, 1.4206 ms/op
+WorkloadResult  10: 512 op, 728407833.00 ns, 1.4227 ms/op
+WorkloadResult  11: 512 op, 730598209.00 ns, 1.4269 ms/op
+WorkloadResult  12: 512 op, 728957208.00 ns, 1.4237 ms/op
+// GC:  314 3 0 2632728576 512
+// Threading:  0 0 512
+
+// AfterAll
+// Benchmark Process 61823 has exited with code 0.
+
+Mean = 1.426 ms, StdErr = 0.001 ms (0.05%), N = 12, StdDev = 0.002 ms
+Min = 1.421 ms, Q1 = 1.424 ms, Median = 1.426 ms, Q3 = 1.427 ms, Max = 1.429 ms
+IQR = 0.003 ms, LowerFence = 1.420 ms, UpperFence = 1.432 ms
+ConfidenceInterval = [1.423 ms; 1.429 ms] (CI 99.9%), Margin = 0.003 ms (0.22% of Mean)
+Skewness = -0.58, Kurtosis = 2.12, MValue = 2
+
+// ** Remained 1 (50.0%) benchmark(s) to run. Estimated finish 2026-01-30 23:18 (0h 0m from now) **
+// **************************
+// Benchmark: RecordReaderBenchmark.TupleRecordReader_Benchmark: DefaultJob
+// *** Execute ***
+// Launch: 1 / 1
+// Execute: dotnet DataBoss.Benchmarks-DefaultJob-1.dll --anonymousPipes 116 117 --benchmarkName DataBoss.Benchmarks.RecordReaderBenchmark.TupleRecordReader_Benchmark --job Default --benchmarkId 1 in /Users/drunkcod/Home/DataBoss/Build/DataBoss.Benchmarks/Release/net10.0/DataBoss.Benchmarks-DefaultJob-1/bin/Release/net10.0
+// Failed to set up high priority (Permission denied). In order to run benchmarks with high priority, make sure you have the right permissions.
+// BeforeAnythingElse
+
+// Benchmark Process Environment Information:
+// BenchmarkDotNet v0.15.8
+// Runtime=.NET 10.0.0 (10.0.0, 10.0.25.52411), Arm64 RyuJIT armv8.0-a
+// GC=Concurrent Workstation
+// HardwareIntrinsics=ArmBase+AdvSimd,AES,CRC32,DP,RDM,SHA1,SHA256 VectorSize=128
+// Job: DefaultJob
+
+OverheadJitting  1: 1 op, 85458.00 ns, 85.4580 us/op
+WorkloadJitting  1: 1 op, 32645500.00 ns, 32.6455 ms/op
+
+OverheadJitting  2: 16 op, 151166.00 ns, 9.4479 us/op
+WorkloadJitting  2: 16 op, 29669500.00 ns, 1.8543 ms/op
+
+WorkloadPilot    1: 16 op, 28351917.00 ns, 1.7720 ms/op
+WorkloadPilot    2: 32 op, 56969583.00 ns, 1.7803 ms/op
+WorkloadPilot    3: 64 op, 103736833.00 ns, 1.6209 ms/op
+WorkloadPilot    4: 128 op, 81128333.00 ns, 633.8151 us/op
+WorkloadPilot    5: 256 op, 165559583.00 ns, 646.7171 us/op
+WorkloadPilot    6: 512 op, 341484916.00 ns, 666.9627 us/op
+WorkloadPilot    7: 1024 op, 639961250.00 ns, 624.9622 us/op
+
+OverheadWarmup   1: 1024 op, 4208.00 ns, 4.1094 ns/op
+OverheadWarmup   2: 1024 op, 3333.00 ns, 3.2549 ns/op
+OverheadWarmup   3: 1024 op, 3125.00 ns, 3.0518 ns/op
+OverheadWarmup   4: 1024 op, 3084.00 ns, 3.0117 ns/op
+OverheadWarmup   5: 1024 op, 3084.00 ns, 3.0117 ns/op
+OverheadWarmup   6: 1024 op, 3083.00 ns, 3.0107 ns/op
+OverheadWarmup   7: 1024 op, 3166.00 ns, 3.0918 ns/op
+OverheadWarmup   8: 1024 op, 3000.00 ns, 2.9297 ns/op
+
+OverheadActual   1: 1024 op, 3083.00 ns, 3.0107 ns/op
+OverheadActual   2: 1024 op, 3125.00 ns, 3.0518 ns/op
+OverheadActual   3: 1024 op, 3292.00 ns, 3.2148 ns/op
+OverheadActual   4: 1024 op, 2584.00 ns, 2.5234 ns/op
+OverheadActual   5: 1024 op, 3125.00 ns, 3.0518 ns/op
+OverheadActual   6: 1024 op, 3292.00 ns, 3.2148 ns/op
+OverheadActual   7: 1024 op, 3083.00 ns, 3.0107 ns/op
+OverheadActual   8: 1024 op, 3208.00 ns, 3.1328 ns/op
+OverheadActual   9: 1024 op, 3042.00 ns, 2.9707 ns/op
+OverheadActual  10: 1024 op, 3000.00 ns, 2.9297 ns/op
+OverheadActual  11: 1024 op, 3083.00 ns, 3.0107 ns/op
+OverheadActual  12: 1024 op, 3083.00 ns, 3.0107 ns/op
+OverheadActual  13: 1024 op, 3125.00 ns, 3.0518 ns/op
+OverheadActual  14: 1024 op, 3042.00 ns, 2.9707 ns/op
+OverheadActual  15: 1024 op, 3041.00 ns, 2.9697 ns/op
+OverheadActual  16: 1024 op, 3125.00 ns, 3.0518 ns/op
+OverheadActual  17: 1024 op, 2542.00 ns, 2.4824 ns/op
+OverheadActual  18: 1024 op, 3209.00 ns, 3.1338 ns/op
+OverheadActual  19: 1024 op, 3291.00 ns, 3.2139 ns/op
+OverheadActual  20: 1024 op, 3083.00 ns, 3.0107 ns/op
+
+WorkloadWarmup   1: 1024 op, 627559333.00 ns, 612.8509 us/op
+WorkloadWarmup   2: 1024 op, 585291334.00 ns, 571.5736 us/op
+WorkloadWarmup   3: 1024 op, 550141042.00 ns, 537.2471 us/op
+WorkloadWarmup   4: 1024 op, 510262916.00 ns, 498.3036 us/op
+WorkloadWarmup   5: 1024 op, 509852750.00 ns, 497.9031 us/op
+WorkloadWarmup   6: 1024 op, 509133583.00 ns, 497.2008 us/op
+WorkloadWarmup   7: 1024 op, 509711750.00 ns, 497.7654 us/op
+WorkloadWarmup   8: 1024 op, 510790167.00 ns, 498.8185 us/op
+WorkloadWarmup   9: 1024 op, 522206458.00 ns, 509.9672 us/op
+WorkloadWarmup  10: 1024 op, 510768708.00 ns, 498.7976 us/op
+WorkloadWarmup  11: 1024 op, 507954917.00 ns, 496.0497 us/op
+WorkloadWarmup  12: 1024 op, 516878041.00 ns, 504.7637 us/op
+WorkloadWarmup  13: 1024 op, 511232250.00 ns, 499.2502 us/op
+
+// BeforeActualRun
+WorkloadActual   1: 1024 op, 511750375.00 ns, 499.7562 us/op
+WorkloadActual   2: 1024 op, 508340042.00 ns, 496.4258 us/op
+WorkloadActual   3: 1024 op, 511603959.00 ns, 499.6132 us/op
+WorkloadActual   4: 1024 op, 592257292.00 ns, 578.3763 us/op
+WorkloadActual   5: 1024 op, 505491750.00 ns, 493.6443 us/op
+WorkloadActual   6: 1024 op, 503644625.00 ns, 491.8405 us/op
+WorkloadActual   7: 1024 op, 517828542.00 ns, 505.6919 us/op
+WorkloadActual   8: 1024 op, 503999417.00 ns, 492.1869 us/op
+WorkloadActual   9: 1024 op, 503551750.00 ns, 491.7498 us/op
+WorkloadActual  10: 1024 op, 556453166.00 ns, 543.4113 us/op
+WorkloadActual  11: 1024 op, 524256958.00 ns, 511.9697 us/op
+WorkloadActual  12: 1024 op, 511832542.00 ns, 499.8365 us/op
+WorkloadActual  13: 1024 op, 511968459.00 ns, 499.9692 us/op
+WorkloadActual  14: 1024 op, 524195792.00 ns, 511.9100 us/op
+WorkloadActual  15: 1024 op, 505609334.00 ns, 493.7591 us/op
+
+// AfterActualRun
+WorkloadResult   1: 1024 op, 511747292.00 ns, 499.7532 us/op
+WorkloadResult   2: 1024 op, 508336959.00 ns, 496.4228 us/op
+WorkloadResult   3: 1024 op, 511600876.00 ns, 499.6102 us/op
+WorkloadResult   4: 1024 op, 505488667.00 ns, 493.6413 us/op
+WorkloadResult   5: 1024 op, 503641542.00 ns, 491.8374 us/op
+WorkloadResult   6: 1024 op, 517825459.00 ns, 505.6889 us/op
+WorkloadResult   7: 1024 op, 503996334.00 ns, 492.1839 us/op
+WorkloadResult   8: 1024 op, 503548667.00 ns, 491.7467 us/op
+WorkloadResult   9: 1024 op, 524253875.00 ns, 511.9667 us/op
+WorkloadResult  10: 1024 op, 511829459.00 ns, 499.8335 us/op
+WorkloadResult  11: 1024 op, 511965376.00 ns, 499.9662 us/op
+WorkloadResult  12: 1024 op, 524192709.00 ns, 511.9069 us/op
+WorkloadResult  13: 1024 op, 505606251.00 ns, 493.7561 us/op
+// GC:  229 6 0 1914647544 1024
+// Threading:  0 0 1024
+
+// AfterAll
+// Benchmark Process 61828 has exited with code 0.
+
+Mean = 499.101 μs, StdErr = 1.953 μs (0.39%), N = 13, StdDev = 7.042 μs
+Min = 491.747 μs, Q1 = 493.641 μs, Median = 499.610 μs, Q3 = 499.966 μs, Max = 511.967 μs
+IQR = 6.325 μs, LowerFence = 484.154 μs, UpperFence = 509.454 μs
+ConfidenceInterval = [490.668 μs; 507.535 μs] (CI 99.9%), Margin = 8.433 μs (1.69% of Mean)
+Skewness = 0.68, Kurtosis = 2.06, MValue = 2
+
+// ** Remained 0 (0.0%) benchmark(s) to run. Estimated finish 2026-01-30 23:18 (0h 0m from now) **
+// ***** BenchmarkRunner: Finish  *****
+
+// * Export *
+  BenchmarkDotNet.Artifacts/results/DataBoss.Benchmarks.RecordReaderBenchmark-report.csv
+  BenchmarkDotNet.Artifacts/results/DataBoss.Benchmarks.RecordReaderBenchmark-report-github.md
+  BenchmarkDotNet.Artifacts/results/DataBoss.Benchmarks.RecordReaderBenchmark-report.html
+
+// * Detailed results *
+RecordReaderBenchmark.ObjectDataRecordReader_Benchmark: DefaultJob
+Runtime = .NET 10.0.0 (10.0.0, 10.0.25.52411), Arm64 RyuJIT armv8.0-a; GC = Concurrent Workstation
+Mean = 1.426 ms, StdErr = 0.001 ms (0.05%), N = 12, StdDev = 0.002 ms
+Min = 1.421 ms, Q1 = 1.424 ms, Median = 1.426 ms, Q3 = 1.427 ms, Max = 1.429 ms
+IQR = 0.003 ms, LowerFence = 1.420 ms, UpperFence = 1.432 ms
+ConfidenceInterval = [1.423 ms; 1.429 ms] (CI 99.9%), Margin = 0.003 ms (0.22% of Mean)
+Skewness = -0.58, Kurtosis = 2.12, MValue = 2
+-------------------- Histogram --------------------
+[1.419 ms ; 1.430 ms) | @@@@@@@@@@@@
+---------------------------------------------------
+
+RecordReaderBenchmark.TupleRecordReader_Benchmark: DefaultJob
+Runtime = .NET 10.0.0 (10.0.0, 10.0.25.52411), Arm64 RyuJIT armv8.0-a; GC = Concurrent Workstation
+Mean = 499.101 μs, StdErr = 1.953 μs (0.39%), N = 13, StdDev = 7.042 μs
+Min = 491.747 μs, Q1 = 493.641 μs, Median = 499.610 μs, Q3 = 499.966 μs, Max = 511.967 μs
+IQR = 6.325 μs, LowerFence = 484.154 μs, UpperFence = 509.454 μs
+ConfidenceInterval = [490.668 μs; 507.535 μs] (CI 99.9%), Margin = 8.433 μs (1.69% of Mean)
+Skewness = 0.68, Kurtosis = 2.06, MValue = 2
+-------------------- Histogram --------------------
+[491.114 μs ; 513.916 μs) | @@@@@@@@@@@@@
+---------------------------------------------------
+
+// * Summary *
+
+BenchmarkDotNet v0.15.8, macOS Tahoe 26.2 (25C56) [Darwin 25.2.0]
+Apple M2 Pro, 1 CPU, 12 logical and 12 physical cores
+.NET SDK 10.0.100
+  [Host]     : .NET 10.0.0 (10.0.0, 10.0.25.52411), Arm64 RyuJIT armv8.0-a
+  DefaultJob : .NET 10.0.0 (10.0.0, 10.0.25.52411), Arm64 RyuJIT armv8.0-a
+
+
+| Method                           | Mean       | Error   | StdDev  | Ratio | Gen0     | Gen1   | Allocated | Alloc Ratio |
+|--------------------------------- |-----------:|--------:|--------:|------:|---------:|-------:|----------:|------------:|
+| ObjectDataRecordReader_Benchmark | 1,425.7 μs | 3.17 μs | 2.48 μs |  1.00 | 613.2813 | 5.8594 |    4.9 MB |        1.00 |
+| TupleRecordReader_Benchmark      |   499.1 μs | 8.43 μs | 7.04 μs |  0.35 | 223.6328 | 5.8594 |   1.78 MB |        0.36 |
+
+// * Hints *
+Outliers
+  RecordReaderBenchmark.ObjectDataRecordReader_Benchmark: Default -> 3 outliers were removed (1.45 ms..1.71 ms)
+  RecordReaderBenchmark.TupleRecordReader_Benchmark: Default      -> 2 outliers were removed (543.41 μs, 578.38 μs)
+
+// * Legends *
+  Mean        : Arithmetic mean of all measurements
+  Error       : Half of 99.9% confidence interval
+  StdDev      : Standard deviation of all measurements
+  Ratio       : Mean of the ratio distribution ([Current]/[Baseline])
+  Gen0        : GC Generation 0 collects per 1000 operations
+  Gen1        : GC Generation 1 collects per 1000 operations
+  Allocated   : Allocated memory per single operation (managed only, inclusive, 1KB = 1024B)
+  Alloc Ratio : Allocated memory ratio distribution ([Current]/[Baseline])
+  1 μs        : 1 Microsecond (0.000001 sec)
+
+// * Diagnostic Output - MemoryDiagnoser *
+
+
+// ***** BenchmarkRunner: End *****
+Run time: 00:00:35 (35.7 sec), executed benchmarks: 2
+
+Global total time: 00:00:43 (43.13 sec), executed benchmarks: 2
+// * Artifacts cleanup *
+Artifacts cleanup is finished

@@ -9,19 +9,13 @@ using DataBoss.Threading.Channels;
 
 namespace DataBoss.DataPackage
 {
-	class RecordReader : WorkItem
+	class RecordReader(IDataRecordReader reader, ChannelWriter<(IMemoryOwner<IDataRecord2>, int)> writer, CancellationToken cancellation) : WorkItem
 	{
 		public const int BufferRows = 256;
 
-		readonly IDataRecordReader reader;
-		readonly ChannelWriter<(IMemoryOwner<IDataRecord>, int)> writer;
-		readonly CancellationToken cancellation;
-
-		public RecordReader(IDataRecordReader reader, ChannelWriter<(IMemoryOwner<IDataRecord>, int)> writer, CancellationToken cancellation) {
-			this.reader = reader;
-			this.writer = writer;
-			this.cancellation = cancellation;
-		}
+		readonly IDataRecordReader reader = reader;
+		readonly ChannelWriter<(IMemoryOwner<IDataRecord2>, int)> writer = writer;
+		readonly CancellationToken cancellation = cancellation;
 
 		protected override void DoWork() {
 			var buffer = CreateBuffer();
@@ -42,7 +36,8 @@ namespace DataBoss.DataPackage
 			if (n != 0)
 				writer.Write((buffer, n), cancellation);
 		}
-		IMemoryOwner<IDataRecord> CreateBuffer() => MemoryPool<IDataRecord>.Shared.Rent(BufferRows);
+
+		static IMemoryOwner<IDataRecord2> CreateBuffer() => MemoryPool<IDataRecord2>.Shared.Rent(BufferRows);
 
 		protected override void Cleanup() =>
 			writer.Complete();

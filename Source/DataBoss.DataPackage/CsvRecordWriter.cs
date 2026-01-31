@@ -13,27 +13,22 @@ using DataBoss.Threading.Channels;
 
 namespace DataBoss.DataPackage
 {
-	class CsvRecordWriter
+	class CsvRecordWriter(string delimiter, Encoding encoding)
 	{
-		readonly string delimiter;
-		public readonly Encoding Encoding;
-
-		public CsvRecordWriter(string delimiter, Encoding encoding) {
-			this.delimiter = delimiter;
-			this.Encoding = encoding;
-		}
+		readonly string delimiter = delimiter;
+		public readonly Encoding Encoding = encoding;
 
 		CsvFragmentWriter NewFragmentWriter(Stream stream) =>
-			NewFragmentWriter(NewTextWriter(stream));
+			NewFragmentWriter(NewWriter(stream));
 
 		CsvFragmentWriter NewFragmentWriter(TextWriter writer) =>
 			new(new CsvWriter(writer, delimiter, leaveOpen: true));
 
 		public void WriteHeaderRecord(Stream stream, IDataRecord data) =>
-			WriteHeaderRecord(NewTextWriter(stream), data);
+			WriteHeaderRecord(NewWriter(stream), data);
 
-		TextWriter NewTextWriter(Stream stream) =>
-			new StreamWriter(stream, Encoding, DataPackage.StreamBufferSize, leaveOpen: true);
+		StreamWriter NewWriter(Stream stream) =>
+			new(stream, Encoding, DataPackage.StreamBufferSize, leaveOpen: true);
 
 		public void WriteHeaderRecord(TextWriter writer, IDataRecord data) {
 			using var csv = NewFragmentWriter(writer);
@@ -49,27 +44,23 @@ namespace DataBoss.DataPackage
 				csv.WriteRecord(view);
 		}
 
-		public Task WriteChunksAsync(ChannelReader<(IMemoryOwner<IDataRecord>, int)> records, ChannelWriter<Stream> chunks, DataReaderStringView view) {
+		public Task WriteChunksAsync(ChannelReader<(IMemoryOwner<IDataRecord2>, int)> records, ChannelWriter<Stream> chunks, DataReaderStringView view) {
 			var writer = new ChunkWriter(records, chunks, this) {
-				ReaderStringView = view,
+				Format = view.Format(),
 			};
 			return writer.RunAsync();
 		}
 
-		class CsvFragmentWriter : IDisposable
+		class CsvFragmentWriter(CsvWriter csv) : IDisposable
 		{
-			readonly CsvWriter csv;
-
-			public CsvFragmentWriter(CsvWriter csv) {
-				this.csv = csv;
-			}
+			readonly CsvWriter csv = csv;
 
 			public void Dispose() => csv.Dispose();
 
 			public void WriteField(string value) => csv.WriteField(value);
 			public void NextField() => csv.NextField();
 
-			public void WriteRecord(in DataReaderStringView view) {
+			public void WriteRecord<T>(in T view) where T : IStringRecord {
 				var i = 0;
 				try {
 					for (; i != view.FieldCount; ++i) {
@@ -88,20 +79,13 @@ namespace DataBoss.DataPackage
 			public void Flush() => csv.Writer.Flush();
 		}
 
-		class ChunkWriter : WorkItem
+		class ChunkWriter(ChannelReader<(IMemoryOwner<IDataRecord2>, int)> records, ChannelWriter<Stream> chunks, CsvRecordWriter csv) : WorkItem
 		{
-			readonly ChannelReader<(IMemoryOwner<IDataRecord> Rows, int Count)> records;
-			readonly ChannelWriter<Stream> chunks;
-			readonly CsvRecordWriter csv;
+			readonly ChannelReader<(IMemoryOwner<IDataRecord2> Rows, int Count)> records = records;
+			readonly ChannelWriter<Stream> chunks = chunks;
+			readonly CsvRecordWriter csv = csv;
 			int chunkCapacity = DataPackage.StreamBufferSize;
-
-			public ChunkWriter(ChannelReader<(IMemoryOwner<IDataRecord>, int)> records, ChannelWriter<Stream> chunks, CsvRecordWriter csv) {
-				this.records = records;
-				this.chunks = chunks;
-				this.csv = csv;
-			}
-
-			public DataReaderStringView ReaderStringView;
+			public RecordStringViewFormat Format;
 			public int MaxWorkers = 1;
 
 			protected override void DoWork() {
@@ -113,26 +97,18 @@ namespace DataBoss.DataPackage
 						.ForAll(WriteRecords);
 			}
 
-			class ItemSource : IRecordSource
-			{
-				public IDataRecord Current { get; set; }
-
-				public bool Next() => false;
-			}
-
 			void WriteAllRecords() {
 				using var ps = new ProducerStream();
 				chunks.Write(ps.OpenConsumer());
-
 				using var result = csv.NewFragmentWriter(ps);
+				var view = Format.NewItemView();
 				do {
 					while (records.TryRead(out var item))
 						try {
-							var source = new ItemSource();
-							var view = ReaderStringView.Rebind(source);
 							foreach (var r in item.Rows.Memory[..item.Count].Span) {
-								source.Current = r;
+								view.Current = r;
 								result.WriteRecord(view);
+								r.Dispose();
 							}
 						}
 						finally {
@@ -141,20 +117,20 @@ namespace DataBoss.DataPackage
 				} while (records.WaitToRead());
 			}
 
-			void WriteRecords((IMemoryOwner<IDataRecord> Items, int Count) item) {
+			void WriteRecords((IMemoryOwner<IDataRecord2> Rows, int Count) item) {
 				try {
-					var rows = item.Items.Memory[..item.Count].Span;
+					var rows = item.Rows.Memory[..item.Count].Span;
 					if (rows.Length == 0)
 						return;
 
 					var chunk = new MemoryStream(chunkCapacity);
-					var source = new ItemSource();
-					var view = ReaderStringView.Rebind(source);
-
+					var view = Format.NewItemView();
 					using (var fragment = csv.NewFragmentWriter(chunk))
 						foreach (var r in rows) {
-							source.Current = r;
+							view.Current = r;
 							fragment.WriteRecord(view);
+							r.Dispose();
+
 						}
 					if (chunk.Position != 0) {
 						chunkCapacity = Math.Max(chunkCapacity, chunk.Capacity);
@@ -162,7 +138,7 @@ namespace DataBoss.DataPackage
 					}
 				}
 				finally {
-					item.Items.Dispose();
+					item.Rows.Dispose();
 				}
 			}
 
