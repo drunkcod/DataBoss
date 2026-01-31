@@ -51,9 +51,15 @@ namespace DataBoss.Data
 		public abstract object GetValue(T item);
 		public abstract TValue GetFieldValue<TValue>(T item);
 
-		public static FieldAccessor<T> Create<TField>(Func<T, TField> get) => new ValueAccessor<T, TField>(get);
-		public static FieldAccessor<T> Create<TField>(Func<T, TField> get, Func<T, bool> hasValue) =>
-			hasValue == null ? Create(get) : new NullableAccessor<T, TField>(get, hasValue);
+		public static FieldAccessor<T> Create<TField>(ParameterExpression source, Expression selector, Expression hasValue) {
+			var get = CompileSelector<TField>(source, selector);
+			if (hasValue == null)
+				return typeof(TField) == typeof(string) ? new StringAccessor<T>((Func<T, string>)(object)get) : new ValueAccessor<T, TField>(get);
+			return new NullableAccessor<T, TField>(get, CompileSelector<bool>(source, hasValue));
+		}
+
+		static Func<T, TResult> CompileSelector<TResult>(ParameterExpression source, Expression selector) =>
+			Expression.Lambda<Func<T, TResult>>(selector, source).Compile();
 	}
 
 	abstract class FieldAccessor<T, TField>(Func<T, TField> get) : FieldAccessor<T>
@@ -61,13 +67,10 @@ namespace DataBoss.Data
 		readonly Func<T, TField> get = get;
 
 		public override TValue GetFieldValue<TValue>(T item) {
-			if (typeof(TValue) == typeof(TField)) {
-				var value = get(item);
+			var value = get(item);
+			if (typeof(TValue) == typeof(TField))
 				return Unsafe.As<TField, TValue>(ref value);
-			}
-			if (typeof(TValue) == typeof(object))
-				return (TValue)(object)get(item);
-			throw new InvalidCastException($"Unable to cast object of type '{typeof(TField)}' to {typeof(TValue)}.");
+			return (TValue)(object)value;
 		}
 
 		protected TField GetFieldValue(T item) => get(item);
@@ -108,7 +111,9 @@ namespace DataBoss.Data
 			}
 		}
 
-		static readonly ConcurrentDictionary<Type, Func<ParameterExpression, Expression, Func<T, bool>, FieldAccessor<T>>> AccessorFactories = new();
+		static readonly ConcurrentDictionary<Type, Func<ParameterExpression, Expression, Expression, FieldAccessor<T>>> AccessorFactories = new();
+		static readonly MethodInfo MakeAccessorMethod = typeof(FieldAccessor<T>)
+			.GetMethod(nameof(FieldAccessor<>.Create), BindingFlags.Static | BindingFlags.Public, [typeof(ParameterExpression), typeof(Expression), typeof(Expression)]);
 
 		public static DbDataReader CreateDefault(IEnumerable<T> data) {
 
@@ -204,25 +209,14 @@ namespace DataBoss.Data
 		}
 
 		static FieldAccessor<T> MakeAccessor(ParameterExpression source, in FieldMappingItem field) {
-			if (field.FieldType == typeof(string))
-				return new StringAccessor<T>(CompileSelector<string>(source, field.GetValue));
-			var (hasValue, selector) = field.HasValue == null ? (null, field.Selector) : (CompileSelector<bool>(source, field.HasValue), field.GetValue);
+			var (hasValue, selector) = field.HasValue == null ? (null, field.Selector) : (field.HasValue, field.GetValue);
 
 			var createAccessor = AccessorFactories.GetOrAdd(selector.Type, type =>
-				Lambdas.CreateDelegate<Func<ParameterExpression, Expression, Func<T, bool>, FieldAccessor<T>>>(
+				Lambdas.CreateDelegate<Func<ParameterExpression, Expression, Expression, FieldAccessor<T>>>(
 					MakeAccessorMethod.MakeGenericMethod(type)));
 
 			return createAccessor(source, selector, hasValue);
 		}
-
-		static readonly MethodInfo MakeAccessorMethod = typeof(SequenceDataReaderBase<T>)
-			.GetMethod(nameof(MakeAccessorT), BindingFlags.Static | BindingFlags.NonPublic);
-
-		static FieldAccessor<T> MakeAccessorT<TFieldType>(ParameterExpression source, Expression selector, Func<T, bool> hasValue) =>
-			FieldAccessor<T>.Create(CompileSelector<TFieldType>(source, selector), hasValue);
-
-		static Func<T, TResult> CompileSelector<TResult>(ParameterExpression source, Expression selector) =>
-			Expression.Lambda<Func<T, TResult>>(selector, source).Compile();
 
 		public override object this[int i] => GetValue(i);
 		public override object this[string name] => GetValue(GetOrdinal(name));

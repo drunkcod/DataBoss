@@ -77,7 +77,7 @@ namespace DataBoss.Data
 				getValue = selector;
 			} else if (type.TryGetNullableTargetType(out var newTargetType)) {
 				hasValue = Expression.Property(selector, "HasValue");
-				getValue = Expression.Property(selector, "Value");
+				getValue = Expression.Call(selector, "GetValueOrDefault", Type.EmptyTypes);
 				selector = Expression.Condition(
 					hasValue,
 					getValue.Box(),
