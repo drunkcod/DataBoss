@@ -54,10 +54,31 @@ namespace DataBoss.Data
 			Check.That(() => r.FieldCount == 8);
 		}
 
+		[Fact]
+		public void supports_ten_fields() {
+			var data = new[] { new TenThings { A = 1, B = 2, C = 3, D = 4, E = 5, F = 6, G = 7, H = 8, I = 9, J = "10" } };
+			var reader = SequenceDataReader.Create(data);
+			var tr = new TupleRecordReader(reader);
+
+			Check.That(() => tr.Read());
+			var r = tr.GetRecord();
+			Check.That(() => r.GetInt32(0) == 1);
+			Check.That(() => r.GetInt32(7) == 8);
+			Check.That(() => r.GetInt32(8) == 9);
+			Check.That(() => r.GetString(9) == "10");
+			Check.That(() => r.FieldCount == 10);
+		}
+
 		class EightThings
 		{
 			public int A, B, C, D, E, F, G;
 			public string H;
+		}
+
+		class TenThings
+		{
+			public int A, B, C, D, E, F, G, H, I;
+			public string J;
 		}
 	}
 }

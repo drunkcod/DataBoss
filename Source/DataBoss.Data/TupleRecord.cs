@@ -349,8 +349,7 @@ namespace DataBoss.Data
 		}
 	}
 
-	public sealed class TupleRecord<T0, T1, T2, T3, T4, T5, T6, TRest>(DataReaderSchemaTable schema, TRest rest) : TupleRecord(schema)
-		where TRest : TupleRecord
+	public sealed class TupleRecord<T0, T1, T2, T3, T4, T5, T6, T7>(DataReaderSchemaTable schema) : TupleRecord(schema)
 	{
 		byte isDbNull;
 		public T0 Item0;
@@ -360,38 +359,36 @@ namespace DataBoss.Data
 		public T4 Item4;
 		public T5 Item5;
 		public T6 Item6;
-		public TRest Rest = rest;
+		public T7 Item7;
 
-		public override int FieldCount => 7 + Rest.FieldCount;
+		public override int FieldCount => 8;
 
-		public override bool IsDBNull(int i) => i < 7 ? (isDbNull & (1 << i)) != 0 : Rest.IsDBNull(i - 7);
+		public override bool IsDBNull(int i) => i < 8 ? (isDbNull & (1 << i)) != 0 : throw new IndexOutOfRangeException();
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public override T GetFieldValue<T>(int i) {
-			if (i < 7) {
-				if (i == 0) { if ((isDbNull & 1) != 0) return default(T) == null ? default : throw new InvalidCastException(); return (T)(object)Item0; }
-				if (i == 1) { if ((isDbNull & 2) != 0) return default(T) == null ? default : throw new InvalidCastException(); return (T)(object)Item1; }
-				if (i == 2) { if ((isDbNull & 4) != 0) return default(T) == null ? default : throw new InvalidCastException(); return (T)(object)Item2; }
-				if (i == 3) { if ((isDbNull & 8) != 0) return default(T) == null ? default : throw new InvalidCastException(); return (T)(object)Item3; }
-				if (i == 4) { if ((isDbNull & 16) != 0) return default(T) == null ? default : throw new InvalidCastException(); return (T)(object)Item4; }
-				if (i == 5) { if ((isDbNull & 32) != 0) return default(T) == null ? default : throw new InvalidCastException(); return (T)(object)Item5; }
-				if (i == 6) { if ((isDbNull & 64) != 0) return default(T) == null ? default : throw new InvalidCastException(); return (T)(object)Item6; }
-			}
-			return Rest.GetFieldValue<T>(i - 7);
+			if (i == 0) { if ((isDbNull & 1) != 0) return default(T) == null ? default : throw new InvalidCastException(); return (T)(object)Item0; }
+			if (i == 1) { if ((isDbNull & 2) != 0) return default(T) == null ? default : throw new InvalidCastException(); return (T)(object)Item1; }
+			if (i == 2) { if ((isDbNull & 4) != 0) return default(T) == null ? default : throw new InvalidCastException(); return (T)(object)Item2; }
+			if (i == 3) { if ((isDbNull & 8) != 0) return default(T) == null ? default : throw new InvalidCastException(); return (T)(object)Item3; }
+			if (i == 4) { if ((isDbNull & 16) != 0) return default(T) == null ? default : throw new InvalidCastException(); return (T)(object)Item4; }
+			if (i == 5) { if ((isDbNull & 32) != 0) return default(T) == null ? default : throw new InvalidCastException(); return (T)(object)Item5; }
+			if (i == 6) { if ((isDbNull & 64) != 0) return default(T) == null ? default : throw new InvalidCastException(); return (T)(object)Item6; }
+			if (i == 7) { if ((isDbNull & 128) != 0) return default(T) == null ? default : throw new InvalidCastException(); return (T)(object)Item7; }
+			throw new IndexOutOfRangeException();
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public override object GetValue(int i) {
-			if (i < 7) {
-				if (i == 0) return (isDbNull & 1) != 0 ? DBNull.Value : (object)Item0;
-				if (i == 1) return (isDbNull & 2) != 0 ? DBNull.Value : (object)Item1;
-				if (i == 2) return (isDbNull & 4) != 0 ? DBNull.Value : (object)Item2;
-				if (i == 3) return (isDbNull & 8) != 0 ? DBNull.Value : (object)Item3;
-				if (i == 4) return (isDbNull & 16) != 0 ? DBNull.Value : (object)Item4;
-				if (i == 5) return (isDbNull & 32) != 0 ? DBNull.Value : (object)Item5;
-				if (i == 6) return (isDbNull & 64) != 0 ? DBNull.Value : (object)Item6;
-			}
-			return Rest.GetValue(i - 7);
+			if (i == 0) return (isDbNull & 1) != 0 ? DBNull.Value : (object)Item0;
+			if (i == 1) return (isDbNull & 2) != 0 ? DBNull.Value : (object)Item1;
+			if (i == 2) return (isDbNull & 4) != 0 ? DBNull.Value : (object)Item2;
+			if (i == 3) return (isDbNull & 8) != 0 ? DBNull.Value : (object)Item3;
+			if (i == 4) return (isDbNull & 16) != 0 ? DBNull.Value : (object)Item4;
+			if (i == 5) return (isDbNull & 32) != 0 ? DBNull.Value : (object)Item5;
+			if (i == 6) return (isDbNull & 64) != 0 ? DBNull.Value : (object)Item6;
+			if (i == 7) return (isDbNull & 128) != 0 ? DBNull.Value : (object)Item7;
+			throw new IndexOutOfRangeException();
 		}
 
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -403,8 +400,70 @@ namespace DataBoss.Data
 			if (reader.IsDBNull(offset + 4)) { isDbNull |= 16; Item4 = default; } else { isDbNull &= 239; Item4 = reader.GetFieldValue<T4>(offset + 4); }
 			if (reader.IsDBNull(offset + 5)) { isDbNull |= 32; Item5 = default; } else { isDbNull &= 223; Item5 = reader.GetFieldValue<T5>(offset + 5); }
 			if (reader.IsDBNull(offset + 6)) { isDbNull |= 64; Item6 = default; } else { isDbNull &= 191; Item6 = reader.GetFieldValue<T6>(offset + 6); }
+			if (reader.IsDBNull(offset + 7)) { isDbNull |= 128; Item7 = default; } else { isDbNull &= 127; Item7 = reader.GetFieldValue<T7>(offset + 7); }
+		}
+	}
 
-			Rest.Fill(reader, offset + 7);
+	public sealed class TupleRecord<T0, T1, T2, T3, T4, T5, T6, T7, TRest>(DataReaderSchemaTable schema, TRest rest) : TupleRecord(schema)
+		where TRest : TupleRecord
+	{
+		byte isDbNull;
+		public T0 Item0;
+		public T1 Item1;
+		public T2 Item2;
+		public T3 Item3;
+		public T4 Item4;
+		public T5 Item5;
+		public T6 Item6;
+		public T7 Item7;
+		public TRest Rest = rest;
+
+		public override int FieldCount => 8 + Rest.FieldCount;
+
+		public override bool IsDBNull(int i) => i < 8 ? (isDbNull & (1 << i)) != 0 : Rest.IsDBNull(i - 8);
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public override T GetFieldValue<T>(int i) {
+			if (i < 8) {
+				if (i == 0) { if ((isDbNull & 1) != 0) return default(T) == null ? default : throw new InvalidCastException(); return (T)(object)Item0; }
+				if (i == 1) { if ((isDbNull & 2) != 0) return default(T) == null ? default : throw new InvalidCastException(); return (T)(object)Item1; }
+				if (i == 2) { if ((isDbNull & 4) != 0) return default(T) == null ? default : throw new InvalidCastException(); return (T)(object)Item2; }
+				if (i == 3) { if ((isDbNull & 8) != 0) return default(T) == null ? default : throw new InvalidCastException(); return (T)(object)Item3; }
+				if (i == 4) { if ((isDbNull & 16) != 0) return default(T) == null ? default : throw new InvalidCastException(); return (T)(object)Item4; }
+				if (i == 5) { if ((isDbNull & 32) != 0) return default(T) == null ? default : throw new InvalidCastException(); return (T)(object)Item5; }
+				if (i == 6) { if ((isDbNull & 64) != 0) return default(T) == null ? default : throw new InvalidCastException(); return (T)(object)Item6; }
+				if (i == 7) { if ((isDbNull & 128) != 0) return default(T) == null ? default : throw new InvalidCastException(); return (T)(object)Item7; }
+			}
+			return Rest.GetFieldValue<T>(i - 8);
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public override object GetValue(int i) {
+			if (i < 8) {
+				if (i == 0) return (isDbNull & 1) != 0 ? DBNull.Value : (object)Item0;
+				if (i == 1) return (isDbNull & 2) != 0 ? DBNull.Value : (object)Item1;
+				if (i == 2) return (isDbNull & 4) != 0 ? DBNull.Value : (object)Item2;
+				if (i == 3) return (isDbNull & 8) != 0 ? DBNull.Value : (object)Item3;
+				if (i == 4) return (isDbNull & 16) != 0 ? DBNull.Value : (object)Item4;
+				if (i == 5) return (isDbNull & 32) != 0 ? DBNull.Value : (object)Item5;
+				if (i == 6) return (isDbNull & 64) != 0 ? DBNull.Value : (object)Item6;
+				if (i == 7) return (isDbNull & 128) != 0 ? DBNull.Value : (object)Item7;
+			}
+			return Rest.GetValue(i - 8);
+		}
+
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		internal override void Fill(IDataReader reader, int offset) {
+			if (reader.IsDBNull(offset + 0)) { isDbNull |= 1; Item0 = default; } else { isDbNull &= 254; Item0 = reader.GetFieldValue<T0>(offset + 0); }
+			if (reader.IsDBNull(offset + 1)) { isDbNull |= 2; Item1 = default; } else { isDbNull &= 253; Item1 = reader.GetFieldValue<T1>(offset + 1); }
+			if (reader.IsDBNull(offset + 2)) { isDbNull |= 4; Item2 = default; } else { isDbNull &= 251; Item2 = reader.GetFieldValue<T2>(offset + 2); }
+			if (reader.IsDBNull(offset + 3)) { isDbNull |= 8; Item3 = default; } else { isDbNull &= 247; Item3 = reader.GetFieldValue<T3>(offset + 3); }
+			if (reader.IsDBNull(offset + 4)) { isDbNull |= 16; Item4 = default; } else { isDbNull &= 239; Item4 = reader.GetFieldValue<T4>(offset + 4); }
+			if (reader.IsDBNull(offset + 5)) { isDbNull |= 32; Item5 = default; } else { isDbNull &= 223; Item5 = reader.GetFieldValue<T5>(offset + 5); }
+			if (reader.IsDBNull(offset + 6)) { isDbNull |= 64; Item6 = default; } else { isDbNull &= 191; Item6 = reader.GetFieldValue<T6>(offset + 6); }
+			if (reader.IsDBNull(offset + 7)) { isDbNull |= 128; Item7 = default; } else { isDbNull &= 127; Item7 = reader.GetFieldValue<T7>(offset + 7); }
+
+			Rest.Fill(reader, offset + 8);
 		}
 	}
 
@@ -422,7 +481,7 @@ namespace DataBoss.Data
 		}
 
 		static NewExpression CreateFactoryExpression(Type[] types, ParameterExpression schemaParam) {
-			if (types.Length <= 7) {
+			if (types.Length <= 8) {
 				var t = types.Length switch {
 					1 => typeof(TupleRecord<>),
 					2 => typeof(TupleRecord<,>),
@@ -431,17 +490,18 @@ namespace DataBoss.Data
 					5 => typeof(TupleRecord<,,,,>),
 					6 => typeof(TupleRecord<,,,,,>),
 					7 => typeof(TupleRecord<,,,,,,>),
+					8 => typeof(TupleRecord<,,,,,,,>),
 					_ => throw new NotSupportedException(),
 				};
 				return Expression.New(t.MakeGenericType(types).GetConstructor([typeof(DataReaderSchemaTable)]), schemaParam);
 			}
 
-			var head = types[..7];
-			var tail = types[7..];
+			var head = types[..8];
+			var tail = types[8..];
 			var restExpr = CreateFactoryExpression(tail, schemaParam);
 
 			var paramsType = head.Concat(new[] { restExpr.Type }).ToArray();
-			var tupleType = typeof(TupleRecord<,,,,,,,>).MakeGenericType(paramsType);
+			var tupleType = typeof(TupleRecord<,,,,,,,,>).MakeGenericType(paramsType);
 
 			return Expression.New(
 				tupleType.GetConstructor([typeof(DataReaderSchemaTable), restExpr.Type]),
