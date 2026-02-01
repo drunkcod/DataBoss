@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using DataBoss.Data;
 
 namespace DataBoss.Threading.Channels
 {
@@ -21,18 +22,13 @@ namespace DataBoss.Threading.Channels
 			} while (WaitToWrite(w, cancellationToken));
 		}
 
-		public static bool WaitToWrite<T>(this ChannelWriter<T> w) => 
-			GetResult(w.WaitToWriteAsync());
+		public static bool WaitToWrite<T>(this ChannelWriter<T> w) =>
+			Sync.GetResult(w.WaitToWriteAsync());
 		public static bool WaitToWrite<T>(this ChannelWriter<T> w, CancellationToken cancellationToken) =>
-			GetResult(w.WaitToWriteAsync(cancellationToken));
+			Sync.GetResult(w.WaitToWriteAsync(cancellationToken));
 
 		public static bool WaitToRead<T>(this ChannelReader<T> r) =>
-			GetResult(r.WaitToReadAsync());
-
-		static T GetResult<T>(ValueTask<T> x) => 
-			x.IsCompleted 
-			? x.GetAwaiter().GetResult() 
-			: x.AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
+			Sync.GetResult(r.WaitToReadAsync());
 
 		public static void ForEach<T>(this ChannelReader<T> r, Action<T> action) {
 			do {

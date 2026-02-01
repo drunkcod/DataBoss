@@ -5,6 +5,7 @@ using System.Data;
 using System.Data.Common;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -119,13 +120,6 @@ public abstract class SequenceDataReaderBase<T> : DbDataReader, IDataRecordReade
 		this.fields = fields;
 	}
 
-	static FieldAccessor<T>[] MakeAccessors(FieldMapping<T> fields) {
-		var accessors = new FieldAccessor<T>[fields.Count];
-		for (var i = 0; i != accessors.Length; ++i)
-			accessors[i] = MakeAccessor(fields.Source, fields[i]);
-		return accessors;
-	}
-
 	static DataReaderSchemaTable GetSchema(FieldMapping<T> mapping) {
 		var schema = new DataReaderSchemaTable();
 		for (var i = 0; i != mapping.Count; ++i) {
@@ -141,9 +135,14 @@ public abstract class SequenceDataReaderBase<T> : DbDataReader, IDataRecordReade
 		return schema;
 	}
 
-	static FieldAccessor<T> MakeAccessor(ParameterExpression source, in FieldMappingItem field) {
-		var (hasValue, selector) = field.HasValue == null ? (null, field.Selector) : (field.HasValue, field.GetValue);
-		return FieldAccessor<T>.Create(source, selector, hasValue);
+	static FieldAccessor<T>[] MakeAccessors(FieldMapping<T> fields) {
+		var accessors = new FieldAccessor<T>[fields.Count];
+		for (var i = 0; i != accessors.Length; ++i) {
+			var field = fields[i];
+			var (hasValue, selector) = field.HasValue == null ? (null, field.Selector) : (field.HasValue, field.GetValue);
+			accessors[i] = FieldAccessor<T>.Create(fields.Source, selector, hasValue);
+		}
+		return accessors;
 	}
 
 	public override object this[int i] => GetValue(i);
@@ -247,7 +246,7 @@ public sealed class AsyncSequenceDataReader<T> : SequenceDataReaderBase<T>
 		this.data = data ?? throw new ArgumentNullException(nameof(data));
 	}
 
-	internal AsyncSequenceDataReader(IAsyncEnumerator<T> data, SequenceDataReaderBase<T>.FieldConfiguration config) : this(data, config.Schema, config.Fields) { }
+	internal AsyncSequenceDataReader(IAsyncEnumerator<T> data, FieldConfiguration config) : this(data, config.Schema, config.Fields) { }
 	internal AsyncSequenceDataReader(IAsyncEnumerator<T> data, DataReaderSchemaTable schema, FieldAccessor<T>[] fields) : base(schema, fields) {
 		this.data = data ?? throw new ArgumentNullException(nameof(data));
 	}
@@ -255,13 +254,7 @@ public sealed class AsyncSequenceDataReader<T> : SequenceDataReaderBase<T>
 	public override bool IsClosed => data is null;
 
 	public override void Close() {
-		if (data != null) {
-			var x = data.DisposeAsync();
-			if (x.IsCompleted)
-				x.GetAwaiter().GetResult();
-			else x.AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
-
-		}
+		if (data != null) Sync.GetResult(data.DisposeAsync());
 		data = null;
 	}
 
@@ -269,10 +262,5 @@ public sealed class AsyncSequenceDataReader<T> : SequenceDataReaderBase<T>
 
 	protected override async Task<bool> DoReadAsync(CancellationToken cancellationToken) => await data.MoveNextAsync();
 
-	protected override bool DoRead() {
-		var x = data.MoveNextAsync();
-		return x.IsCompleted
-		? x.GetAwaiter().GetResult()
-		: x.AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
-	}
+	protected override bool DoRead() => Sync.GetResult(data.MoveNextAsync());
 }
