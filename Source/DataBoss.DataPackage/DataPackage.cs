@@ -211,7 +211,6 @@ namespace DataBoss.DataPackage
 				dialect.Delimiter = options.Delimiter;
 			else
 				dialect.Delimiter ??= DefaultDelimiter;
-			//description.Resources.Add(desc);
 
 			if (!desc.Path.TryGetOutputPath(out var partPath))
 				throw new Exception("failed to get path");

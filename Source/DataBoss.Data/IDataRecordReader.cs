@@ -1,21 +1,21 @@
 using System;
-using System.Buffers;
 using System.Data;
 
-namespace DataBoss.Data
+namespace DataBoss.Data;
+
+public interface IDataRecord2 : IDataRecord, IDisposable
+{ }
+
+public interface IDataRecordReader
 {
-	public interface IDataRecord2 : IDataRecord, IDisposable
-	{ }
+	bool Read();
+	IDataRecord2 GetRecord();
+}
 
-	public interface IDataRecordReader
-	{
-		bool Read();
-		IDataRecord2 GetRecord();
-	}
+public static class DataRecordReader
+{
+	public static Func<IDataReader, IDataRecordReader> Factory { get; set; } = reader => new ObjectDataRecordReader(reader);
 
-	public static class DataRecordReaderExtensions
-	{
-		public static IDataRecordReader AsDataRecordReader(this IDataReader reader) =>
-			reader is IDataRecordReader records ? records : new ObjectDataRecordReader(reader);
-	}
+	public static IDataRecordReader AsDataRecordReader(this IDataReader reader) =>
+		reader is IDataRecordReader records ? records : Factory(reader);
 }

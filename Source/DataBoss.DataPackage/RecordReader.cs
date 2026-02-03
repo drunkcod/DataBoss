@@ -9,7 +9,7 @@ using DataBoss.Threading.Channels;
 
 namespace DataBoss.DataPackage
 {
-	class RecordReader(IDataRecordReader reader, ChannelWriter<(IMemoryOwner<IDataRecord2>, int)> writer, CancellationToken cancellation) : WorkItem
+	public class RecordReader(IDataRecordReader reader, ChannelWriter<(IMemoryOwner<IDataRecord2>, int)> writer, CancellationToken cancellation) : WorkItem
 	{
 		public const int BufferRows = 256;
 

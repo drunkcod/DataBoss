@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using CsvHelper;
 using DataBoss.Data;
+using DataBoss.DataPackage.Schema;
 
 namespace DataBoss.DataPackage
 {
