@@ -8,6 +8,7 @@ using DotNet.Testcontainers.Builders;
 using DotNet.Testcontainers.Configurations;
 using DotNet.Testcontainers.Containers;
 using DotNet.Testcontainers.Images;
+using DotNet.Testcontainers.Networks;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 using Xunit.Sdk;
@@ -190,6 +191,14 @@ namespace DataBoss
 
 		public string GetConnectionString(string name, ConnectionMode connectionMode = ConnectionMode.Host) {
 			return container.GetConnectionString(name, connectionMode);
+		}
+
+		public Task ConnectAsync(string network, CancellationToken ct = default) {
+			return container.ConnectAsync(network, ct);
+		}
+
+		public Task ConnectAsync(INetwork network, CancellationToken ct = default) {
+			return container.ConnectAsync(network, ct);
 		}
 	}
 
