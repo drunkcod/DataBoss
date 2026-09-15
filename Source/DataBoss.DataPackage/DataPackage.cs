@@ -6,7 +6,6 @@ using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -34,15 +33,10 @@ namespace DataBoss.DataPackage
 
 		public IReadOnlyList<TabularDataResource> Resources => resources.AsReadOnly();
 
-		class DataPackageResourceBuilder : IDataPackageResourceBuilder
+		class DataPackageResourceBuilder(DataPackage package, TabularDataResource resource) : IDataPackageResourceBuilder
 		{
-			readonly DataPackage package;
-			readonly TabularDataResource resource;
-
-			public DataPackageResourceBuilder(DataPackage package, TabularDataResource resource) {
-				this.package = package;
-				this.resource = resource;
-			}
+			readonly DataPackage package = package;
+			readonly TabularDataResource resource = resource;
 
 			public IDataPackageResourceBuilder AddResource(string name, Func<IDataReader> getData) => package.AddResource(name, getData);
 			public IDataPackageBuilder AddResource(Action<CsvResourceBuilder> setupResource) => package.AddResource(setupResource);
@@ -50,8 +44,14 @@ namespace DataBoss.DataPackage
 			public void Save(Func<string, Stream> createOutput, DataPackageSaveOptions options) =>
 				package.Save(createOutput, options);
 
+			public void Save(IDataPackageDestination destination, DataPackageSaveOptions options) =>
+				package.Save(destination, options);
+
 			public Task SaveAsync(Func<string, Stream> createOutput, DataPackageSaveOptions options) =>
 				package.SaveAsync(createOutput, options);
+
+			public Task SaveAsync(IDataPackageDestination destination, DataPackageSaveOptions options) =>
+				package.SaveAsync(destination, options);
 
 			public DataPackage Serialize(CultureInfo culture) =>
 				package.Serialize(culture);
@@ -399,18 +399,42 @@ namespace DataBoss.DataPackage
 		public void Save(Func<string, Stream> createOutput, CultureInfo culture = null) =>
 			Save(createOutput, new DataPackageSaveOptions { Culture = culture });
 
+		public void Save(IDataPackageDestination destination, CultureInfo culture = null) =>
+			Save(destination, new DataPackageSaveOptions { Culture = culture });
+
 		public void Save(Func<string, Stream> createOutput, DataPackageSaveOptions options) =>
 			TaskRunner.Run(() => SaveAsync(createOutput, options));
+
+		public void Save(IDataPackageDestination destination, DataPackageSaveOptions options) =>
+			TaskRunner.Run(() => SaveAsync(destination, options));
 
 		public Task SaveAsync(Func<string, Stream> createOutput, CultureInfo culture = null) =>
 			SaveAsync(createOutput, new DataPackageSaveOptions { Culture = culture });
 
-		public async Task SaveAsync(Func<string, Stream> createOutput, DataPackageSaveOptions options) {
+		public Task SaveAsync(Func<string, Stream> createOutput, DataPackageSaveOptions options) =>
+			SaveAsync(new DefaultDataPackageDestination(createOutput), options);
+
+		public async Task SaveAsync(IDataPackageDestination destination, DataPackageSaveOptions options) {
 			var description = new DataPackageDescription();
 			var writtenPaths = new HashSet<string>();
+			var writeTasks = new List<Task>();
+
+			async Task WriteItem(string name, IDataReader data, DataPackageResourceDescription desc, Stream output) {
+				try {
+					var view = DataReaderStringView.Create(desc.Schema.Fields, data, options.Culture);
+					await WriteRecordsAsync(output, desc.Dialect, data, view);
+				}
+				catch (Exception ex) {
+					throw new Exception($"Failed writing {name}.", ex);
+				}
+				finally {
+					data.Dispose();
+					output.Dispose();
+				}
+			}
 
 			foreach (var item in resources) {
-				using var data = item.Read();
+				var data = item.Read();
 				var desc = item.GetDescription(options.Culture);
 				var dialect = desc.Dialect;
 				if (options.Delimiter != null)
@@ -419,25 +443,21 @@ namespace DataBoss.DataPackage
 					dialect.Delimiter ??= DefaultDelimiter;
 				description.Resources.Add(desc);
 
-				if (!desc.Path.TryGetOutputPath(out var partPath) || writtenPaths.Contains(partPath))
+				if (!desc.Path.TryGetOutputPath(out var partPath) || writtenPaths.Contains(partPath)) {
+					data.Dispose();
 					continue;
+				}
 
-				var (outputPath, output) = options.ResourceCompression.OpenWrite(partPath, createOutput);
+				var (outputPath, output) = options.ResourceCompression.OpenWrite(partPath, destination.CreateOutput);
+				writtenPaths.Add(outputPath);
 				desc.Path = outputPath;
-				try {
-					var view = DataReaderStringView.Create(desc.Schema.Fields, data, options.Culture);
-					await WriteRecordsAsync(output, desc.Dialect, data, view);
-				}
-				catch (Exception ex) {
-					throw new Exception($"Failed writing {item.Name}.", ex);
-				}
-				finally {
-					writtenPaths.Add(outputPath);
-					output.Dispose();
-				}
+				var writeItem = WriteItem(item.Name, data, desc, output);
+				if (destination.SupportsParallelWrites) writeTasks.Add(writeItem);
+				else await writeItem;
 			}
+			await Task.WhenAll(writeTasks);
 
-			using var meta = new StreamWriter(createOutput("datapackage.json"));
+			using var meta = new StreamWriter(destination.CreateOutput("datapackage.json"));
 			meta.Write(JsonConvert.SerializeObject(description, Formatting.Indented, new JsonSerializerSettings {
 				DefaultValueHandling = options.DefaultValueHandling switch {
 					DataPackageDefaultValueHandling.Default => DefaultValueHandling.Ignore,
@@ -514,6 +534,18 @@ namespace DataBoss.DataPackage
 		}
 	}
 
+	public interface IDataPackageDestination
+	{
+		Stream CreateOutput(string path);
+		bool SupportsParallelWrites { get; }
+	}
+
+	class DefaultDataPackageDestination(Func<string, Stream> createOutput) : IDataPackageDestination
+	{
+		public Stream CreateOutput(string path) => createOutput(path);
+		public bool SupportsParallelWrites => false;
+	}
+
 	public class DataPackageSaveOptions
 	{
 		public CultureInfo Culture = null;
@@ -526,62 +558,5 @@ namespace DataBoss.DataPackage
 	{
 		Default = 0,
 		Explicit = 1,
-	}
-
-	public static class TabularDataResourceCsvExtensions
-	{
-		public static void WriteCsv(this TabularDataResource self, TextWriter writer) {
-			using var reader = self.Read();
-			var desc = self.GetDescription();
-			var view = DataReaderStringView.Create(desc.Schema.Fields, reader, null);
-			var csv = new CsvRecordWriter(";", writer.Encoding);
-			csv.WriteHeaderRecord(writer, reader);
-			csv.WriteRecords(writer, view);
-		}
-
-		public static void WriteCsv(this TabularDataResource self, TextWriter writer, DataRecordStringViewFormatOptions options) {
-			using var reader = self.Read();
-			var desc = self.GetDescription();
-			var view = DataReaderStringView.Create(desc.Schema.Fields, reader, options, null);
-			var csv = new CsvRecordWriter(";", writer.Encoding);
-			csv.WriteHeaderRecord(writer, reader);
-			csv.WriteRecords(writer, view);
-		}
-
-		public static async Task WriteCsvAsync(this TabularDataResource self, Stream output) {
-			using var reader = self.Read();
-			var desc = self.GetDescription();
-			var view = DataReaderStringView.Create(desc.Schema.Fields, reader, null);
-
-			var csvDialect = new CsvDialectDescription { Delimiter = ";" };
-
-			var encoding = Encoding.UTF8;
-			var bom = encoding.GetPreamble();
-			var csv = new CsvRecordWriter(csvDialect.Delimiter, encoding);
-			if (csvDialect.HasHeaderRow)
-				csv.WriteHeaderRecord(output, reader);
-
-			var records = Channel.CreateBounded<(IMemoryOwner<IDataRecord2>, int)>(new BoundedChannelOptions(16) {
-				SingleWriter = true,
-			});
-
-			var chunks = Channel.CreateBounded<Stream>(new BoundedChannelOptions(16) {
-				SingleWriter = false,
-				SingleReader = true,
-			});
-
-			var cancellation = new CancellationTokenSource();
-			var readerTask = new RecordReader(reader.AsDataRecordReader(), records, cancellation.Token).RunAsync();
-			var writerTask = csv.WriteChunksAsync(records, chunks, view);
-
-			await Task.WhenAll(
-				readerTask,
-				writerTask,
-				writerTask.ContinueWith(x => {
-					if (x.IsFaulted)
-						cancellation.Cancel();
-				}, TaskContinuationOptions.ExecuteSynchronously),
-				DataPackage.CopyChunks(chunks.Reader, output, bom));
-		}
 	}
 }

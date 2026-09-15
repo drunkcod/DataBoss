@@ -579,4 +579,38 @@ namespace DataBoss.DataPackage
 
 		class ValueRow { public int Value { get; set; } }
 	}
+
+	public class DataPackage_ParallelWrites
+	{
+		class ParallelDestination(InMemoryDataPackageStore store) : IDataPackageDestination
+		{
+			public bool SupportsParallelWrites => true;
+			public Stream CreateOutput(string path) => store.OpenWrite(path);
+		}
+
+		class Row { public int Id { get; set; } public string Value { get; set; } }
+
+		[Fact]
+		public void resources_round_trip_when_written_in_parallel() {
+			var store = new InMemoryDataPackageStore();
+
+			var dp = new DataPackage();
+			dp.AddResource(x => x.WithName("first")
+				.WithData(Enumerable.Range(0, 300).Select(n => new Row { Id = n, Value = $"first-{n}" })));
+			dp.AddResource(x => x.WithName("second")
+				.WithData(Enumerable.Range(0, 300).Select(n => new Row { Id = n, Value = $"second-{n}" })));
+
+			dp.Save(new ParallelDestination(store), new DataPackageSaveOptions());
+
+			var loaded = store.Load();
+			var first = loaded.GetResource("first").Read<Row>().ToList();
+			var second = loaded.GetResource("second").Read<Row>().ToList();
+
+			Check.That(
+				() => first.Count == 300,
+				() => second.Count == 300,
+				() => first.All(x => x.Value == $"first-{x.Id}"),
+				() => second.All(x => x.Value == $"second-{x.Id}"));
+		}
+	}
 }

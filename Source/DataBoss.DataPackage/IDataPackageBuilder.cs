@@ -18,8 +18,11 @@ namespace DataBoss.DataPackage
 		IDataPackageBuilder AddResource(Action<CsvResourceBuilder> setupResource);
 
 		void Save(Func<string, Stream> createOutput, DataPackageSaveOptions options);
+		void Save(IDataPackageDestination destination, DataPackageSaveOptions options);
+
 		Task SaveAsync(Func<string, Stream> createOutput, DataPackageSaveOptions options);
-		
+		Task SaveAsync(IDataPackageDestination destination, DataPackageSaveOptions options);
+
 		DataPackage Serialize(CultureInfo culture = null);
 		Task<DataPackage> SerializeAsync(CultureInfo culture = null);
 		DataPackage Done();
@@ -40,7 +43,7 @@ namespace DataBoss.DataPackage
 
 		[Obsolete("use \"AddResource(Action<CsvResourceBuilder> setupResource)\" instead.")]
 		public static IDataPackageResourceBuilder AddResource<T>(this IDataPackageBuilder self, string name, Func<IEnumerable<T>> getData) =>
-			self.AddResource(name, BoundMethod.Bind(GetSequenceReader,  getData));
+			self.AddResource(name, BoundMethod.Bind(GetSequenceReader, getData));
 
 		static IDataReader GetSequenceReader<T>(Func<IEnumerable<T>> getData) =>
 			getData().ToDataReader();
@@ -52,14 +55,14 @@ namespace DataBoss.DataPackage
 			self.Save(createOutput, new DataPackageSaveOptions { Culture = culture });
 
 		public static void Save(this IDataPackageBuilder self, string path, CultureInfo culture = null) =>
-			self.Save(name => File.Create(Path.Combine(path, name)), new DataPackageSaveOptions { Culture = culture });
+			self.Save(new FsDataPackageDestination(path), new DataPackageSaveOptions { Culture = culture });
 
 		public static void Save(this IDataPackageBuilder self, string path, DataPackageSaveOptions options) {
 			Directory.CreateDirectory(path);
-			self.Save(name => File.Create(Path.Combine(path, name)), options);
+			self.Save(new FsDataPackageDestination(path), options);
 		}
 
-		public static void SaveZip(this IDataPackageBuilder self, string path, CultureInfo culture = null) => 
+		public static void SaveZip(this IDataPackageBuilder self, string path, CultureInfo culture = null) =>
 			SaveZip(self, File.Create(path, 16384), new DataPackageSaveOptions { Culture = culture }, leaveOpen: false);
 
 		public static void SaveZip(this IDataPackageBuilder self, string path, DataPackageSaveOptions options) =>
@@ -75,7 +78,7 @@ namespace DataBoss.DataPackage
 			SaveZipAsync(self, stream, new DataPackageSaveOptions { Culture = culture }, leaveOpen: false);
 
 		public static async Task SaveZipAsync(this IDataPackageBuilder self, Stream stream, DataPackageSaveOptions options, bool leaveOpen = false) {
-			if(!stream.CanSeek)//work around for ZipArchive Create mode reading Position.
+			if (!stream.CanSeek)//work around for ZipArchive Create mode reading Position.
 				stream = new ZipOutputStream(stream);
 
 			using var zip = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: leaveOpen);
@@ -105,5 +108,12 @@ namespace DataBoss.DataPackage
 		}
 
 		static void DoNothing(ZipArchiveEntry _) { }
+	}
+
+	class FsDataPackageDestination(string path) : IDataPackageDestination
+	{
+		public bool SupportsParallelWrites => true;
+
+		public Stream CreateOutput(string name) => File.Create(Path.Combine(path, name));
 	}
 }
