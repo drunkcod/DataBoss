@@ -4,15 +4,28 @@ using System.Data;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using DataBoss.Data;
 using DataBoss.Linq;
 
 namespace DataBoss.DataPackage.Schema;
 
-public class TabularDataResource
+public interface ITabularDataSource
+{
+	IDataReader GetData();
+	Task<IDataReader> GetDataAsync();
+}
+
+class DefaultTabularDataSource(Func<IDataReader> getData) : ITabularDataSource
+{
+	public IDataReader GetData() => getData();
+	public Task<IDataReader> GetDataAsync() => Task.FromResult(getData());
+}
+
+public partial class TabularDataResource
 {
 	readonly DataPackageResourceDescription description;
-	readonly Func<IDataReader> getData;
+	readonly ITabularDataSource source;
 	ResourcePath resourcePath;
 
 	public string Name => description.Name;
@@ -23,18 +36,21 @@ public class TabularDataResource
 	public TabularDataSchema Schema => description.Schema;
 	public readonly string Format;
 
-	protected TabularDataResource(DataPackageResourceDescription description, Func<IDataReader> getData, string format) {
-		if (!Regex.IsMatch(description.Name, @"^[a-z0-9-._]+$"))
+	protected TabularDataResource(DataPackageResourceDescription description, ITabularDataSource source, string format) {
+		if (!ResourceNameRegex().IsMatch(description.Name))
 			throw new NotSupportedException($"name MUST consist only of lowercase alphanumeric characters plus '.', '-' and '_' was '{description.Name}'");
 		this.description = description;
-		this.getData = getData;
+		this.source = source;
 		this.Format = format;
 	}
 
-	public static TabularDataResource From(DataPackageResourceDescription desc, Func<IDataReader> getData) {
+	public static TabularDataResource From(DataPackageResourceDescription desc, Func<IDataReader> getData) =>
+		From(desc, new DefaultTabularDataSource(getData));
+
+	public static TabularDataResource From(DataPackageResourceDescription desc, ITabularDataSource source) {
 		if (desc.Format == "csv" || (desc.Format == null && (desc.Path.All(x => x.EndsWith(".csv")))))
-			return new CsvDataResource(desc, getData) { Delimiter = desc.Dialect?.Delimiter };
-		return new TabularDataResource(desc, getData, desc.Format);
+			return new CsvDataResource(desc, source) { Delimiter = desc.Dialect?.Delimiter };
+		return new TabularDataResource(desc, source, desc.Format);
 	}
 
 	public DataPackageResourceDescription GetDescription() => GetDescription(null);
@@ -77,10 +93,21 @@ public class TabularDataResource
 	public int GetOrdinal(string name) => Schema.Fields.FindIndex(x => x.Name == name);
 
 	public IDataReader Read() {
-		var reader = getData();
+		var reader = source.GetData();
+		UpdateFieldInfo(reader);
+		return reader;
+	}
+
+	public async Task<IDataReader> ReadAsync() {
+		var reader = await source.GetDataAsync();
+		UpdateFieldInfo(reader);
+		return reader;
+	}
+
+	void UpdateFieldInfo(IDataReader reader) {
 		if (Schema.Fields == null)
 			Schema.Fields = GetFieldInfo(reader);
-		return reader;
+
 	}
 
 	public IEnumerable<T> Read<T>() => ObjectReader.Enumerable<T>(Read, CustomConverters);
@@ -93,20 +120,20 @@ public class TabularDataResource
 		input.Length == 1 ? input[0] : throw new InvalidConversionException($"expected string of length 1, was '{input}'", typeof(char));
 
 	public TabularDataResource Where(Func<IDataRecord, bool> predicate) =>
-		Rebind(Name, Schema.Clone(), () => getData().Where(predicate));
+		Rebind(Name, Schema.Clone(), new DefaultTabularDataSource(() => source.GetData().Where(predicate)));
 
 	public TabularDataResource Transform(Action<DataReaderTransform> defineTransform) =>
-		Rebind(Name, SchemaWithSameKeys(), () => {
-			var data = new DataReaderTransform(getData());
+		Rebind(Name, SchemaWithSameKeys(), new DefaultTabularDataSource(() => {
+			var data = new DataReaderTransform(source.GetData());
 			defineTransform(data);
 			return data;
-		});
+		}));
 
 	public TabularDataResource WithData(Func<IDataReader> newData) =>
-		Rebind(Name, SchemaWithSameKeys(), newData);
+		Rebind(Name, SchemaWithSameKeys(), new DefaultTabularDataSource(newData));
 
 	public TabularDataResource WithName(string name) =>
-		Rebind(name, SchemaWithSameKeys(), getData);
+		Rebind(name, SchemaWithSameKeys(), source);
 
 	TabularDataSchema SchemaWithSameKeys() =>
 		new() {
@@ -114,12 +141,12 @@ public class TabularDataResource
 			ForeignKeys = Schema.ForeignKeys?.ToList()
 		};
 
-	protected virtual TabularDataResource Rebind(string name, TabularDataSchema schema, Func<IDataReader> getData) =>
+	protected virtual TabularDataResource Rebind(string name, TabularDataSchema schema, ITabularDataSource source) =>
 		new(new DataPackageResourceDescription {
 			Name = name,
 			Schema = schema,
 			Path = description.Path,
-		}, getData, Format) { ResourcePath = ResourcePath };
+		}, source, Format) { ResourcePath = ResourcePath };
 
 	public static List<TabularDataSchemaFieldDescription> GetFieldInfo(IDataReader reader) {
 		var r = new List<TabularDataSchemaFieldDescription>(reader.FieldCount);
@@ -146,6 +173,9 @@ public class TabularDataResource
 		}
 		return r;
 	}
+
+	[GeneratedRegex(@"^[a-z0-9-._]+$")]
+	private static partial Regex ResourceNameRegex();
 }
 
 class TableSchemaType

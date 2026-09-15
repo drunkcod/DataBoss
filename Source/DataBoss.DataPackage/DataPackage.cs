@@ -185,7 +185,7 @@ namespace DataBoss.DataPackage
 			return Load(zip.OpenEntry);
 		}
 
-		public static async Task<TabularDataResource> WriteResourceAsync(string name, Func<IDataReader> getData, Func<string, FileMode, Stream> fs, DataPackageSaveOptions options) {
+		public static async Task<TabularDataResource> WriteResourceAsync(string name, ITabularDataSource source, Func<string, FileMode, Stream> fs, DataPackageSaveOptions options) {
 			var item = new CsvResourceOptions {
 				Name = name,
 				Path = Path.ChangeExtension(name, "csv")
@@ -202,9 +202,9 @@ namespace DataBoss.DataPackage
 					Dialect = new CsvDialectDescription {
 						HasHeaderRow = item.HasHeaderRow,
 					}
-				}, getData);
+				}, source);
 
-			using var data = r.Read();
+			using var data = await r.ReadAsync();
 			var desc = r.GetDescription(options.Culture);
 			var dialect = desc.Dialect;
 			if (options.Delimiter != null)
@@ -237,7 +237,7 @@ namespace DataBoss.DataPackage
 					}),
 				desc.Schema);
 			}
-			return new CsvDataResource(desc, getCsv);
+			return new CsvDataResource(desc, new DefaultTabularDataSource(getCsv));
 		}
 
 		class ZipResource
