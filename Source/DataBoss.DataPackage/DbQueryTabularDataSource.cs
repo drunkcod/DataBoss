@@ -11,14 +11,30 @@ namespace DataBoss.DataPackage
 	{
 		public IDataReader GetData() {
 			var c = NewCommand();
-			c.Connection!.Open();
-			return WithTransform(c.ExecuteReader(CommandBehavior.CloseConnection), transform);
+			DbDataReader? reader = null;
+			try {
+				c.Connection!.Open();
+				reader = c.ExecuteReader(CommandBehavior.CloseConnection);
+				return WithTransform(reader, transform);
+			}
+			catch {
+				Abandon(c, reader);
+				throw;
+			}
 		}
 
 		public async Task<IDataReader> GetDataAsync() {
 			var c = NewCommand();
-			await c.Connection!.OpenAsync();
-			return WithTransform(await c.ExecuteReaderAsync(CommandBehavior.CloseConnection), transform);
+			DbDataReader? reader = null;
+			try {
+				await c.Connection!.OpenAsync();
+				reader = await c.ExecuteReaderAsync(CommandBehavior.CloseConnection);
+				return WithTransform(reader, transform);
+			}
+			catch {
+				Abandon(c, reader);
+				throw;
+			}
 		}
 
 		DbCommand NewCommand() {
@@ -27,6 +43,14 @@ namespace DataBoss.DataPackage
 			var c = db.CreateCommand();
 			c.CommandText = commandText;
 			return c;
+		}
+
+		// Until a reader has been handed to the caller we own the command and connection.
+		static void Abandon(DbCommand c, DbDataReader? reader) {
+			var connection = c.Connection;
+			reader?.Dispose();
+			c.Dispose();
+			connection?.Dispose();
 		}
 
 		static DbDataReader WithTransform(DbDataReader r, Action<DataReaderTransform>? transform) {
