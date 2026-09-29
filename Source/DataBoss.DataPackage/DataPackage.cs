@@ -237,16 +237,47 @@ namespace DataBoss.DataPackage
 					}),
 				desc.Schema);
 			}
-			return new CsvDataResource(desc, new DefaultTabularDataSource(getCsv));
+			var rawSource = new WrittenCsvDataSource(fs, outputPath, options.ResourceCompression, dialect.Delimiter, getCsv);
+			return new CsvDataResource(desc, rawSource);
 		}
 
-		class ZipResource
+		// Lets Save/SaveAsync copy the bytes WriteResourceAsync already wrote to `outputPath`
+		// verbatim, instead of reparsing them into an IDataReader and re-serializing to CSV,
+		// as long as the destination uses the same delimiter and compression.
+		interface IPreWrittenResourceSource
 		{
-			readonly Func<Stream> openZip;
+			bool TryGetRawCopy(ResourceCompression compression, string delimiter, out string outputPath, out Func<Stream> openRaw);
+		}
 
-			public ZipResource(Func<Stream> openZip) {
-				this.openZip = openZip;
+		class WrittenCsvDataSource(
+			Func<string, FileMode, Stream> fs,
+			string outputPath,
+			ResourceCompression compression,
+			string delimiter,
+			Func<IDataReader> openParsed) : ITabularDataSource, IPreWrittenResourceSource
+		{
+			readonly string outputPath = outputPath;
+			readonly ResourceCompression compression = compression;
+			readonly string delimiter = delimiter;
+
+			public IDataReader GetData() => openParsed();
+			public Task<IDataReader> GetDataAsync() => Task.FromResult(openParsed());
+
+			public bool TryGetRawCopy(ResourceCompression compression, string delimiter, out string outputPath, out Func<Stream> openRaw) {
+				if (ReferenceEquals(compression, this.compression) && delimiter == this.delimiter) {
+					outputPath = this.outputPath;
+					openRaw = () => fs(this.outputPath, FileMode.Open);
+					return true;
+				}
+				outputPath = null;
+				openRaw = null;
+				return false;
 			}
+		}
+
+		class ZipResource(Func<Stream> openZip)
+		{
+			readonly Func<Stream> openZip = openZip;
 
 			public Stream OpenEntry(string path) {
 				var source = new ZipArchive(openZip(), ZipArchiveMode.Read);
@@ -433,8 +464,21 @@ namespace DataBoss.DataPackage
 				}
 			}
 
+			async Task CopyRawAsync(Func<Stream> openRaw, Stream output) {
+				using var input = openRaw();
+				try {
+					await input.CopyToAsync(output);
+				}
+				finally {
+					output.Dispose();
+				}
+			}
+
 			foreach (var item in resources) {
-				var data = item.Read();
+				//already-written resources (e.g. from WriteResourceAsync) skip Read() here; if the
+				//raw copy below doesn't apply they're read further down before falling back to WriteItem.
+				var prewritten = item.Source as IPreWrittenResourceSource;
+				var data = prewritten == null ? item.Read() : null;
 				var desc = item.GetDescription(options.Culture);
 				var dialect = desc.Dialect;
 				if (options.Delimiter != null)
@@ -444,10 +488,20 @@ namespace DataBoss.DataPackage
 				description.Resources.Add(desc);
 
 				if (!desc.Path.TryGetOutputPath(out var partPath) || writtenPaths.Contains(partPath)) {
-					data.Dispose();
+					data?.Dispose();
 					continue;
 				}
 
+				if (prewritten != null && prewritten.TryGetRawCopy(options.ResourceCompression, dialect.Delimiter, out var rawOutputPath, out var openRaw)) {
+					writtenPaths.Add(rawOutputPath);
+					desc.Path = rawOutputPath;
+					var copyItem = CopyRawAsync(openRaw, destination.CreateOutput(rawOutputPath));
+					if (destination.SupportsParallelWrites) writeTasks.Add(copyItem);
+					else await copyItem;
+					continue;
+				}
+
+				data ??= item.Read();
 				var (outputPath, output) = options.ResourceCompression.OpenWrite(partPath, destination.CreateOutput);
 				writtenPaths.Add(outputPath);
 				desc.Path = outputPath;

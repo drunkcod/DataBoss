@@ -1,9 +1,12 @@
 using System;
+using System.Collections.Generic;
+using System.Data;
 using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using CheckThat;
 using DataBoss.Data;
 using DataBoss.Data.Common;
@@ -511,6 +514,55 @@ namespace DataBoss.DataPackage
 		}
 
 		static NumberFormatInfo GetNumbersFormat(DataPackage data) => data.GetResource("numbers").Schema.Fields.Single().GetNumberFormat();
+	}
+
+	public class DataPackage_WriteResourceAsync
+	{
+		class FuncTabularDataSource(Func<IDataReader> getData) : ITabularDataSource
+		{
+			public IDataReader GetData() => getData();
+			public Task<IDataReader> GetDataAsync() => Task.FromResult(getData());
+		}
+
+		class CapturingStream(Action<byte[]> onClosed) : MemoryStream
+		{
+			protected override void Dispose(bool disposing) {
+				if (disposing)
+					onClosed(ToArray());
+				base.Dispose(disposing);
+			}
+		}
+
+		[Fact]
+		public async Task Save_copies_the_written_file_instead_of_reparsing_it() {
+			var files = new Dictionary<string, byte[]>();
+			Stream Fs(string path, FileMode mode) =>
+				mode == FileMode.Create
+					? new CapturingStream(bytes => files[path] = bytes)
+					: new MemoryStream(files[path], writable: false);
+
+			var options = new DataPackageSaveOptions();
+
+			var written = await DataPackage.WriteResourceAsync(
+				"my-resource",
+				new FuncTabularDataSource(() => SequenceDataReader.Items(new { Id = 1, Value = "One" })),
+				Fs,
+				options);
+
+			//WriteResourceAsync already produced valid CSV bytes at "my-resource.csv"; overwrite
+			//them with something that isn't valid CSV. A reparse-and-rewrite would choke on or
+			//alter this content, while a verbatim copy preserves it exactly.
+			var marker = Encoding.UTF8.GetBytes("not-csv-but-should-survive-verbatim");
+			files["my-resource.csv"] = marker;
+
+			var dp = new DataPackage();
+			dp.AddResource(written);
+
+			var store = new InMemoryDataPackageStore();
+			dp.Save(store.OpenWrite, options);
+
+			Check.That(() => store.ReadAllBytes("my-resource.csv").SequenceEqual(marker));
+		}
 	}
 
 	public class DataPackage_ResourceCompression

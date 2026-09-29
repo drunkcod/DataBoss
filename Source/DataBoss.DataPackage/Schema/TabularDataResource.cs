@@ -36,6 +36,8 @@ public partial class TabularDataResource
 	public TabularDataSchema Schema => description.Schema;
 	public readonly string Format;
 
+	internal ITabularDataSource Source => source;
+
 	protected TabularDataResource(DataPackageResourceDescription description, ITabularDataSource source, string format) {
 		if (!ResourceNameRegex().IsMatch(description.Name))
 			throw new NotSupportedException($"name MUST consist only of lowercase alphanumeric characters plus '.', '-' and '_' was '{description.Name}'");
