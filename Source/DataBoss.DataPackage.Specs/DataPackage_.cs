@@ -563,6 +563,49 @@ namespace DataBoss.DataPackage
 
 			Check.That(() => store.ReadAllBytes("my-resource.csv").SequenceEqual(marker));
 		}
+
+		[Fact]
+		public async Task Save_to_the_same_destination_is_a_noop_for_the_written_file() {
+			var store = new InMemoryDataPackageStore();
+			var writes = new List<string>();
+			Stream create(string path) {
+				writes.Add(path);
+				return store.OpenWrite(path);
+			}
+			var options = new DataPackageSaveOptions();
+			var written = await DataPackage.WriteResourceAsync(
+				"my-resource",
+				new FuncTabularDataSource(() => SequenceDataReader.Items(new { Id = 1 })),
+				(path, mode) => mode == FileMode.Create ? create(path) : store.OpenRead(path),
+				options,
+				(Func<string, Stream>)create);
+			var before = store.ReadAllBytes("my-resource.csv");
+			writes.Clear();
+
+			var dp = new DataPackage();
+			dp.AddResource(written);
+			await dp.SaveAsync((Func<string, Stream>)create, options);
+
+			Check.That(
+				() => writes.SequenceEqual(new[] { "datapackage.json" }),
+				() => store.ReadAllBytes("my-resource.csv").SequenceEqual(before));
+		}
+
+		[Fact]
+		public async Task Save_over_the_written_file_with_a_different_culture_throws() {
+			var store = new InMemoryDataPackageStore();
+			Func<string, Stream> create = store.OpenWrite;
+			var written = await DataPackage.WriteResourceAsync(
+				"my-resource",
+				new FuncTabularDataSource(() => SequenceDataReader.Items(new { Id = 1 })),
+				(path, mode) => mode == FileMode.Create ? store.OpenWrite(path) : store.OpenRead(path),
+				new DataPackageSaveOptions(),
+				create);
+
+			var dp = new DataPackage();
+			dp.AddResource(written);
+			await Assert.ThrowsAsync<InvalidOperationException>(() => dp.SaveAsync(create, new DataPackageSaveOptions { Culture = System.Globalization.CultureInfo.GetCultureInfo("sv-SE") }));
+		}
 	}
 
 	public class DataPackage_ResourceCompression

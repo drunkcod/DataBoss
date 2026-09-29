@@ -185,7 +185,7 @@ namespace DataBoss.DataPackage
 			return Load(zip.OpenEntry);
 		}
 
-		public static async Task<TabularDataResource> WriteResourceAsync(string name, ITabularDataSource source, Func<string, FileMode, Stream> fs, DataPackageSaveOptions options) {
+		public static async Task<TabularDataResource> WriteResourceAsync(string name, ITabularDataSource source, Func<string, FileMode, Stream> fs, DataPackageSaveOptions options, object? destination = null) {
 			var item = new CsvResourceOptions {
 				Name = name,
 				Path = Path.ChangeExtension(name, "csv")
@@ -237,42 +237,56 @@ namespace DataBoss.DataPackage
 					}),
 				desc.Schema);
 			}
-			var rawSource = new WrittenCsvDataSource(fs, outputPath, options.ResourceCompression, dialect.Delimiter, getCsv);
+			var rawSource = new WrittenCsvDataSource(fs, destination, partPath, outputPath, options.Culture, options.ResourceCompression, dialect.Delimiter, getCsv);
 			return new CsvDataResource(desc, rawSource);
 		}
 
-		// Lets Save/SaveAsync copy the bytes WriteResourceAsync already wrote to `outputPath`
-		// verbatim, instead of reparsing them into an IDataReader and re-serializing to CSV,
-		// as long as the destination uses the same delimiter and compression.
+		enum RawCopyKind { None, Copy, InPlace }
+
+		// Lets Save/SaveAsync reuse the bytes WriteResourceAsync already wrote to `outputPath`
+		// instead of reparsing them into an IDataReader and re-serializing to CSV, as long as the
+		// resource keeps its path and the destination uses the same delimiter, compression and culture.
+		// When the destination is the one WriteResourceAsync wrote to, the file is already in place.
 		interface IPreWrittenResourceSource
 		{
-			bool TryGetRawCopy(ResourceCompression compression, string delimiter, out string outputPath, out Func<Stream> openRaw);
+			RawCopyKind TryGetRawCopy(IDataPackageDestination destination, string partPath, DataPackageSaveOptions options, string delimiter, out string outputPath, out Func<Stream> openRaw);
 		}
 
 		class WrittenCsvDataSource(
 			Func<string, FileMode, Stream> fs,
+			object? destination,
+			string partPath,
 			string outputPath,
+			CultureInfo culture,
 			ResourceCompression compression,
 			string delimiter,
 			Func<IDataReader> openParsed) : ITabularDataSource, IPreWrittenResourceSource
 		{
-			readonly string outputPath = outputPath;
-			readonly ResourceCompression compression = compression;
-			readonly string delimiter = delimiter;
-
 			public IDataReader GetData() => openParsed();
 			public Task<IDataReader> GetDataAsync() => Task.FromResult(openParsed());
 
-			public bool TryGetRawCopy(ResourceCompression compression, string delimiter, out string outputPath, out Func<Stream> openRaw) {
-				if (ReferenceEquals(compression, this.compression) && delimiter == this.delimiter) {
-					outputPath = this.outputPath;
-					openRaw = () => fs(this.outputPath, FileMode.Open);
-					return true;
-				}
-				outputPath = null;
+			public RawCopyKind TryGetRawCopy(IDataPackageDestination target, string requestedPartPath, DataPackageSaveOptions options, string requestedDelimiter, out string rawOutputPath, out Func<Stream> openRaw) {
+				rawOutputPath = null;
 				openRaw = null;
-				return false;
+				if (requestedPartPath != partPath || !ReferenceEquals(options.ResourceCompression, compression))
+					return RawCopyKind.None;
+
+				var sameDestination = IsSameDestination(destination, target);
+				var sameCulture = Equals(options.Culture, culture);
+				if (sameDestination && (!sameCulture || requestedDelimiter != delimiter))
+					throw new InvalidOperationException($"Can't save '{outputPath}' over itself with a different {(sameCulture ? "delimiter" : "culture")}, it would overwrite the source being read.");
+				if (!sameCulture || requestedDelimiter != delimiter)
+					return RawCopyKind.None;
+
+				rawOutputPath = outputPath;
+				if (sameDestination)
+					return RawCopyKind.InPlace;
+				openRaw = () => fs(outputPath, FileMode.Open);
+				return RawCopyKind.Copy;
 			}
+
+			static bool IsSameDestination(object? key, IDataPackageDestination target) =>
+				key != null && (ReferenceEquals(key, target) || (target is DefaultDataPackageDestination d && d.Matches(key)));
 		}
 
 		class ZipResource(Func<Stream> openZip)
@@ -474,6 +488,8 @@ namespace DataBoss.DataPackage
 				}
 			}
 
+			string rawOutputPath = null;
+			Func<Stream> openRaw = null;
 			foreach (var item in resources) {
 				//already-written resources (e.g. from WriteResourceAsync) skip Read() here; if the
 				//raw copy below doesn't apply they're read further down before falling back to WriteItem.
@@ -492,12 +508,17 @@ namespace DataBoss.DataPackage
 					continue;
 				}
 
-				if (prewritten != null && prewritten.TryGetRawCopy(options.ResourceCompression, dialect.Delimiter, out var rawOutputPath, out var openRaw)) {
+				var rawCopy = prewritten == null
+					? RawCopyKind.None
+					: prewritten.TryGetRawCopy(destination, partPath, options, dialect.Delimiter, out rawOutputPath, out openRaw);
+				if (rawCopy != RawCopyKind.None) {
 					writtenPaths.Add(rawOutputPath);
 					desc.Path = rawOutputPath;
-					var copyItem = CopyRawAsync(openRaw, destination.CreateOutput(rawOutputPath));
-					if (destination.SupportsParallelWrites) writeTasks.Add(copyItem);
-					else await copyItem;
+					if (rawCopy == RawCopyKind.Copy) {
+						var copyItem = CopyRawAsync(openRaw, destination.CreateOutput(rawOutputPath));
+						if (destination.SupportsParallelWrites) writeTasks.Add(copyItem);
+						else await copyItem;
+					}
 					continue;
 				}
 
@@ -597,6 +618,7 @@ namespace DataBoss.DataPackage
 	class DefaultDataPackageDestination(Func<string, Stream> createOutput) : IDataPackageDestination
 	{
 		public Stream CreateOutput(string path) => createOutput(path);
+		public bool Matches(object key) => key is Func<string, Stream> f && f.Equals(createOutput);
 		public bool SupportsParallelWrites => false;
 	}
 
